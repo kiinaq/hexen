@@ -1,15 +1,18 @@
-# Hexen
+# *Hexen* Programming Language
 
-A laboratory for learning and designing Hexen, a system programming language.
+*An experimental journey into what system programming could become when guided by principles rather than precedent.*
 
 ## Project Goals
 
-The primary goal of Hexen is not to create the next mainstream programming language, but to:
+Hexen is not an attempt to create the next mainstream programming language. Instead, it's a deliberate exploration of what's possible when language design is guided by principles rather than compromise:
 
-- **Learn** by doing: understand language design principles through hands-on experience
-- **Design** a system programming language by combining the best ideas
-- **Build** a complete compiler toolchain from scratch
-- **Document** the entire process to share knowledge and insights
+- **Learn** through experimentation: Discover how design decisions cascade through every layer of a language, from syntax to runtime behavior, by building each piece ourselves
+
+- **Design** with intention: Challenge conventional wisdom by asking "what if?" instead of accepting "that's how it's done"—combining proven concepts in new ways while discarding historical baggage
+
+- **Build** without shortcuts: Create a complete toolchain that embodies our principles, proving that simplicity and power aren't mutually exclusive
+
+- **Document** the journey: Share not just the final result, but the reasoning, experiments, and insights that shaped every decision—creating a resource for future language designers
 
 ## Philosophy
 
