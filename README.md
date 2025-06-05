@@ -13,7 +13,11 @@ The primary goal of Hexen is not to create the next mainstream programming langu
 
 ## Philosophy
 
-Hexen is an educational journey into language design and compiler construction. Every decision, experiment, and iteration will be documented to create a comprehensive learning resource.
+Hexen emerges from the belief that the best programming languages are born from deep understanding, not just clever ideas. This project is both a learning laboratory and a design workshop — a place where we can explore fundamental questions about how code should be written, read, and reasoned about.
+
+We reject the notion that complexity is inevitable in system programming. Instead, Hexen is built on the conviction that powerful tools can also be simple, predictable, and enjoyable to use. Every language feature is deliberately chosen and carefully crafted, with the understanding that what we leave out is often as important as what we include.
+
+This is not just an academic exercise, but a practical exploration of what programming could feel like when guided by clear principles rather than historical accidents. Through building Hexen, we document not just the "what" and "how" of language design, but more importantly, the "why" behind every decision.
 
 ## Design Principles
 
