@@ -1,4 +1,4 @@
-# *Hexen* Programming Language
+# Hexen Programming Language 🦉
 
 *An experimental journey into what system programming could become when guided by principles rather than precedent.*
 
