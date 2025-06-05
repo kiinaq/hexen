@@ -1,12 +1,12 @@
-# Hexen Programming Language
+# Hexen
 
-A laboratory for learning and designing a new system programming language.
+A laboratory for learning and designing Hexen, a system programming language.
 
 ## Project Goals
 
 The primary goal of Hexen is not to create the next mainstream programming language, but to:
 
-- **Learn** by doing: Understand language design principles through hands-on experience
+- **Learn** by doing: understand language design principles through hands-on experience
 - **Design** a system programming language by combining the best ideas
 - **Build** a complete compiler toolchain from scratch
 - **Document** the entire process to share knowledge and insights
@@ -42,6 +42,22 @@ Language features should build upon each other naturally and logically. Complex 
 *"Focus on what works better, not on covering everything"*
 
 Hexen chooses only the features that matter most for achieving results. Rather than trying to be everything to everyone, we deliberately select a focused set of capabilities that work exceptionally well together. Every feature must justify its existence by solving real problems effectively.
+
+## Core Features
+
+Hexen's identity is built around four foundational capabilities that work together to create a coherent development experience:
+
+### 🛡️ Safety by Design, Unsafety by Choice
+Memory safety, type safety, and thread safety are the default—without garbage collection or runtime overhead. Safety is achieved through compile-time analysis and ownership systems, not managed memory. Unsafe operations are possible but require explicit opt-in, making dangerous code visible and intentional.
+
+### 🧩 Incremental Building
+The language is designed from the ground up for incremental compilation. Changes to a single file or module trigger rebuilds only of affected dependencies, not the entire project. This enables fast development cycles even for large codebases.
+
+### 📦 Integrated Module System
+Dependencies are tracked at the language level, not just at the build level. The module system understands what each piece of code actually needs, enabling precise dependency resolution and better optimization opportunities.
+
+### 🔗 Unified Build System
+No external build tools required. The compiler includes everything needed to manage dependencies, perform dynamic linking, and produce optimized binaries or shared libraries. One tool, one command, one clear path from source to executable or library.
 
 ---
 
