@@ -26,7 +26,7 @@ This is not just an academic exercise, but a practical exploration of what progr
 
 - [Design Principles](#design-principles) — The four core principles guiding every language decision
 - [Core Features](#core-features) — Hexen's foundational capabilities and identity
-- [Architecture & Technology Stack](#architecture--technology-stack) — Implementation strategy and evolution path
+- [Architecture Roadmap](#architecture-roadmap) — Implementation strategy and evolution path
 
 ## Design Principles
 
@@ -68,7 +68,7 @@ Dependencies are tracked at the language level, not just at the build level. The
 ### 🔗 Unified Build System
 No external build tools required. The compiler includes everything needed to manage dependencies, perform dynamic linking, and produce optimized binaries or shared libraries. One tool, one command, one clear path from source to executable or library.
 
-## Architecture & Technology Stack
+## Architecture Roadmap
 
 Hexen's development follows a pragmatic, evolution-driven approach that prioritizes rapid iteration while building toward long-term goals:
 
