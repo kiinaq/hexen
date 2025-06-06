@@ -62,6 +62,28 @@ Dependencies are tracked at the language level, not just at the build level. The
 ### 🔗 Unified Build System
 No external build tools required. The compiler includes everything needed to manage dependencies, perform dynamic linking, and produce optimized binaries or shared libraries. One tool, one command, one clear path from source to executable or library.
 
+## Architecture & Technology Stack
+
+Hexen's development follows a pragmatic, evolution-driven approach that prioritizes rapid iteration while building toward long-term goals:
+
+### 🐍 Python-First Implementation
+The initial compiler is implemented in Python, enabling rapid prototyping and experimentation with syntax and semantics. Python's expressiveness lets us focus on language design rather than implementation complexity, accelerating the iteration cycle during Hexen's formative phase.
+
+### 🔗 LLVM Backend via llvmlite
+We leverage LLVM as our code generation backend through [llvmlite](https://llvmlite.readthedocs.io/en/latest/)—a lightweight Python binding designed specifically for JIT compilers. This approach provides:
+- **Pure Python IR construction** for maximum flexibility during development
+- **Production-grade optimization** through LLVM's mature toolchain
+- **Target independence** across multiple architectures from day one
+
+### 🔄 Bootstrap Evolution Path
+The architecture supports natural evolution from prototype to production:
+
+1. **Phase I: Python Prototype** — Rapid iteration on language design and core features
+2. **Phase II: Self-Hosting** — Hexen compiler written in Hexen, proving the language's capabilities  
+3. **Phase III: Complete Toolchain** — Entire development environment implemented in Hexen
+
+This progression embodies our core principle: build tools that work exceptionally well, then use those tools to build even better tools.
+
 ---
 
 *"The best way to understand how something works is to build it yourself."*
