@@ -90,6 +90,10 @@ The architecture supports natural evolution from prototype to production:
 
 This progression embodies our core principle: build tools that work exceptionally well, then use those tools to build even better tools.
 
+## License
+
+Hexen is released under the [MIT License](LICENSE) by [kiinaq](https://github.com/kiinaq). This permissive license encourages experimentation and learning while ensuring attribution for the project's contributions to the programming language community.
+
 ---
 
 *"The best way to understand how something works is to build it yourself."*
