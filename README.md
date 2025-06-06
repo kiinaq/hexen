@@ -22,6 +22,12 @@ We reject the notion that complexity is inevitable in system programming. Instea
 
 This is not just an academic exercise, but a practical exploration of what programming could feel like when guided by clear principles rather than historical accidents. Through building Hexen, we document not just the "what" and "how" of language design, but more importantly, the "why" behind every decision.
 
+## Contents
+
+- [Design Principles](#design-principles) — The four core principles guiding every language decision
+- [Core Features](#core-features) — Hexen's foundational capabilities and identity
+- [Architecture & Technology Stack](#architecture--technology-stack) — Implementation strategy and evolution path
+
 ## Design Principles
 
 Hexen follows four core design principles that guide every language feature and implementation decision:
