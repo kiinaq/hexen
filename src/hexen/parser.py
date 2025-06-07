@@ -1,7 +1,7 @@
 """
 Hexen Parser
 
-Ultra-minimal parser for Hexen language using Lark.
+Parser for Hexen language with variable declarations using Lark.
 """
 
 from pathlib import Path
@@ -16,7 +16,8 @@ class HexenTransformer(Transformer):
     def function(self, name, return_type, body):
         return {
             "type": "function",
-            "name": str(name),
+            # Handle both old string names and new identifier dict format
+            "name": name["name"] if isinstance(name, dict) else str(name),
             "return_type": return_type,
             "body": body,
         }
@@ -30,12 +31,22 @@ class HexenTransformer(Transformer):
         return {"type": "literal", "value": int(str(value))}
 
     def type(self, children):
-        # type rule: "i32" - no children, just return the literal
-        return "i32"
+        # Handle multiple types: "i32" | "i64" | "f64" | "string"
+        # Note: In Lark, terminal-only rules may not always have children
+        # so we provide a safe fallback to maintain backward compatibility
+        if children:
+            return str(children[0])
+        return "i32"  # fallback for backward compatibility
 
-    @v_args(inline=True)
-    def block(self, statement):
-        return statement
+    def block(self, statements):
+        # Handle multiple statements in blocks (Phase 1 grammar extension)
+        # Maintain backward compatibility: single statement returns as-is
+        # Multiple statements return as block object with statements array
+        if len(statements) == 1:
+            return statements[
+                0
+            ]  # Backward compatibility with old single-statement blocks
+        return {"type": "block", "statements": list(statements)}
 
     @v_args(inline=True)
     def statement(self, stmt):
@@ -43,6 +54,17 @@ class HexenTransformer(Transformer):
 
     def program(self, functions):
         return {"type": "program", "functions": list(functions)}
+
+    # Terminal handlers for new grammar elements (Phase 1 additions)
+    def STRING(self, token):
+        # Parse string literals: "hello" -> {type: "literal", value: "hello"}
+        # Remove surrounding quotes from the token
+        return {"type": "literal", "value": str(token)[1:-1]}
+
+    def IDENTIFIER(self, token):
+        # Parse identifiers: myVar -> {type: "identifier", name: "myVar"}
+        # Used for variable names and references
+        return {"type": "identifier", "name": str(token)}
 
 
 class HexenParser:

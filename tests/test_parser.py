@@ -190,8 +190,8 @@ class TestMinimalHexen:
         with pytest.raises(SyntaxError):
             self.parser.parse(source)
 
-    def test_multiple_statements_not_supported(self):
-        """Test that multiple statements are not yet supported"""
+    def test_multiple_statements_supported(self):
+        """Test that multiple statements are now supported (Phase 2 feature)"""
         source = """
         func main() -> i32 {
             return 0
@@ -199,9 +199,20 @@ class TestMinimalHexen:
         }
         """
 
-        # This should fail because our grammar only supports one statement
-        with pytest.raises(SyntaxError):
-            self.parser.parse(source)
+        # This should now parse successfully due to our Phase 2 grammar extension
+        ast = self.parser.parse(source)
+
+        # Verify the function parsed correctly
+        assert ast["type"] == "program"
+        assert len(ast["functions"]) == 1
+        func = ast["functions"][0]
+        assert func["name"] == "main"
+
+        # Verify multiple statements in block
+        body = func["body"]
+        assert body["type"] == "block"
+        assert "statements" in body
+        assert len(body["statements"]) == 2
 
 
 class TestParserErrorMessages:
