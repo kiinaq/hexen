@@ -7,6 +7,17 @@ Performs semantic analysis on the AST including:
 - Mutability enforcement (val vs mut)
 - Use-before-definition validation
 - undef handling and validation
+
+This module implements the second phase of the Hexen compiler pipeline:
+1. Parser creates AST from source code
+2. SemanticAnalyzer validates semantics and types
+3. (Future) Code generator produces LLVM IR
+
+Design Philosophy:
+- Fail-fast: Collect all errors before stopping
+- Explicit over implicit: Clear error messages
+- Type safety: Prevent runtime type errors
+- Immutable-by-default: val vs mut distinction enforced
 """
 
 from typing import Dict, List, Optional
@@ -15,68 +26,159 @@ from enum import Enum
 
 
 class HexenType(Enum):
-    """Hexen type system"""
+    """
+    Hexen's type system with explicit support for type inference and uninitialized states.
+
+    Design decisions:
+    - I32 as default integer type (following Rust conventions)
+    - UNKNOWN for type inference failures (not user-facing)
+    - UNINITIALIZED for explicit undef values (different from null/None)
+
+    Future extensions:
+    - User-defined types (structs, enums)
+    - Generic types
+    - Function types
+    """
 
     I32 = "i32"
     I64 = "i64"
     F64 = "f64"
     STRING = "string"
-    UNKNOWN = "unknown"  # For type inference
-    UNINITIALIZED = "undef"  # For undef values
+    UNKNOWN = "unknown"  # For type inference failures - internal use only
+    UNINITIALIZED = "undef"  # For explicit undef values - different from null
 
 
 class Mutability(Enum):
-    """Variable mutability"""
+    """
+    Variable mutability levels following Rust's ownership model.
 
-    IMMUTABLE = "val"  # val variables
-    MUTABLE = "mut"  # mut variables
+    IMMUTABLE (val):
+    - Cannot be reassigned after initialization
+    - Prevents accidental mutation bugs
+    - Default choice encourages functional programming style
+
+    MUTABLE (mut):
+    - Can be reassigned multiple times
+    - Requires explicit opt-in for clarity
+    - Used when mutation is genuinely needed
+    """
+
+    IMMUTABLE = "val"  # val variables - cannot be reassigned
+    MUTABLE = "mut"  # mut variables - can be reassigned
 
 
 @dataclass
 class Symbol:
-    """Represents a symbol in the symbol table"""
+    """
+    Represents a symbol in the symbol table with full metadata.
+
+    Tracks everything needed for semantic analysis:
+    - Type information for type checking
+    - Mutability for assignment validation
+    - Initialization state for use-before-def checking
+    - Usage tracking for dead code elimination
+
+    Design note: Using dataclass for clean syntax while maintaining
+    the ability to add computed properties later.
+    """
 
     name: str
     type: HexenType
     mutability: Mutability
-    declared_line: Optional[int] = None
-    initialized: bool = True  # False for undef variables
-    used: bool = False
+    declared_line: Optional[int] = None  # For better error reporting (future)
+    initialized: bool = True  # False for undef variables - prevents use-before-init
+    used: bool = False  # Track usage for dead code warnings
 
 
 class SymbolTable:
-    """Manages symbols and scopes"""
+    """
+    Manages symbols and scopes using a scope stack.
+
+    Implementation details:
+    - Stack-based scope management (LIFO)
+    - Inner scopes shadow outer scopes
+    - Lexical scoping rules (can access outer scope variables)
+
+    Scope lifecycle:
+    1. enter_scope() - push new scope (function entry, block entry)
+    2. declare_symbol() - add symbols to current scope
+    3. lookup_symbol() - search from inner to outer scopes
+    4. exit_scope() - pop current scope (function/block exit)
+
+    Future extensions:
+    - Nested function support
+    - Module-level scopes
+    - Import/export handling
+    """
 
     def __init__(self):
-        self.scopes: List[Dict[str, Symbol]] = [{}]  # Stack of scopes
-        self.current_function: Optional[str] = None
+        # Stack of scopes - each scope is a dict of name -> Symbol
+        # Index 0 is global scope, higher indices are inner scopes
+        self.scopes: List[Dict[str, Symbol]] = [{}]  # Start with global scope
+        self.current_function: Optional[str] = None  # Track current function context
 
     def enter_scope(self):
-        """Enter a new scope (e.g., function body)"""
+        """
+        Enter a new scope (e.g., function body, block).
+
+        Called when entering:
+        - Function bodies
+        - Block statements (future)
+        - Loop bodies (future)
+        """
         self.scopes.append({})
 
     def exit_scope(self):
-        """Exit current scope"""
+        """
+        Exit current scope and return to parent scope.
+
+        Note: Never pop the global scope (index 0) to prevent stack underflow.
+        This is a safety measure against malformed ASTs.
+        """
         if len(self.scopes) > 1:
             self.scopes.pop()
 
     def declare_symbol(self, symbol: Symbol) -> bool:
-        """Declare a symbol in current scope. Returns False if already declared."""
+        """
+        Declare a symbol in the current scope.
+
+        Returns False if symbol already exists in current scope.
+        This prevents variable redeclaration within the same scope.
+
+        Design decision: Shadowing is allowed across scopes but not within
+        the same scope for clarity.
+        """
         current_scope = self.scopes[-1]
         if symbol.name in current_scope:
-            return False
+            return False  # Already declared in this scope
         current_scope[symbol.name] = symbol
         return True
 
     def lookup_symbol(self, name: str) -> Optional[Symbol]:
-        """Look up symbol in all scopes (inner to outer)"""
+        """
+        Look up symbol in all scopes from innermost to outermost.
+
+        Implements lexical scoping:
+        - Search current scope first
+        - Then parent scopes in reverse order
+        - Return first match found
+        - Return None if not found in any scope
+
+        This allows inner scopes to shadow outer scopes naturally.
+        """
         for scope in reversed(self.scopes):
             if name in scope:
                 return scope[name]
         return None
 
     def mark_used(self, name: str) -> bool:
-        """Mark a symbol as used. Returns False if not found."""
+        """
+        Mark a symbol as used for dead code analysis.
+
+        Returns False if symbol not found.
+        Used when analyzing identifier references to track which
+        variables are actually used vs. just declared.
+        """
         symbol = self.lookup_symbol(name)
         if symbol:
             symbol.used = True
@@ -85,49 +187,118 @@ class SymbolTable:
 
 
 class SemanticError(Exception):
-    """Represents a semantic analysis error"""
+    """
+    Represents a semantic analysis error with optional AST node context.
+
+    Design philosophy:
+    - Collect all errors before failing (don't stop at first error)
+    - Provide context when available for better error messages
+    - Separate from syntax errors (which are caught by parser)
+
+    Future enhancements:
+    - Line/column information
+    - Error severity levels
+    - Suggested fixes
+    """
 
     def __init__(self, message: str, node: Optional[Dict] = None):
         self.message = message
-        self.node = node
+        self.node = node  # AST node where error occurred (for future line/col info)
         super().__init__(message)
 
 
 class SemanticAnalyzer:
-    """Main semantic analyzer"""
+    """
+    Main semantic analyzer that validates AST semantics.
+
+    Analysis phases:
+    1. Symbol table construction (declarations)
+    2. Type checking and inference
+    3. Use-before-definition validation
+    4. Mutability enforcement
+    5. Return type validation
+
+    Design principles:
+    - Fail-safe: Collect all errors before stopping
+    - Comprehensive: Check all semantic rules
+    - Extensible: Easy to add new checks
+    - Informative: Provide helpful error messages
+    """
 
     def __init__(self):
         self.symbol_table = SymbolTable()
-        self.errors: List[SemanticError] = []
-        self.current_function_return_type: Optional[HexenType] = None
+        self.errors: List[SemanticError] = []  # Collect all errors for batch reporting
+        self.current_function_return_type: Optional[HexenType] = (
+            None  # For return type checking
+        )
 
     def analyze(self, ast: Dict) -> List[SemanticError]:
-        """Analyze the AST and return any semantic errors"""
+        """
+        Main entry point for semantic analysis.
+
+        Returns list of all semantic errors found.
+        Empty list means no errors (analysis successful).
+
+        Error handling strategy:
+        - Catch and convert unexpected exceptions to semantic errors
+        - Continue analysis after errors to find as many issues as possible
+        - Reset error list for fresh analysis
+        """
         self.errors.clear()
         try:
             self._analyze_program(ast)
         except Exception as e:
-            # Convert unexpected errors to semantic errors
+            # Convert unexpected errors to semantic errors for consistent error handling
             self.errors.append(SemanticError(f"Internal analysis error: {e}"))
 
         return self.errors
 
     def _error(self, message: str, node: Optional[Dict] = None):
-        """Record a semantic error"""
+        """
+        Record a semantic error for later reporting.
+
+        Centralized error collection allows:
+        - Batch error reporting
+        - Continued analysis after errors
+        - Consistent error formatting
+        """
         self.errors.append(SemanticError(message, node))
 
     def _analyze_program(self, node: Dict):
-        """Analyze the program node"""
+        """
+        Analyze the root program node.
+
+        Current structure: program contains list of functions
+        Future: May contain imports, type definitions, etc.
+
+        Validates:
+        - Node type is correct
+        - All functions are valid
+        """
         if node.get("type") != "program":
             self._error(f"Expected program node, got {node.get('type')}")
             return
 
-        # Analyze all functions
+        # Analyze all functions in the program
         for func in node.get("functions", []):
             self._analyze_function(func)
 
     def _analyze_function(self, node: Dict):
-        """Analyze a function definition"""
+        """
+        Analyze a function definition.
+
+        Function analysis involves:
+        1. Set up function context (name, return type)
+        2. Enter new scope for function body
+        3. Analyze function body statements
+        4. Validate return type consistency
+        5. Clean up function context
+
+        Future enhancements:
+        - Parameter analysis
+        - Multiple return statements
+        - Function overloading
+        """
         if node.get("type") != "function":
             self._error(f"Expected function node, got {node.get('type')}")
             return
@@ -135,11 +306,11 @@ class SemanticAnalyzer:
         func_name = node.get("name")
         return_type_str = node.get("return_type")
 
-        # Set up function context
+        # Set up function analysis context
         self.symbol_table.current_function = func_name
         self.current_function_return_type = self._parse_type(return_type_str)
 
-        # Enter function scope
+        # Enter function scope - function body gets its own scope
         self.symbol_table.enter_scope()
 
         # Analyze function body
@@ -147,13 +318,21 @@ class SemanticAnalyzer:
         if body:
             self._analyze_block(body)
 
-        # Exit function scope
+        # Clean up function context
         self.symbol_table.exit_scope()
         self.symbol_table.current_function = None
         self.current_function_return_type = None
 
     def _analyze_block(self, node: Dict):
-        """Analyze a block of statements"""
+        """
+        Analyze a block of statements.
+
+        Blocks contain ordered statements that execute sequentially.
+        Each statement is analyzed independently.
+
+        Future: May need to handle control flow analysis
+        (unreachable code after return, etc.)
+        """
         if node.get("type") != "block":
             self._error(f"Expected block node, got {node.get('type')}")
             return
@@ -163,7 +342,20 @@ class SemanticAnalyzer:
             self._analyze_statement(stmt)
 
     def _analyze_statement(self, node: Dict):
-        """Analyze a statement"""
+        """
+        Dispatch statement analysis to appropriate handler.
+
+        Currently supported statement types:
+        - val_declaration: Immutable variable declaration
+        - mut_declaration: Mutable variable declaration
+        - return_statement: Function return
+
+        Future statement types:
+        - assignment: Variable assignment
+        - if_statement: Conditional execution
+        - while_statement: Loop execution
+        - expression_statement: Expression evaluation
+        """
         stmt_type = node.get("type")
 
         if stmt_type == "val_declaration":
@@ -176,15 +368,41 @@ class SemanticAnalyzer:
             self._error(f"Unknown statement type: {stmt_type}", node)
 
     def _analyze_val_declaration(self, node: Dict):
-        """Analyze a val (immutable) variable declaration"""
+        """
+        Analyze an immutable variable declaration (val).
+
+        Delegates to generic variable declaration analysis
+        with IMMUTABLE mutability.
+        """
         self._analyze_variable_declaration(node, Mutability.IMMUTABLE)
 
     def _analyze_mut_declaration(self, node: Dict):
-        """Analyze a mut (mutable) variable declaration"""
+        """
+        Analyze a mutable variable declaration (mut).
+
+        Delegates to generic variable declaration analysis
+        with MUTABLE mutability.
+        """
         self._analyze_variable_declaration(node, Mutability.MUTABLE)
 
     def _analyze_variable_declaration(self, node: Dict, mutability: Mutability):
-        """Analyze a variable declaration (val or mut)"""
+        """
+        Analyze a variable declaration (val or mut).
+
+        Handles both explicit and inferred typing:
+        - val x: i32 = 42      (explicit type)
+        - val x = 42           (inferred type)
+        - val x: i32 = undef   (explicit type, uninitialized)
+        - mut y: i32 = 42      (mutable, explicit type)
+
+        Validation steps:
+        1. Check variable name is provided
+        2. Check for redeclaration in current scope
+        3. Handle type annotation vs inference
+        4. Handle undef values
+        5. Validate type compatibility
+        6. Register symbol in symbol table
+        """
         var_name = node.get("name")
         type_annotation = node.get("type_annotation")
         value = node.get("value")
@@ -193,20 +411,21 @@ class SemanticAnalyzer:
             self._error("Variable declaration missing name", node)
             return
 
-        # Check if already declared in current scope
+        # Check for redeclaration in current scope
+        # Note: Shadowing across scopes is allowed, but not within same scope
         if var_name in self.symbol_table.scopes[-1]:
             self._error(f"Variable '{var_name}' already declared in this scope", node)
             return
 
-        # Determine type
+        # Type determination logic
         var_type = None
         is_initialized = True
 
         if type_annotation:
-            # Explicit type annotation
+            # Explicit type annotation path
             var_type = self._parse_type(type_annotation)
 
-            # Check if value is undef
+            # Check for explicit undef initialization
             if (
                 value
                 and value.get("type") == "identifier"
@@ -214,7 +433,7 @@ class SemanticAnalyzer:
             ):
                 is_initialized = False
             elif value:
-                # Validate value type matches annotation
+                # Type annotation + value: validate compatibility
                 value_type = self._infer_type_from_value(value)
                 if value_type != HexenType.UNKNOWN and value_type != var_type:
                     self._error(
@@ -223,7 +442,7 @@ class SemanticAnalyzer:
                         node,
                     )
         else:
-            # Type inference from value
+            # Type inference path - must have value
             if not value:
                 self._error(
                     f"Variable '{var_name}' must have either explicit type or value",
@@ -236,7 +455,7 @@ class SemanticAnalyzer:
                 self._error(f"Cannot infer type for variable '{var_name}'", node)
                 return
 
-        # Create and declare symbol
+        # Create and register symbol
         symbol = Symbol(
             name=var_name,
             type=var_type,
@@ -248,21 +467,33 @@ class SemanticAnalyzer:
             self._error(f"Failed to declare variable '{var_name}'", node)
 
     def _analyze_return_statement(self, node: Dict):
-        """Analyze a return statement"""
+        """
+        Analyze a return statement.
+
+        Validation:
+        1. Must be inside a function
+        2. Return value type must match function return type
+        3. Return value expression must be valid
+
+        Future enhancements:
+        - Multiple return statements per function
+        - Void return types
+        - Early return analysis
+        """
         value = node.get("value")
         if not value:
             self._error("Return statement missing value", node)
             return
 
-        # Check if we're in a function
+        # Ensure we're in a function context
         if not self.current_function_return_type:
             self._error("Return statement outside function", node)
             return
 
-        # Analyze the return value
+        # Analyze the return value expression
         return_type = self._analyze_expression(value)
 
-        # Check type compatibility
+        # Validate return type matches function signature
         if (
             return_type != HexenType.UNKNOWN
             and return_type != self.current_function_return_type
@@ -274,7 +505,21 @@ class SemanticAnalyzer:
             )
 
     def _analyze_expression(self, node: Dict) -> HexenType:
-        """Analyze an expression and return its type"""
+        """
+        Analyze an expression and return its type.
+
+        Currently supported expressions:
+        - Literals: numbers, strings
+        - Identifiers: variable references
+
+        Future expression types:
+        - Binary operations: +, -, *, /
+        - Function calls
+        - Member access
+        - Array indexing
+
+        Returns HexenType.UNKNOWN for invalid expressions.
+        """
         expr_type = node.get("type")
 
         if expr_type == "literal":
@@ -286,33 +531,59 @@ class SemanticAnalyzer:
             return HexenType.UNKNOWN
 
     def _analyze_identifier(self, node: Dict) -> HexenType:
-        """Analyze an identifier reference"""
+        """
+        Analyze an identifier reference (variable usage).
+
+        Validation steps:
+        1. Check identifier has name
+        2. Handle special case: undef keyword
+        3. Look up symbol in symbol table
+        4. Check if variable is initialized
+        5. Mark symbol as used
+        6. Return symbol type
+
+        This prevents use-before-definition and tracks variable usage.
+        """
         name = node.get("name")
         if not name:
             self._error("Identifier missing name", node)
             return HexenType.UNKNOWN
 
-        # Special case for undef
+        # Special case: undef is a keyword, not a variable
         if name == "undef":
             return HexenType.UNINITIALIZED
 
-        # Look up symbol
+        # Look up symbol in symbol table
         symbol = self.symbol_table.lookup_symbol(name)
         if not symbol:
             self._error(f"Undefined variable: '{name}'", node)
             return HexenType.UNKNOWN
 
-        # Check if variable is initialized
+        # Check if variable is initialized (prevents use of undef variables)
         if not symbol.initialized:
             self._error(f"Use of uninitialized variable: '{name}'", node)
             return HexenType.UNKNOWN
 
-        # Mark as used
+        # Mark symbol as used for dead code analysis
         symbol.used = True
         return symbol.type
 
     def _infer_type_from_value(self, value: Dict) -> HexenType:
-        """Infer type from a literal value"""
+        """
+        Infer type from a literal value.
+
+        Type inference rules:
+        - Integers default to i32 (following Rust)
+        - Floats default to f64
+        - Strings are string type
+        - Unknown for non-literals
+
+        Future enhancements:
+        - Integer literal suffixes (42i64)
+        - Float literal suffixes (3.14f32)
+        - Character literals
+        - Boolean literals
+        """
         if value.get("type") != "literal":
             return HexenType.UNKNOWN
 
@@ -321,14 +592,22 @@ class SemanticAnalyzer:
         if isinstance(val, int):
             return HexenType.I32  # Default integer type
         elif isinstance(val, float):
-            return HexenType.F64
+            return HexenType.F64  # Default float type
         elif isinstance(val, str):
             return HexenType.STRING
         else:
             return HexenType.UNKNOWN
 
     def _parse_type(self, type_str: str) -> HexenType:
-        """Parse a type string to HexenType"""
+        """
+        Parse a type string to HexenType enum.
+
+        Handles conversion from string representation (from parser)
+        to internal enum representation.
+
+        Returns HexenType.UNKNOWN for unrecognized types.
+        This allows for graceful handling of future type additions.
+        """
         type_map = {
             "i32": HexenType.I32,
             "i64": HexenType.I64,
