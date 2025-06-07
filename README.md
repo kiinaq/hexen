@@ -27,6 +27,7 @@ This is not just an academic exercise, but a practical exploration of what progr
 - [Quick Start](#quick-start) — Get up and running with Hexen in minutes
 - [Design Principles](#design-principles) — The four core principles guiding every language decision
 - [Core Features](#core-features) — Hexen's foundational capabilities and identity
+- [Project Architecture](#project-architecture) — Current implementation structure and design
 - [Architecture Roadmap](#architecture-roadmap) — Implementation strategy and evolution path
 
 ## Quick Start
@@ -111,6 +112,87 @@ Dependencies are tracked at the language level, not just at the build level. The
 
 ### 🔗 Unified Build System
 No external build tools required. The compiler includes everything needed to manage dependencies, perform dynamic linking, and produce optimized binaries or shared libraries. One tool, one command, one clear path from source to executable or library.
+
+## Project Architecture
+
+Hexen follows a clean, modular architecture that separates concerns and enables systematic development. The implementation reflects our design principles through clear component boundaries and well-defined interfaces.
+
+### 🏗️ Compiler Pipeline
+
+```
+Source Code (.hxn)
+       ↓
+   📝 Parser           ← Syntax analysis, AST generation
+       ↓
+   🧠 Semantic Analyzer ← Type checking, symbol resolution  
+       ↓
+   ⚙️ Code Generator    ← LLVM IR emission (future)
+       ↓
+   🎯 Executable
+```
+
+### 📁 Project Structure
+
+```
+hexen/
+├── src/hexen/              # Core compiler implementation
+│   ├── parser.py          # Lark-based PEG parser + AST transformer
+│   ├── semantic.py        # Type checking & symbol table management
+│   ├── hexen.lark         # Grammar definition (PEG format)
+│   └── cli.py             # Command-line interface
+├── tests/                  # Comprehensive test suite
+│   ├── parser/            # Parser & syntax tests (33 tests)
+│   └── semantic/          # Semantic analysis tests (10 tests)
+├── examples/              # Sample Hexen programs
+└── docs/                  # Documentation & design notes
+```
+
+### 🔧 Component Responsibilities
+
+**Parser (`parser.py`)**
+- Converts source code to Abstract Syntax Tree (AST)
+- Handles syntax validation and error reporting
+- Transforms grammar rules into structured data
+- **Input**: Hexen source code  
+- **Output**: JSON-serializable AST
+
+**Semantic Analyzer (`semantic.py`)**
+- Validates program semantics and type correctness
+- Manages symbol tables and scope resolution
+- Enforces mutability rules (`val` vs `mut`)
+- Detects use-before-definition errors
+- **Input**: Parser AST  
+- **Output**: Validated AST + error reports
+
+**Grammar (`hexen.lark`)**
+- Defines Hexen's syntax using PEG (Parsing Expression Grammar)
+- Specifies tokens, rules, and precedence
+- Enables rapid syntax experimentation
+- **Current scope**: Functions, variables, types, `undef` handling
+
+### 🧪 Testing Strategy
+
+**Parser Tests** (`tests/parser/`)
+- Syntax validation and AST structure verification
+- Error handling for invalid syntax
+- Whitespace and edge case handling
+- Variable declarations, type annotations, `undef` support
+
+**Semantic Tests** (`tests/semantic/`)
+- Type inference and checking validation
+- Symbol table and scope management
+- Use-before-definition detection
+- Return type matching and error reporting
+
+**Test Results**: 43/43 passing ✅ - Full pipeline validation from source to semantic analysis
+
+### 🎯 Architecture Benefits
+
+**Separation of Concerns**: Each component has a single, well-defined responsibility
+**Testability**: Independent testing of parsing vs semantic analysis
+**Extensibility**: Easy to add new language features through the pipeline
+**Debugging**: Clear boundaries make issue isolation straightforward
+**Documentation**: Architecture matches implementation, aiding newcomer onboarding
 
 ## Architecture Roadmap
 
