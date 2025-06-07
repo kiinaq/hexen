@@ -21,13 +21,65 @@ class HexenTransformer(Transformer):
             "body": body,
         }
 
+    def val_declaration(self, args):
+        # Handle: "val" IDENTIFIER [":" type] "=" expression
+        # args can be [name, value] or [name, type, value]
+        if len(args) == 2:
+            # No type annotation: val name = value
+            name, value = args
+            return {
+                "type": "val_declaration",
+                "name": name["name"],
+                "type_annotation": None,
+                "value": value,
+            }
+        else:
+            # With type annotation: val name : type = value
+            name, type_annotation, value = args
+            return {
+                "type": "val_declaration",
+                "name": name["name"],
+                "type_annotation": type_annotation,
+                "value": value,
+            }
+
+    def mut_declaration(self, args):
+        # Handle: "mut" IDENTIFIER [":" type] "=" expression
+        # args can be [name, value] or [name, type, value]
+        if len(args) == 2:
+            # No type annotation: mut name = value
+            name, value = args
+            return {
+                "type": "mut_declaration",
+                "name": name["name"],
+                "type_annotation": None,
+                "value": value,
+            }
+        else:
+            # With type annotation: mut name : type = value
+            name, type_annotation, value = args
+            return {
+                "type": "mut_declaration",
+                "name": name["name"],
+                "type_annotation": type_annotation,
+                "value": value,
+            }
+
+    def var_declaration(self, children):
+        # var_declaration: val_declaration | mut_declaration
+        return children[0]
+
     @v_args(inline=True)
     def return_stmt(self, value):
         return {"type": "return_statement", "value": value}
 
+    def expression(self, children):
+        # expression: NUMBER | STRING | IDENTIFIER
+        return children[0]
+
     @v_args(inline=True)
-    def expression(self, value):
-        return {"type": "literal", "value": int(str(value))}
+    def statement(self, stmt):
+        return stmt
 
     def type(self, children):
         # Handle multiple types: "i32" | "i64" | "f64" | "string"
@@ -39,10 +91,6 @@ class HexenTransformer(Transformer):
     def block(self, statements):
         # Always return consistent block structure with statements array
         return {"type": "block", "statements": list(statements)}
-
-    @v_args(inline=True)
-    def statement(self, stmt):
-        return stmt
 
     def program(self, functions):
         return {"type": "program", "functions": list(functions)}
@@ -57,6 +105,10 @@ class HexenTransformer(Transformer):
         # Parse identifiers: myVar -> {type: "identifier", name: "myVar"}
         # Used for variable names and references
         return {"type": "identifier", "name": str(token)}
+
+    def NUMBER(self, token):
+        # Parse number literals: 42 -> {type: "literal", value: 42}
+        return {"type": "literal", "value": int(str(token))}
 
 
 class HexenParser:

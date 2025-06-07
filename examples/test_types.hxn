@@ -1,3 +1,0 @@
-func test_i64() -> i64 {
-    return 0
-} 
