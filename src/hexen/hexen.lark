@@ -1,5 +1,5 @@
-// Hexen grammar with variable declarations
-// Target: func main() -> i32 { val x = 42; return x }
+// Hexen grammar with variable declarations and undef support
+// Target: func main() -> i32 { val x: i32 = undef; mut y = 42; return y }
 
 program: function
 
@@ -13,9 +13,11 @@ statement: var_declaration
 var_declaration: val_declaration
                | mut_declaration
 
-val_declaration: "val" IDENTIFIER [":" type] "=" expression
+val_declaration: "val" IDENTIFIER ":" type "=" (expression | "undef")
+               | "val" IDENTIFIER "=" expression
 
-mut_declaration: "mut" IDENTIFIER [":" type] "=" expression
+mut_declaration: "mut" IDENTIFIER ":" type "=" (expression | "undef")
+               | "mut" IDENTIFIER "=" expression
 
 return_stmt: "return" expression
 
