@@ -23,10 +23,15 @@ expression: NUMBER
           | STRING
           | IDENTIFIER
 
-type: "i32"
-    | "i64"
-    | "f64"
-    | "string"
+type: TYPE_I32
+    | TYPE_I64
+    | TYPE_F64
+    | TYPE_STRING
+
+TYPE_I32: "i32"
+TYPE_I64: "i64"
+TYPE_F64: "f64"
+TYPE_STRING: "string"
 
 // Terminals
 IDENTIFIER: /[a-zA-Z_][a-zA-Z0-9_]*/

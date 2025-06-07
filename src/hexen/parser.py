@@ -82,11 +82,21 @@ class HexenTransformer(Transformer):
         return stmt
 
     def type(self, children):
-        # Handle multiple types: "i32" | "i64" | "f64" | "string"
-        # TODO: Fix grammar - children is empty, investigate why
-        if children:
-            return str(children[0])
-        return "i32"  # temporary fallback until grammar issue is resolved
+        # Handle multiple types through terminal tokens
+        return children[0]
+
+    # Terminal handlers for type tokens
+    def TYPE_I32(self, token):
+        return "i32"
+
+    def TYPE_I64(self, token):
+        return "i64"
+
+    def TYPE_F64(self, token):
+        return "f64"
+
+    def TYPE_STRING(self, token):
+        return "string"
 
     def block(self, statements):
         # Always return consistent block structure with statements array
