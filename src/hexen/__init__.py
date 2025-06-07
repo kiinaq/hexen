@@ -5,4 +5,4 @@ An experimental system programming language guided by principles rather than pre
 """
 
 __version__ = "0.1.0"
-__author__ = "kiinaq" 
+__author__ = "kiinaq"
