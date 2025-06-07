@@ -1,9 +1,9 @@
 // Ultra-minimal Hexen grammar
-// Target: function main() -> i32 { return 0 }
+// Target: func main() -> i32 { return 0 }
 
 program: function
 
-function: "function" IDENTIFIER "(" ")" "->" type block
+function: "func" IDENTIFIER "(" ")" "->" type block
 
 block: "{" statement "}"
 

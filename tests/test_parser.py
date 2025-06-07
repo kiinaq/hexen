@@ -18,7 +18,7 @@ class TestMinimalHexen:
     def test_valid_main_function(self):
         """Test our target minimal function parses correctly"""
         source = """
-        function main() -> i32 {
+        func main() -> i32 {
             return 0
         }
         """
@@ -46,7 +46,7 @@ class TestMinimalHexen:
 
         for name in valid_names:
             source = f"""
-            function {name}() -> i32 {{
+            func {name}() -> i32 {{
                 return 42
             }}
             """
@@ -60,7 +60,7 @@ class TestMinimalHexen:
 
         for value in test_values:
             source = f"""
-            function main() -> i32 {{
+            func main() -> i32 {{
                 return {value}
             }}
             """
@@ -74,7 +74,7 @@ class TestMinimalHexen:
         # Extra whitespace everywhere
         source = """
         
-        function   main  (  )  ->  i32  {
+        func   main  (  )  ->  i32  {
             return   0
         }
         
@@ -86,7 +86,7 @@ class TestMinimalHexen:
 
     def test_minimal_whitespace(self):
         """Test minimal whitespace still parses"""
-        source = "function main()->i32{return 0}"
+        source = "func main()->i32{return 0}"
 
         ast = self.parser.parse(source)
         assert ast["functions"][0]["name"] == "main"
@@ -94,7 +94,7 @@ class TestMinimalHexen:
     def test_invalid_syntax_missing_return_type(self):
         """Test missing return type is rejected"""
         source = """
-        function main() {
+        func main() {
             return 0
         }
         """
@@ -105,7 +105,7 @@ class TestMinimalHexen:
     def test_invalid_syntax_missing_function_name(self):
         """Test missing function name is rejected"""
         source = """
-        function () -> i32 {
+        func () -> i32 {
             return 0
         }
         """
@@ -115,7 +115,7 @@ class TestMinimalHexen:
 
     def test_invalid_syntax_missing_braces(self):
         """Test missing braces are rejected"""
-        source = "function main() -> i32 return 0"
+        source = "func main() -> i32 return 0"
 
         with pytest.raises(SyntaxError):
             self.parser.parse(source)
@@ -123,7 +123,7 @@ class TestMinimalHexen:
     def test_invalid_syntax_missing_return_keyword(self):
         """Test missing return keyword is rejected"""
         source = """
-        function main() -> i32 {
+        func main() -> i32 {
             0
         }
         """
@@ -134,7 +134,7 @@ class TestMinimalHexen:
     def test_invalid_syntax_wrong_arrow(self):
         """Test wrong arrow syntax is rejected"""
         source = """
-        function main() : i32 {
+        func main() : i32 {
             return 0
         }
         """
@@ -145,7 +145,7 @@ class TestMinimalHexen:
     def test_invalid_syntax_missing_parentheses(self):
         """Test missing parentheses are rejected"""
         source = """
-        function main -> i32 {
+        func main -> i32 {
             return 0
         }
         """
@@ -161,7 +161,7 @@ class TestMinimalHexen:
 
         for name in invalid_names:
             source = f"""
-            function {name}() -> i32 {{
+            func {name}() -> i32 {{
                 return 0
             }}
             """
@@ -175,7 +175,7 @@ class TestMinimalHexen:
 
         for value in invalid_values:
             source = f"""
-            function main() -> i32 {{
+            func main() -> i32 {{
                 return {value}
             }}
             """
@@ -193,7 +193,7 @@ class TestMinimalHexen:
     def test_multiple_statements_not_supported(self):
         """Test that multiple statements are not yet supported"""
         source = """
-        function main() -> i32 {
+        func main() -> i32 {
             return 0
             return 1
         }

@@ -52,7 +52,7 @@ uv run hexen parse examples/hello.hxn
 
 ### Example Hexen Code
 ```hexen
-function main() -> i32 {
+func main() -> i32 {
     return 0
 }
 ```
