@@ -1,4 +1,0 @@
-func test_string() -> string {
-    val greeting = "Hello, Hexen!"
-    return greeting
-} 
