@@ -35,10 +35,15 @@ class TestMinimalHexen:
         assert func["name"] == "main"
         assert func["return_type"] == "i32"
 
-        # Test function body
-        assert func["body"]["type"] == "return_statement"
-        assert func["body"]["value"]["type"] == "literal"
-        assert func["body"]["value"]["value"] == 0
+        # Test function body (now consistent block structure)
+        assert func["body"]["type"] == "block"
+        assert len(func["body"]["statements"]) == 1
+
+        # Test the return statement within the block
+        return_stmt = func["body"]["statements"][0]
+        assert return_stmt["type"] == "return_statement"
+        assert return_stmt["value"]["type"] == "literal"
+        assert return_stmt["value"]["value"] == 0
 
     def test_different_function_names(self):
         """Test functions with different valid names"""
@@ -66,7 +71,9 @@ class TestMinimalHexen:
             """
 
             ast = self.parser.parse(source)
-            returned_value = ast["functions"][0]["body"]["value"]["value"]
+            # Navigate through the new consistent block structure
+            return_stmt = ast["functions"][0]["body"]["statements"][0]
+            returned_value = return_stmt["value"]["value"]
             assert returned_value == value
 
     def test_whitespace_handling(self):

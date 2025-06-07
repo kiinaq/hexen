@@ -16,8 +16,7 @@ class HexenTransformer(Transformer):
     def function(self, name, return_type, body):
         return {
             "type": "function",
-            # Handle both old string names and new identifier dict format
-            "name": name["name"] if isinstance(name, dict) else str(name),
+            "name": name["name"],  # Extract name from identifier dict
             "return_type": return_type,
             "body": body,
         }
@@ -32,20 +31,13 @@ class HexenTransformer(Transformer):
 
     def type(self, children):
         # Handle multiple types: "i32" | "i64" | "f64" | "string"
-        # Note: In Lark, terminal-only rules may not always have children
-        # so we provide a safe fallback to maintain backward compatibility
+        # TODO: Fix grammar - children is empty, investigate why
         if children:
             return str(children[0])
-        return "i32"  # fallback for backward compatibility
+        return "i32"  # temporary fallback until grammar issue is resolved
 
     def block(self, statements):
-        # Handle multiple statements in blocks (Phase 1 grammar extension)
-        # Maintain backward compatibility: single statement returns as-is
-        # Multiple statements return as block object with statements array
-        if len(statements) == 1:
-            return statements[
-                0
-            ]  # Backward compatibility with old single-statement blocks
+        # Always return consistent block structure with statements array
         return {"type": "block", "statements": list(statements)}
 
     @v_args(inline=True)
