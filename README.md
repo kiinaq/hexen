@@ -24,9 +24,53 @@ This is not just an academic exercise, but a practical exploration of what progr
 
 ## Contents
 
+- [Quick Start](#quick-start) — Get up and running with Hexen in minutes
 - [Design Principles](#design-principles) — The four core principles guiding every language decision
 - [Core Features](#core-features) — Hexen's foundational capabilities and identity
 - [Architecture Roadmap](#architecture-roadmap) — Implementation strategy and evolution path
+
+## Quick Start
+
+Ready to try Hexen? Here's how to get started in just a few commands:
+
+### Prerequisites
+- Python 3.12+
+- [uv](https://docs.astral.sh/uv/) package manager
+
+### Setup & First Parse
+```bash
+# Clone and setup
+git clone https://github.com/kiinaq/hexen.git
+cd hexen
+
+# Install dependencies
+uv sync --extra dev
+
+# Parse the example Hexen program
+uv run hexen parse examples/hello.hxn
+```
+
+### Example Hexen Code
+```hexen
+function main() -> i32 {
+    return 0
+}
+```
+
+### Run Tests
+```bash
+# Run the complete test suite
+uv run pytest tests/ -v
+```
+
+### What's Working
+- ✅ **Parser**: Complete Lark-based PEG parser
+- ✅ **CLI**: `hexen parse` command with JSON AST output  
+- ✅ **Grammar**: Ultra-minimal but extensible syntax
+- ✅ **Tests**: Comprehensive validation of language rules
+- ✅ **Examples**: Ready-to-run `.hxn` files
+
+**Next**: Explore the design principles below to understand Hexen's philosophy! 🦉
 
 ## Design Principles
 
