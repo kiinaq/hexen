@@ -1,24 +1,38 @@
-// Ultra-minimal Hexen grammar
-// Target: func main() -> i32 { return 0 }
+// Hexen grammar with variable declarations
+// Target: func main() -> i32 { val x = 42; return x }
 
 program: function
 
 function: "func" IDENTIFIER "(" ")" "->" type block
 
-block: "{" statement "}"
+block: "{" statement* "}"
 
-statement: return_stmt
+statement: var_declaration
+         | return_stmt
+
+var_declaration: val_declaration
+               | mut_declaration
+
+val_declaration: "val" IDENTIFIER [":" type] "=" expression
+
+mut_declaration: "mut" IDENTIFIER [":" type] "=" expression
 
 return_stmt: "return" expression
 
 expression: NUMBER
+          | STRING
+          | IDENTIFIER
 
 type: "i32"
+    | "i64"
+    | "f64"
+    | "string"
 
 // Terminals
 IDENTIFIER: /[a-zA-Z_][a-zA-Z0-9_]*/
 NUMBER: /[0-9]+/
+STRING: /\"[^\"]*\"/
 
-// Ignore whitespace
+// Ignore whitespace and comments
 %import common.WS
 %ignore WS 
