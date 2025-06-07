@@ -13,7 +13,7 @@ from .parser import HexenParser
 def main():
     """Main CLI entry point"""
     if len(sys.argv) != 3:
-        print("Usage: hexen parse <file.hx>")
+        print("Usage: hexen parse <file.hxn>")
         sys.exit(1)
     
     command = sys.argv[1]
