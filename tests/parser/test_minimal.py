@@ -17,7 +17,7 @@ class TestMinimalHexen:
     def test_valid_main_function(self):
         """Test our target minimal function parses correctly"""
         source = """
-        func main() -> i32 {
+        func main() : i32  = {
             return 0
         }
         """
@@ -50,7 +50,7 @@ class TestMinimalHexen:
 
         for name in valid_names:
             source = f"""
-            func {name}() -> i32 {{
+            func {name}() : i32  = {{
                 return 42
             }}
             """
@@ -64,7 +64,7 @@ class TestMinimalHexen:
 
         for value in test_values:
             source = f"""
-            func main() -> i32 {{
+            func main() : i32  = {{
                 return {value}
             }}
             """
@@ -80,7 +80,7 @@ class TestMinimalHexen:
         # Extra whitespace everywhere
         source = """
         
-        func   main  (  )  ->  i32  {
+        func main  (  ) : i32   = {
             return   0
         }
         
@@ -92,7 +92,7 @@ class TestMinimalHexen:
 
     def test_minimal_whitespace(self):
         """Test minimal whitespace still parses"""
-        source = "func main()->i32{return 0}"
+        source = "func main() : i32 = {return 0}"
 
         ast = self.parser.parse(source)
         assert ast["functions"][0]["name"] == "main"
@@ -111,7 +111,7 @@ class TestMinimalHexen:
     def test_invalid_syntax_missing_function_name(self):
         """Test missing function name is rejected"""
         source = """
-        func () -> i32 {
+        func () : i32  = {
             return 0
         }
         """
@@ -121,7 +121,7 @@ class TestMinimalHexen:
 
     def test_invalid_syntax_missing_braces(self):
         """Test missing braces are rejected"""
-        source = "func main() -> i32 return 0"
+        source = "func main() : i32 return 0"
 
         with pytest.raises(SyntaxError):
             self.parser.parse(source)
@@ -129,7 +129,7 @@ class TestMinimalHexen:
     def test_invalid_syntax_missing_return_keyword(self):
         """Test missing return keyword is rejected"""
         source = """
-        func main() -> i32 {
+        func main() -> i32  = {
             0
         }
         """
@@ -167,7 +167,7 @@ class TestMinimalHexen:
 
         for name in invalid_names:
             source = f"""
-            func {name}() -> i32 {{
+            func {name}() : i32  = {{
                 return 0
             }}
             """
@@ -191,7 +191,7 @@ class TestMinimalHexen:
     def test_multiple_statements_supported(self):
         """Test that multiple statements are now supported (Phase 2 feature)"""
         source = """
-        func main() -> i32 {
+        func main() : i32  = {
             return 0
             return 1
         }
@@ -215,17 +215,17 @@ class TestMinimalHexen:
     def test_multiple_functions_supported(self):
         """Test that multiple functions in one program are supported"""
         source = """
-        func helper() -> i32 {
+        func helper() : i32  = {
             val x = 42
             return x
         }
 
-        func main() -> i32 {
+        func main() : i32  = {
             val result = 0
             return result
         }
 
-        func utility() -> string {
+        func utility() : string  = {
             val message = "test"
             return message
         }

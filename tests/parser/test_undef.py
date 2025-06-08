@@ -16,7 +16,7 @@ class TestUndefDeclarations:
     def test_val_undef_explicit_type(self):
         """Test val declaration with undef requires explicit type."""
         code = """
-        func test() -> i32 {
+        func test() : i32  = {
             val x: i32 = undef
             return 0
         }
@@ -40,7 +40,7 @@ class TestUndefDeclarations:
     def test_mut_undef_explicit_type(self):
         """Test mut declaration with undef requires explicit type."""
         code = """
-        func test() -> i32 {
+        func test() : i32  = {
             mut y: string = undef
             return 0
         }
@@ -55,7 +55,7 @@ class TestUndefDeclarations:
     def test_type_inference_still_works(self):
         """Test that type inference works without explicit types."""
         code = """
-        func test() -> i32 {
+        func test() : i32  = {
             val inferred_int = 42
             val inferred_string = "hello"
             mut mutable_int = 123
@@ -86,7 +86,7 @@ class TestUndefDeclarations:
     def test_mixed_declarations_in_same_function(self):
         """Test mixing inferred and explicit undef declarations."""
         code = """
-        func test() -> i32 {
+        func test() : i32  = {
             val a = 42
             val b: i64 = undef
             mut c = "test"
@@ -116,7 +116,7 @@ class TestUndefDeclarations:
     def test_all_types_with_undef(self):
         """Test undef works with all supported types."""
         code = """
-        func test() -> i32 {
+        func test() : i32  = {
             val a: i32 = undef
             val b: i64 = undef
             val c: f64 = undef

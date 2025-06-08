@@ -16,7 +16,7 @@ class TestTypeAnnotations:
     def test_function_return_type_i32(self):
         """Test i32 return type annotation"""
         source = """
-        func test() -> i32 {
+        func test() : i32  = {
             return 42
         }
         """
@@ -28,7 +28,7 @@ class TestTypeAnnotations:
     def test_function_return_type_i64(self):
         """Test i64 return type annotation"""
         source = """
-        func test() -> i64 {
+        func test() : i64  = {
             return 42
         }
         """
@@ -40,7 +40,7 @@ class TestTypeAnnotations:
     def test_function_return_type_f64(self):
         """Test f64 return type annotation"""
         source = """
-        func test() -> f64 {
+        func test() : f64  = {
             return 42
         }
         """
@@ -52,7 +52,7 @@ class TestTypeAnnotations:
     def test_function_return_type_string(self):
         """Test string return type annotation"""
         source = """
-        func test() -> string {
+        func test() : string  = {
             val greeting = "Hello!"
             return greeting
         }
@@ -73,7 +73,7 @@ class TestTypeAnnotations:
 
         for type_name, expected in test_cases:
             source = f"""
-            func test() -> {type_name} {{
+            func test() : {type_name} = {{
                 return 0
             }}
             """

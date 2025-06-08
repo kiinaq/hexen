@@ -16,7 +16,7 @@ class TestVariableDeclarations:
     def test_val_declaration_without_type(self):
         """Test val declaration without type annotation"""
         source = """
-        func main() -> i32 {
+        func main() : i32  = {
             val x = 42
             return x
         }
@@ -36,7 +36,7 @@ class TestVariableDeclarations:
     def test_mut_declaration_without_type(self):
         """Test mut declaration without type annotation"""
         source = """
-        func main() -> i32 {
+        func main() : i32  = {
             mut counter = 0
             return counter
         }
@@ -56,7 +56,7 @@ class TestVariableDeclarations:
     def test_val_declaration_with_string(self):
         """Test val declaration with string literal"""
         source = """
-        func main() -> i32 {
+        func main() : i32  = {
             val message = "Hello, Hexen!"
             return 0
         }
@@ -75,7 +75,7 @@ class TestVariableDeclarations:
     def test_variable_reference_in_return(self):
         """Test using declared variables in return statements"""
         source = """
-        func main() -> i32 {
+        func main() : i32  = {
             val result = 123
             return result
         }
@@ -93,7 +93,7 @@ class TestVariableDeclarations:
     def test_multiple_variable_declarations(self):
         """Test multiple val/mut declarations in same function"""
         source = """
-        func main() -> i32 {
+        func main() : i32  = {
             val name = "Hexen"
             mut count = 1
             val flag = 0
@@ -122,7 +122,7 @@ class TestVariableDeclarations:
     def test_val_vs_mut_distinction(self):
         """Test that val and mut are properly distinguished in AST"""
         source = """
-        func main() -> i32 {
+        func main() : i32  = {
             val immutable = 42
             mut mutable = 42
             return 0

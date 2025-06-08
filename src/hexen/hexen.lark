@@ -1,9 +1,9 @@
-// Hexen grammar with unified block concept
-// Philosophy: All blocks work the same way - context determines requirements
+// Hexen grammar with unified declaration syntax
+// Philosophy: One declaration pattern for all - name : type = value
 
 program: function+
 
-function: "func" IDENTIFIER "(" ")" "->" type block
+function: "func" IDENTIFIER "(" ")" ":" type "=" block
 
 block: "{" statement* "}"
 

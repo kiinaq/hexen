@@ -19,7 +19,7 @@ class TestSemanticAnalysis:
     def test_basic_type_inference(self):
         """Test basic type inference from literals"""
         source = """
-        func main() -> i32 {
+        func main() : i32  = {
             val x = 42
             val message = "Hello"
             return x
@@ -36,7 +36,7 @@ class TestSemanticAnalysis:
     def test_explicit_type_annotations(self):
         """Test explicit type annotations work correctly"""
         source = """
-        func main() -> i32 {
+        func main() : i32  = {
             val x: i32 = 42
             val message: string = "Hello"
             return x
@@ -51,7 +51,7 @@ class TestSemanticAnalysis:
     def test_undef_requires_explicit_type(self):
         """Test that undef variables work with explicit types"""
         source = """
-        func main() -> i32 {
+        func main() : i32  = {
             val x: i32 = undef
             val y = 42
             return y
@@ -66,7 +66,7 @@ class TestSemanticAnalysis:
     def test_type_mismatch_error(self):
         """Test type mismatch detection"""
         source = """
-        func main() -> i32 {
+        func main() : i32  = {
             val x: string = 42
             return 0
         }
@@ -83,7 +83,7 @@ class TestSemanticAnalysis:
     def test_undefined_variable_error(self):
         """Test undefined variable detection"""
         source = """
-        func main() -> i32 {
+        func main() : i32  = {
             return unknown_var
         }
         """
@@ -98,7 +98,7 @@ class TestSemanticAnalysis:
     def test_uninitialized_variable_usage(self):
         """Test that using uninitialized variables is caught"""
         source = """
-        func main() -> i32 {
+        func main() : i32  = {
             val x: i32 = undef
             return x
         }
@@ -113,7 +113,7 @@ class TestSemanticAnalysis:
     def test_return_type_mismatch(self):
         """Test return type mismatch detection"""
         source = """
-        func main() -> string {
+        func main() : string  = {
             val x = 42
             return x
         }
@@ -130,7 +130,7 @@ class TestSemanticAnalysis:
     def test_multiple_variables_same_scope(self):
         """Test multiple variable declarations in same scope"""
         source = """
-        func main() -> i32 {
+        func main() : i32  = {
             val x = 42
             val y = "hello"
             mut z = 100
@@ -146,7 +146,7 @@ class TestSemanticAnalysis:
     def test_variable_redeclaration_error(self):
         """Test that redeclaring variables in same scope is caught"""
         source = """
-        func main() -> i32 {
+        func main() : i32  = {
             val x = 42
             val x = 100
             return x
@@ -162,7 +162,7 @@ class TestSemanticAnalysis:
     def test_all_types_supported(self):
         """Test that all Hexen types work correctly"""
         source = """
-        func main() -> i32 {
+        func main() : i32  = {
             val a = 42
             val b = 100
             val d = "hello"

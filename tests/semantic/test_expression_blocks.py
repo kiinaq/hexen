@@ -16,7 +16,7 @@ class TestExpressionBlockBasics:
     def test_simple_expression_block_i32(self):
         """Test basic expression block returning i32"""
         source = """
-        func main() -> i32 {
+        func main() : i32  = {
             val result = {
                 return 42
             }
@@ -35,7 +35,7 @@ class TestExpressionBlockBasics:
     def test_expression_block_with_local_variable(self):
         """Test expression block with local variable declaration"""
         source = """
-        func main() -> i32 {
+        func main() : i32  = {
             val result = {
                 val x = 42
                 return x
@@ -55,7 +55,7 @@ class TestExpressionBlockBasics:
     def test_expression_block_different_types(self):
         """Test expression blocks with different return types"""
         source = """
-        func main() -> i32 {
+        func main() : i32  = {
             val int_result = {
                 return 42
             }
@@ -77,7 +77,7 @@ class TestExpressionBlockBasics:
     def test_expression_block_multiple_statements(self):
         """Test expression block with multiple statements before return"""
         source = """
-        func main() -> i32 {
+        func main() : i32  = {
             val result = {
                 val x = 10
                 val y = 32
@@ -103,7 +103,7 @@ class TestExpressionBlockScoping:
     def test_block_variables_are_scoped(self):
         """Test that variables declared in block don't leak to outer scope"""
         source = """
-        func main() -> i32 {
+        func main() : i32  = {
             val result = {
                 val inner = 42
                 return inner
@@ -125,7 +125,7 @@ class TestExpressionBlockScoping:
     def test_block_can_access_outer_scope(self):
         """Test that expression blocks can access variables from outer scope"""
         source = """
-        func main() -> i32 {
+        func main() : i32  = {
             val outer = 10
             val result = {
                 return outer
@@ -145,7 +145,7 @@ class TestExpressionBlockScoping:
     def test_shadowing_in_expression_block(self):
         """Test variable shadowing in expression blocks"""
         source = """
-        func main() -> i32 {
+        func main() : i32  = {
             val x = 10
             val result = {
                 val x = 42
@@ -166,7 +166,7 @@ class TestExpressionBlockScoping:
     def test_nested_expression_blocks(self):
         """Test nested expression blocks"""
         source = """
-        func main() -> i32 {
+        func main() : i32  = {
             val result = {
                 val inner = {
                     return 42
@@ -192,7 +192,7 @@ class TestExpressionBlockErrors:
     def test_block_without_return_statement(self):
         """Test that expression blocks require a return statement"""
         source = """
-        func main() -> i32 {
+        func main() : i32  = {
             val result = {
                 val x = 42
             }
@@ -215,7 +215,7 @@ class TestExpressionBlockErrors:
     def test_return_not_last_statement(self):
         """Test that return statement must be the last statement in expression block"""
         source = """
-        func main() -> i32 {
+        func main() : i32  = {
             val result = {
                 return 42
                 val x = 10
@@ -240,7 +240,7 @@ class TestExpressionBlockErrors:
     def test_type_mismatch_with_explicit_annotation(self):
         """Test type mismatch when using explicit type annotation"""
         source = """
-        func main() -> i32 {
+        func main() : i32  = {
             val result: i32 = {
                 return "hello"
             }
@@ -264,7 +264,7 @@ class TestExpressionBlockIntegration:
     def test_expression_block_with_explicit_type(self):
         """Test expression block with explicit type annotation"""
         source = """
-        func main() -> i32 {
+        func main() : i32  = {
             val result: i32 = {
                 val x = 42
                 return x
@@ -284,7 +284,7 @@ class TestExpressionBlockIntegration:
     def test_expression_block_with_mut_variable(self):
         """Test expression block assigned to mutable variable"""
         source = """
-        func main() -> i32 {
+        func main() : i32  = {
             mut result = {
                 return 42
             }
@@ -303,7 +303,7 @@ class TestExpressionBlockIntegration:
     def test_expression_block_with_undef_handling(self):
         """Test expression block with undef values"""
         source = """
-        func main() -> i32 {
+        func main() : i32  = {
             val x: i32 = undef
             val result = {
                 return 42
@@ -323,7 +323,7 @@ class TestExpressionBlockIntegration:
     def test_complex_expression_block_scenario(self):
         """Test complex scenario with multiple features"""
         source = """
-        func main() -> string {
+        func main() : string  = {
             val outer = "world"
             val greeting = {
                 val prefix = "hello"
@@ -348,7 +348,7 @@ class TestExpressionBlockAST:
     def test_expression_block_ast_structure(self):
         """Test that expression blocks generate correct AST structure"""
         source = """
-        func main() -> i32 {
+        func main() : i32  = {
             val result = {
                 val x = 42
                 return x
