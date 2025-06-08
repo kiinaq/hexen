@@ -232,6 +232,15 @@ class SemanticAnalyzer:
             None  # For return type checking
         )
 
+        # Type mapping from string representation (parser) to internal enum (semantic analyzer)
+        # Centralized as instance field for easy access and potential future customization
+        self.type_map = {
+            "i32": HexenType.I32,
+            "i64": HexenType.I64,
+            "f64": HexenType.F64,
+            "string": HexenType.STRING,
+        }
+
     def analyze(self, ast: Dict) -> List[SemanticError]:
         """
         Main entry point for semantic analysis.
@@ -603,15 +612,9 @@ class SemanticAnalyzer:
         Parse a type string to HexenType enum.
 
         Handles conversion from string representation (from parser)
-        to internal enum representation.
+        to internal enum representation using the instance type_map.
 
         Returns HexenType.UNKNOWN for unrecognized types.
         This allows for graceful handling of future type additions.
         """
-        type_map = {
-            "i32": HexenType.I32,
-            "i64": HexenType.I64,
-            "f64": HexenType.F64,
-            "string": HexenType.STRING,
-        }
-        return type_map.get(type_str, HexenType.UNKNOWN)
+        return self.type_map.get(type_str, HexenType.UNKNOWN)
