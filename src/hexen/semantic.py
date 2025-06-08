@@ -281,45 +281,132 @@ class SemanticAnalyzer:
         Analyze the root program node.
 
         Current structure: program contains list of functions
-        Future: May contain imports, type definitions, etc.
+        Future: May contain global variables, imports, type definitions, etc.
 
         Validates:
         - Node type is correct
-        - All functions are valid
+        - All declarations are valid (unified analysis)
         """
         if node.get("type") != "program":
             self._error(f"Expected program node, got {node.get('type')}")
             return
 
-        # Analyze all functions in the program
+        # Analyze all functions in the program using unified declaration analysis
         for func in node.get("functions", []):
-            self._analyze_function(func)
+            self._analyze_declaration(func)
 
-    def _analyze_function(self, node: Dict):
+    # =============================================================================
+    # UNIFIED DECLARATION ANALYSIS FRAMEWORK
+    # =============================================================================
+
+    def _analyze_declaration(self, node: Dict) -> None:
         """
-        Analyze a function definition.
+        Unified declaration analysis for functions, val, and mut declarations.
 
-        Function analysis involves:
-        1. Set up function context (name, return type)
-        2. Enter new scope for function body
-        3. Analyze function body statements
-        4. Validate return type consistency
-        5. Clean up function context
+        This implements the unified declaration syntax philosophy:
+        - val name : type = value
+        - mut name : type = value
+        - func name() : type = value
 
-        Future enhancements:
-        - Parameter analysis
-        - Multiple return statements
-        - Function overloading
+        All follow the same pattern with type-specific handling.
         """
-        if node.get("type") != "function":
-            self._error(f"Expected function node, got {node.get('type')}")
-            return
+        # 1. Determine declaration type
+        decl_type = self._get_declaration_type(node)
 
-        func_name = node.get("name")
-        return_type_str = node.get("return_type")
+        # 2. Extract common components
+        name, type_annotation, value = self._extract_declaration_components(node)
 
+        # 3. Unified validation - skip type-specific analysis if validation fails
+        self._validate_declaration_name(name, node)
+        if not self._validate_no_redeclaration(name, node):
+            return  # Skip analysis if redeclaration detected
+
+        # 4. Type-specific analysis
+        if decl_type == "function":
+            self._analyze_function_declaration(name, type_annotation, value, node)
+        elif decl_type == "val_declaration":
+            self._analyze_variable_declaration_unified(
+                name, type_annotation, value, Mutability.IMMUTABLE, node
+            )
+        elif decl_type == "mut_declaration":
+            self._analyze_variable_declaration_unified(
+                name, type_annotation, value, Mutability.MUTABLE, node
+            )
+        else:
+            self._error(f"Unknown declaration type: {decl_type}", node)
+
+    def _get_declaration_type(self, node: Dict) -> str:
+        """Determine the type of declaration from AST node."""
+        return node.get("type", "unknown")
+
+    def _extract_declaration_components(self, node: Dict) -> tuple[str, str, Dict]:
+        """
+        Extract name, type annotation, and value from any declaration type.
+
+        Returns unified components regardless of declaration type:
+        - Functions: name, return_type, body
+        - Variables: name, type_annotation, value
+        """
+        decl_type = node.get("type")
+
+        if decl_type == "function":
+            # Function: func name() : return_type = body
+            name = node.get("name")
+            type_annotation = node.get("return_type")
+            value = node.get("body")
+        elif decl_type in ["val_declaration", "mut_declaration"]:
+            # Variable: val/mut name : type_annotation = value
+            name = node.get("name")
+            type_annotation = node.get("type_annotation")
+            value = node.get("value")
+        else:
+            # Unknown type - return empty values
+            name = None
+            type_annotation = None
+            value = None
+
+        return name, type_annotation, value
+
+    def _validate_declaration_name(self, name: str, node: Dict) -> None:
+        """Validate that declaration has a valid name."""
+        if not name:
+            decl_type = self._get_declaration_type(node)
+            self._error(f"{decl_type.replace('_', ' ').title()} missing name", node)
+
+    def _validate_no_redeclaration(self, name: str, node: Dict) -> bool:
+        """Check for redeclaration in current scope."""
+        if not name:
+            return True  # Skip if name validation already failed
+
+        # Check for redeclaration in current scope
+        # Note: Shadowing across scopes is allowed, but not within same scope
+        if name in self.symbol_table.scopes[-1]:
+            decl_type = self._get_declaration_type(node)
+            self._error(
+                f"{decl_type.replace('_', ' ').title()} '{name}' already declared in this scope",
+                node,
+            )
+            return False
+        return True
+
+    # =============================================================================
+    # TYPE-SPECIFIC DECLARATION HANDLERS
+    # =============================================================================
+
+    def _analyze_function_declaration(
+        self, name: str, return_type_str: str, body: Dict, node: Dict
+    ) -> None:
+        """
+        Analyze function declaration using unified framework.
+
+        Handles function-specific logic:
+        - Function context setup
+        - Scope management
+        - Body analysis
+        - No symbol table registration (functions are not variables)
+        """
         # Set up function analysis context
-        self.symbol_table.current_function = func_name
+        self.symbol_table.current_function = name
         self.current_function_return_type = self._parse_type(return_type_str)
         self.block_context.append("function")
 
@@ -327,7 +414,6 @@ class SemanticAnalyzer:
         self.symbol_table.enter_scope()
 
         # Analyze function body
-        body = node.get("body")
         if body:
             self._analyze_block(body)
 
@@ -336,6 +422,86 @@ class SemanticAnalyzer:
         self.block_context.pop()
         self.symbol_table.current_function = None
         self.current_function_return_type = None
+
+    def _analyze_variable_declaration_unified(
+        self,
+        name: str,
+        type_annotation: str,
+        value: Dict,
+        mutability: Mutability,
+        node: Dict,
+    ) -> None:
+        """
+        Analyze variable declaration using unified framework.
+
+        Handles variable-specific logic:
+        - Type inference and validation
+        - undef handling
+        - Symbol table registration
+        """
+        # Type determination logic (same as before)
+        var_type = None
+        is_initialized = True
+
+        if type_annotation:
+            # Explicit type annotation path
+            var_type = self._parse_type(type_annotation)
+
+            # Check for explicit undef initialization
+            if (
+                value
+                and value.get("type") == "identifier"
+                and value.get("name") == "undef"
+            ):
+                is_initialized = False
+            elif value:
+                # Type annotation + value: validate compatibility
+                value_type = self._analyze_expression(value)
+                if value_type != HexenType.UNKNOWN and value_type != var_type:
+                    self._error(
+                        f"Type mismatch: variable '{name}' declared as {var_type.value} "
+                        f"but assigned value of type {value_type.value}",
+                        node,
+                    )
+        else:
+            # Type inference path - must have value
+            if not value:
+                self._error(
+                    f"Variable '{name}' must have either explicit type or value",
+                    node,
+                )
+                return
+
+            var_type = self._analyze_expression(value)
+            if var_type == HexenType.UNKNOWN:
+                self._error(f"Cannot infer type for variable '{name}'", node)
+                return
+
+        # Create and register symbol
+        symbol = Symbol(
+            name=name,
+            type=var_type,
+            mutability=mutability,
+            initialized=is_initialized,
+        )
+
+        if not self.symbol_table.declare_symbol(symbol):
+            self._error(f"Failed to declare variable '{name}'", node)
+
+    # =============================================================================
+    # LEGACY METHODS (DEPRECATED - Use unified _analyze_declaration instead)
+    # =============================================================================
+
+    def _analyze_function(self, node: Dict):
+        """
+        DEPRECATED: Use _analyze_declaration() instead.
+
+        Legacy function analysis method. This method is kept for reference
+        but should not be used in new code. The unified _analyze_declaration
+        method provides the same functionality with better consistency.
+        """
+        # Delegate to unified method for consistency
+        self._analyze_declaration(node)
 
     def _analyze_block(self, node: Dict):
         """
@@ -360,8 +526,8 @@ class SemanticAnalyzer:
         Dispatch statement analysis to appropriate handler.
 
         Currently supported statement types:
-        - val_declaration: Immutable variable declaration
-        - mut_declaration: Mutable variable declaration
+        - val_declaration: Immutable variable declaration (unified analysis)
+        - mut_declaration: Mutable variable declaration (unified analysis)
         - return_statement: Function return
 
         Future statement types:
@@ -372,113 +538,12 @@ class SemanticAnalyzer:
         """
         stmt_type = node.get("type")
 
-        if stmt_type == "val_declaration":
-            self._analyze_val_declaration(node)
-        elif stmt_type == "mut_declaration":
-            self._analyze_mut_declaration(node)
+        if stmt_type in ["val_declaration", "mut_declaration"]:
+            self._analyze_declaration(node)
         elif stmt_type == "return_statement":
             self._analyze_return_statement(node)
         else:
             self._error(f"Unknown statement type: {stmt_type}", node)
-
-    def _analyze_val_declaration(self, node: Dict):
-        """
-        Analyze an immutable variable declaration (val).
-
-        Delegates to generic variable declaration analysis
-        with IMMUTABLE mutability.
-        """
-        self._analyze_variable_declaration(node, Mutability.IMMUTABLE)
-
-    def _analyze_mut_declaration(self, node: Dict):
-        """
-        Analyze a mutable variable declaration (mut).
-
-        Delegates to generic variable declaration analysis
-        with MUTABLE mutability.
-        """
-        self._analyze_variable_declaration(node, Mutability.MUTABLE)
-
-    def _analyze_variable_declaration(self, node: Dict, mutability: Mutability):
-        """
-        Analyze a variable declaration (val or mut).
-
-        Handles both explicit and inferred typing:
-        - val x: i32 = 42      (explicit type)
-        - val x = 42           (inferred type)
-        - val x: i32 = undef   (explicit type, uninitialized)
-        - mut y: i32 = 42      (mutable, explicit type)
-
-        Validation steps:
-        1. Check variable name is provided
-        2. Check for redeclaration in current scope
-        3. Handle type annotation vs inference
-        4. Handle undef values
-        5. Validate type compatibility
-        6. Register symbol in symbol table
-        """
-        var_name = node.get("name")
-        type_annotation = node.get("type_annotation")
-        value = node.get("value")
-
-        if not var_name:
-            self._error("Variable declaration missing name", node)
-            return
-
-        # Check for redeclaration in current scope
-        # Note: Shadowing across scopes is allowed, but not within same scope
-        if var_name in self.symbol_table.scopes[-1]:
-            self._error(f"Variable '{var_name}' already declared in this scope", node)
-            return
-
-        # Type determination logic
-        var_type = None
-        is_initialized = True
-
-        if type_annotation:
-            # Explicit type annotation path
-            var_type = self._parse_type(type_annotation)
-
-            # Check for explicit undef initialization
-            if (
-                value
-                and value.get("type") == "identifier"
-                and value.get("name") == "undef"
-            ):
-                is_initialized = False
-            elif value:
-                # Type annotation + value: validate compatibility
-                value_type = self._analyze_expression(value)
-                if value_type != HexenType.UNKNOWN and value_type != var_type:
-                    self._error(
-                        f"Type mismatch: variable '{var_name}' declared as {var_type.value} "
-                        f"but assigned value of type {value_type.value}",
-                        node,
-                    )
-        else:
-            # Type inference path - must have value
-            if not value:
-                self._error(
-                    f"Variable '{var_name}' must have either explicit type or value",
-                    node,
-                )
-                return
-
-            var_type = self._analyze_expression(value)
-            if var_type == HexenType.UNKNOWN:
-                self._error(f"Cannot infer type for variable '{var_name}'", node)
-                return
-
-        # Create and register symbol
-        symbol = Symbol(
-            name=var_name,
-            type=var_type,
-            mutability=mutability,
-            initialized=is_initialized,
-        )
-
-        if not self.symbol_table.declare_symbol(symbol):
-            self._error(f"Failed to declare variable '{var_name}'", node)
 
     def _analyze_return_statement(self, node: Dict):
         """
