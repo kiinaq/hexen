@@ -1,5 +1,5 @@
-// Hexen grammar with variable declarations and undef support
-// Target: func main() -> i32 { val x: i32 = undef; mut y = 42; return y }
+// Hexen grammar with unified block concept
+// Philosophy: All blocks work the same way - context determines requirements
 
 program: function+
 
@@ -24,6 +24,7 @@ return_stmt: "return" expression
 expression: NUMBER
           | STRING
           | IDENTIFIER
+          | block
 
 type: TYPE_I32
     | TYPE_I64

@@ -74,7 +74,7 @@ class HexenTransformer(Transformer):
         return {"type": "return_statement", "value": value}
 
     def expression(self, children):
-        # expression: NUMBER | STRING | IDENTIFIER
+        # expression: NUMBER | STRING | IDENTIFIER | block
         return children[0]
 
     @v_args(inline=True)
