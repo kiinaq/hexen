@@ -211,3 +211,55 @@ class TestMinimalHexen:
         assert body["type"] == "block"
         assert "statements" in body
         assert len(body["statements"]) == 2
+
+    def test_multiple_functions_supported(self):
+        """Test that multiple functions in one program are supported"""
+        source = """
+        func helper() -> i32 {
+            val x = 42
+            return x
+        }
+
+        func main() -> i32 {
+            val result = 0
+            return result
+        }
+
+        func utility() -> string {
+            val message = "test"
+            return message
+        }
+        """
+
+        ast = self.parser.parse(source)
+
+        # Test top-level structure
+        assert ast["type"] == "program"
+        assert len(ast["functions"]) == 3
+
+        # Test first function (helper)
+        helper_func = ast["functions"][0]
+        assert helper_func["type"] == "function"
+        assert helper_func["name"] == "helper"
+        assert helper_func["return_type"] == "i32"
+        assert len(helper_func["body"]["statements"]) == 2
+
+        # Test second function (main)
+        main_func = ast["functions"][1]
+        assert main_func["type"] == "function"
+        assert main_func["name"] == "main"
+        assert main_func["return_type"] == "i32"
+        assert len(main_func["body"]["statements"]) == 2
+
+        # Test third function (utility)
+        utility_func = ast["functions"][2]
+        assert utility_func["type"] == "function"
+        assert utility_func["name"] == "utility"
+        assert utility_func["return_type"] == "string"
+        assert len(utility_func["body"]["statements"]) == 2
+
+        # Verify each function has proper variable declarations and returns
+        for func in ast["functions"]:
+            statements = func["body"]["statements"]
+            assert statements[0]["type"] in ["val_declaration", "mut_declaration"]
+            assert statements[1]["type"] == "return_statement"

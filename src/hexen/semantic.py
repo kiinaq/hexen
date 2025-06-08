@@ -14,7 +14,7 @@ This module implements the second phase of the Hexen compiler pipeline:
 3. (Future) Code generator produces LLVM IR
 
 Design Philosophy:
-- Fail-fast: Collect all errors before stopping
+- Error recovery: Collect all errors before stopping (batch error reporting)
 - Explicit over implicit: Clear error messages
 - Type safety: Prevent runtime type errors
 - Immutable-by-default: val vs mut distinction enforced
@@ -219,7 +219,7 @@ class SemanticAnalyzer:
     5. Return type validation
 
     Design principles:
-    - Fail-safe: Collect all errors before stopping
+    - Error recovery: Collect all errors before stopping (batch error reporting)
     - Comprehensive: Check all semantic rules
     - Extensible: Easy to add new checks
     - Informative: Provide helpful error messages

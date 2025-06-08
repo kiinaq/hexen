@@ -65,7 +65,7 @@ uv run pytest tests/ -v
 ```
 
 ### What's Working
-- ✅ **Parser**: Complete Lark-based PEG parser
+- ✅ **Parser**: Complete Lark-based PEG parser with multiple function support
 - ✅ **CLI**: `hexen parse` command with JSON AST output  
 - ✅ **Grammar**: Ultra-minimal but extensible syntax
 - ✅ **Tests**: Comprehensive validation of language rules
@@ -141,7 +141,7 @@ hexen/
 │   ├── hexen.lark         # Grammar definition (PEG format)
 │   └── cli.py             # Command-line interface
 ├── tests/                  # Comprehensive test suite
-│   ├── parser/            # Parser & syntax tests (33 tests)
+│   ├── parser/            # Parser & syntax tests (34 tests)
 │   └── semantic/          # Semantic analysis tests (10 tests)
 ├── examples/              # Sample Hexen programs
 └── docs/                  # Documentation & design notes
@@ -184,7 +184,7 @@ hexen/
 - Use-before-definition detection
 - Return type matching and error reporting
 
-**Test Results**: 43/43 passing ✅ - Full pipeline validation from source to semantic analysis
+**Test Results**: 44/44 passing ✅ - Full pipeline validation from source to semantic analysis
 
 ### 🎯 Architecture Benefits
 
