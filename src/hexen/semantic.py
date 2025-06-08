@@ -488,21 +488,6 @@ class SemanticAnalyzer:
         if not self.symbol_table.declare_symbol(symbol):
             self._error(f"Failed to declare variable '{name}'", node)
 
-    # =============================================================================
-    # LEGACY METHODS (DEPRECATED - Use unified _analyze_declaration instead)
-    # =============================================================================
-
-    def _analyze_function(self, node: Dict):
-        """
-        DEPRECATED: Use _analyze_declaration() instead.
-
-        Legacy function analysis method. This method is kept for reference
-        but should not be used in new code. The unified _analyze_declaration
-        method provides the same functionality with better consistency.
-        """
-        # Delegate to unified method for consistency
-        self._analyze_declaration(node)
-
     def _analyze_block(self, node: Dict):
         """
         Analyze a block of statements.
