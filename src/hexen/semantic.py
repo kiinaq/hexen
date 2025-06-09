@@ -402,7 +402,7 @@ class SemanticAnalyzer:
         Handles function-specific logic:
         - Function context setup
         - Scope management
-        - Body analysis
+        - Body analysis (uses default block behavior)
         - No symbol table registration (functions are not variables)
         """
         # Set up function analysis context
@@ -412,9 +412,9 @@ class SemanticAnalyzer:
         # Enter function scope - function body gets its own scope
         self.symbol_table.enter_scope()
 
-        # Analyze function body
+        # Analyze function body using default block behavior
         if body:
-            self._analyze_block(body, context="function")
+            self._analyze_block(body)  # No context needed - uses default behavior
 
         # Clean up function context
         self.symbol_table.exit_scope()
@@ -488,32 +488,28 @@ class SemanticAnalyzer:
 
     def _analyze_block(self, node: Dict, context: str = None) -> Optional[HexenType]:
         """
-        Unified block analysis that handles both function and expression contexts.
+        Unified block analysis with simplified context management.
 
         Context-aware behavior:
-        - Function context: No return type, no mandatory return statement
-        - Expression context: Returns type, requires ending return statement
-        - Auto-detects context from block_context stack if not explicitly provided
+        - Default (no context): Uses existing scope, allows returns anywhere, validates against function signature
+        - "expression": Creates own scope, requires return as last statement, returns computed type
 
-        This implements the unified block concept where all blocks follow the same
-        structure but context determines their validation requirements.
+        Both contexts validate return types - the difference is in scope management
+        and return statement positioning requirements.
         """
         if node.get("type") != "block":
             self._error(f"Expected block node, got {node.get('type')}")
             return HexenType.UNKNOWN if context == "expression" else None
 
-        # Determine context - explicit parameter takes precedence over stack detection
-        if context is None:
-            context = self.block_context[-1] if self.block_context else "function"
+        # Simplified context determination
+        is_expression = context == "expression"
 
         # Context-specific setup
         block_return_type = None
-        needs_return_validation = context == "expression"
 
-        # All block contexts manage their own stack entry
-        self.block_context.append(context)
-
-        if context == "expression":
+        # Only expression blocks manage their own scope and stack entry
+        if is_expression:
+            self.block_context.append("expression")
             self.symbol_table.enter_scope()
             block_return_type = HexenType.UNKNOWN
 
@@ -522,7 +518,7 @@ class SemanticAnalyzer:
         last_return_stmt = None
 
         for i, stmt in enumerate(statements):
-            if needs_return_validation and stmt.get("type") == "return_statement":
+            if is_expression and stmt.get("type") == "return_statement":
                 if i == len(statements) - 1:
                     last_return_stmt = stmt
                 else:
@@ -533,8 +529,8 @@ class SemanticAnalyzer:
 
             self._analyze_statement(stmt)
 
-        # Context-specific validation and cleanup
-        if context == "expression":
+        # Expression-specific validation and cleanup
+        if is_expression:
             # Validate expression block requirements
             if not last_return_stmt:
                 self._error("Expression block must end with a return statement", node)
@@ -546,15 +542,10 @@ class SemanticAnalyzer:
 
             # Cleanup expression context
             self.symbol_table.exit_scope()
+            self.block_context.pop()
 
-        # All contexts clean up their stack entry
-        self.block_context.pop()
-
-        if context == "expression":
-            return block_return_type
-
-        # Function context - no return value
-        return None
+        # Return computed type for expressions, None for default blocks
+        return block_return_type if is_expression else None
 
     def _analyze_statement(self, node: Dict):
         """
@@ -582,12 +573,12 @@ class SemanticAnalyzer:
 
     def _analyze_return_statement(self, node: Dict):
         """
-        Analyze a return statement in context.
+        Analyze a return statement with simplified context management.
 
         Context-aware validation:
-        - Function context: Return type must match function return type
-        - Block expression context: Return determines block's type
-        - No context: Error - return statements need context
+        - Default context: Return type must match function return type
+        - Expression context: Return determines block's type
+        - No valid context: Error - return statements need context
 
         This implements the unified block philosophy where return statements
         work consistently but context determines their validation rules.
@@ -600,13 +591,13 @@ class SemanticAnalyzer:
         # Analyze the return value expression
         return_type = self._analyze_expression(value)
 
-        # Context-aware validation
+        # Simplified context-aware validation
         if self.block_context and self.block_context[-1] == "expression":
-            # We're in a block expression context - return type determines block type
+            # We're in an expression block context - return type determines block type
             # No additional validation needed here, the block will handle it
             pass
         elif self.current_function_return_type:
-            # We're in a function context - validate against function signature
+            # We're in default context (function body) - validate against function signature
             if (
                 return_type != HexenType.UNKNOWN
                 and return_type != self.current_function_return_type
