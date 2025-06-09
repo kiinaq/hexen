@@ -397,27 +397,25 @@ class SemanticAnalyzer:
         self, name: str, return_type_str: str, body: Dict, node: Dict
     ) -> None:
         """
-        Analyze function declaration using unified framework.
+        Analyze function declaration with truly unified block behavior.
 
         Handles function-specific logic:
-        - Function context setup
-        - Scope management
-        - Body analysis (uses default block behavior)
+        - Function context setup for return type validation
+        - Block analysis (block manages its own scope and requires final return)
         - No symbol table registration (functions are not variables)
+
+        Complete unification: Function bodies are just regular blocks that
+        validate their return type against the function signature.
         """
-        # Set up function analysis context
+        # Set up function analysis context for return type validation
         self.symbol_table.current_function = name
         self.current_function_return_type = self._parse_type(return_type_str)
 
-        # Enter function scope - function body gets its own scope
-        self.symbol_table.enter_scope()
-
-        # Analyze function body using default block behavior
+        # Analyze function body - block handles scope + return requirements
         if body:
-            self._analyze_block(body)  # No context needed - uses default behavior
+            self._analyze_block(body)  # Block manages everything now!
 
         # Clean up function context
-        self.symbol_table.exit_scope()
         self.symbol_table.current_function = None
         self.current_function_return_type = None
 
@@ -488,63 +486,72 @@ class SemanticAnalyzer:
 
     def _analyze_block(self, node: Dict, context: str = None) -> Optional[HexenType]:
         """
-        Unified block analysis with simplified context management.
+        Smart unified block analysis - ALL blocks manage scope, context determines return rules.
 
-        Context-aware behavior:
-        - Default (no context): Uses existing scope, allows returns anywhere, validates against function signature
-        - "expression": Creates own scope, requires return as last statement, returns computed type
+        ALL blocks:
+        - Manage their own scope (complete unification)
+        - Validate return types
 
-        Both contexts validate return types - the difference is in scope management
-        and return statement positioning requirements.
+        Context determines return statement rules:
+        - "expression": Requires return as final statement (value computation)
+        - Default: Allows returns anywhere (control flow)
+
+        This balances unification (scope) with context-specific needs (return rules).
         """
         if node.get("type") != "block":
             self._error(f"Expected block node, got {node.get('type')}")
             return HexenType.UNKNOWN if context == "expression" else None
 
-        # Simplified context determination
+        # ALL blocks manage their own scope (unified)
+        self.symbol_table.enter_scope()
+
+        # Track expression context for return handling
         is_expression = context == "expression"
-
-        # Context-specific setup
-        block_return_type = None
-
-        # Only expression blocks manage their own scope and stack entry
         if is_expression:
             self.block_context.append("expression")
-            self.symbol_table.enter_scope()
-            block_return_type = HexenType.UNKNOWN
 
-        # Analyze all statements
+        # Analyze all statements with context-specific return rules
         statements = node.get("statements", [])
         last_return_stmt = None
+        block_return_type = None
 
         for i, stmt in enumerate(statements):
-            if is_expression and stmt.get("type") == "return_statement":
-                if i == len(statements) - 1:
-                    last_return_stmt = stmt
-                else:
-                    self._error(
-                        "Return statement must be the last statement in expression block",
-                        stmt,
-                    )
+            if stmt.get("type") == "return_statement":
+                if is_expression:
+                    # Expression blocks: return must be last
+                    if i == len(statements) - 1:
+                        last_return_stmt = stmt
+                    else:
+                        self._error(
+                            "Return statement must be the last statement in expression block",
+                            stmt,
+                        )
+                # Function blocks: returns allowed anywhere (no restriction)
 
             self._analyze_statement(stmt)
 
-        # Expression-specific validation and cleanup
+        # Context-specific return validation
         if is_expression:
-            # Validate expression block requirements
+            # Expression blocks must end with return statement
             if not last_return_stmt:
                 self._error("Expression block must end with a return statement", node)
+                block_return_type = HexenType.UNKNOWN
             else:
                 # Get the type from the return statement's value
                 return_value = last_return_stmt.get("value")
                 if return_value:
                     block_return_type = self._analyze_expression(return_value)
+                else:
+                    block_return_type = HexenType.UNKNOWN
 
-            # Cleanup expression context
-            self.symbol_table.exit_scope()
+        # ALL blocks clean up their own scope (unified)
+        self.symbol_table.exit_scope()
+
+        # Expression context cleanup
+        if is_expression:
             self.block_context.pop()
 
-        # Return computed type for expressions, None for default blocks
+        # Context determines what to do with computed type
         return block_return_type if is_expression else None
 
     def _analyze_statement(self, node: Dict):
