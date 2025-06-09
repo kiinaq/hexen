@@ -408,7 +408,6 @@ class SemanticAnalyzer:
         # Set up function analysis context
         self.symbol_table.current_function = name
         self.current_function_return_type = self._parse_type(return_type_str)
-        self.block_context.append("function")
 
         # Enter function scope - function body gets its own scope
         self.symbol_table.enter_scope()
@@ -419,7 +418,6 @@ class SemanticAnalyzer:
 
         # Clean up function context
         self.symbol_table.exit_scope()
-        self.block_context.pop()
         self.symbol_table.current_function = None
         self.current_function_return_type = None
 
@@ -512,8 +510,10 @@ class SemanticAnalyzer:
         block_return_type = None
         needs_return_validation = context == "expression"
 
+        # All block contexts manage their own stack entry
+        self.block_context.append(context)
+
         if context == "expression":
-            self.block_context.append("expression")
             self.symbol_table.enter_scope()
             block_return_type = HexenType.UNKNOWN
 
@@ -546,8 +546,11 @@ class SemanticAnalyzer:
 
             # Cleanup expression context
             self.symbol_table.exit_scope()
-            self.block_context.pop()
 
+        # All contexts clean up their stack entry
+        self.block_context.pop()
+
+        if context == "expression":
             return block_return_type
 
         # Function context - no return value
