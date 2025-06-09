@@ -415,7 +415,7 @@ class SemanticAnalyzer:
 
         # Analyze function body
         if body:
-            self._analyze_block(body)
+            self._analyze_block(body, context="function")
 
         # Clean up function context
         self.symbol_table.exit_scope()
@@ -488,23 +488,70 @@ class SemanticAnalyzer:
         if not self.symbol_table.declare_symbol(symbol):
             self._error(f"Failed to declare variable '{name}'", node)
 
-    def _analyze_block(self, node: Dict):
+    def _analyze_block(self, node: Dict, context: str = None) -> Optional[HexenType]:
         """
-        Analyze a block of statements.
+        Unified block analysis that handles both function and expression contexts.
 
-        Blocks contain ordered statements that execute sequentially.
-        Each statement is analyzed independently.
+        Context-aware behavior:
+        - Function context: No return type, no mandatory return statement
+        - Expression context: Returns type, requires ending return statement
+        - Auto-detects context from block_context stack if not explicitly provided
 
-        Future: May need to handle control flow analysis
-        (unreachable code after return, etc.)
+        This implements the unified block concept where all blocks follow the same
+        structure but context determines their validation requirements.
         """
         if node.get("type") != "block":
             self._error(f"Expected block node, got {node.get('type')}")
-            return
+            return HexenType.UNKNOWN if context == "expression" else None
 
+        # Determine context - explicit parameter takes precedence over stack detection
+        if context is None:
+            context = self.block_context[-1] if self.block_context else "function"
+
+        # Context-specific setup
+        block_return_type = None
+        needs_return_validation = context == "expression"
+
+        if context == "expression":
+            self.block_context.append("expression")
+            self.symbol_table.enter_scope()
+            block_return_type = HexenType.UNKNOWN
+
+        # Analyze all statements
         statements = node.get("statements", [])
-        for stmt in statements:
+        last_return_stmt = None
+
+        for i, stmt in enumerate(statements):
+            if needs_return_validation and stmt.get("type") == "return_statement":
+                if i == len(statements) - 1:
+                    last_return_stmt = stmt
+                else:
+                    self._error(
+                        "Return statement must be the last statement in expression block",
+                        stmt,
+                    )
+
             self._analyze_statement(stmt)
+
+        # Context-specific validation and cleanup
+        if context == "expression":
+            # Validate expression block requirements
+            if not last_return_stmt:
+                self._error("Expression block must end with a return statement", node)
+            else:
+                # Get the type from the return statement's value
+                return_value = last_return_stmt.get("value")
+                if return_value:
+                    block_return_type = self._analyze_expression(return_value)
+
+            # Cleanup expression context
+            self.symbol_table.exit_scope()
+            self.block_context.pop()
+
+            return block_return_type
+
+        # Function context - no return value
+        return None
 
     def _analyze_statement(self, node: Dict):
         """
@@ -594,64 +641,10 @@ class SemanticAnalyzer:
         elif expr_type == "identifier":
             return self._analyze_identifier(node)
         elif expr_type == "block":
-            return self._analyze_block_as_expression(node)
+            return self._analyze_block(node, context="expression")
         else:
             self._error(f"Unknown expression type: {expr_type}", node)
             return HexenType.UNKNOWN
-
-    def _analyze_block_as_expression(self, node: Dict) -> HexenType:
-        """
-        Analyze a block used as an expression.
-
-        Expression blocks must:
-        1. End with a return statement (explicit returns philosophy)
-        2. Create a new scope for their variables
-        3. Return the type of their final return statement
-
-        This implements the unified block concept where context determines requirements.
-        """
-        if node.get("type") != "block":
-            self._error(f"Expected block node, got {node.get('type')}")
-            return HexenType.UNKNOWN
-
-        # Enter block expression context
-        self.block_context.append("expression")
-        self.symbol_table.enter_scope()
-
-        statements = node.get("statements", [])
-        block_return_type = HexenType.UNKNOWN
-
-        # Find the last return statement to determine block's type
-        last_return_stmt = None
-
-        # Analyze all statements
-        for i, stmt in enumerate(statements):
-            if stmt.get("type") == "return_statement":
-                if i == len(statements) - 1:
-                    # This is the final statement - good!
-                    last_return_stmt = stmt
-                else:
-                    self._error(
-                        "Return statement must be the last statement in expression block",
-                        stmt,
-                    )
-
-            self._analyze_statement(stmt)
-
-        # Validate that block ends with return statement
-        if not last_return_stmt:
-            self._error("Expression block must end with a return statement", node)
-        else:
-            # Get the type from the return statement's value
-            return_value = last_return_stmt.get("value")
-            if return_value:
-                block_return_type = self._analyze_expression(return_value)
-
-        # Exit block expression context
-        self.symbol_table.exit_scope()
-        self.block_context.pop()
-
-        return block_return_type
 
     def _analyze_identifier(self, node: Dict) -> HexenType:
         """
