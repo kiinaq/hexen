@@ -513,11 +513,7 @@ class SemanticAnalyzer:
         # Track context for return handling
         is_expression = context == "expression"
         is_statement_block = context == "statement"
-        is_void_function = (
-            self.current_function_return_type == HexenType.VOID
-            and not is_expression
-            and not is_statement_block
-        )
+        is_void_function = self.current_function_return_type == HexenType.VOID
 
         if is_expression:
             self.block_context.append("expression")
@@ -536,11 +532,9 @@ class SemanticAnalyzer:
                         stmt,
                     )
                 elif is_statement_block:
-                    # Statement blocks shouldn't have return statements
-                    self._error(
-                        "Statement block cannot have return statements",
-                        stmt,
-                    )
+                    # Statement blocks can have returns that match function signature
+                    # This allows returning from the function within a statement block
+                    pass  # Will be validated by _analyze_return_statement
                 elif is_expression:
                     # Expression blocks: return must be last
                     if i == len(statements) - 1:
