@@ -416,7 +416,7 @@ class SemanticAnalyzer:
 
         # Analyze function body - block handles scope + return requirements
         if body:
-            self._analyze_block(body)  # Block manages everything now!
+            self._analyze_block(body, node)  # Block manages everything now!
 
         # Clean up function context
         self.symbol_table.current_function = None
@@ -487,7 +487,9 @@ class SemanticAnalyzer:
         if not self.symbol_table.declare_symbol(symbol):
             self._error(f"Failed to declare variable '{name}'", node)
 
-    def _analyze_block(self, node: Dict, context: str = None) -> Optional[HexenType]:
+    def _analyze_block(
+        self, body: Dict, node: Dict, context: str = None
+    ) -> Optional[HexenType]:
         """
         Smart unified block analysis - ALL blocks manage scope, context determines return rules.
 
@@ -503,23 +505,23 @@ class SemanticAnalyzer:
 
         This balances unification (scope) with context-specific needs (return rules).
         """
-        if node.get("type") != "block":
-            self._error(f"Expected block node, got {node.get('type')}")
+        if body.get("type") != "block":
+            self._error(f"Expected block node, got {body.get('type')}")
             return HexenType.UNKNOWN if context == "expression" else None
 
         # ALL blocks manage their own scope (unified)
         self.symbol_table.enter_scope()
 
         # Track context for return handling
-        is_expression = context == "expression"
+        is_expression_block = context == "expression"
         is_statement_block = context == "statement"
         is_void_function = self.current_function_return_type == HexenType.VOID
 
-        if is_expression:
+        if is_expression_block:
             self.block_context.append("expression")
 
         # Analyze all statements with context-specific return rules
-        statements = node.get("statements", [])
+        statements = body.get("statements", [])
         last_return_stmt = None
         block_return_type = None
 
@@ -533,7 +535,7 @@ class SemanticAnalyzer:
                     # Statement blocks can have returns that match function signature
                     # This allows returning from the function within a statement block
                     pass  # Will be validated by _analyze_return_statement
-                elif is_expression:
+                elif is_expression_block:
                     # Expression blocks: return must be last
                     if i == len(statements) - 1:
                         last_return_stmt = stmt
@@ -547,7 +549,7 @@ class SemanticAnalyzer:
             self._analyze_statement(stmt)
 
         # Context-specific return validation
-        if is_expression:
+        if is_expression_block:
             # Expression blocks must end with return statement
             if not last_return_stmt:
                 self._error("Expression block must end with a return statement", node)
@@ -564,11 +566,11 @@ class SemanticAnalyzer:
         self.symbol_table.exit_scope()
 
         # Expression context cleanup
-        if is_expression:
+        if is_expression_block:
             self.block_context.pop()
 
         # Context determines what to do with computed type
-        return block_return_type if is_expression else None
+        return block_return_type if is_expression_block else None
 
     def _analyze_statement(self, node: Dict):
         """
@@ -594,7 +596,7 @@ class SemanticAnalyzer:
             self._analyze_return_statement(node)
         elif stmt_type == "block":
             # Statement block - standalone execution (like void functions)
-            self._analyze_block(node, context="statement")
+            self._analyze_block(node, node, context="statement")
         else:
             self._error(f"Unknown statement type: {stmt_type}", node)
 
@@ -687,7 +689,7 @@ class SemanticAnalyzer:
         elif expr_type == "identifier":
             return self._analyze_identifier(node)
         elif expr_type == "block":
-            return self._analyze_block(node, context="expression")
+            return self._analyze_block(node, node, context="expression")
         else:
             self._error(f"Unknown expression type: {expr_type}", node)
             return HexenType.UNKNOWN
