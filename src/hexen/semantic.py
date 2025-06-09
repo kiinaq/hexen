@@ -31,6 +31,7 @@ class HexenType(Enum):
 
     Design decisions:
     - I32 as default integer type (following Rust conventions)
+    - VOID for functions/blocks that don't return values
     - UNKNOWN for type inference failures (not user-facing)
     - UNINITIALIZED for explicit undef values (different from null/None)
 
@@ -44,6 +45,7 @@ class HexenType(Enum):
     I64 = "i64"
     F64 = "f64"
     STRING = "string"
+    VOID = "void"  # For functions/blocks that don't return values
     UNKNOWN = "unknown"  # For type inference failures - internal use only
     UNINITIALIZED = "undef"  # For explicit undef values - different from null
 
@@ -242,6 +244,7 @@ class SemanticAnalyzer:
             "i64": HexenType.I64,
             "f64": HexenType.F64,
             "string": HexenType.STRING,
+            "void": HexenType.VOID,
         }
 
     def analyze(self, ast: Dict) -> List[SemanticError]:
@@ -494,7 +497,8 @@ class SemanticAnalyzer:
 
         Context determines return statement rules:
         - "expression": Requires return as final statement (value computation)
-        - Default: Allows returns anywhere (control flow)
+        - Default + non-void function: Allows returns anywhere, expects some return
+        - Default + void function: No return statements required (statement execution)
 
         This balances unification (scope) with context-specific needs (return rules).
         """
@@ -507,6 +511,10 @@ class SemanticAnalyzer:
 
         # Track expression context for return handling
         is_expression = context == "expression"
+        is_void_function = (
+            self.current_function_return_type == HexenType.VOID and not is_expression
+        )
+
         if is_expression:
             self.block_context.append("expression")
 
@@ -517,7 +525,13 @@ class SemanticAnalyzer:
 
         for i, stmt in enumerate(statements):
             if stmt.get("type") == "return_statement":
-                if is_expression:
+                if is_void_function:
+                    # Void functions shouldn't have return statements
+                    self._error(
+                        "Void function cannot have return statements",
+                        stmt,
+                    )
+                elif is_expression:
                     # Expression blocks: return must be last
                     if i == len(statements) - 1:
                         last_return_stmt = stmt
@@ -526,7 +540,7 @@ class SemanticAnalyzer:
                             "Return statement must be the last statement in expression block",
                             stmt,
                         )
-                # Function blocks: returns allowed anywhere (no restriction)
+                # Non-void function blocks: returns allowed anywhere (no restriction)
 
             self._analyze_statement(stmt)
 

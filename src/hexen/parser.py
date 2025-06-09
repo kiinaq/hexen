@@ -98,6 +98,9 @@ class HexenTransformer(Transformer):
     def TYPE_STRING(self, token):
         return "string"
 
+    def TYPE_VOID(self, token):
+        return "void"
+
     def block(self, statements):
         # Always return consistent block structure with statements array
         return {"type": "block", "statements": list(statements)}
