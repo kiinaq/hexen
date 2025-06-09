@@ -497,6 +497,7 @@ class SemanticAnalyzer:
 
         Context determines return statement rules:
         - "expression": Requires return as final statement (value computation)
+        - "statement": No return statements required (statement execution)
         - Default + non-void function: Allows returns anywhere, expects some return
         - Default + void function: No return statements required (statement execution)
 
@@ -509,10 +510,13 @@ class SemanticAnalyzer:
         # ALL blocks manage their own scope (unified)
         self.symbol_table.enter_scope()
 
-        # Track expression context for return handling
+        # Track context for return handling
         is_expression = context == "expression"
+        is_statement_block = context == "statement"
         is_void_function = (
-            self.current_function_return_type == HexenType.VOID and not is_expression
+            self.current_function_return_type == HexenType.VOID
+            and not is_expression
+            and not is_statement_block
         )
 
         if is_expression:
@@ -529,6 +533,12 @@ class SemanticAnalyzer:
                     # Void functions shouldn't have return statements
                     self._error(
                         "Void function cannot have return statements",
+                        stmt,
+                    )
+                elif is_statement_block:
+                    # Statement blocks shouldn't have return statements
+                    self._error(
+                        "Statement block cannot have return statements",
                         stmt,
                     )
                 elif is_expression:
@@ -576,6 +586,7 @@ class SemanticAnalyzer:
         - val_declaration: Immutable variable declaration (unified analysis)
         - mut_declaration: Mutable variable declaration (unified analysis)
         - return_statement: Function return
+        - block: Statement block (standalone execution, like void functions)
 
         Future statement types:
         - assignment: Variable assignment
@@ -589,6 +600,9 @@ class SemanticAnalyzer:
             self._analyze_declaration(node)
         elif stmt_type == "return_statement":
             self._analyze_return_statement(node)
+        elif stmt_type == "block":
+            # Statement block - standalone execution (like void functions)
+            self._analyze_block(node, context="statement")
         else:
             self._error(f"Unknown statement type: {stmt_type}", node)
 

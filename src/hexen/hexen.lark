@@ -9,6 +9,7 @@ block: "{" statement* "}"
 
 statement: var_declaration
          | return_stmt
+         | block
 
 var_declaration: val_declaration
                | mut_declaration
