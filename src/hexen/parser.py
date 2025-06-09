@@ -69,9 +69,15 @@ class HexenTransformer(Transformer):
         # var_declaration: val_declaration | mut_declaration
         return children[0]
 
-    @v_args(inline=True)
-    def return_stmt(self, value):
-        return {"type": "return_statement", "value": value}
+    def return_stmt(self, args):
+        # Handle: "return" [expression]
+        # args can be empty (bare return) or [expression]
+        if len(args) == 0:
+            # Bare return statement
+            return {"type": "return_statement", "value": None}
+        else:
+            # Return with expression
+            return {"type": "return_statement", "value": args[0]}
 
     def expression(self, children):
         # expression: NUMBER | STRING | IDENTIFIER | block

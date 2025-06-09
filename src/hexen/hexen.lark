@@ -20,7 +20,7 @@ val_declaration: "val" IDENTIFIER ":" type "=" (expression | "undef")
 mut_declaration: "mut" IDENTIFIER ":" type "=" (expression | "undef")
                | "mut" IDENTIFIER "=" expression
 
-return_stmt: "return" expression
+return_stmt: "return" expression?
 
 expression: NUMBER
           | STRING

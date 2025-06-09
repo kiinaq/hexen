@@ -526,11 +526,9 @@ class SemanticAnalyzer:
         for i, stmt in enumerate(statements):
             if stmt.get("type") == "return_statement":
                 if is_void_function:
-                    # Void functions shouldn't have return statements
-                    self._error(
-                        "Void function cannot have return statements",
-                        stmt,
-                    )
+                    # Let _analyze_return_statement handle void function validation
+                    # to avoid duplicate error reporting
+                    pass
                 elif is_statement_block:
                     # Statement blocks can have returns that match function signature
                     # This allows returning from the function within a statement block
@@ -602,21 +600,43 @@ class SemanticAnalyzer:
 
     def _analyze_return_statement(self, node: Dict):
         """
-        Analyze a return statement with simplified context management.
+        Analyze a return statement with support for bare returns.
 
         Context-aware validation:
         - Default context: Return type must match function return type
-        - Expression context: Return determines block's type
+        - Expression context: Return determines block's type (must have value)
+        - Bare returns: Only allowed in void functions or statement blocks
         - No valid context: Error - return statements need context
 
         This implements the unified block philosophy where return statements
         work consistently but context determines their validation rules.
         """
         value = node.get("value")
-        if not value:
-            self._error("Return statement missing value", node)
-            return
 
+        # Handle bare return (return;)
+        if value is None:
+            # Bare returns are only valid in void functions or statement blocks
+            if self.block_context and self.block_context[-1] == "expression":
+                # Expression blocks must return a value
+                self._error("Expression block return statement must have a value", node)
+                return
+            elif self.current_function_return_type == HexenType.VOID:
+                # Void functions can have bare returns
+                return
+            elif self.current_function_return_type:
+                # Non-void functions cannot have bare returns
+                self._error(
+                    f"Function returning {self.current_function_return_type.value} "
+                    f"cannot have bare return statement",
+                    node,
+                )
+                return
+            else:
+                # No valid context for return statement
+                self._error("Return statement outside valid context", node)
+                return
+
+        # Handle return with value (return expression;)
         # Analyze the return value expression
         return_type = self._analyze_expression(value)
 
@@ -627,7 +647,10 @@ class SemanticAnalyzer:
             pass
         elif self.current_function_return_type:
             # We're in default context (function body) - validate against function signature
-            if (
+            if self.current_function_return_type == HexenType.VOID:
+                # Void functions cannot have return values
+                self._error("Void function cannot return a value", node)
+            elif (
                 return_type != HexenType.UNKNOWN
                 and return_type != self.current_function_return_type
             ):

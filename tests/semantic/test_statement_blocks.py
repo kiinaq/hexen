@@ -268,7 +268,7 @@ class TestStatementBlockReturns:
         assert errors == []
 
     def test_void_function_statement_block_no_returns(self):
-        """Test that void functions can't have returns even in statement blocks"""
+        """Test that void functions can't have returns with values even in statement blocks"""
         source = """
         func doWork() : void = {
             val x = 42
@@ -286,10 +286,9 @@ class TestStatementBlockReturns:
         errors = analyzer.analyze(ast)
 
         assert len(errors) >= 1
-        # Should detect void function return error
+        # Should detect void function return value error
         assert any(
-            "Void function cannot have return statements" in error.message
-            for error in errors
+            "Void function cannot return a value" in error.message for error in errors
         )
 
 
