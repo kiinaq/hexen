@@ -30,6 +30,11 @@ This is not just an academic exercise, but a practical exploration of what progr
 - [Project Architecture](#project-architecture) — Current implementation structure and design
 - [Architecture Roadmap](#architecture-roadmap) — Implementation strategy and evolution path
 
+### 📚 Detailed Documentation
+- **[Examples →](examples/README.md)** - Comprehensive learning examples organized by difficulty
+- **[Source Code →](src/README.md)** - Complete compiler architecture and implementation details  
+- **[Tests →](tests/README.md)** - Testing strategy and validation approach (164 tests)
+
 ## Quick Start
 
 Ready to try Hexen? Here's how to get started in just a few commands:
@@ -48,7 +53,7 @@ cd hexen
 uv sync --extra dev
 
 # Parse and analyze a Hexen program
-uv run hexen parse examples/hello.hxn
+uv run hexen parse examples/01_getting_started/hello_world.hxn
 ```
 
 **Note**: Hexen source files use the `.hxn` extension.
@@ -88,7 +93,7 @@ func main() : i32 = {
 
 ### Run Tests
 ```bash
-# Run the complete test suite (166 comprehensive tests)
+# Run the complete test suite (164 comprehensive tests)
 uv run pytest tests/ -v
 ```
 
@@ -101,8 +106,13 @@ uv run pytest tests/ -v
 - ✅ **Variable System**: `val`/`mut` declarations with `undef` support and assignment tracking
 - ✅ **Return Statements**: Both value returns and bare returns (`return;`)
 - ✅ **CLI Interface**: `hexen parse` with JSON AST output and error reporting
-- ✅ **Comprehensive Tests**: 166 tests covering all language features including comptime types
+- ✅ **Comprehensive Tests**: 164 tests covering all language features including comptime types
 - ✅ **Error Handling**: Detailed semantic error reporting with context
+
+### 📚 Explore Further
+- **[Examples →](examples/README.md)** - Learn Hexen through comprehensive examples
+- **[Source Code →](src/README.md)** - Dive into the compiler architecture
+- **[Tests →](tests/README.md)** - Understand the validation strategy
 
 **Next**: Explore the design principles below to understand Hexen's philosophy! 🦉
 
@@ -202,64 +212,34 @@ Source Code (.hxn)     ← Hexen source files with .hxn extension
 
 ```
 hexen/
-├── src/hexen/              # Core compiler implementation
+├── src/hexen/              # Core compiler implementation (1,219 lines)
 │   ├── parser.py          # Lark-based PEG parser + AST transformer
 │   ├── semantic.py        # Type checking & semantic analysis
 │   ├── hexen.lark         # Grammar definition (PEG format)
 │   └── cli.py             # Command-line interface
-├── tests/                  # Comprehensive test suite
-│   ├── parser/            # Parser & syntax tests
-│   └── semantic/          # Semantic analysis tests (includes comptime types)
+├── tests/                  # Comprehensive test suite (164 tests)
+│   ├── parser/            # Parser & syntax tests (58 tests)
+│   └── semantic/          # Semantic analysis tests (106 tests)
 ├── examples/              # Sample Hexen programs showcasing all features
 └── docs/                  # Documentation & design notes
 ```
 
-### 🔧 Component Responsibilities
+### 🔗 Component Details
 
-**Parser (`parser.py`)**
-- Converts source code to Abstract Syntax Tree (AST)
-- Handles syntax validation and error reporting
-- Transforms grammar rules into structured data
-- Supports unified block syntax and bare returns
-- **Input**: Hexen source code  
-- **Output**: JSON-serializable AST
+Each major component has dedicated documentation covering implementation details, architecture decisions, and usage examples:
 
-**Semantic Analyzer (`semantic.py`)**
-- Validates program semantics and type correctness
-- Manages symbol tables and scope resolution
-- Enforces mutability rules (`val` vs `mut`)
-- Implements unified block system with context-aware validation
-- Handles type inference and explicit type annotations
-- Detects use-before-definition and type mismatch errors
-- Validates return statements against function signatures
-- **Input**: Parser AST  
-- **Output**: Validated AST + comprehensive error reports
+- **[Source Code Architecture →](src/README.md)** - Complete compiler implementation with 1,219 lines across parser, semantic analyzer, and CLI. Covers the sophisticated type system, unified block analysis, and error recovery.
 
-**Grammar (`hexen.lark`)**
-- Defines Hexen's syntax using PEG (Parsing Expression Grammar)
-- Specifies tokens, rules, and precedence
-- Supports unified block syntax across all constructs
-- Enables bare return statements (`return` without expression)
-- **Current scope**: Functions, variables, types, unified blocks, return statements
+- **[Test Suite Documentation →](tests/README.md)** - Comprehensive testing strategy with 164 tests covering every language feature. Includes parser validation, semantic analysis, and integration testing.
 
-### 🧪 Testing Strategy
+- **[Example Programs →](examples/README.md)** - Learning-oriented examples demonstrating all Hexen features from basic variables to advanced comptime types and unified blocks.
 
-**Comprehensive Test Suite** (166 tests total)
-- **Parser Tests**: Syntax validation, AST structure, error handling
-- **Semantic Tests**: Type checking, comptime coercion, scope management
-- **Comptime Type Tests**: f32/f64/i32/i64 coercion, type safety validation
-- **Integration Tests**: Full language feature combinations
+### 🎯 Architecture Highlights
 
-**Test Results**: 166/166 passing ✅ - Complete validation including comptime types
-
-### 🎯 Architecture Benefits
-
-**Advanced Type System**: Comptime types with context-dependent coercion
-**Unified Design**: Single block syntax works across all language constructs
-**Comprehensive Validation**: Full semantic analysis with detailed error reporting  
-**Separation of Concerns**: Clear boundaries between parsing and semantic analysis
-**Testability**: Independent validation of each language feature
-**Extensibility**: Clean architecture supports rapid feature development
+- **Phase I Complete**: Full parser and semantic analyzer with advanced type system
+- **164 Tests Passing**: Comprehensive validation of all language features  
+- **Production Ready**: Clean architecture prepared for LLVM backend integration
+- **Documented Design**: Every component thoroughly documented with rationale
 
 ## Architecture Roadmap
 
