@@ -27,13 +27,21 @@ from enum import Enum
 
 class HexenType(Enum):
     """
-    Hexen's type system with explicit support for type inference and uninitialized states.
+    Hexen's type system with Zig-style comptime types for elegant numeric handling.
 
     Design decisions:
     - I32 as default integer type (following Rust conventions)
+    - F32/F64 for single/double precision floats
+    - COMPTIME_INT for integer literals (arbitrary precision, context-dependent coercion)
+    - COMPTIME_FLOAT for float literals (arbitrary precision, context-dependent coercion)
     - VOID for functions/blocks that don't return values
     - UNKNOWN for type inference failures (not user-facing)
     - UNINITIALIZED for explicit undef values (different from null/None)
+
+    Zig-inspired comptime types:
+    - comptime_int: Integer literals that can coerce to any integer or float type
+    - comptime_float: Float literals that can coerce to any float type
+    - Context-dependent coercion eliminates need for literal suffixes
 
     Future extensions:
     - User-defined types (structs, enums)
@@ -43,10 +51,13 @@ class HexenType(Enum):
 
     I32 = "i32"
     I64 = "i64"
+    F32 = "f32"  # New: 32-bit float
     F64 = "f64"
     STRING = "string"
     BOOL = "bool"
     VOID = "void"  # For functions/blocks that don't return values
+    COMPTIME_INT = "comptime_int"  # New: Zig-style integer literals
+    COMPTIME_FLOAT = "comptime_float"  # New: Zig-style float literals
     UNKNOWN = "unknown"  # For type inference failures - internal use only
     UNINITIALIZED = "undef"  # For explicit undef values - different from null
 
@@ -243,10 +254,13 @@ class SemanticAnalyzer:
         self.type_map = {
             "i32": HexenType.I32,
             "i64": HexenType.I64,
+            "f32": HexenType.F32,
             "f64": HexenType.F64,
             "string": HexenType.STRING,
             "bool": HexenType.BOOL,
             "void": HexenType.VOID,
+            "comptime_int": HexenType.COMPTIME_INT,
+            "comptime_float": HexenType.COMPTIME_FLOAT,
         }
 
     def analyze(self, ast: Dict) -> List[SemanticError]:
@@ -433,14 +447,13 @@ class SemanticAnalyzer:
         node: Dict,
     ) -> None:
         """
-        Analyze variable declaration using unified framework.
+        Analyze variable declaration using unified framework with Zig-style coercion.
 
         Handles variable-specific logic:
-        - Type inference and validation
+        - Type inference and validation with comptime type coercion
         - undef handling
         - Symbol table registration
         """
-        # Type determination logic (same as before)
         var_type = None
         is_initialized = True
 
@@ -456,14 +469,25 @@ class SemanticAnalyzer:
             ):
                 is_initialized = False
             elif value:
-                # Type annotation + value: validate compatibility
+                # Type annotation + value: validate compatibility with Zig-style coercion
                 value_type = self._analyze_expression(value)
-                if value_type != HexenType.UNKNOWN and value_type != var_type:
-                    self._error(
-                        f"Type mismatch: variable '{name}' declared as {var_type.value} "
-                        f"but assigned value of type {value_type.value}",
-                        node,
-                    )
+                if value_type != HexenType.UNKNOWN:
+                    if self._can_coerce(value_type, var_type):
+                        # Coercion is allowed - resolve comptime types to concrete types
+                        if value_type in {
+                            HexenType.COMPTIME_INT,
+                            HexenType.COMPTIME_FLOAT,
+                        }:
+                            # The comptime type becomes the target type through coercion
+                            pass
+                        # else: regular coercion (e.g., i32 -> i64), also fine
+                    else:
+                        # Cannot coerce - this is a type error
+                        self._error(
+                            f"Type mismatch: variable '{name}' declared as {var_type.value} "
+                            f"but assigned value of type {value_type.value}",
+                            node,
+                        )
         else:
             # Type inference path - must have value
             if not value:
@@ -473,10 +497,13 @@ class SemanticAnalyzer:
                 )
                 return
 
-            var_type = self._analyze_expression(value)
-            if var_type == HexenType.UNKNOWN:
+            inferred_type = self._analyze_expression(value)
+            if inferred_type == HexenType.UNKNOWN:
                 self._error(f"Cannot infer type for variable '{name}'", node)
                 return
+
+            # Resolve comptime types to their default concrete types for inference
+            var_type = self._resolve_comptime_type(inferred_type, HexenType.UNKNOWN)
 
         # Create and register symbol
         symbol = Symbol(
@@ -656,31 +683,30 @@ class SemanticAnalyzer:
             if self.current_function_return_type == HexenType.VOID:
                 # Void functions cannot have return values
                 self._error("Void function cannot return a value", node)
-            elif (
-                return_type != HexenType.UNKNOWN
-                and return_type != self.current_function_return_type
-            ):
-                self._error(
-                    f"Return type mismatch: expected {self.current_function_return_type.value}, "
-                    f"got {return_type.value}",
-                    node,
-                )
+            elif return_type != HexenType.UNKNOWN:
+                # Use Zig-style coercion for return type checking
+                if not self._can_coerce(return_type, self.current_function_return_type):
+                    self._error(
+                        f"Return type mismatch: expected {self.current_function_return_type.value}, "
+                        f"got {return_type.value}",
+                        node,
+                    )
         else:
             # No valid context for return statement
             self._error("Return statement outside valid context", node)
 
     def _analyze_assignment_statement(self, node: Dict):
         """
-        Analyze an assignment statement with comprehensive validation.
+        Analyze an assignment statement with comprehensive validation and Zig-style coercion.
 
         Assignment rules:
         - Target must be a declared variable
         - Target must be mutable (mut, not val)
-        - Value type must match target type
+        - Value type must be coercible to target type (using Zig-style coercion)
         - Supports self-assignment (x = x)
         - No chained assignment (a = b = c)
 
-        This validates our mutability system and type checking robustness.
+        This validates our mutability system and type checking robustness with elegant coercion.
         """
         target_name = node.get("target")
         value = node.get("value")
@@ -707,14 +733,15 @@ class SemanticAnalyzer:
         # Analyze the value expression
         value_type = self._analyze_expression(value)
 
-        # Check type compatibility
-        if value_type != HexenType.UNKNOWN and value_type != symbol.type:
-            self._error(
-                f"Type mismatch in assignment: variable '{target_name}' is {symbol.type.value}, "
-                f"but assigned value is {value_type.value}",
-                node,
-            )
-            return
+        # Check type compatibility with Zig-style coercion
+        if value_type != HexenType.UNKNOWN:
+            if not self._can_coerce(value_type, symbol.type):
+                self._error(
+                    f"Type mismatch in assignment: variable '{target_name}' is {symbol.type.value}, "
+                    f"but assigned value is {value_type.value}",
+                    node,
+                )
+                return
 
         # Mark the symbol as used (assignment counts as usage)
         symbol.used = True
@@ -791,19 +818,16 @@ class SemanticAnalyzer:
 
     def _infer_type_from_value(self, value: Dict) -> HexenType:
         """
-        Infer type from a literal value.
+        Infer type from a literal value using Zig-style comptime types.
 
-        Type inference rules:
-        - Integers default to i32 (following Rust)
-        - Floats default to f64
-        - Strings are string type
-        - Booleans are bool type
-        - Unknown for non-literals
+        Zig-inspired type inference rules:
+        - Integer literals have type comptime_int (arbitrary precision, context-dependent)
+        - Float literals have type comptime_float (arbitrary precision, context-dependent)
+        - String literals are string type
+        - Boolean literals are bool type
+        - comptime types can coerce to any compatible concrete type
 
-        Future enhancements:
-        - Integer literal suffixes (42i64)
-        - Float literal suffixes (3.14f32)
-        - Character literals
+        This eliminates the need for literal suffixes and provides elegant type coercion.
         """
         if value.get("type") != "literal":
             return HexenType.UNKNOWN
@@ -813,13 +837,94 @@ class SemanticAnalyzer:
         if isinstance(val, bool):
             return HexenType.BOOL
         elif isinstance(val, int):
-            return HexenType.I32  # Default integer type
+            return (
+                HexenType.COMPTIME_INT
+            )  # Zig-style: context will determine final type
         elif isinstance(val, float):
-            return HexenType.F64  # Default float type
+            return (
+                HexenType.COMPTIME_FLOAT
+            )  # Zig-style: context will determine final type
         elif isinstance(val, str):
             return HexenType.STRING
         else:
             return HexenType.UNKNOWN
+
+    def _can_coerce(self, from_type: HexenType, to_type: HexenType) -> bool:
+        """
+        Check if from_type can be automatically coerced to to_type.
+
+        Implements Zig-style context-dependent coercion rules:
+
+        1. Comptime types (the magic sauce):
+           - comptime_int can coerce to any integer or float type
+           - comptime_float can coerce to any float type
+
+        2. Regular widening coercion:
+           - i32 can widen to i64 and f64/f32
+           - i64 can widen to f64/f32
+           - f32 can widen to f64
+
+        3. Identity coercion:
+           - Any type can coerce to itself
+
+        This approach eliminates the need for explicit casting in most cases
+        while maintaining type safety.
+        """
+        # Identity coercion - type can always coerce to itself
+        if from_type == to_type:
+            return True
+
+        # Zig-style comptime type coercion (the elegant part!)
+        if from_type == HexenType.COMPTIME_INT:
+            # comptime_int can become numeric types, but NOT bool (that would be unsafe)
+            return to_type in {
+                HexenType.I32,
+                HexenType.I64,
+                HexenType.F32,
+                HexenType.F64,
+            }
+
+        if from_type == HexenType.COMPTIME_FLOAT:
+            # comptime_float can become any float type, but NOT bool (that would be unsafe)
+            return to_type in {HexenType.F32, HexenType.F64}
+
+        # Regular numeric widening coercion (for when we have concrete types)
+        widening_rules = {
+            HexenType.I32: {HexenType.I64, HexenType.F32, HexenType.F64},
+            HexenType.I64: {HexenType.F32, HexenType.F64},  # Note: may lose precision
+            HexenType.F32: {HexenType.F64},
+        }
+
+        return to_type in widening_rules.get(from_type, set())
+
+    def _resolve_comptime_type(
+        self, comptime_type: HexenType, target_type: HexenType
+    ) -> HexenType:
+        """
+        Resolve a comptime type to a concrete type based on context.
+
+        Used when we have a comptime_int or comptime_float that needs to become
+        a concrete type. Falls back to default types if no target is provided.
+        """
+        if comptime_type == HexenType.COMPTIME_INT:
+            if target_type in {
+                HexenType.I32,
+                HexenType.I64,
+                HexenType.F32,
+                HexenType.F64,
+            }:
+                return target_type
+            else:
+                return HexenType.I32  # Default integer type
+
+        elif comptime_type == HexenType.COMPTIME_FLOAT:
+            if target_type in {HexenType.F32, HexenType.F64}:
+                return target_type
+            else:
+                return HexenType.F64  # Default float type
+
+        else:
+            return comptime_type  # Not a comptime type, return as-is
 
     def _parse_type(self, type_str: str) -> HexenType:
         """

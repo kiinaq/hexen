@@ -78,7 +78,7 @@ class TestSemanticAnalysis:
         assert len(errors) == 1
         assert "Type mismatch" in errors[0].message
         assert "string" in errors[0].message
-        assert "i32" in errors[0].message
+        assert "comptime_int" in errors[0].message
 
     def test_undefined_variable_error(self):
         """Test undefined variable detection"""

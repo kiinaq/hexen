@@ -295,10 +295,10 @@ class TestAssignmentWithExplicitTypes:
         analyzer = SemanticAnalyzer()
         errors = analyzer.analyze(ast)
 
-        # Expect 2 errors:
-        # 1. Declaration type mismatch (i32 literal to i64 variable)
-        # 2. Assignment type mismatch (string to i64 variable)
-        assert len(errors) == 2
+        # With Zig-style comptime types, expect only 1 error:
+        # - Assignment type mismatch (string to i64 variable)
+        # No error for declaration because comptime_int (42) can coerce to i64
+        assert len(errors) == 1
         assert any("Type mismatch in assignment" in error.message for error in errors)
         assert any(
             "variable 'x' is i64, but assigned value is string" in error.message

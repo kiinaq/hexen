@@ -107,6 +107,9 @@ class HexenTransformer(Transformer):
     def TYPE_I64(self, token):
         return "i64"
 
+    def TYPE_F32(self, token):
+        return "f32"
+
     def TYPE_F64(self, token):
         return "f64"
 
@@ -144,8 +147,16 @@ class HexenTransformer(Transformer):
         return {"type": "identifier", "name": str(token)}
 
     def NUMBER(self, token):
-        # Parse number literals: 42 -> {type: "literal", value: 42}
-        return {"type": "literal", "value": int(str(token))}
+        # Parse number literals with support for both integers and floats
+        # 42 -> {type: "literal", value: 42} (int)
+        # 3.14 -> {type: "literal", value: 3.14} (float)
+        token_str = str(token)
+        if "." in token_str:
+            # Float literal
+            return {"type": "literal", "value": float(token_str)}
+        else:
+            # Integer literal
+            return {"type": "literal", "value": int(token_str)}
 
     def BOOLEAN(self, token):
         # Parse boolean literals: true -> {type: "literal", value: true}
