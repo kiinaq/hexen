@@ -1,5 +1,0 @@
-func main() -> i32 {
-    val message = "Hello, Hexen!"
-    mut counter = 42
-    return counter
-} 
