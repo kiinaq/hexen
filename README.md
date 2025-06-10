@@ -57,6 +57,14 @@ uv run hexen parse examples/hello.hxn
 ```hexen
 func main() : i32 = {
     val greeting = "Hello, Hexen!"
+    
+    // Comptime type coercion - same literals, different types
+    val default_int = 42        // comptime_int -> i32 (default)
+    val explicit_i64 : i64 = 42 // comptime_int -> i64 (coerced)
+    val as_float : f32 = 42     // comptime_int -> f32 (coerced)
+    val precise : f64 = 3.14    // comptime_float -> f64 (default)
+    val single : f32 = 3.14     // comptime_float -> f32 (coerced)
+    
     val result = {
         val computed = 42
         return computed
@@ -74,13 +82,13 @@ func main() : i32 = {
         val processed = "done"
     }
     
-    return result
+    return result  // comptime_int -> i32 (return type)
 }
 ```
 
 ### Run Tests
 ```bash
-# Run the complete test suite (92 comprehensive tests)
+# Run the complete test suite (166 comprehensive tests)
 uv run pytest tests/ -v
 ```
 
@@ -88,11 +96,12 @@ uv run pytest tests/ -v
 - ✅ **Complete Parser**: Lark-based PEG parser with sophisticated syntax support
 - ✅ **Semantic Analyzer**: Full type checking, symbol tables, scope management
 - ✅ **Unified Block System**: Expression blocks, statement blocks, and void functions  
-- ✅ **Type System**: i32, i64, f64, string, void with inference and explicit annotations
-- ✅ **Variable System**: `val`/`mut` declarations with `undef` support
+- ✅ **Advanced Type System**: i32, i64, f32, f64, string, bool, void with comptime type coercion
+- ✅ **Comptime Types**: `comptime_int` and `comptime_float` for elegant context-dependent coercion
+- ✅ **Variable System**: `val`/`mut` declarations with `undef` support and assignment tracking
 - ✅ **Return Statements**: Both value returns and bare returns (`return;`)
 - ✅ **CLI Interface**: `hexen parse` with JSON AST output and error reporting
-- ✅ **Comprehensive Tests**: 92 tests covering all language features
+- ✅ **Comprehensive Tests**: 166 tests covering all language features including comptime types
 - ✅ **Error Handling**: Detailed semantic error reporting with context
 
 **Next**: Explore the design principles below to understand Hexen's philosophy! 🦉
@@ -136,12 +145,16 @@ Every construct uses the same `{ }` block syntax but with context-appropriate be
 - **Function bodies**: Same syntax, unified scope management
 - **Void functions**: `func work() : void = { return }` - support bare returns
 
-### 🧠 Intelligent Type System  
-- **Type inference**: `val x = 42` automatically becomes `i32`
-- **Explicit annotations**: `val x : i64 = 42` for precise control
-- **Multiple types**: `i32`, `i64`, `f64`, `string`, `void` with seamless interop
+### 🧠 Advanced Type System with Comptime Types
+- **Comptime type coercion**: `42` becomes i32, i64, f32, or f64 based on context
+- **No literal suffixes**: Write `42`, not `42i64` - context determines the type
+- **Type inference**: `val x = 42` automatically becomes `i32` (default)
+- **Explicit annotations**: `val x : i64 = 42` coerces `comptime_int` to `i64`
+- **Complete numeric types**: `i32`, `i64`, `f32`, `f64` with elegant coercion
+- **Additional types**: `string`, `bool`, `void` with full type safety
 - **`undef` support**: `val x : i32 = undef` for uninitialized variables
 - **Comprehensive validation**: Use-before-definition prevention, type mismatch detection
+- **Context-dependent**: Same literal `3.14` can become `f32` or `f64`
 
 ### 🔒 Memory & Mutability Control
 - **Immutable by default**: `val` variables cannot be reassigned
@@ -195,13 +208,9 @@ hexen/
 │   ├── hexen.lark         # Grammar definition (PEG format)
 │   └── cli.py             # Command-line interface
 ├── tests/                  # Comprehensive test suite
-│   ├── parser/            # Parser & syntax tests (34 tests)
-│   └── semantic/          # Semantic analysis tests (58 tests)
-│       ├── test_semantic.py        # Core semantic features
-│       ├── test_expression_blocks.py # Expression block system
-│       ├── test_statement_blocks.py  # Statement block system  
-│       └── test_bare_returns.py     # Bare return statements
-├── examples/              # Sample Hexen programs
+│   ├── parser/            # Parser & syntax tests
+│   └── semantic/          # Semantic analysis tests (includes comptime types)
+├── examples/              # Sample Hexen programs showcasing all features
 └── docs/                  # Documentation & design notes
 ```
 
@@ -235,31 +244,22 @@ hexen/
 
 ### 🧪 Testing Strategy
 
-**Parser Tests** (`tests/parser/` - 34 tests)**
-- Syntax validation and AST structure verification
-- Error handling for invalid syntax
-- Whitespace and edge case handling
-- Variable declarations, type annotations, `undef` support
-- Function definitions and multiple function support
+**Comprehensive Test Suite** (166 tests total)
+- **Parser Tests**: Syntax validation, AST structure, error handling
+- **Semantic Tests**: Type checking, comptime coercion, scope management
+- **Comptime Type Tests**: f32/f64/i32/i64 coercion, type safety validation
+- **Integration Tests**: Full language feature combinations
 
-**Semantic Tests** (`tests/semantic/` - 58 tests)**
-- **Core Semantics** (10 tests): Type inference, symbol tables, basic validation
-- **Expression Blocks** (10 tests): Value-producing blocks with return requirements
-- **Statement Blocks** (18 tests): Scoped execution blocks with function returns
-- **Bare Returns** (14 tests): Return statements without expressions
-- **Error Cases** (6 tests): Comprehensive error detection and reporting
-
-**Test Results**: 92/92 passing ✅ - Complete validation from syntax to semantics
+**Test Results**: 166/166 passing ✅ - Complete validation including comptime types
 
 ### 🎯 Architecture Benefits
 
+**Advanced Type System**: Comptime types with context-dependent coercion
 **Unified Design**: Single block syntax works across all language constructs
 **Comprehensive Validation**: Full semantic analysis with detailed error reporting  
 **Separation of Concerns**: Clear boundaries between parsing and semantic analysis
 **Testability**: Independent validation of each language feature
 **Extensibility**: Clean architecture supports rapid feature development
-**Type Safety**: Complete type checking with inference and explicit annotations
-**Scope Safety**: Proper variable scoping with shadowing and isolation
 
 ## Architecture Roadmap
 
@@ -277,7 +277,7 @@ We leverage LLVM as our code generation backend through [llvmlite](https://llvml
 ### 🔄 Bootstrap Evolution Path
 The architecture supports natural evolution from prototype to production:
 
-1. **Phase I: Language Foundation** ✅ — Complete parser, semantic analyzer, unified block system
+1. **Phase I: Language Foundation** ✅ — Complete parser, semantic analyzer, unified block system, comptime types
 2. **Phase II: Code Generation** — LLVM IR emission and executable generation
 3. **Phase III: Self-Hosting** — Hexen compiler written in Hexen, proving the language's capabilities  
 4. **Phase IV: Complete Toolchain** — Entire development environment implemented in Hexen

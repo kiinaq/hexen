@@ -1,7 +1,7 @@
 """
-Tests for f32 type and Zig-style comptime type system.
+Tests for f32 type and comptime type system.
 
-This module tests the new numeric type system inspired by Zig:
+This module tests the new numeric type system:
 - f32 type support
 - comptime_int for integer literals
 - comptime_float for float literals
@@ -70,7 +70,7 @@ class TestF32Type:
 
 
 class TestComptimeInt:
-    """Test comptime_int behavior (Zig-style integer literals)"""
+    """Test comptime_int behavior (integer literals)"""
 
     def setup_method(self):
         self.parser = HexenParser()
@@ -156,7 +156,7 @@ class TestComptimeInt:
 
 
 class TestComptimeFloat:
-    """Test comptime_float behavior (Zig-style float literals)"""
+    """Test comptime_float behavior (float literals)"""
 
     def setup_method(self):
         self.parser = HexenParser()

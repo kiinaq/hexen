@@ -84,7 +84,7 @@ func demonstrate_all_types() : void = {
 }
 
 func main() : i32 = {
-    // The beauty of Zig-style comptime types:
+    // The beauty of comptime types:
     // - Write 42, get the type you need
     // - Write 3.14, get the precision you want  
     // - No suffixes cluttering your code
