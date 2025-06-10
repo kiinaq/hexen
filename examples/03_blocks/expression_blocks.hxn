@@ -1,0 +1,107 @@
+// Expression Blocks - Blocks that Produce Values
+// Demonstrates Hexen's unified block system for value computation
+
+func expression_block_basics() : i32 = {
+    // Expression block - computes and returns a value
+    val result = {
+        val computed = 42
+        return computed
+    }
+    
+    return result  // result = 42
+}
+
+func complex_computation() : i32 = {
+    // More complex expression block
+    val answer = {
+        val base = 6
+        val multiplier = 7
+        val product = base  // Would multiply if we had operators
+        return product
+    }
+    
+    // Convert to i32 for return type
+    val final_answer : i32 = 42
+    return final_answer
+}
+
+func nested_expression_blocks() : i32 = {
+    // Expression blocks can be nested
+    val outer_result = {
+        val inner_value = {
+            val deep_computation = 10
+            return deep_computation
+        }
+        
+        val outer_computation = inner_value
+        return outer_computation
+    }
+    
+    return outer_result
+}
+
+func expression_blocks_with_different_types() : string = {
+    // Expression blocks can return any type
+    val message = {
+        val greeting = "Hello"
+        val target = "Hexen"
+        // For now, just return one of them
+        return greeting
+    }
+    
+    val number_block = {
+        val num = 42
+        return num
+    }
+    
+    // Expression blocks with booleans
+    val flag_result = {
+        val is_working = true
+        return is_working
+    }
+    
+    return message
+}
+
+func compute_sum() : i32 = {
+    val x = 10
+    val y = 20
+    
+    // Expression block computes a value
+    val result = {
+        val temp = x
+        return temp
+    }
+    
+    return result
+}
+
+func nested_computation() : string = {
+    val base = "Hexen"
+    
+    // Nested expression blocks
+    val final_answer : i32 = {   // Changed from i64 to i32
+        val inner = {
+            return 42
+        }
+        return inner
+    }
+    
+    // Mixed computation
+    val message = {
+        val prefix = "Result: "
+        return prefix  
+    }
+    
+    return message
+}
+
+func main() : bool = {
+    // Expression blocks can be used anywhere expressions are expected
+    val success = {
+        val status = true
+        return status
+    }
+    
+    return success
+} 

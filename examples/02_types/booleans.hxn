@@ -1,0 +1,48 @@
+// Booleans - Working with true and false
+// Demonstrates Hexen's boolean type and common patterns
+
+func boolean_basics() : bool = {
+    // Boolean literals
+    val is_ready = true
+    val is_done = false
+    
+    // Boolean variables can be mutable
+    mut active = false
+    active = true  // Toggle the value
+    
+    return is_ready
+}
+
+func boolean_functions() : void = {
+    // Working with boolean values
+    val status = true
+    val config = false
+    
+    // Using boolean values
+    mut operational = false
+    operational = status  // Copy boolean value
+    
+    return
+}
+
+func check_system() : bool = {
+    // Simulate system check
+    val system_ok = true
+    return system_ok
+}
+
+func is_configured() : bool = {
+    // Simulate configuration check  
+    return false
+}
+
+func boolean_with_explicit_types() : bool = {
+    // Sometimes you want explicit types for clarity
+    val success : bool = true
+    val failed : bool = false
+    mut current_state : bool = success
+    
+    current_state = failed  // Change state
+    
+    return current_state
+} 

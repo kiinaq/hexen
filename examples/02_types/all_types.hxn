@@ -1,0 +1,46 @@
+// All Types - Hexen's Complete Type System
+// Demonstrates every built-in type with inference and explicit annotations
+
+func type_inference() : i32 = {
+    // Type inference (recommended style)
+    val integer = 42          // i32 (default integer)
+    val big_int = 100         // i32 (use explicit annotation for i32)
+    val decimal = 314         // i32 (floats not implemented yet)
+    val text = "Hello!"       // string
+    val flag = true           // bool
+    
+    return integer
+}
+
+func explicit_types() : i32 = {
+    // Explicit type annotations (when you need control)
+    val small_int : i32 = 42
+    val large_int : i32 = 9223372036854775807
+    val precise : i32 = 3141592653589793
+    val message : string = "Explicit types"
+    val enabled : bool = false
+    
+    return small_int
+}
+
+func uninitialized_variables() : i32 = {
+    // Variables with undef (must have explicit type)
+    val pending : i32 = undef      // Will be set later
+    val config : string = undef    // Uninitialized string
+    val ready : bool = undef       // Uninitialized boolean
+    
+    // Note: Cannot use uninitialized variables until assigned
+    val result = 42
+    return result
+}
+
+func mixed_usage() : bool = {
+    // Real-world usage mixing inference and explicit types
+    val count = 10              // Inferred i32
+    val total : i32 = 1000000   // Explicit for large numbers
+    val ratio = 75              // Inferred i32 (floats not implemented yet)  
+    val name = "Hexen"          // Inferred string
+    val success = true          // Inferred bool
+    
+    return success
+} 

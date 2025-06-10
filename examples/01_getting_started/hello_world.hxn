@@ -1,0 +1,6 @@
+// Hello World - Your First Hexen Program
+// This is the simplest possible Hexen program
+
+func main() : i32 = {
+    return 42
+} 

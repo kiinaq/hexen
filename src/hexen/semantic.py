@@ -719,6 +719,9 @@ class SemanticAnalyzer:
         # Mark the symbol as used (assignment counts as usage)
         symbol.used = True
 
+        # Mark the symbol as initialized (assignment initializes uninitialized variables)
+        symbol.initialized = True
+
     def _analyze_expression(self, node: Dict) -> HexenType:
         """
         Analyze an expression and return its type.
