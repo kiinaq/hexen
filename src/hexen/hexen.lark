@@ -52,4 +52,6 @@ STRING: /\"[^\"]*\"/
 
 // Ignore whitespace and comments
 %import common.WS
-%ignore WS 
+COMMENT: /\/\/[^\r\n]*/
+%ignore WS
+%ignore COMMENT 

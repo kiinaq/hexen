@@ -51,6 +51,8 @@ uv sync --extra dev
 uv run hexen parse examples/hello.hxn
 ```
 
+**Note**: Hexen source files use the `.hxn` extension.
+
 ### Example Hexen Code
 ```hexen
 func main() : i32 = {
@@ -119,6 +121,10 @@ Language features should build upon each other naturally and logically. Complex 
 
 Hexen chooses only the features that matter most for achieving results. Rather than trying to be everything to everyone, we deliberately select a focused set of capabilities that work exceptionally well together. Every feature must justify its existence by solving real problems effectively.
 
+## File Extension
+
+Hexen source files use the **`.hxn`** extension, reflecting the language's clean and focused approach to naming conventions.
+
 ## Core Features
 
 Hexen's current implementation showcases a sophisticated foundation built around unified, powerful language constructs:
@@ -168,7 +174,7 @@ Hexen follows a clean, modular architecture that separates concerns and enables 
 ### 🏗️ Compiler Pipeline
 
 ```
-Source Code (.hxn)
+Source Code (.hxn)     ← Hexen source files with .hxn extension
        ↓
    📝 Parser           ← Syntax analysis, AST generation
        ↓

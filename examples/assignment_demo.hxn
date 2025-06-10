@@ -1,55 +1,84 @@
+// Assignment Demo - Showcasing Hexen's Assignment Operator
+// This demonstrates assignment working seamlessly with our unified block system
+
 func assignment_showcase() : void = {
+    // Basic assignment to mutable variables
     mut counter = 0
-    counter = 10
-    counter = 20
-    counter = 30
+    counter = 10        // Simple reassignment
+    counter = 20        // Multiple assignments allowed
+    counter = 30        // Each assignment updates the value
     
+    // Assignment works with different types
     mut message = "hello"
     message = "world"
     message = "assignment works!"
     
+    // Self-assignment is allowed (x = x)
+    // This might be useful in some contexts
     mut value = 42
-    value = value
+    value = value       // Perfectly valid, though redundant
     
+    // Assignment works in statement blocks
     {
         mut scoped = 100
-        scoped = 200
+        scoped = 200    // Local assignment
+        
+        // Can assign to outer scope variables
         counter = 999
         message = "from inner scope"
     }
     
+    // Assignment with explicit type annotations
     mut typed_number : i32 = 42
-    typed_number = 100
+    typed_number = 100  // Type must match
     
     mut typed_text : string = "start"
     typed_text = "finish"
     
+    // Assignment to uninitialized variables
     mut uninitialized : i32 = undef
-    uninitialized = 42
+    uninitialized = 42  // Now it has a value
     
     return
 }
 
 func assignment_patterns() : void = {
-    val initial = 42
-    mut step1 = 0
+    // Common assignment patterns
+    val initial = 42    // val variables cannot be reassigned
+    mut step1 = 0       // But mut variables can be
     mut step2 = 0
     mut final = 0
     
-    step1 = initial
-    step2 = step1  
-    final = step2
+    // Sequential assignments (data flow)
+    step1 = initial     // Copy from immutable to mutable
+    step2 = step1       // Chain assignments
+    final = step2       // Final result
     
+    // Multiple assignments to same variable
     mut accumulator = 0
-    accumulator = 10
-    accumulator = 20
-    accumulator = 30
+    accumulator = 10    // First update
+    accumulator = 20    // Second update  
+    accumulator = 30    // Final value
     
     return
 }
 
 func simple_assignment() : i32 = {
+    // Assignment in function with return value
     mut result = 0
-    result = 42
-    return result
-} 
+    result = 42         // Set the result
+    return result       // Return the assigned value
+}
+
+// This would cause errors (commented out for demo):
+// func error_examples() : void = {
+//     val immutable = 42
+//     immutable = 100       // Error: Cannot assign to val variable
+//     
+//     unknown = 42          // Error: Undefined variable
+//     
+//     mut number = 42  
+//     number = "text"       // Error: Type mismatch
+//     
+//     return
+// } 
