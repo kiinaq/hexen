@@ -213,33 +213,20 @@ Source Code (.hxn)     ← Hexen source files with .hxn extension
 ```
 hexen/
 ├── src/hexen/              # Core compiler implementation (1,219 lines)
-│   ├── parser.py          # Lark-based PEG parser + AST transformer
-│   ├── semantic.py        # Type checking & semantic analysis
-│   ├── hexen.lark         # Grammar definition (PEG format)
-│   └── cli.py             # Command-line interface
 ├── tests/                  # Comprehensive test suite (164 tests)
-│   ├── parser/            # Parser & syntax tests (58 tests)
-│   └── semantic/          # Semantic analysis tests (106 tests)
 ├── examples/              # Sample Hexen programs showcasing all features
 └── docs/                  # Documentation & design notes
 ```
 
-### 🔗 Component Details
+**Detailed breakdowns**: See [src/README.md](src/README.md), [tests/README.md](tests/README.md), and [examples/README.md](examples/README.md)
 
-Each major component has dedicated documentation covering implementation details, architecture decisions, and usage examples:
+### 🎯 Current Status
 
-- **[Source Code Architecture →](src/README.md)** - Complete compiler implementation with 1,219 lines across parser, semantic analyzer, and CLI. Covers the sophisticated type system, unified block analysis, and error recovery.
+- **Phase I: Language Foundation** 🚧 In Progress - Full parser and semantic analyzer
+- **164 Tests Passing** - Comprehensive validation of all language features  
+- **Production Ready** - Clean architecture prepared for LLVM backend integration
 
-- **[Test Suite Documentation →](tests/README.md)** - Comprehensive testing strategy with 164 tests covering every language feature. Includes parser validation, semantic analysis, and integration testing.
-
-- **[Example Programs →](examples/README.md)** - Learning-oriented examples demonstrating all Hexen features from basic variables to advanced comptime types and unified blocks.
-
-### 🎯 Architecture Highlights
-
-- **Phase I Complete**: Full parser and semantic analyzer with advanced type system
-- **164 Tests Passing**: Comprehensive validation of all language features  
-- **Production Ready**: Clean architecture prepared for LLVM backend integration
-- **Documented Design**: Every component thoroughly documented with rationale
+*For detailed implementation information, see the component-specific documentation linked above.*
 
 ## Architecture Roadmap
 
@@ -257,7 +244,7 @@ We leverage LLVM as our code generation backend through [llvmlite](https://llvml
 ### 🔄 Bootstrap Evolution Path
 The architecture supports natural evolution from prototype to production:
 
-1. **Phase I: Language Foundation** ✅ — Complete parser, semantic analyzer, unified block system, comptime types
+1. **Phase I: Language Foundation** 🚧 — Complete parser, semantic analyzer, unified block system, comptime types
 2. **Phase II: Code Generation** — LLVM IR emission and executable generation
 3. **Phase III: Self-Hosting** — Hexen compiler written in Hexen, proving the language's capabilities  
 4. **Phase IV: Complete Toolchain** — Entire development environment implemented in Hexen
