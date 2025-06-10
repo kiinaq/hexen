@@ -166,6 +166,7 @@ class TestSemanticAnalysis:
             val a = 42
             val b = 100
             val d = "hello"
+            val e = true
             return a
         }
         """

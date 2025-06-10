@@ -113,6 +113,9 @@ class HexenTransformer(Transformer):
     def TYPE_STRING(self, token):
         return "string"
 
+    def TYPE_BOOL(self, token):
+        return "bool"
+
     def TYPE_VOID(self, token):
         return "void"
 
@@ -143,6 +146,10 @@ class HexenTransformer(Transformer):
     def NUMBER(self, token):
         # Parse number literals: 42 -> {type: "literal", value: 42}
         return {"type": "literal", "value": int(str(token))}
+
+    def BOOLEAN(self, token):
+        # Parse boolean literals: true -> {type: "literal", value: true}
+        return {"type": "literal", "value": str(token) == "true"}
 
 
 class HexenParser:

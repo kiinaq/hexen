@@ -45,6 +45,7 @@ class HexenType(Enum):
     I64 = "i64"
     F64 = "f64"
     STRING = "string"
+    BOOL = "bool"
     VOID = "void"  # For functions/blocks that don't return values
     UNKNOWN = "unknown"  # For type inference failures - internal use only
     UNINITIALIZED = "undef"  # For explicit undef values - different from null
@@ -244,6 +245,7 @@ class SemanticAnalyzer:
             "i64": HexenType.I64,
             "f64": HexenType.F64,
             "string": HexenType.STRING,
+            "bool": HexenType.BOOL,
             "void": HexenType.VOID,
         }
 
@@ -792,20 +794,22 @@ class SemanticAnalyzer:
         - Integers default to i32 (following Rust)
         - Floats default to f64
         - Strings are string type
+        - Booleans are bool type
         - Unknown for non-literals
 
         Future enhancements:
         - Integer literal suffixes (42i64)
         - Float literal suffixes (3.14f32)
         - Character literals
-        - Boolean literals
         """
         if value.get("type") != "literal":
             return HexenType.UNKNOWN
 
         val = value.get("value")
 
-        if isinstance(val, int):
+        if isinstance(val, bool):
+            return HexenType.BOOL
+        elif isinstance(val, int):
             return HexenType.I32  # Default integer type
         elif isinstance(val, float):
             return HexenType.F64  # Default float type

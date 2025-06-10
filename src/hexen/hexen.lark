@@ -27,6 +27,7 @@ assignment_stmt: IDENTIFIER "=" expression
 
 expression: NUMBER
           | STRING
+          | BOOLEAN
           | IDENTIFIER
           | block
 
@@ -34,21 +35,24 @@ type: TYPE_I32
     | TYPE_I64
     | TYPE_F64
     | TYPE_STRING
+    | TYPE_BOOL
     | TYPE_VOID
 
 TYPE_I32: "i32"
 TYPE_I64: "i64"
 TYPE_F64: "f64"
 TYPE_STRING: "string"
+TYPE_BOOL: "bool"
 TYPE_VOID: "void"
 
 VAL: "val"
 MUT: "mut"
 
 // Terminals
-IDENTIFIER: /(?!val\b|mut\b)[a-zA-Z_][a-zA-Z0-9_]*/
+IDENTIFIER: /(?!val\b|mut\b|true\b|false\b)[a-zA-Z_][a-zA-Z0-9_]*/
 NUMBER: /[0-9]+/
 STRING: /\"[^\"]*\"/
+BOOLEAN: "true" | "false"
 
 // Ignore whitespace and comments
 %import common.WS

@@ -62,6 +62,18 @@ class TestTypeAnnotations:
         func = ast["functions"][0]
         assert func["return_type"] == "string"
 
+    def test_function_return_type_bool(self):
+        """Test bool return type annotation"""
+        source = """
+        func test() : bool  = {
+            return true
+        }
+        """
+
+        ast = self.parser.parse(source)
+        func = ast["functions"][0]
+        assert func["return_type"] == "bool"
+
     def test_all_type_annotations_work(self):
         """Test that all type annotations parse correctly (regression test for TODO fix)"""
         test_cases = [
@@ -69,6 +81,7 @@ class TestTypeAnnotations:
             ("i64", "i64"),
             ("f64", "f64"),
             ("string", "string"),
+            ("bool", "bool"),
         ]
 
         for type_name, expected in test_cases:
