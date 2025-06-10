@@ -47,29 +47,51 @@ cd hexen
 # Install dependencies
 uv sync --extra dev
 
-# Parse the example Hexen program
+# Parse and analyze a Hexen program
 uv run hexen parse examples/hello.hxn
 ```
 
 ### Example Hexen Code
 ```hexen
-func main() -> i32 {
-    return 0
+func main() : i32 = {
+    val greeting = "Hello, Hexen!"
+    val result = {
+        val computed = 42
+        return computed
+    }
+    
+    // Void function with early exit
+    func setup() : void = {
+        val config = "ready"
+        return  // Bare return in void function
+    }
+    
+    // Statement block for scoped computation
+    {
+        val temp = result
+        val processed = "done"
+    }
+    
+    return result
 }
 ```
 
 ### Run Tests
 ```bash
-# Run the complete test suite
+# Run the complete test suite (92 comprehensive tests)
 uv run pytest tests/ -v
 ```
 
 ### What's Working
-- ✅ **Parser**: Complete Lark-based PEG parser with multiple function support
-- ✅ **CLI**: `hexen parse` command with JSON AST output  
-- ✅ **Grammar**: Ultra-minimal but extensible syntax
-- ✅ **Tests**: Comprehensive validation of language rules
-- ✅ **Examples**: Ready-to-run `.hxn` files
+- ✅ **Complete Parser**: Lark-based PEG parser with sophisticated syntax support
+- ✅ **Semantic Analyzer**: Full type checking, symbol tables, scope management
+- ✅ **Unified Block System**: Expression blocks, statement blocks, and void functions  
+- ✅ **Type System**: i32, i64, f64, string, void with inference and explicit annotations
+- ✅ **Variable System**: `val`/`mut` declarations with `undef` support
+- ✅ **Return Statements**: Both value returns and bare returns (`return;`)
+- ✅ **CLI Interface**: `hexen parse` with JSON AST output and error reporting
+- ✅ **Comprehensive Tests**: 92 tests covering all language features
+- ✅ **Error Handling**: Detailed semantic error reporting with context
 
 **Next**: Explore the design principles below to understand Hexen's philosophy! 🦉
 
@@ -99,7 +121,33 @@ Hexen chooses only the features that matter most for achieving results. Rather t
 
 ## Core Features
 
-Hexen's identity is built around four foundational capabilities that work together to create a coherent development experience:
+Hexen's current implementation showcases a sophisticated foundation built around unified, powerful language constructs:
+
+### 🎯 Unified Block System
+Every construct uses the same `{ }` block syntax but with context-appropriate behavior:
+- **Expression blocks**: `val x = { return 42 }` - produce values, require final return
+- **Statement blocks**: `{ val temp = 100 }` - scoped execution, allow function returns  
+- **Function bodies**: Same syntax, unified scope management
+- **Void functions**: `func work() : void = { return }` - support bare returns
+
+### 🧠 Intelligent Type System  
+- **Type inference**: `val x = 42` automatically becomes `i32`
+- **Explicit annotations**: `val x : i64 = 42` for precise control
+- **Multiple types**: `i32`, `i64`, `f64`, `string`, `void` with seamless interop
+- **`undef` support**: `val x : i32 = undef` for uninitialized variables
+- **Comprehensive validation**: Use-before-definition prevention, type mismatch detection
+
+### 🔒 Memory & Mutability Control
+- **Immutable by default**: `val` variables cannot be reassigned
+- **Explicit mutability**: `mut` variables require opt-in for reassignment  
+- **Scope isolation**: Block variables don't leak to outer scopes
+- **Variable shadowing**: Inner scopes can redefine outer variables safely
+
+### 🎨 Expressive Return System
+- **Value returns**: `return expression` for returning computed values
+- **Bare returns**: `return` for early exit in void functions
+- **Context awareness**: Expression blocks require values, statement blocks allow function returns
+- **Type validation**: All returns checked against function signatures
 
 ### 🛡️ Safety by Design, Unsafety by Choice
 Memory safety, type safety, and thread safety are the default—without garbage collection or runtime overhead. Safety is achieved through compile-time analysis and ownership systems, not managed memory. Unsafe operations are possible but require explicit opt-in, making dangerous code visible and intentional.
@@ -124,7 +172,7 @@ Source Code (.hxn)
        ↓
    📝 Parser           ← Syntax analysis, AST generation
        ↓
-   🧠 Semantic Analyzer ← Type checking, symbol resolution  
+   🧠 Semantic Analyzer ← Type checking, symbol resolution, scope management
        ↓
    ⚙️ Code Generator    ← LLVM IR emission (future)
        ↓
@@ -137,12 +185,16 @@ Source Code (.hxn)
 hexen/
 ├── src/hexen/              # Core compiler implementation
 │   ├── parser.py          # Lark-based PEG parser + AST transformer
-│   ├── semantic.py        # Type checking & symbol table management
+│   ├── semantic.py        # Type checking & semantic analysis
 │   ├── hexen.lark         # Grammar definition (PEG format)
 │   └── cli.py             # Command-line interface
 ├── tests/                  # Comprehensive test suite
 │   ├── parser/            # Parser & syntax tests (34 tests)
-│   └── semantic/          # Semantic analysis tests (10 tests)
+│   └── semantic/          # Semantic analysis tests (58 tests)
+│       ├── test_semantic.py        # Core semantic features
+│       ├── test_expression_blocks.py # Expression block system
+│       ├── test_statement_blocks.py  # Statement block system  
+│       └── test_bare_returns.py     # Bare return statements
 ├── examples/              # Sample Hexen programs
 └── docs/                  # Documentation & design notes
 ```
@@ -153,6 +205,7 @@ hexen/
 - Converts source code to Abstract Syntax Tree (AST)
 - Handles syntax validation and error reporting
 - Transforms grammar rules into structured data
+- Supports unified block syntax and bare returns
 - **Input**: Hexen source code  
 - **Output**: JSON-serializable AST
 
@@ -160,39 +213,47 @@ hexen/
 - Validates program semantics and type correctness
 - Manages symbol tables and scope resolution
 - Enforces mutability rules (`val` vs `mut`)
-- Detects use-before-definition errors
+- Implements unified block system with context-aware validation
+- Handles type inference and explicit type annotations
+- Detects use-before-definition and type mismatch errors
+- Validates return statements against function signatures
 - **Input**: Parser AST  
-- **Output**: Validated AST + error reports
+- **Output**: Validated AST + comprehensive error reports
 
 **Grammar (`hexen.lark`)**
 - Defines Hexen's syntax using PEG (Parsing Expression Grammar)
 - Specifies tokens, rules, and precedence
-- Enables rapid syntax experimentation
-- **Current scope**: Functions, variables, types, `undef` handling
+- Supports unified block syntax across all constructs
+- Enables bare return statements (`return` without expression)
+- **Current scope**: Functions, variables, types, unified blocks, return statements
 
 ### 🧪 Testing Strategy
 
-**Parser Tests** (`tests/parser/`)
+**Parser Tests** (`tests/parser/` - 34 tests)**
 - Syntax validation and AST structure verification
 - Error handling for invalid syntax
 - Whitespace and edge case handling
 - Variable declarations, type annotations, `undef` support
+- Function definitions and multiple function support
 
-**Semantic Tests** (`tests/semantic/`)
-- Type inference and checking validation
-- Symbol table and scope management
-- Use-before-definition detection
-- Return type matching and error reporting
+**Semantic Tests** (`tests/semantic/` - 58 tests)**
+- **Core Semantics** (10 tests): Type inference, symbol tables, basic validation
+- **Expression Blocks** (10 tests): Value-producing blocks with return requirements
+- **Statement Blocks** (18 tests): Scoped execution blocks with function returns
+- **Bare Returns** (14 tests): Return statements without expressions
+- **Error Cases** (6 tests): Comprehensive error detection and reporting
 
-**Test Results**: 44/44 passing ✅ - Full pipeline validation from source to semantic analysis
+**Test Results**: 92/92 passing ✅ - Complete validation from syntax to semantics
 
 ### 🎯 Architecture Benefits
 
-**Separation of Concerns**: Each component has a single, well-defined responsibility
-**Testability**: Independent testing of parsing vs semantic analysis
-**Extensibility**: Easy to add new language features through the pipeline
-**Debugging**: Clear boundaries make issue isolation straightforward
-**Documentation**: Architecture matches implementation, aiding newcomer onboarding
+**Unified Design**: Single block syntax works across all language constructs
+**Comprehensive Validation**: Full semantic analysis with detailed error reporting  
+**Separation of Concerns**: Clear boundaries between parsing and semantic analysis
+**Testability**: Independent validation of each language feature
+**Extensibility**: Clean architecture supports rapid feature development
+**Type Safety**: Complete type checking with inference and explicit annotations
+**Scope Safety**: Proper variable scoping with shadowing and isolation
 
 ## Architecture Roadmap
 
@@ -210,9 +271,10 @@ We leverage LLVM as our code generation backend through [llvmlite](https://llvml
 ### 🔄 Bootstrap Evolution Path
 The architecture supports natural evolution from prototype to production:
 
-1. **Phase I: Python Prototype** — Rapid iteration on language design and core features
-2. **Phase II: Self-Hosting** — Hexen compiler written in Hexen, proving the language's capabilities  
-3. **Phase III: Complete Toolchain** — Entire development environment implemented in Hexen
+1. **Phase I: Language Foundation** ✅ — Complete parser, semantic analyzer, unified block system
+2. **Phase II: Code Generation** — LLVM IR emission and executable generation
+3. **Phase III: Self-Hosting** — Hexen compiler written in Hexen, proving the language's capabilities  
+4. **Phase IV: Complete Toolchain** — Entire development environment implemented in Hexen
 
 This progression embodies our core principle: build tools that work exceptionally well, then use those tools to build even better tools.
 
