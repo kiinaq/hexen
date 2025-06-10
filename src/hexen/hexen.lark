@@ -10,17 +10,20 @@ block: "{" statement* "}"
 statement: var_declaration
          | return_stmt
          | block
+         | assignment_stmt
 
 var_declaration: val_declaration
                | mut_declaration
 
-val_declaration: "val" IDENTIFIER ":" type "=" (expression | "undef")
-               | "val" IDENTIFIER "=" expression
+val_declaration: VAL IDENTIFIER ":" type "=" (expression | "undef")
+               | VAL IDENTIFIER "=" expression
 
-mut_declaration: "mut" IDENTIFIER ":" type "=" (expression | "undef")
-               | "mut" IDENTIFIER "=" expression
+mut_declaration: MUT IDENTIFIER ":" type "=" (expression | "undef")
+               | MUT IDENTIFIER "=" expression
 
 return_stmt: "return" expression?
+
+assignment_stmt: IDENTIFIER "=" expression
 
 expression: NUMBER
           | STRING
@@ -39,8 +42,11 @@ TYPE_F64: "f64"
 TYPE_STRING: "string"
 TYPE_VOID: "void"
 
+VAL: "val"
+MUT: "mut"
+
 // Terminals
-IDENTIFIER: /[a-zA-Z_][a-zA-Z0-9_]*/
+IDENTIFIER: /(?!val\b|mut\b)[a-zA-Z_][a-zA-Z0-9_]*/
 NUMBER: /[0-9]+/
 STRING: /\"[^\"]*\"/
 

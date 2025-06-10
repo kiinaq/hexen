@@ -594,6 +594,8 @@ class SemanticAnalyzer:
             self._analyze_declaration(node)
         elif stmt_type == "return_statement":
             self._analyze_return_statement(node)
+        elif stmt_type == "assignment_statement":
+            self._analyze_assignment_statement(node)
         elif stmt_type == "block":
             # Statement block - standalone execution (like void functions)
             self._analyze_block(node, node, context="statement")
@@ -664,6 +666,56 @@ class SemanticAnalyzer:
         else:
             # No valid context for return statement
             self._error("Return statement outside valid context", node)
+
+    def _analyze_assignment_statement(self, node: Dict):
+        """
+        Analyze an assignment statement with comprehensive validation.
+
+        Assignment rules:
+        - Target must be a declared variable
+        - Target must be mutable (mut, not val)
+        - Value type must match target type
+        - Supports self-assignment (x = x)
+        - No chained assignment (a = b = c)
+
+        This validates our mutability system and type checking robustness.
+        """
+        target_name = node.get("target")
+        value = node.get("value")
+
+        if not target_name:
+            self._error("Assignment target missing", node)
+            return
+
+        if not value:
+            self._error("Assignment value missing", node)
+            return
+
+        # Look up target variable in symbol table
+        symbol = self.symbol_table.lookup_symbol(target_name)
+        if not symbol:
+            self._error(f"Undefined variable: '{target_name}'", node)
+            return
+
+        # Check mutability - only mut variables can be assigned to
+        if symbol.mutability == Mutability.IMMUTABLE:
+            self._error(f"Cannot assign to immutable variable '{target_name}'", node)
+            return
+
+        # Analyze the value expression
+        value_type = self._analyze_expression(value)
+
+        # Check type compatibility
+        if value_type != HexenType.UNKNOWN and value_type != symbol.type:
+            self._error(
+                f"Type mismatch in assignment: variable '{target_name}' is {symbol.type.value}, "
+                f"but assigned value is {value_type.value}",
+                node,
+            )
+            return
+
+        # Mark the symbol as used (assignment counts as usage)
+        symbol.used = True
 
     def _analyze_expression(self, node: Dict) -> HexenType:
         """

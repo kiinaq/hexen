@@ -22,11 +22,11 @@ class HexenTransformer(Transformer):
         }
 
     def val_declaration(self, args):
-        # Handle: "val" IDENTIFIER [":" type] "=" expression
-        # args can be [name, value] or [name, type, value]
-        if len(args) == 2:
+        # Handle: VAL IDENTIFIER [":" type] "=" expression
+        # args can be [val_token, name, value] or [val_token, name, type, value]
+        if len(args) == 3:
             # No type annotation: val name = value
-            name, value = args
+            val_token, name, value = args
             return {
                 "type": "val_declaration",
                 "name": name["name"],
@@ -35,7 +35,7 @@ class HexenTransformer(Transformer):
             }
         else:
             # With type annotation: val name : type = value
-            name, type_annotation, value = args
+            val_token, name, type_annotation, value = args
             return {
                 "type": "val_declaration",
                 "name": name["name"],
@@ -44,11 +44,11 @@ class HexenTransformer(Transformer):
             }
 
     def mut_declaration(self, args):
-        # Handle: "mut" IDENTIFIER [":" type] "=" expression
-        # args can be [name, value] or [name, type, value]
-        if len(args) == 2:
+        # Handle: MUT IDENTIFIER [":" type] "=" expression
+        # args can be [mut_token, name, value] or [mut_token, name, type, value]
+        if len(args) == 3:
             # No type annotation: mut name = value
-            name, value = args
+            mut_token, name, value = args
             return {
                 "type": "mut_declaration",
                 "name": name["name"],
@@ -57,7 +57,7 @@ class HexenTransformer(Transformer):
             }
         else:
             # With type annotation: mut name : type = value
-            name, type_annotation, value = args
+            mut_token, name, type_annotation, value = args
             return {
                 "type": "mut_declaration",
                 "name": name["name"],
@@ -78,6 +78,15 @@ class HexenTransformer(Transformer):
         else:
             # Return with expression
             return {"type": "return_statement", "value": args[0]}
+
+    @v_args(inline=True)
+    def assignment_stmt(self, target, value):
+        # Handle: IDENTIFIER "=" expression
+        return {
+            "type": "assignment_statement",
+            "target": target["name"],  # Extract name from identifier dict
+            "value": value,
+        }
 
     def expression(self, children):
         # expression: NUMBER | STRING | IDENTIFIER | block
@@ -106,6 +115,12 @@ class HexenTransformer(Transformer):
 
     def TYPE_VOID(self, token):
         return "void"
+
+    def VAL(self, token):
+        return "val"
+
+    def MUT(self, token):
+        return "mut"
 
     def block(self, statements):
         # Always return consistent block structure with statements array

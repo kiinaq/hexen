@@ -1,0 +1,55 @@
+func assignment_showcase() : void = {
+    mut counter = 0
+    counter = 10
+    counter = 20
+    counter = 30
+    
+    mut message = "hello"
+    message = "world"
+    message = "assignment works!"
+    
+    mut value = 42
+    value = value
+    
+    {
+        mut scoped = 100
+        scoped = 200
+        counter = 999
+        message = "from inner scope"
+    }
+    
+    mut typed_number : i32 = 42
+    typed_number = 100
+    
+    mut typed_text : string = "start"
+    typed_text = "finish"
+    
+    mut uninitialized : i32 = undef
+    uninitialized = 42
+    
+    return
+}
+
+func assignment_patterns() : void = {
+    val initial = 42
+    mut step1 = 0
+    mut step2 = 0
+    mut final = 0
+    
+    step1 = initial
+    step2 = step1  
+    final = step2
+    
+    mut accumulator = 0
+    accumulator = 10
+    accumulator = 20
+    accumulator = 30
+    
+    return
+}
+
+func simple_assignment() : i32 = {
+    mut result = 0
+    result = 42
+    return result
+} 
