@@ -470,7 +470,7 @@ class SemanticAnalyzer:
                 is_initialized = False
             elif value:
                 # Type annotation + value: validate compatibility with coercion
-                value_type = self._analyze_expression(value)
+                value_type = self._analyze_expression(value, var_type)
                 if value_type != HexenType.UNKNOWN:
                     if self._can_coerce(value_type, var_type):
                         # Coercion is allowed - resolve comptime types to concrete types
@@ -587,7 +587,9 @@ class SemanticAnalyzer:
                 # Get the type from the return statement's value
                 return_value = last_return_stmt.get("value")
                 if return_value:
-                    block_return_type = self._analyze_expression(return_value)
+                    block_return_type = self._analyze_expression(
+                        return_value, self.current_function_return_type
+                    )
                 else:
                     block_return_type = HexenType.UNKNOWN
 
@@ -671,7 +673,7 @@ class SemanticAnalyzer:
 
         # Handle return with value (return expression;)
         # Analyze the return value expression
-        return_type = self._analyze_expression(value)
+        return_type = self._analyze_expression(value, self.current_function_return_type)
 
         # Simplified context-aware validation
         if self.block_context and self.block_context[-1] == "expression":
@@ -731,7 +733,7 @@ class SemanticAnalyzer:
             return
 
         # Analyze the value expression
-        value_type = self._analyze_expression(value)
+        value_type = self._analyze_expression(value, symbol.type)
 
         # Check type compatibility with coercion
         if value_type != HexenType.UNKNOWN:
@@ -749,9 +751,15 @@ class SemanticAnalyzer:
         # Mark the symbol as initialized (assignment initializes uninitialized variables)
         symbol.initialized = True
 
-    def _analyze_expression(self, node: Dict) -> HexenType:
+    def _analyze_expression(
+        self, node: Dict, target_type: Optional[HexenType] = None
+    ) -> HexenType:
         """
         Analyze an expression and return its type.
+
+        Args:
+            node: Expression AST node
+            target_type: Optional target type for context-guided resolution
 
         Currently supported expressions:
         - Literals: numbers, strings

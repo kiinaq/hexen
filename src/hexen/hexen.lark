@@ -25,11 +25,14 @@ return_stmt: "return" expression?
 
 assignment_stmt: IDENTIFIER "=" expression
 
-expression: NUMBER
-          | STRING
-          | BOOLEAN
-          | IDENTIFIER
-          | block
+expression: primary
+
+primary: NUMBER
+       | STRING
+       | BOOLEAN
+       | IDENTIFIER
+       | block
+       | "(" expression ")"
 
 type: TYPE_I32
     | TYPE_I64

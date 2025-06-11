@@ -89,8 +89,17 @@ class HexenTransformer(Transformer):
         }
 
     def expression(self, children):
-        # expression: NUMBER | STRING | IDENTIFIER | block
+        # expression: primary
         return children[0]
+
+    def primary(self, children):
+        # primary: NUMBER | STRING | BOOLEAN | IDENTIFIER | block | "(" expression ")"
+        if len(children) == 1:
+            return children[0]  # Direct primary expression
+        else:
+            # Parenthesized expression: "(" expression ")"
+            # Return the inner expression, discarding parentheses
+            return children[1]
 
     @v_args(inline=True)
     def statement(self, stmt):
