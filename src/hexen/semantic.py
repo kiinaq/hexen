@@ -27,7 +27,7 @@ from enum import Enum
 
 class HexenType(Enum):
     """
-    Hexen's type system with Zig-style comptime types for elegant numeric handling.
+    Hexen's type system with comptime types for elegant numeric handling.
 
     Design decisions:
     - I32 as default integer type (following Rust conventions)
@@ -56,8 +56,8 @@ class HexenType(Enum):
     STRING = "string"
     BOOL = "bool"
     VOID = "void"  # For functions/blocks that don't return values
-    COMPTIME_INT = "comptime_int"  # New: Zig-style integer literals
-    COMPTIME_FLOAT = "comptime_float"  # New: Zig-style float literals
+    COMPTIME_INT = "comptime_int"  # New: integer literals
+    COMPTIME_FLOAT = "comptime_float"  # New: float literals
     UNKNOWN = "unknown"  # For type inference failures - internal use only
     UNINITIALIZED = "undef"  # For explicit undef values - different from null
 
@@ -447,7 +447,7 @@ class SemanticAnalyzer:
         node: Dict,
     ) -> None:
         """
-        Analyze variable declaration using unified framework with Zig-style coercion.
+        Analyze variable declaration using unified framework with coercion.
 
         Handles variable-specific logic:
         - Type inference and validation with comptime type coercion
@@ -469,7 +469,7 @@ class SemanticAnalyzer:
             ):
                 is_initialized = False
             elif value:
-                # Type annotation + value: validate compatibility with Zig-style coercion
+                # Type annotation + value: validate compatibility with coercion
                 value_type = self._analyze_expression(value)
                 if value_type != HexenType.UNKNOWN:
                     if self._can_coerce(value_type, var_type):
@@ -610,9 +610,9 @@ class SemanticAnalyzer:
         - mut_declaration: Mutable variable declaration (unified analysis)
         - return_statement: Function return
         - block: Statement block (standalone execution, like void functions)
+        - assignment: Variable assignment
 
         Future statement types:
-        - assignment: Variable assignment
         - if_statement: Conditional execution
         - while_statement: Loop execution
         - expression_statement: Expression evaluation
@@ -684,7 +684,7 @@ class SemanticAnalyzer:
                 # Void functions cannot have return values
                 self._error("Void function cannot return a value", node)
             elif return_type != HexenType.UNKNOWN:
-                # Use Zig-style coercion for return type checking
+                # Use coercion for return type checking
                 if not self._can_coerce(return_type, self.current_function_return_type):
                     self._error(
                         f"Return type mismatch: expected {self.current_function_return_type.value}, "
@@ -697,12 +697,12 @@ class SemanticAnalyzer:
 
     def _analyze_assignment_statement(self, node: Dict):
         """
-        Analyze an assignment statement with comprehensive validation and Zig-style coercion.
+        Analyze an assignment statement with comprehensive validation and coercion.
 
         Assignment rules:
         - Target must be a declared variable
         - Target must be mutable (mut, not val)
-        - Value type must be coercible to target type (using Zig-style coercion)
+        - Value type must be coercible to target type (using coercion)
         - Supports self-assignment (x = x)
         - No chained assignment (a = b = c)
 
@@ -733,7 +733,7 @@ class SemanticAnalyzer:
         # Analyze the value expression
         value_type = self._analyze_expression(value)
 
-        # Check type compatibility with Zig-style coercion
+        # Check type compatibility with coercion
         if value_type != HexenType.UNKNOWN:
             if not self._can_coerce(value_type, symbol.type):
                 self._error(
@@ -818,7 +818,7 @@ class SemanticAnalyzer:
 
     def _infer_type_from_value(self, value: Dict) -> HexenType:
         """
-        Infer type from a literal value using Zig-style comptime types.
+        Infer type from a literal value using comptime types.
 
         Zig-inspired type inference rules:
         - Integer literals have type comptime_int (arbitrary precision, context-dependent)
@@ -853,7 +853,7 @@ class SemanticAnalyzer:
         """
         Check if from_type can be automatically coerced to to_type.
 
-        Implements Zig-style context-dependent coercion rules:
+        Implements context-dependent coercion rules:
 
         1. Comptime types (the magic sauce):
            - comptime_int can coerce to any integer or float type
@@ -874,7 +874,7 @@ class SemanticAnalyzer:
         if from_type == to_type:
             return True
 
-        # Zig-style comptime type coercion (the elegant part!)
+        # comptime type coercion (the elegant part!)
         if from_type == HexenType.COMPTIME_INT:
             # comptime_int can become numeric types, but NOT bool (that would be unsafe)
             return to_type in {
