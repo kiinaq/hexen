@@ -1,6 +1,4 @@
-# Hexen Binary Operations
-
-*Version 1.0 - Complete Implementation Specification*
+# Hexen Binary Operations 🦉
 
 ## Overview
 

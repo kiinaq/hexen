@@ -1,6 +1,4 @@
-# Hexen Type System
-
-*Version 1.0 - Complete Design Specification*
+# Hexen Type System 🦉
 
 ## Overview
 
