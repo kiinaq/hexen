@@ -10,13 +10,14 @@ Hexen's binary operations system follows the **"Context-Guided Type Resolution"*
 
 ### Context-Guided Resolution Strategy
 
-Binary operations in Hexen follow a unified pattern:
+Binary operations in Hexen follow a unified pattern that prioritizes consistency and explicitness:
 
-1. **Safe Operations** (no context needed): Operations between compatible types resolve automatically
-2. **Ambiguous Operations** (context required): Mixed concrete types need explicit target type
-3. **Context Determines Behavior**: Same expression can behave differently based on target type (e.g., division)
+1. **Safe Operations** (no context needed): Operations between identical types resolve automatically
+2. **Ambiguous Operations** (context required): Mixed types (including mixed comptime types) need explicit target type
+3. **Context Determines Behavior**: Target type guides the entire expression resolution (e.g., division behavior)
+4. **No Hidden Defaults**: Operations maintain their operand types unless explicitly guided by context
 
-This pattern is consistent with Hexen's broader design: **"Explicit Danger, Implicit Safety"**.
+This pattern is consistent with Hexen's broader design: **"Explicit Danger, Implicit Safety"** and **"Pedantic to write, but really easy to read"**.
 
 ## Operator Precedence
 
@@ -32,7 +33,7 @@ Binary operators follow standard mathematical precedence with explicit grouping 
 | 4 | `<`, `>`, `<=`, `>=` | Left | Relational comparison |
 | 5 | `==`, `!=` | Left | Equality comparison |
 | 6 | `&&` | Left | Logical AND |
-| 7 | `||` | Left | Logical OR |
+| 7 | `\|\|` | Left | Logical OR |
 
 ### Precedence Examples
 
@@ -110,9 +111,43 @@ val as_i64 : i64 = a + b        // i32 → i64 widening (safe)
 val as_f64 : f64 = a + b        // Both → f64 conversion
 ```
 
-### 3. Type Promotion Rules
+### 3. Comptime Type Promotion Rules
 
-When combining different numeric types, promotion follows these rules:
+When comptime types are mixed in expressions, promotion follows a hierarchy that preserves maximum precision:
+
+#### Comptime Type Hierarchy
+```hexen
+// Safe comptime operations (same type)
+comptime_int + comptime_int = comptime_int
+comptime_int * comptime_int = comptime_int
+comptime_int / comptime_int = comptime_int      // Integer division
+comptime_float + comptime_float = comptime_float
+comptime_float * comptime_float = comptime_float
+comptime_float / comptime_float = comptime_float  // Float division
+
+// Mixed comptime operations require explicit context
+val mixed1 : f64 = 42 + 3.14        // ✅ Explicit context: comptime_int + comptime_float → f64
+val mixed2 : f32 = 42 * 3.14        // ✅ Explicit context: comptime_int * comptime_float → f32
+val ambiguous = 42 + 3.14           // ❌ Error: Mixed comptime types require explicit result type
+
+// Comparisons promote to most precise type for comparison only
+val compared = 42 > 3.14            // ✅ OK: comparison promotes comptime_int → comptime_float, result is bool
+```
+
+#### Mixed Comptime and Concrete Types
+```hexen
+val concrete_int : i32 = 10
+val concrete_float : f64 = 3.14
+
+// Comptime types adapt to concrete types
+val adapt1 = concrete_int + 42     // i32 + comptime_int = i32
+val adapt2 = concrete_float * 2    // f64 + comptime_int = f64
+val adapt3 = concrete_int + 3.14   // i32 + comptime_float = f64 (promotion)
+```
+
+### 4. Regular Type Promotion Rules
+
+When combining different concrete numeric types, promotion follows these rules:
 
 #### Automatic Promotion (Safe Operations)
 ```hexen
@@ -131,43 +166,118 @@ For widening coercion:
 
 ## Context-Dependent Division
 
-Division behavior changes based on the target type, enabling both integer and float division semantics.
+Division behavior in Hexen follows the **explicit context requirement** pattern: mixed operations require explicit context, while safe operations resolve automatically.
 
-### Integer Division (Target Type is Integer)
+### Division Type Resolution Rules
 
+#### Safe Division (No Context Required)
 ```hexen
-val quotient1 : i32 = 7 / 3     // Integer division: 2
-val quotient2 : i64 = 10 / 4    // Integer division: 2
-val quotient3 : i32 = 9 / 2     // Integer division: 4
+// Both operands are same comptime type - operation matches operand type
+val default1 = 7 / 3            // comptime_int / comptime_int → comptime_int (integer division: 2)
+val default2 = 10 / 4           // comptime_int / comptime_int → comptime_int (integer division: 2)
+val default3 = 10.5 / 2.1       // comptime_float / comptime_float → comptime_float (float division: 5.0)
+
+// Same concrete types - operation type matches operands
+val int_only : i32 = 10
+val other_int : i32 = 3
+val same_type = int_only / other_int  // i32 / i32 → i32 (integer division: 3)
 ```
 
-### Float Division (Target Type is Float)
-
+#### Context-Required Division
 ```hexen
-val precise1 : f64 = 7 / 3      // Float division: 2.333...
-val precise2 : f32 = 10 / 4     // Float division: 2.5
-val precise3 : f64 = 9 / 2      // Float division: 4.5
+// Mixed concrete types require explicit context
+val int_val : i32 = 10
+val float_val : f64 = 3.0
+val ambiguous1 = int_val / float_val  // ❌ Error: Mixed-type division requires explicit result type
+
+// Mixed comptime types require explicit context
+val ambiguous2 = 42 / 3.14            // ❌ Error: comptime_int / comptime_float requires explicit result type
+
+// ✅ Explicit context resolves the ambiguity
+val as_float : f64 = int_val / float_val  // Both coerce to f64, float division: 3.333...
+val as_int : i32 = int_val / float_val    // Both coerce to i32, integer division: 3
+val mixed_as_float : f64 = 42 / 3.14      // comptime types coerce to f64, float division: 13.375...
+val mixed_as_int : i32 = 42 / 3.14        // comptime types coerce to i32, integer division: 13
 ```
 
-### Default Division (No Explicit Context)
+### Context-Dependent Division Behavior
 
-When no context is provided, division defaults to float behavior:
+When explicit context is provided, division behavior adapts to the target type:
 
+#### Integer Division (Target Type is Integer)
 ```hexen
-val inferred1 = 7 / 3           // f64: 2.333... (default float division)
-val inferred2 = 10 / 4          // f64: 2.5 (default float division)
+val quotient1 : i32 = 7 / 3     // comptime division → i32: integer division = 2
+val quotient2 : i64 = 10 / 4    // comptime division → i64: integer division = 2  
+val quotient3 : i32 = 9 / 2     // comptime division → i32: integer division = 4
+```
+
+#### Float Division (Target Type is Float)
+```hexen
+val precise1 : f64 = 7 / 3      // comptime division → f64: float division = 2.333...
+val precise2 : f32 = 10 / 4     // comptime division → f32: float division = 2.5
+val precise3 : f64 = 9 / 2      // comptime division → f64: float division = 4.5
 ```
 
 ### Complex Division Examples
 
 ```hexen
-// Context guides entire expression
-val complex_int : i32 = (20 + 10) / (2 + 1)    // Integer math: 10
-val complex_float : f64 = (20 + 10) / (2 + 1)  // Float math: 10.0
+// Context guides entire expression including division
+val complex_int : i32 = (20 + 10) / (2 + 1)    // All comptime → i32: integer division = 10
+val complex_float : f64 = (20 + 10) / (2 + 1)  // All comptime → f64: float division = 10.0
 
-// Mixed with float literals
-val mixed_int : i32 = (20 * 3.6) / 2           // Float math → int: 36
-val mixed_float : f64 = (20 * 3.6) / 2         // Float math: 36.0
+// Mixed expressions with explicit context
+val mixed_int : i32 = (20 * 3.6) / 2           // Float computation then truncate: 36
+val mixed_float : f64 = (20 * 3.6) / 2         // Float computation: 36.0
+```
+
+## Complex Float-to-Integer Conversion
+
+When complex expressions involving float operations target integer types, Hexen uses a **two-phase resolution strategy**: compute the entire expression using the most appropriate numeric semantics, then convert the final result to the target type.
+
+### Resolution Strategy
+
+```hexen
+// Complex float expression targeting integer type
+val result : i32 = (10.5 * 20.3) / 2.1
+// Resolution process:
+// 1. Expression analysis: All operands are comptime_float
+// 2. Computation: Float semantics throughout (10.5 * 20.3 = 213.15, then 213.15 / 2.1 = 101.5)
+// 3. Final conversion: 101.5 → i32 = 101 (truncation)
+```
+
+### Mixed Comptime and Concrete Types
+
+```hexen
+val int_var : i32 = 20
+val result : i32 = (int_var * 3.6) / 2.1
+// Resolution process:
+// 1. Mixed types: i32 and comptime_float 
+// 2. Target context: i32
+// 3. Computation strategy: Promote to float for accuracy (20 * 3.6 = 72.0, then 72.0 / 2.1 = 34.285...)
+// 4. Final conversion: 34.285... → i32 = 34 (truncation)
+```
+
+### Precision Loss and Truncation Rules
+
+```hexen
+// Float-to-integer conversion always truncates (towards zero)
+val truncated1 : i32 = 10.9 / 2.0   // 5.45 → 5 (truncation)
+val truncated2 : i32 = -10.9 / 2.0  // -5.45 → -5 (truncation towards zero)
+
+// Large float values
+val large : i32 = (1.5 * 1000.0)    // 1500.0 → 1500 (exact conversion)
+val precise : i32 = (22.0 / 7.0)    // 3.142857... → 3 (truncation)
+```
+
+### Overflow and Range Checking
+
+```hexen
+// Compile-time overflow detection for constant expressions
+val overflow : i32 = (1.0e10 * 1.0e10) / 1.0e5  // Error: Result 1.0e15 exceeds i32 range
+
+// Runtime overflow behavior (implementation-defined)
+val runtime_calc : i32 = (some_float * large_float) / divisor
+// Note: Runtime overflow behavior follows platform conventions
 ```
 
 ## Complex Expression Resolution
@@ -190,23 +300,51 @@ val result : i32 = a + b        // i64 coerces to i32 context
 val result : f64 = (a + 42) * (b + 3.14)  // Complex nested expression, f64 context
 ```
 
-### Order of Resolution
+### Expression Resolution Strategy
 
-1. **Target type context** flows down the expression tree
-2. **Each sub-expression** resolves within that context
-3. **Coercion occurs** at each operation point
-4. **Final result** matches target type
+Hexen uses a **two-phase resolution approach** that balances precision with target type requirements:
 
+#### Phase 1: Semantic Analysis
+1. **Determine expression semantics** based on operand types
+2. **Apply promotion rules** for comptime and mixed types
+3. **Choose computation strategy** for maximum precision
+
+#### Phase 2: Target Type Conversion
+1. **Compute expression** using determined semantics
+2. **Convert final result** to target type if needed
+3. **Apply truncation/rounding** rules as appropriate
+
+### Resolution Examples
+
+#### Comptime Expression with Target Context
 ```hexen
 val complex : f32 = ((10 + 20) * 3.14) / (5 + 2)
-// Resolution process:
-// 1. Target context: f32
-// 2. (10 + 20): comptime_int + comptime_int = comptime_int → f32
-// 3. 3.14: comptime_float → f32  
-// 4. (* operation): f32 * f32 = f32
-// 5. (5 + 2): comptime_int + comptime_int = comptime_int → f32
-// 6. (/ operation): f32 / f32 = f32
-// 7. Final result: f32
+// Phase 1 - Semantic Analysis:
+// - (10 + 20): comptime_int + comptime_int = comptime_int
+// - 3.14: comptime_float 
+// - comptime_int * comptime_float = comptime_float (promotion)
+// - (5 + 2): comptime_int + comptime_int = comptime_int
+// - comptime_float / comptime_int = comptime_float
+// Expression type: comptime_float
+
+// Phase 2 - Target Conversion:
+// - Compute: ((30) * 3.14) / (7) = 94.2 / 7 = 13.457...
+// - Convert: comptime_float → f32 = 13.457...f32
+```
+
+#### Mixed Concrete Types with Context
+```hexen
+val a : i32 = 10
+val b : i64 = 20
+val result : f64 = a + b
+// Phase 1 - Semantic Analysis:
+// - Mixed concrete types (i32 + i64) require context
+// - Target type f64 provides context
+// - Both operands can coerce to f64
+
+// Phase 2 - Target Conversion:
+// - Convert operands: i32(10) → f64(10.0), i64(20) → f64(20.0)  
+// - Compute: f64(10.0) + f64(20.0) = f64(30.0)
 ```
 
 ## Comparison Operations
@@ -303,8 +441,8 @@ val mixed : i64 = a + b          // i32 → i64 (widening)
 val product : f32 = 3.14 * 2     // comptime_float * comptime_int → f32
 
 // Division (context-dependent behavior)
-val int_division : i32 = 10 / 3  // Integer division: 3
-val float_division : f64 = 10 / 3 // Float division: 3.333...
+val int_division : i32 = 10 / 3  // comptime division → i32: integer division = 3 (truncated)
+val float_division : f64 = 10 / 3 // comptime division → f64: float division = 3.333...
 ```
 
 ### Modulo Operation
@@ -559,10 +697,10 @@ def _analyze_variable_declaration_unified(self, name: str, type_annotation: str,
 func demonstrate_binary_operations() : void = {
     // ===== Safe Operations (No Context Required) =====
     
-    // Comptime type operations
+    // Safe comptime operations (same type)
     val safe1 = 42 + 100           // comptime_int + comptime_int = comptime_int
-    val safe2 = 42 + 3.14          // comptime_int + comptime_float = comptime_float
-    val safe3 = 3.14 * 2.71        // comptime_float * comptime_float = comptime_float
+    val safe2 = 3.14 * 2.71        // comptime_float * comptime_float = comptime_float
+    val safe3 = 10 / 2             // comptime_int / comptime_int = comptime_int (integer division: 5)
     
     // One comptime, one concrete
     val x : i32 = 10
@@ -572,9 +710,9 @@ func demonstrate_binary_operations() : void = {
     
     // ===== Context-Dependent Division =====
     
-    val int_div : i32 = 7 / 3      // Integer division: 2
-    val float_div : f64 = 7 / 3    // Float division: 2.333...
-    val default_div = 7 / 3        // Default: 2.333... (f64)
+    val int_div : i32 = 7 / 3      // comptime division → i32: integer division = 2
+    val float_div : f64 = 7 / 3    // comptime division → f64: float division = 2.333...
+    val default_div = 7 / 3        // comptime_int / comptime_int → comptime_int: integer division = 2
     
     // ===== Complex Expressions with Context =====
     
@@ -582,13 +720,18 @@ func demonstrate_binary_operations() : void = {
     val complex_float : f64 = (20 + 10) * 3.0 / 2   // Mixed: 45.0
     val complex_mixed : i32 = (20 * 3.6) / 2        // Float calc → int: 36
     
-    // ===== Mixed Concrete Types (Context Required) =====
+    // ===== Mixed Types (Context Required) =====
     
+    // Mixed comptime types require explicit context
+    val mixed_explicit : f64 = 42 + 3.14      // ✅ Explicit context
+    val mixed_explicit2 : i32 = 42 + 3.14     // ✅ Explicit context (truncation)
+    // val mixed_ambiguous = 42 + 3.14        // ❌ Error: requires explicit result type
+    
+    // Mixed concrete types require explicit context
     val a : i32 = 10
     val b : i64 = 20
     val c : f32 = 3.14
     
-    // All require explicit context
     val as_i64 : i64 = a + b       // i32 → i64 widening
     val as_f32 : f32 = a + c       // i32 → f32 conversion
     val as_f64 : f64 = a + b + c   // All → f64 conversion
