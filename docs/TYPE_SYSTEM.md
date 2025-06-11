@@ -149,94 +149,16 @@ val as_double : f64 = i64_value // i64 → f64
 
 ## Binary Operations
 
-### Expression Type Resolution Strategy
+Binary operations in Hexen follow the **context-guided resolution** strategy with sophisticated precedence and type promotion rules. Due to the complexity and importance of this topic, it has been moved to a dedicated specification:
 
-Binary operations follow a **context-guided resolution** strategy where the assignment target type determines how mixed-type expressions are resolved.
+**→ See [BINARY_OPS.md](BINARY_OPS.md) for complete binary operations specification**
 
-### Precedence Levels (Highest to Lowest)
-
-1. **Unary** (highest): `-`, `!`
-2. **Multiplicative**: `*`, `/`, `%`  
-3. **Additive**: `+`, `-`
-4. **Relational**: `<`, `>`, `<=`, `>=`
-5. **Equality**: `==`, `!=`
-6. **Logical AND**: `&&`
-7. **Logical OR**: `||` (lowest)
-
-### Type Resolution Rules
-
-#### Safe Operations (No Context Required)
-
-These operations are unambiguous and work without explicit target types:
-
-```hexen
-// Both comptime types
-val result1 = 42 + 100          // comptime_int + comptime_int = comptime_int
-val result2 = 42 + 3.14         // comptime_int + comptime_float = comptime_float
-val result3 = 3.14 + 2.71       // comptime_float + comptime_float = comptime_float
-
-// One comptime, one concrete (comptime adapts)
-val x : i32 = 10
-val result4 = x + 42            // i32 + comptime_int = i32
-
-// Both same concrete type
-val a : i64 = 10
-val b : i64 = 20  
-val result5 = a + b             // i64 + i64 = i64
-```
-
-#### Context-Required Operations
-
-Mixed concrete types require explicit target context:
-
-```hexen
-val a : i32 = 10
-val b : i64 = 20
-
-// ❌ Ambiguous - requires explicit context
-val result = a + b              // Error: "Mixed-type operation 'i32 + i64' requires explicit result type"
-
-// ✅ Context provides resolution
-val result : i32 = a + b        // i64 → i32 coercion (developer's choice)
-val result : i64 = a + b        // i32 → i64 widening (developer's choice)  
-val result : f64 = a + b        // Both → f64 conversion (developer's choice)
-```
-
-### Division: Context-Dependent Behavior
-
-Division behavior depends on the target type context, enabling both integer and float division:
-
-#### Integer Division (Target Type is Integer)
-```hexen
-val quotient : i32 = 7 / 3      // Integer division: 2
-val quotient : i64 = 10 / 4     // Integer division: 2
-```
-
-#### Float Division (Target Type is Float)
-```hexen
-val precise : f64 = 7 / 3       // Float division: 2.333...
-val precise : f32 = 10 / 4      // Float division: 2.5
-```
-
-#### Default Division (No Context)
-```hexen
-val inferred = 7 / 3            // Defaults to float division: 2.333...
-```
-
-### Complex Expression Resolution
-
-The target type guides the **entire expression tree**:
-
-```hexen
-val a : i32 = 10
-val b : i64 = 20
-val c : f32 = 3.14
-
-// Target type guides all operations in the expression
-val result : f64 = a + b * c    // All types coerce to f64 context
-val result : i32 = a + b        // i64 coerces to i32 context  
-val result : f64 = (a + 42) * (b + 3.14)  // Complex expression, f64 context
-```
+Key highlights:
+- **Context-dependent division** (integer vs float based on target type)
+- **Mixed-type expression resolution** with explicit context requirements
+- **Precedence hierarchy** following mathematical conventions
+- **Type promotion rules** for safe automatic coercion
+- **Implementation guidelines** for semantic analyzer
 
 ## Assignment and Context
 
