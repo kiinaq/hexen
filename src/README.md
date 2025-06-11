@@ -4,11 +4,16 @@ Complete implementation of the Hexen programming language compiler. This directo
 
 ## 📊 Source Overview
 
-**Total Implementation**: **1,219 lines** across 4 core modules
-- **Semantic Analyzer**: 939 lines - Advanced type checking and program validation
-- **Parser**: 197 lines - Syntax analysis and AST generation  
-- **CLI**: 75 lines - Command-line interface and user interaction
-- **Package Init**: 8 lines - Module organization and metadata
+**Total Implementation**: **1,280 lines** across 9 modular components
+- **Semantic Package**: 991 lines - Modular semantic analysis system
+  - Main Analyzer: 740 lines - Core semantic analysis engine
+  - Symbol Table: 131 lines - Scope and symbol management
+  - Type System: 66 lines - Type definitions and mutability
+  - Error Handling: 30 lines - Structured error reporting
+  - Package Interface: 29 lines - Clean public API
+- **Parser**: 207 lines - Syntax analysis and AST generation  
+- **CLI**: 76 lines - Command-line interface and user interaction
+- **Package Init**: 9 lines - Module organization and metadata
 
 **Language**: Python 3.12+ with modern typing and dataclasses
 **Dependencies**: [Lark](https://lark-parser.readthedocs.io/) for PEG parsing, standard library only
@@ -19,11 +24,16 @@ The Hexen compiler follows a clean multi-stage pipeline with clear separation of
 
 ```
 src/hexen/
-├── hexen.lark           # Grammar definition (PEG format, 63 lines)
-├── parser.py            # Syntax analysis & AST generation (197 lines)
-├── semantic.py          # Type checking & semantic analysis (939 lines)
-├── cli.py               # Command-line interface (75 lines)
-└── __init__.py          # Package metadata (8 lines)
+├── hexen.lark           # Grammar definition (PEG format, 66 lines)
+├── parser.py            # Syntax analysis & AST generation (207 lines)
+├── semantic/            # Modular semantic analysis package (991 lines)
+│   ├── analyzer.py      # ├─ Main semantic analyzer (740 lines)
+│   ├── symbol_table.py  # ├─ Symbol table & scope management (131 lines)  
+│   ├── types.py         # ├─ Type system & mutability (66 lines)
+│   ├── errors.py        # ├─ Error handling & reporting (30 lines)
+│   └── __init__.py      # └─ Public API interface (29 lines)
+├── cli.py               # Command-line interface (76 lines)
+└── __init__.py          # Package metadata (9 lines)
 ```
 
 ### 🔄 Compiler Pipeline
@@ -36,12 +46,12 @@ Source Code (.hxn)
        ├─ AST transformation
        └─ Syntax validation
        ↓
-   🧠 Semantic Analyzer (semantic.py)  
-       ├─ Symbol table management
-       ├─ Type checking & inference
-       ├─ Scope validation
-       ├─ Mutability enforcement
-       └─ Error collection
+      🧠 Semantic Package (semantic/)
+       ├─ Main analyzer (analyzer.py)
+       ├─ Symbol table management (symbol_table.py)
+       ├─ Type system & mutability (types.py)
+       ├─ Error handling (errors.py)
+       └─ Public API (…/__init__.py)
        ↓
    🎯 Valid Program (ready for code generation)
 ```
@@ -69,31 +79,60 @@ ast = parser.parse(source_code)     # Parse from string
 ast = parser.parse_file(file_path)  # Parse from file
 ```
 
-### 🧠 Semantic Analyzer (`semantic.py` - 939 lines)
-*Advanced semantic analysis with sophisticated type system and comprehensive validation*
+### 🧠 Semantic Package (`semantic/` - 991 lines)
+*Modular semantic analysis system with clean separation of concerns*
 
-**Core Architecture:**
-- **`HexenType`** - Complete type system with Zig-style comptime types
-- **`SymbolTable`** - Lexical scoping with symbol tracking
-- **`SemanticAnalyzer`** - Main analysis engine with error collection
-- **`Symbol`** - Rich variable metadata (type, mutability, initialization)
+**Modular Architecture:**
+
+#### Core Analyzer (`analyzer.py` - 740 lines)
+- **`SemanticAnalyzer`** - Main analysis engine with unified declaration handling
+- **Unified Declaration Framework** - Consistent handling of functions, val, and mut declarations
+- **Context-Aware Block Analysis** - Expression blocks, statement blocks, function bodies
+- **Error Recovery** - Collects all errors before stopping (batch reporting)
+
+#### Type System (`types.py` - 66 lines)  
+- **`HexenType`** - Complete type enumeration with Zig-style comptime types
+- **`Mutability`** - Immutable-by-default with explicit mutability (`val` vs `mut`)
+- **Comptime Types** - `comptime_int` and `comptime_float` for elegant literal handling
+
+#### Symbol Management (`symbol_table.py` - 131 lines)
+- **`SymbolTable`** - Stack-based lexical scoping with symbol tracking
+- **`Symbol`** - Rich variable metadata (type, mutability, initialization, usage)
+- **Scope Lifecycle** - Enter/exit scope management for functions and blocks
+
+#### Error Handling (`errors.py` - 30 lines)
+- **`SemanticError`** - Structured error reporting with optional AST node context
+- **Batch Error Collection** - Multiple error detection in single analysis pass
+- **Future-Ready** - Designed for line/column info and suggested fixes
+
+#### Public Interface (`__init__.py` - 29 lines)
+- **Clean API** - Exports only essential components for external usage
+- **Modular Imports** - Import exactly what you need from the semantic package
 
 **Advanced Features:**
 - ✅ **Comptime Type System**: `comptime_int` and `comptime_float` with context-dependent coercion
-- ✅ **Unified Block Analysis**: Expression blocks, statement blocks, function bodies
+- ✅ **Unified Declaration Analysis**: Consistent handling across function/variable declarations
 - ✅ **Type Safety**: Prevents `val x : bool = 42` while allowing `val x : f32 = 42`
 - ✅ **Memory Safety**: Immutable-by-default with explicit mutability (`val` vs `mut`)
-- ✅ **Scope Management**: Lexical scoping with variable shadowing
+- ✅ **Lexical Scoping**: Proper scope management with variable shadowing support
 - ✅ **Use-Before-Definition**: Prevents accessing uninitialized variables
-- ✅ **Error Recovery**: Collects all errors before stopping (batch reporting)
+- ✅ **Error Recovery**: Collects all errors before stopping (comprehensive reporting)
 
 **Public API:**
 ```python
+from src.hexen.semantic import SemanticAnalyzer, SemanticError
 analyzer = SemanticAnalyzer()
 errors = analyzer.analyze(ast)      # Returns List[SemanticError]
 ```
 
-### 🎛️ CLI (`cli.py` - 75 lines)
+**Modular Benefits:**
+- 🔧 **Maintainable**: Clear separation of concerns makes code easier to understand and modify
+- 🧪 **Testable**: Each component can be tested independently with focused unit tests
+- 📈 **Scalable**: Easy to extend with new semantic rules without touching core logic
+- 🔄 **Reusable**: Individual components can be imported and used in different contexts
+- 📚 **Documented**: Each module has focused responsibility and clear documentation
+
+### 🎛️ CLI (`cli.py` - 76 lines)
 *User-friendly command-line interface for the Hexen compiler*
 
 **Commands:**
@@ -115,7 +154,7 @@ uv run hexen parse examples/hello_world.hxn
 uv run hexen check examples/comprehensive_demo.hxn
 ```
 
-### 📝 Grammar (`hexen.lark` - 63 lines)
+### 📝 Grammar (`hexen.lark` - 66 lines)
 *Precise PEG grammar definition for Hexen's unified syntax*
 
 **Grammar Highlights:**
@@ -200,13 +239,13 @@ ast = parser.parse('''
 ### Full Semantic Analysis
 ```python
 from src.hexen.parser import HexenParser
-from src.hexen.semantic import SemanticAnalyzer
+from src.hexen.semantic import SemanticAnalyzer, SemanticError
 
 # Parse source code
 parser = HexenParser()
 ast = parser.parse_file("program.hxn")
 
-# Analyze semantics
+# Analyze semantics with modular components
 analyzer = SemanticAnalyzer() 
 errors = analyzer.analyze(ast)
 
