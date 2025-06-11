@@ -147,15 +147,16 @@ val as_double : f64 = i64_value // i64 → f64
 
 ## Binary Operations
 
-Binary operations in Hexen follow the **context-guided resolution** strategy with sophisticated precedence and type promotion rules. Due to the complexity and importance of this topic, it has been moved to a dedicated specification:
+Binary operations in Hexen follow the **context-guided resolution** strategy with consistent, pedantic rules that eliminate hidden behaviors. Due to the complexity and importance of this topic, it has been moved to a dedicated specification:
 
 **→ See [BINARY_OPS.md](BINARY_OPS.md) for complete binary operations specification**
 
 Key highlights:
-- **Context-dependent division** (integer vs float based on target type)
-- **Mixed-type expression resolution** with explicit context requirements
+- **Consistent type preservation**: Operations maintain operand types unless explicitly guided by context
+- **No hidden promotions**: Mixed comptime types (42 + 3.14) require explicit context
+- **Context-dependent division**: integer vs float division based on target type
+- **Explicit mixed-type resolution**: All ambiguous operations require type annotations
 - **Precedence hierarchy** following mathematical conventions
-- **Type promotion rules** for safe automatic coercion
 - **Implementation guidelines** for semantic analyzer
 
 ## Assignment and Context
@@ -288,12 +289,16 @@ func demonstrate_type_system() : void = {
     
     // ===== Binary Operations =====
     val safe_ops = 42 + 100     // comptime_int + comptime_int = comptime_int
-    val mixed_safe = 42 + 3.14  // comptime_int + comptime_float = comptime_float
+    val safe_div = 10 / 2       // comptime_int / comptime_int = comptime_int (5)
+    
+    // Mixed comptime types require explicit context
+    val mixed_explicit : f64 = 42 + 3.14   // ✅ Explicit context required
+    // val mixed_ambiguous = 42 + 3.14     // ❌ Error: requires explicit type
     
     // ===== Context-Dependent Division =====
-    val int_div : i32 = 7 / 3   // Integer division: 2
-    val float_div : f64 = 7 / 3 // Float division: 2.333...
-    val default_div = 7 / 3     // Default: 2.333... (float)
+    val int_div : i32 = 7 / 3   // comptime division → i32: integer division = 2
+    val float_div : f64 = 7 / 3 // comptime division → f64: float division = 2.333...
+    val default_div = 7 / 3     // comptime_int / comptime_int = comptime_int (2)
     
     // ===== Complex Expressions with Context =====
     val complex_int : i32 = (20 * 3) / 2       // All integer math: 30

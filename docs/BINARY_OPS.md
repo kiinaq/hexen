@@ -40,6 +40,10 @@ Binary operators follow standard mathematical precedence with explicit grouping 
 val result1 : i32 = 2 + 3 * 4           // 2 + (3 * 4) = 14
 val result2 : i32 = (2 + 3) * 4         // (2 + 3) * 4 = 20
 
+// Left associativity for same precedence level
+val left_assoc : i32 = 20 * 3 / 2       // (20 * 3) / 2 = 60 / 2 = 30
+val explicit : i32 = 20 * (3 / 2)       // 20 * (3 / 2) = 20 * 1 = 20
+
 // Comparison precedence  
 val check1 : bool = 5 > 3 && 2 < 4      // (5 > 3) && (2 < 4) = true
 val check2 : bool = 5 > 3 == 2 < 4      // (5 > 3) == (2 < 4) = true
