@@ -1,5 +1,7 @@
 # Hexen Binary Operations 🦉
 
+*Design and Implementation Specification*
+
 ## Overview
 
 Hexen's binary operations system follows the **"Context-Guided Type Resolution"** philosophy, where assignment target types serve as anchors for resolving complex mixed-type expressions. This creates an elegant system that's both type-safe and ergonomic.

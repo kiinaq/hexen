@@ -1,5 +1,7 @@
 # Hexen Type System 🦉
 
+*Design and Implementation Specification*
+
 ## Overview
 
 Hexen's type system is designed around the principle of **"Explicit Danger, Implicit Safety"** - making dangerous or ambiguous operations explicit while keeping safe operations seamlessly implicit. This philosophy creates a system that is both ergonomic for common cases and safe for complex scenarios.

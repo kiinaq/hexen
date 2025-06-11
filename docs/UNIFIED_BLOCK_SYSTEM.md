@@ -1,6 +1,6 @@
 # Hexen Unified Block System 🦉
 
-*Complete Design and Implementation Specification*
+*Design and Implementation Specification*
 
 ## Overview
 
