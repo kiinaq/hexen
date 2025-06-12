@@ -352,13 +352,18 @@ val a : i32 = 10
 val b : i64 = 20
 val c : f32 = 3.14
 
-// Target type guides all operations in the expression
-val result : f64 = a + b * c    // All types coerce to f64 context
-//                 ^   ^   ^
-//                i32 i64 f32 → all become f64 for computation
+// Stepwise (local) promotion: each binary op is resolved using its operands' types
+// 1. b * c: i64 * f32 → f32 (requires explicit type if not allowed by default)
+// 2. a + (b * c): i32 + f32 → f32 (requires explicit type if not allowed by default)
+// 3. Final result is coerced to target type (if provided)
+val result_f64 : f64 = a + b * c    // Stepwise: b * c → f32, then a + (b * c) → f32, then final result coerced to f64
 
-val result : i32 = a + b        // i64 coerces to i32 context
-val result : f64 = (a + 42) * (b + 3.14)  // Complex nested expression, f64 context
+// ❌ Error: Mixed types require explicit result type
+// val result = a + b
+
+// ✅ Explicit target type for mixed types
+val result_i32 : i32 = a + b        // i64 coerces to i32 context (may truncate)
+val result_f64_2 : f64 = (a + 42) * (b + 3.14)  // Stepwise: (a+42):i32, (b+3.14):f64, then i32*f64 → f64
 ```
 
 ### Expression Resolution Strategy
@@ -397,15 +402,13 @@ val complex : f32 = ((10 + 20) * 3.14) / (5 + 2)
 ```hexen
 val a : i32 = 10
 val b : i64 = 20
-val result : f64 = a + b
-// Phase 1 - Semantic Analysis:
-// - Mixed concrete types (i32 + i64) require context
-// - Target type f64 provides context
-// - Both operands can coerce to f64
+// ❌ Error without explicit type:
+// val result = a + b   // Error: Mixed concrete types require explicit result type
 
-// Phase 2 - Target Conversion:
-// - Convert operands: i32(10) → f64(10.0), i64(20) → f64(20.0)  
-// - Compute: f64(10.0) + f64(20.0) = f64(30.0)
+// ✅ With explicit type:
+val result : f64 = a + b // Both operands promoted to f64 for this operation, result is f64
+// Stepwise: a (i32) + b (i64) → both promoted to f64 for this operation
+// Result: f64(10.0) + f64(20.0) = f64(30.0)
 ```
 
 ## Comparison Operations
@@ -519,29 +522,31 @@ val b : f64 = 5.0
 
 ## Assignment Context Propagation
 
-The assignment target type provides context that flows through the entire expression.
+Assignment context in Hexen follows the **"Pedantic to write, but really easy to read"** philosophy, where the target type explicitly guides expression resolution while maintaining clear, predictable behavior.
 
-### Variable Declaration Context
-
-```hexen
-// Target type guides expression resolution
-val precise : f64 = (20 * 3.6) / 2     // Float math: 36.0
-val truncated : i32 = (20 * 3.6) / 2   // Float math then truncate: 36
-val integer : i32 = 20 * 3 / 2         // Integer math: 30
-```
 
 ### Assignment Statement Context
+
+Assignment statements use the target variable's type as context for expression resolution:
 
 ```hexen
 mut flexible : f64 = 0.0
 
-// Assignment target provides context
-flexible = 42                   // comptime_int → f64
-flexible = (10 + 20) / 3        // Expression resolves in f64 context
-flexible = some_i32 + some_i64  // Would need: flexible = f64_context(some_i32 + some_i64)
+// Assignment target provides context for entire expression
+flexible = 42                          // comptime_int → f64 (promotion)
+flexible = (10 + 20) / 3               // Expression resolves in f64 context
+flexible = some_i32 + some_i64         // Mixed types resolve in f64 context
+
+// ❌ Error: Mixed types without context
+// val ambiguous = some_i32 + some_i64  // Error: Mixed-type operation requires explicit result type
+
+// ✅ Explicit context through target type
+val explicit : i64 = some_i32 + some_i64  // i32 + i64 → i64 (target type guides promotion)
 ```
 
 ### Function Return Context
+
+Function return types provide context for expression resolution:
 
 ```hexen
 func calculate() : f32 = {
@@ -551,51 +556,29 @@ func calculate() : f32 = {
     // Return type provides context for mixed expression
     return a + b                // i32 + i64 → f32 (return type context)
 }
+
+// ❌ Error: Mixed types without context
+// func ambiguous() : void = {
+//     val a : i32 = 10
+//     val b : i64 = 20
+//     val result = a + b        // Error: Mixed-type operation requires explicit result type
+// }
+
+// ✅ Explicit context through return type
+func explicit() : i64 = {
+    val a : i32 = 10
+    val b : i64 = 20
+    return a + b               // i32 + i64 → i64 (return type context)
+}
 ```
 
-## Error Handling and Messages
+### Context Flow Rules
 
-### Mixed-Type Operation Errors
+1. **Target Type Priority**: The target type (variable, parameter, or return type) provides the primary context for expression resolution
+2. **Complete Expression Tree**: Context flows through the entire expression tree, not just individual operations
+3. **No Hidden Promotions**: Mixed types still require explicit target type, even in assignment context
+4. **Predictable Behavior**: The same expression will resolve consistently based on its target type context
 
-When mixed concrete types are used without context:
-
-```
-Error: Mixed-type operation 'i32 + i64' requires explicit result type annotation
-  --> src/example.hxn:5:17
-   |
-5  |     val result = a + b
-   |                  ^^^^^
-   |
-Help: Add type annotation to specify result type:
-      val result : i64 = a + b    // Widen i32 to i64
-   or val result : f32 = a + b    // Convert both to f32
-   or val result : f64 = a + b    // Convert both to f64
-```
-
-### Invalid Type Combination Errors
-
-```
-Error: Cannot apply operator '+' to types 'string' and 'i32'
-  --> src/example.hxn:3:25
-   |
-3  |     val invalid = "hello" + 42
-   |                   ^^^^^^^^^^^
-   |
-Note: String concatenation requires both operands to be strings
-      Consider: "hello" + string_representation(42)
-```
-
-### Division by Zero (Future)
-
-```
-Warning: Potential division by zero detected
-  --> src/example.hxn:7:19
-   |
-7  |     val result = x / y
-   |                  ^^^^^
-   |
-Note: Consider adding runtime check: if y != 0 { x / y } else { ... }
-```
 
 ## Grammar Extensions
 
@@ -632,270 +615,3 @@ Binary operations create AST nodes with this structure:
     "right": {...},   # Right operand (expression)
 }
 ```
-
-## Implementation Guidelines
-
-### Semantic Analyzer Extensions
-
-#### Expression Analysis with Context
-
-```python
-def _analyze_expression(self, node: Dict, target_type: Optional[HexenType] = None) -> HexenType:
-    """Analyze expression with optional target type context for mixed operations."""
-    expr_type = node.get("type")
-    
-    if expr_type == "binary_operation":
-        return self._analyze_binary_operation(node, target_type)
-    elif expr_type == "literal":
-        return self._infer_type_from_value(node)
-    # ... other expression types
-```
-
-#### Binary Operation Analysis
-
-```python
-def _analyze_binary_operation(self, node: Dict, target_type: Optional[HexenType] = None) -> HexenType:
-    """Analyze binary operation with context-guided type resolution."""
-    operator = node.get("operator")
-    left_node = node.get("left")
-    right_node = node.get("right")
-    
-    # Analyze operands (may need context for nested operations)
-    left_type = self._analyze_expression(left_node, target_type)
-    right_type = self._analyze_expression(right_node, target_type)
-    
-    # Resolve operation type based on operator and operands
-    return self._resolve_binary_operation(left_type, right_type, operator, target_type, node)
-```
-
-#### Type Resolution Logic
-
-```python
-def _resolve_binary_operation(self, left: HexenType, right: HexenType, op: str, 
-                             target_type: Optional[HexenType], node: Dict) -> HexenType:
-    """Resolve binary operation type with context guidance."""
-    
-    # 1. Handle comparison operators (always return bool)
-    if op in {"<", ">", "<=", ">=", "==", "!="}:
-        if self._can_compare_types(left, right):
-            return HexenType.BOOL
-        else:
-            self._error(f"Cannot compare types {left.value} and {right.value}", node)
-            return HexenType.UNKNOWN
-    
-    # 2. Handle logical operators (require bool operands)
-    if op in {"&&", "||"}:
-        if left == HexenType.BOOL and right == HexenType.BOOL:
-            return HexenType.BOOL
-        else:
-            self._error(f"Logical operator {op} requires boolean operands", node)
-            return HexenType.UNKNOWN
-    
-    # 3. Handle arithmetic operators with context
-    if op in {"+", "-", "*", "/", "%"}:
-        return self._resolve_arithmetic_operation(left, right, op, target_type, node)
-    
-    # 4. Unknown operator
-    self._error(f"Unknown binary operator: {op}", node)
-    return HexenType.UNKNOWN
-```
-
-#### Arithmetic Resolution with Context
-
-```python
-def _resolve_arithmetic_operation(self, left: HexenType, right: HexenType, op: str,
-                                target_type: Optional[HexenType], node: Dict) -> HexenType:
-    """Resolve arithmetic operation with context-dependent behavior."""
-    
-    # Safe operations (no context needed)
-    if self._is_safe_arithmetic_operation(left, right):
-        result_type = self._resolve_safe_arithmetic(left, right, op)
-        
-        # Special case: Division behavior depends on target type
-        if op == "/" and target_type:
-            return target_type  # Division adapts to target type
-        
-        return result_type
-    
-    # Ambiguous operations (context required)
-    if target_type is None:
-        self._error(
-            f"Mixed-type operation '{left.value} {op} {right.value}' requires explicit result type annotation",
-            node
-        )
-        return HexenType.UNKNOWN
-    
-    # Context provided - validate coercion and return target type
-    if self._can_coerce(left, target_type) and self._can_coerce(right, target_type):
-        return target_type
-    else:
-        self._error(
-            f"Cannot coerce operands {left.value} and {right.value} to target type {target_type.value}",
-            node
-        )
-        return HexenType.UNKNOWN
-```
-
-### Variable Declaration Enhancement
-
-Pass target type context to expression analysis:
-
-```python
-def _analyze_variable_declaration_unified(self, name: str, type_annotation: str, value: Dict, ...):
-    if type_annotation:
-        var_type = self._parse_type(type_annotation)
-        if value:
-            # Pass target type as context for expression analysis
-            value_type = self._analyze_expression(value, var_type)
-            # Validate coercion as before...
-```
-
-## Examples
-
-### Complete Binary Operations Showcase
-
-```hexen
-func demonstrate_binary_operations() : void = {
-    // ===== Safe Operations (Clear, Predictable Behavior) =====
-    
-    // Safe arithmetic operations
-    val safe1 = 42 + 100           // comptime_int + comptime_int = comptime_int
-    val safe2 = 3.14 * 2.71        // comptime_float * comptime_float = comptime_float
-    val safe3 = 10 / 2             // comptime_int / comptime_int = comptime_float (float division: 5.0)
-    val safe4 = 10 \ 2             // comptime_int \ comptime_int = comptime_int (integer division: 5)
-    
-    // One comptime, one concrete
-    val x : i32 = 10
-    val y : f64 = 3.14
-    val safe5 = x + 42             // i32 + comptime_int = i32
-    val safe6 = y * 2              // f64 * comptime_int = f64
-    
-    // ===== Division Operators: Transparent Choice =====
-    
-    // Float division (mathematical, produces fractions)
-    val float_div1 = 7 / 3         // comptime_float = 2.333... (default: f64)
-    val float_div2 : f32 = 7 / 3   // f32 = 2.333... (explicit precision)
-    val float_div3 = x / 3         // f64 = 3.333... (concrete int promotes to float)
-    
-    // Integer division (efficient, truncates)
-    val int_div1 = 7 \ 3           // comptime_int = 2 (default: i32, truncated)
-    val int_div2 : i64 = 7 \ 3     // i64 = 2 (explicit width)
-    val int_div3 = x \ 3           // i32 = 3 (pure integer computation)
-    
-    // ===== Complex Expressions: Operator Choice Matters =====
-    
-    val precise_calc : i32 = (10 / 3) * 9       // Float: (3.333... * 9) = 30.0 → 30
-    val truncated_calc : i32 = (10 \ 3) * 9     // Integer: (3 * 9) = 27
-    val mixed_float : f64 = (20 + 10) / 2       // Float division: 15.0
-    val mixed_int : i32 = (20 + 10) \ 2         // Integer division: 15
-    
-    // ===== Mixed Types: Explicit When Needed =====
-    
-    // Mixed comptime types require explicit context
-    val mixed_explicit : f64 = 42 + 3.14      // ✅ Explicit context guides resolution
-    val mixed_explicit2 : f32 = 42 * 3.14     // ✅ Explicit context guides resolution
-    // val mixed_ambiguous = 42 + 3.14        // ❌ Error: Mixed comptime types need explicit result type
-    
-    // Mixed concrete types require explicit context (no magic coercion)
-    val a : i32 = 10
-    val b : i64 = 20
-    val c : f32 = 3.14
-    
-    // val ambiguous = a + b                  // ❌ Error: Mixed concrete types need explicit handling
-    val explicit_wide : i64 = a + b           // ✅ Mixed concrete types → explicit target type
-    val explicit_narrow : i32 = a + b         // ✅ Mixed concrete types → explicit target type
-    
-    // Division behavior is always clear from operator choice
-    val div_clear1 = a / 3          // i32 / comptime_int = f64 (float division)
-    val div_clear2 = a \ 3          // i32 \ comptime_int = i32 (integer division)
-    
-    // ===== Comparison Operations =====
-    
-    val cmp1 : bool = 10 < 20      // comptime_int comparison
-    val cmp2 : bool = x > y        // i32 vs f64 (promotion)
-    val cmp3 : bool = a == b       // i32 vs i64 (promotion)
-    
-    // ===== Logical Operations =====
-    
-    val logic1 : bool = true && false
-    val logic2 : bool = (x > 5) || (y < 10.0)
-    val logic3 : bool = !(x == 0) && (y != 0.0)
-    
-    // ===== Nested Complex Expressions =====
-    
-    val nested : f64 = ((a + b) * c) / (x + y)
-    //                   ^^^^^^^^^     ^^^^^^^
-    //                   i32+i64=i64   i32+f64=f64
-    //                   i64*f32=f32   
-    //                   f32/f64=f64 (final result)
-    
-    // With explicit context guidance:
-    val guided : f32 = ((a + b) * c) / (x + y)
-    //                   All operations resolve in f32 context
-}
-
-func demonstrate_precedence() : void = {
-    // Mathematical precedence
-    val math1 : i32 = 2 + 3 * 4        // 2 + (3 * 4) = 14
-    val math2 : i32 = (2 + 3) * 4      // Explicit grouping = 20
-    
-    // Comparison precedence
-    val bool1 : bool = 5 > 3 && 2 < 4  // (5 > 3) && (2 < 4) = true
-    val bool2 : bool = 5 > 3 == 2 < 4  // (5 > 3) == (2 < 4) = true
-    
-    // Mixed precedence with explicit grouping
-    val mixed : bool = (x + y) > (a * b) && (c / 2.0) < 10.0
-}
-
-func main() : i32 = {
-    // The elegance of Hexen's binary operations:
-    // - Safe operations work seamlessly
-    // - Ambiguous operations require explicit context
-    // - Context flows through entire expressions  
-    // - Division behavior adapts to target type
-    // - One mental model for all operations
-    
-    return 0
-}
-```
-
-## Future Extensions
-
-### Operator Overloading
-
-Binary operations are designed to support future operator overloading:
-
-```hexen
-// Future: User-defined types with custom operators
-struct Vector2 = {
-    x : f32,
-    y : f32,
-}
-
-// Future: Operator overloading
-func +(left : Vector2, right : Vector2) : Vector2 = {
-    return Vector2{x: left.x + right.x, y: left.y + right.y}
-}
-```
-
-### Generic Operations
-
-The context-guided system extends naturally to generics:
-
-```hexen
-// Future: Generic operations
-func add<T>(a : T, b : T) : T = {
-    return a + b  // Type T guides the operation
-}
-```
-
-### Compound Assignment
-
-```hexen
-// Future: Compound assignment operators
-mut x : i32 = 10
-x += 5    // Equivalent to: x = x + 5
-x *= 2    // Equivalent to: x = x * 2
-```
-
-This binary operations system provides a solid foundation that's both immediately useful and extensible for future language features. 
