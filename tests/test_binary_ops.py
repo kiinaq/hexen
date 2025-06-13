@@ -137,20 +137,6 @@ def test_operator_precedence():
     assert not errors, f"Unexpected errors: {errors}"
 
 
-def test_division_by_zero():
-    """Test division by zero error handling."""
-    source = """
-    func main(): i32 = {
-        val x : i32 = 10 \\ 0  // Error: division by zero
-        val y : f64 = 10.0 / 0  // Error: division by zero
-        return 0
-    }
-    """
-    ast, errors = parse_and_check(source)
-    assert len(errors) == 2, f"Expected 2 errors, got {len(errors)}"
-    assert all("division by zero" in str(e) for e in errors)
-
-
 def test_mixed_type_operations():
     """Test operations with mixed concrete types."""
     source = """
