@@ -527,57 +527,82 @@ Assignment context in Hexen follows the **"Pedantic to write, but really easy to
 
 ### Assignment Statement Context
 
-Assignment statements use the target variable's type as context for expression resolution:
+Assignment statements in Hexen use the target variable's type as context for expression resolution. This is particularly important for mutable variables (`mut`), where the target type remains constant throughout the variable's lifetime.
+
+#### Mutable Assignment Behavior
 
 ```hexen
-mut flexible : f64 = 0.0
+// Mutable variable with explicit type
+mut counter : i32 = 0
 
-// Assignment target provides context for entire expression
-flexible = 42                          // comptime_int → f64 (promotion)
-flexible = (10 + 20) / 3               // Expression resolves in f64 context
-flexible = some_i32 + some_i64         // Mixed types resolve in f64 context
+// All assignments must respect the declared type
+counter = 42                          // comptime_int → i32 (promotion)
+counter = 10 + 20                     // comptime_int + comptime_int → i32
+counter = some_i64                    // i64 → i32 (may truncate)
+
+// ❌ Error: Cannot change type of mutable variable
+// counter = 3.14                      // Error: Cannot assign f64 to i32
+// counter = "hello"                   // Error: Cannot assign string to i32
+
+// Complex expressions resolve in target type context
+counter = (100 * 2) / 3               // All operations in i32 context
+counter = some_i32 + some_i64         // i32 + i64 → i32 (target type guides promotion)
 
 // ❌ Error: Mixed types without context
-// val ambiguous = some_i32 + some_i64  // Error: Mixed-type operation requires explicit result type
-
-// ✅ Explicit context through target type
-val explicit : i64 = some_i32 + some_i64  // i32 + i64 → i64 (target type guides promotion)
+// val temp = some_i32 + some_i64      // Error: Mixed-type operation requires explicit result type
 ```
 
-### Function Return Context
-
-Function return types provide context for expression resolution:
+#### Mutable Assignment with Different Types
 
 ```hexen
-func calculate() : f32 = {
-    val a : i32 = 10
-    val b : i64 = 20
-    
-    // Return type provides context for mixed expression
-    return a + b                // i32 + i64 → f32 (return type context)
-}
+// Different mutable variables with different types
+mut int_value : i32 = 0
+mut float_value : f64 = 0.0
+mut precise_value : f32 = 0.0
 
-// ❌ Error: Mixed types without context
-// func ambiguous() : void = {
-//     val a : i32 = 10
-//     val b : i64 = 20
-//     val result = a + b        // Error: Mixed-type operation requires explicit result type
-// }
+// Each assignment respects its target type
+int_value = 42                        // comptime_int → i32
+float_value = 42                      // comptime_int → f64
+precise_value = 42                    // comptime_int → f32
 
-// ✅ Explicit context through return type
-func explicit() : i64 = {
-    val a : i32 = 10
-    val b : i64 = 20
-    return a + b               // i32 + i64 → i64 (return type context)
-}
+// Complex expressions resolve in respective target types
+int_value = (100 * 2) / 3             // Integer math in i32 context
+float_value = (100 * 2) / 3           // Float math in f64 context
+precise_value = (100 * 2) / 3         // Float math in f32 context
+
+// Mixed types resolve in target type context
+int_value = some_i32 + some_i64       // i32 + i64 → i32 (may truncate)
+float_value = some_i32 + some_i64     // i32 + i64 → f64 (promotion)
+precise_value = some_i32 + some_i64   // i32 + i64 → f32 (promotion)
 ```
 
-### Context Flow Rules
+#### Mutable Assignment with Nested Expressions
 
-1. **Target Type Priority**: The target type (variable, parameter, or return type) provides the primary context for expression resolution
-2. **Complete Expression Tree**: Context flows through the entire expression tree, not just individual operations
-3. **No Hidden Promotions**: Mixed types still require explicit target type, even in assignment context
-4. **Predictable Behavior**: The same expression will resolve consistently based on its target type context
+```hexen
+mut result : f64 = 0.0
+
+// Nested expressions resolve in target type context
+result = (10 + 20) * (3.14 + 2.86)    // All operations in f64 context
+// Stepwise resolution:
+// 1. (10 + 20): comptime_int + comptime_int → comptime_int
+// 2. (3.14 + 2.86): comptime_float + comptime_float → comptime_float
+// 3. comptime_int * comptime_float → f64 (target type)
+
+// Mixed types in nested expressions
+result = (some_i32 + some_i64) * (some_f32 + some_f64)
+// Stepwise resolution in f64 context:
+// 1. (some_i32 + some_i64): i32 + i64 → i64
+// 2. (some_f32 + some_f64): f32 + f64 → f64
+// 3. i64 * f64 → f64 (target type)
+```
+
+#### Mutable Assignment Rules
+
+1. **Type Consistency**: The target type of a mutable variable cannot change
+2. **Context Priority**: The mutable variable's type provides the primary context for all assignments
+3. **Complete Resolution**: The target type guides resolution of the entire expression tree
+4. **No Hidden Promotions**: Mixed types still require explicit handling, but the target type provides the context
+5. **Predictable Behavior**: The same expression will resolve consistently based on the mutable variable's type
 
 
 ## Grammar Extensions
