@@ -81,13 +81,13 @@ These operations are unambiguous and resolve automatically:
 #### Both Comptime Types
 ```hexen
 // Same comptime_int operations default to i32
-val result1 = 42 + 100          // comptime_int + comptime_int = comptime_int → i32
-val result2 = 42 * 100          // comptime_int * comptime_int = comptime_int → i32
-val result5 = 42 \ 100          // comptime_int \ comptime_int = comptime_int → i32
+val result1 = 42 + 100          // comptime_int + comptime_int → i32
+val result2 = 42 * 100          // comptime_int + comptime_int → i32
+val result3 = 42 \ 100          // comptime_int \ comptime_int → i32
 
 // Operations that would promote beyond i32 require explicit type
-// val result3 = 3.14 + 2.71    // ❌ Error: comptime_float operations require explicit result type
-// val result4 = 42 / 100       // ❌ Error: Float division requires explicit result type
+// val result4 = 3.14 + 2.71    // ❌ Error: comptime_float operations require explicit result type
+// val result5 = 42 / 100       // ❌ Error: Float division requires explicit result type
 
 // ✅ Explicit type annotations make intent clear
 val explicit_float : f64 = 3.14 + 2.71     // comptime_float + comptime_float → f64
@@ -102,22 +102,21 @@ Mixed comptime types require explicit result type (would promote beyond i32):
 // val auto_promote2 = 42 * 3.14   // Error: Mixed comptime types require explicit result type
 
 // ✅ Explicit type annotations make intent clear
-val explicit_f64 : f64 = 42 + 3.14 // comptime_int + comptime_float → f64 (full precision)
-val explicit_f32 : f32 = 42 * 3.14 // comptime_int * comptime_float → f32 (reduced precision)
-val explicit_i32 : i32 = 42 * 3.14 // comptime_int * comptime_float → i32 (explicit truncation)
+val explicit_f64 : f64 = 42 + 3.14  // comptime_int + comptime_float → f64 (full precision)
+val explicit_f32 : f32 = 42 * 3.14  // comptime_int * comptime_float → f32 (reduced precision)
 ```
 
 #### One Comptime, One Concrete
-The comptime type adapts to the concrete type:
+The comptime type adapts to the concrete type when result stays within i32:
 ```hexen
 val x : i32 = 10
 val y : f64 = 3.14
 
-val result1 = x + 42            // i32 + comptime_int = i32
-// val result2 = y + 42         // f64 + comptime_int = f64  -> ❌ Error: Float result requires explicit type annotation
-val result2_explicit : f64 = y + 42 // f64 + comptime_int = f64 (explicit type, allowed)
+val result1 = x + 42            // i32 + comptime_int → i32
+// val result2 = y + 42         // ❌ Error: f64 + comptime_int requires explicit result type
+val result2 : f64 = y + 42      // f64 + comptime_int → f64 (explicit type required)
 // val result3 = x / 2          // ❌ Error: Float division requires explicit result type
-val result4 = x \ 2             // i32 \ comptime_int = i32 (integer division)
+val result4 = x \ 2             // i32 \ comptime_int → i32 (integer division)
 ```
 
 #### Both Same Concrete Type
@@ -127,11 +126,11 @@ val b : i32 = 20
 val c : f64 = 3.14
 val d : f64 = 2.71
 
-val result1 = a + b             // i32 + i32 = i32
-// val result2 = c * d          // ❌ Error: Float result requires explicit type annotation
-val result2_explicit : f64 = c * d // f64 * f64 = f64 (explicit type, allowed)
+val result1 = a + b             // i32 + i32 → i32
+// val result2 = c * d          // ❌ Error: f64 * f64 requires explicit result type
+val result2 : f64 = c * d       // f64 * f64 → f64 (explicit type required)
 // val result3 = a / b          // ❌ Error: Float division requires explicit result type
-val result4 = a \ b             // i32 \ i32 = i32 (integer division)
+val result4 = a \ b             // i32 \ i32 → i32 (integer division)
 
 // ✅ Explicit type for float division
 val explicit_div : f64 = a / b  // i32 / i32 → f64 (float division)
@@ -147,7 +146,7 @@ val a : i32 = 10
 val b : i64 = 20
 
 // ❌ Ambiguous - which type should win?
-val result = a + b              // Error: "Mixed-type operation 'i32 + i64' requires explicit result type"
+// val result = a + b              // Error: "Mixed-type operation 'i32 + i64' requires explicit result type"
 ```
 
 #### The Solution - Explicit Context
@@ -161,7 +160,31 @@ val as_i64 : i64 = a + b        // i32 → i64 widening (safe)
 val as_f64 : f64 = a + b        // Both → f64 conversion
 ```
 
-### 3. Comptime Type Resolution Rules
+### 3. Mutable Assignment with Precision Loss
+
+When reassigning to a mutable variable with potential precision loss, explicit type annotation is required:
+
+```hexen
+mut counter : i32 = 0
+mut precise : f32 = 0.0
+
+// Safe assignments - no type annotation needed
+counter = 42                          // comptime_int → i32 (safe)
+counter = 10 + 20                     // comptime_int + comptime_int → i32 (safe)
+precise = 3.14                        // comptime_float → f32 (safe)
+
+// ❌ Error: Potential precision loss/truncation - requires explicit type annotation
+// counter = some_i64                  // Error: Potential truncation, add ': i32' to acknowledge
+// counter = some_i64 + some_f64       // Error: Mixed types with potential truncation, add ': i32'
+// precise = 3.14159265359             // Error: Potential precision loss, add ': f32'
+
+// ✅ Explicit acknowledgment of precision loss/truncation
+counter = some_i64 : i32              // Explicit: "I know this might truncate"
+counter = some_i64 + some_f64 : i32   // Explicit: "I know this might truncate"
+precise = 3.14159265359 : f32         // Explicit: "I know this will lose precision"
+```
+
+### 4. Comptime Type Resolution Rules
 
 Comptime types follow the **"i32 default, explicit promotion"** rule for system programming efficiency:
 
@@ -276,7 +299,7 @@ Hexen provides **two distinct division operators** to eliminate ambiguity and ma
 **Always produces floating-point results**, preserving mathematical precision:
 
 ```hexen
-// Float division requires explicit result type (would promote beyond i32)
+// Float division always produces float results and requires explicit result type
 // val precise1 = 10 / 3        // ❌ Error: Float division requires explicit result type
 // val precise2 = 7 / 2         // ❌ Error: Float division requires explicit result type
 // val float_calc = 10.5 / 2.1  // ❌ Error: comptime_float operations require explicit result type
@@ -292,6 +315,11 @@ val int_val : i32 = 10
 val float_val : f64 = 3.0
 // val mixed = int_val / float_val  // ❌ Error: Mixed concrete types need explicit handling
 val explicit_mixed : f64 = int_val / float_val  // ✅ Mixed concrete types → explicit target type
+
+// Mutable assignment with float division
+mut result : i32 = 0
+// result = 10 / 3               // ❌ Error: Float division requires explicit result type
+result = (10 / 3) : i32         // ✅ Explicit truncation from float division
 ```
 
 ### Integer Division (`\`) - Efficient Truncation
@@ -299,17 +327,29 @@ val explicit_mixed : f64 = int_val / float_val  // ✅ Mixed concrete types → 
 
 ```hexen
 // Integer division (efficient, no floating-point computation)
-val fast1 = 10 \ 3              // comptime_int = 3 (default: i32, truncated)
-val fast2 = 7 \ 2               // comptime_int = 3 (default: i32, truncated)  
-val fast3 : i64 = 22 \ 7        // i64 = 3 (explicit width)
+val fast1 = 10 \ 3              // comptime_int \ comptime_int → i32 (3, truncated)
+val fast2 = 7 \ 2               // comptime_int \ comptime_int → i32 (3, truncated)  
+val fast3 : i64 = 22 \ 7        // comptime_int \ comptime_int → i64 (3, truncated)
 
-// Integer division requires integer operands
+// Integer division with concrete types
 val a : i32 = 10
 val b : i32 = 3
-val efficient = a \ b           // i32 = 3 (no type promotion needed)
+val efficient = a \ b           // i32 \ i32 → i32 (3, truncated)
 
 // ❌ Float operands with integer division is an error
 // val invalid = 10.5 \ 2.1     // Error: Integer division requires integer operands
+// val also_bad = 3.14 \ 42     // Error: Integer division requires integer operands
+
+// Mixed integer types require explicit handling
+val c : i64 = 20
+// val mixed = a \ c            // ❌ Error: Mixed concrete types need explicit handling
+val explicit_mixed : i64 = a \ c  // ✅ Mixed concrete types → explicit target type
+
+// Mutable assignment with integer division
+mut result : i32 = 0
+result = a \ b                  // ✅ Safe: same type
+// result = c \ b               // ❌ Error: Mixed concrete types need explicit handling
+result = c \ b : i32            // ✅ Explicit truncation from i64
 ```
 
 ### Design Philosophy
@@ -327,18 +367,18 @@ val efficient = a \ b           // i32 = 3 (no type promotion needed)
 - No complex coercion rules or context-dependent behavior
 - Clear, predictable semantics
 
-
 ### Truncation Rules
 
 Float-to-integer conversion follows standard truncation rules:
 
 ```hexen
 // Truncation towards zero
-val pos_trunc : i32 = 10.9 / 2.0    // 5.45 → 5 
-val neg_trunc : i32 = -10.9 / 2.0   // -5.45 → -5
+mut result : i32 = 0
+result = (10.9 / 2.0) : i32    // 5.45 → 5 
+result = (-10.9 / 2.0) : i32   // -5.45 → -5
 
 // Exact conversions when possible
-val exact : i32 = 20.0 / 4.0        // 5.0 → 5 (exact)
+result = (20.0 / 4.0) : i32    // 5.0 → 5 (exact)
 ```
 
 ## Complex Expression Resolution
@@ -448,39 +488,114 @@ val invalid : bool = str_val == int_val  // Error: Cannot compare string and i32
 
 ## Logical Operations
 
-Logical operators work exclusively with boolean values.
+Logical operators work exclusively with boolean values and follow strict type rules.
+
+### Type Rules
+
+1. **Boolean Context**:
+   - Only boolean values are allowed in logical operations
+   - No implicit coercion from other types
+   ```hexen
+   val age : i32 = 25
+   val has_license : bool = true
+   
+   // ✅ Valid: Comparison produces boolean
+   val can_drive : bool = age >= 18 && has_license
+   
+   // ❌ Invalid: No implicit coercion
+   // val invalid1 = age && has_license        // Error: i32 cannot be used in logical operation
+   // val invalid2 = "yes" || has_license     // Error: string cannot be used in logical operation
+   ```
+
+2. **Comparison Results**:
+   - Comparison operators (`<`, `>`, `<=`, `>=`, `==`, `!=`) produce boolean results
+   - Mixed type comparisons follow promotion rules
+   ```hexen
+   val int_val : i32 = 10
+   val float_val : f64 = 10.0
+   
+   // ✅ Valid: i32 promotes to f64 for comparison
+   val comparison1 : bool = int_val < float_val
+   
+   // ✅ Valid: comptime_int promotes to f64 for comparison
+   val comparison2 : bool = 42 > 3.14
+   
+   // ❌ Invalid: Cannot compare different fundamental types
+   val str_val : string = "hello"
+   // val invalid = str_val == int_val        // Error: Cannot compare string and i32
+   ```
 
 ### Basic Logical Operations
 
 ```hexen
+// Basic boolean operations
 val and_result : bool = true && false   // false
 val or_result : bool = true || false    // true
 val not_result : bool = !true           // false
+
+// Complex boolean expressions
+val age : i32 = 25
+val has_license : bool = true
+val has_car : bool = false
+
+val can_drive : bool = age >= 18 && has_license
+val needs_permission : bool = age < 18 || !has_license
+val can_borrow_car : bool = has_license && !has_car
 ```
 
 ### Short-Circuit Evaluation
 
-Logical operators use short-circuit evaluation:
+Logical operators use short-circuit evaluation to optimize performance:
 
 ```hexen
 val a : bool = false
 val b : bool = true
 
-// Short-circuit: if a is false, b is never evaluated
+// Short-circuit AND: if a is false, b is never evaluated
 val result1 : bool = a && expensive_function()  // expensive_function() not called
 
-// Short-circuit: if a is false, b is evaluated  
+// Short-circuit OR: if a is true, b is never evaluated
 val result2 : bool = a || expensive_function()  // expensive_function() is called
+
+// Complex short-circuit example
+val age : i32 = 25
+val has_license : bool = false
+
+// If age < 18 is false, has_license is never checked
+val needs_permission : bool = age < 18 || !has_license
 ```
 
-### Logical with Comparisons
+### Logical Operator Precedence
+
+Logical operators have lower precedence than comparison operators:
 
 ```hexen
-val age : i32 = 25
-val has_license : bool = true
+// These are equivalent:
+val result1 : bool = (age >= 18) && (has_license == true)
+val result2 : bool = age >= 18 && has_license == true
 
-val can_drive : bool = age >= 18 && has_license
-val needs_permission : bool = age < 18 || !has_license
+// Complex precedence example
+val result3 : bool = age >= 18 && has_license || age < 18 && !has_license
+// Equivalent to:
+// (age >= 18 && has_license) || (age < 18 && !has_license)
+```
+
+### Mutable Assignment with Logical Operations
+
+```hexen
+mut status : bool = false
+
+// Safe assignments - no type annotation needed
+status = true                          // bool → bool (safe)
+status = age >= 18 && has_license      // bool → bool (safe)
+
+// ❌ Error: Non-boolean value
+// status = 42                         // Error: i32 cannot be assigned to bool
+// status = "yes"                      // Error: string cannot be assigned to bool
+
+// ✅ Valid: Complex boolean expressions
+status = age >= 18 && (has_license || has_car)
+status = !status || (age < 18 && has_license)
 ```
 
 ## Arithmetic Operations
