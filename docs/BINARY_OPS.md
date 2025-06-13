@@ -527,81 +527,120 @@ Assignment context in Hexen follows the **"Pedantic to write, but really easy to
 
 ### Assignment Statement Context
 
-Assignment statements in Hexen use the target variable's type as context for expression resolution. This is particularly important for mutable variables (`mut`), where the target type remains constant throughout the variable's lifetime.
+Assignment statements in Hexen use the target variable's type as context for expression resolution. For mutable variables (`mut`), the target type remains constant throughout the variable's lifetime. To maintain safety while keeping the code readable, explicit type annotations are only required when there's potential precision loss or truncation.
 
 #### Mutable Assignment Behavior
 
 ```hexen
-// Mutable variable with explicit type
 mut counter : i32 = 0
+mut precise : f32 = 0.0
 
-// All assignments must respect the declared type
-counter = 42                          // comptime_int → i32 (promotion)
+// Safe assignments - no type annotation needed
+counter = 42                          // comptime_int → i32 (safe)
+counter = 10 + 20                     // comptime_int + comptime_int → i32 (safe)
+precise = 3.14                        // comptime_float → f32 (safe)
+
+// Safe mixed types - no type annotation needed
+precise = some_i32 + some_f64         // i32 + f64 → f32 (safe promotion)
+counter = some_i32 + 42               // i32 + comptime_int → i32 (safe)
+
+// ❌ Error: Potential precision loss/truncation - requires explicit type annotation
+// counter = some_i64                  // Error: Potential truncation, add ': i32' to acknowledge
+// counter = some_i64 + some_f64       // Error: Mixed types with potential truncation, add ': i32'
+// precise = 3.14159265359             // Error: Potential precision loss, add ': f32'
+
+// ✅ Explicit acknowledgment of precision loss/truncation
+counter = some_i64 : i32              // Explicit: "I know this might truncate"
+counter = some_i64 + some_f64 : i32   // Explicit: "I know this might truncate"
+precise = 3.14159265359 : f32         // Explicit: "I know this will lose precision"
+```
+
+#### Type Annotation Precedence
+
+When required, the type annotation has highest precedence and applies to the entire expression:
+
+```hexen
+mut result : i32 = 0
+
+// These are equivalent - type annotation applies to whole expression
+result = a + b : i32                  // (a + b) : i32
+result = a + b * c : i32              // (a + (b * c)) : i32
+result = (a + b) * c : i32            // ((a + b) * c) : i32
+
+// Complex expressions with potential precision loss
+result = some_i64 * some_f64 : i32    // ((some_i64 * some_f64)) : i32
+result = (a + b) * (c + d) : i32      // ((a + b) * (c + d)) : i32
+```
+
+#### When Type Annotations Are Required
+
+The compiler requires explicit type annotations in these cases:
+
+1. **Integer Truncation**:
+```hexen
+mut counter : i32 = 0
+// ❌ Error: Potential truncation
+// counter = some_i64                  // Error: Add ': i32' to acknowledge truncation
+// counter = 0xFFFFFFFF + 1            // Error: Add ': i32' to acknowledge truncation
+
+// ✅ Explicit acknowledgment
+counter = some_i64 : i32              // Explicit truncation
+counter = 0xFFFFFFFF + 1 : i32        // Explicit truncation
+```
+
+2. **Float Precision Loss**:
+```hexen
+mut precise : f32 = 0.0
+// ❌ Error: Potential precision loss
+// precise = 3.14159265359             // Error: Add ': f32' to acknowledge precision loss
+// precise = some_f64 * 2.0            // Error: Add ': f32' to acknowledge precision loss
+
+// ✅ Explicit acknowledgment
+precise = 3.14159265359 : f32         // Explicit precision loss
+precise = some_f64 * 2.0 : f32        // Explicit precision loss
+```
+
+3. **Mixed Types with Potential Issues**:
+```hexen
+mut result : i32 = 0
+// ❌ Error: Mixed types with potential truncation
+// result = some_i64 + some_f64        // Error: Add ': i32' to acknowledge truncation
+// result = some_f64 * some_i32        // Error: Add ': i32' to acknowledge truncation
+
+// ✅ Explicit acknowledgment
+result = some_i64 + some_f64 : i32    // Explicit truncation
+result = some_f64 * some_i32 : i32    // Explicit truncation
+```
+
+#### Safe Operations (No Annotation Required)
+
+Type annotations are not required for these safe operations:
+
+```hexen
+mut counter : i32 = 0
+mut precise : f32 = 0.0
+
+// Safe integer operations
+counter = 42                          // comptime_int → i32
 counter = 10 + 20                     // comptime_int + comptime_int → i32
-counter = some_i64                    // i64 → i32 (may truncate)
+counter = some_i32 + 42               // i32 + comptime_int → i32
 
-// ❌ Error: Cannot change type of mutable variable
-// counter = 3.14                      // Error: Cannot assign f64 to i32
-// counter = "hello"                   // Error: Cannot assign string to i32
+// Safe float operations
+precise = 3.14                        // comptime_float → f32
+precise = 2.0 * 3.0                   // comptime_float * comptime_float → f32
+precise = some_f32 * 2.0              // f32 * comptime_float → f32
 
-// Complex expressions resolve in target type context
-counter = (100 * 2) / 3               // All operations in i32 context
-counter = some_i32 + some_i64         // i32 + i64 → i32 (target type guides promotion)
-
-// ❌ Error: Mixed types without context
-// val temp = some_i32 + some_i64      // Error: Mixed-type operation requires explicit result type
-```
-
-#### Mutable Assignment with Different Types
-
-```hexen
-// Different mutable variables with different types
-mut int_value : i32 = 0
-mut float_value : f64 = 0.0
-mut precise_value : f32 = 0.0
-
-// Each assignment respects its target type
-int_value = 42                        // comptime_int → i32
-float_value = 42                      // comptime_int → f64
-precise_value = 42                    // comptime_int → f32
-
-// Complex expressions resolve in respective target types
-int_value = (100 * 2) / 3             // Integer math in i32 context
-float_value = (100 * 2) / 3           // Float math in f64 context
-precise_value = (100 * 2) / 3         // Float math in f32 context
-
-// Mixed types resolve in target type context
-int_value = some_i32 + some_i64       // i32 + i64 → i32 (may truncate)
-float_value = some_i32 + some_i64     // i32 + i64 → f64 (promotion)
-precise_value = some_i32 + some_i64   // i32 + i64 → f32 (promotion)
-```
-
-#### Mutable Assignment with Nested Expressions
-
-```hexen
-mut result : f64 = 0.0
-
-// Nested expressions resolve in target type context
-result = (10 + 20) * (3.14 + 2.86)    // All operations in f64 context
-// Stepwise resolution:
-// 1. (10 + 20): comptime_int + comptime_int → comptime_int
-// 2. (3.14 + 2.86): comptime_float + comptime_float → comptime_float
-// 3. comptime_int * comptime_float → f64 (target type)
-
-// Mixed types in nested expressions
-result = (some_i32 + some_i64) * (some_f32 + some_f64)
-// Stepwise resolution in f64 context:
-// 1. (some_i32 + some_i64): i32 + i64 → i64
-// 2. (some_f32 + some_f64): f32 + f64 → f64
-// 3. i64 * f64 → f64 (target type)
+// Safe mixed types
+precise = some_i32 + some_f32         // i32 + f32 → f32 (safe promotion)
+precise = some_i32 * 2.0              // i32 * comptime_float → f32 (safe promotion)
 ```
 
 #### Mutable Assignment Rules
 
 1. **Type Consistency**: The target type of a mutable variable cannot change
 2. **Context Priority**: The mutable variable's type provides the primary context for all assignments
-3. **Complete Resolution**: The target type guides resolution of the entire expression tree
-4. **No Hidden Promotions**: Mixed types still require explicit handling, but the target type provides the context
+3. **Explicit Precision Loss**: Type annotations are required only when there's potential precision loss or truncation
+4. **Highest Precedence**: When used, type annotations apply to the entire expression
 5. **Predictable Behavior**: The same expression will resolve consistently based on the mutable variable's type
 
 
