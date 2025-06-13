@@ -612,3 +612,158 @@ Binary operations create AST nodes with this structure:
     "right": {...},   # Right operand (expression)
 }
 ```
+
+## Implementation Guidelines
+
+### Semantic Analysis Strategy
+
+The semantic analyzer should implement a two-phase approach for binary operations:
+
+1. **Comptime Type Analysis Phase**
+```python
+def analyze_binary_operation(self, node: Dict, target_type: Optional[HexenType] = None) -> HexenType:
+    """Analyze binary operation with optional target type context."""
+    left_type = self.analyze_expression(node["left"])
+    right_type = self.analyze_expression(node["right"])
+    op = node["operator"]
+    
+    # Phase 1: Comptime Type Analysis
+    if self._is_comptime_operation(left_type, right_type, op):
+        return self._analyze_comptime_operation(left_type, right_type, op, target_type)
+    
+    # Phase 2: Concrete Type Resolution
+    return self._resolve_concrete_operation(left_type, right_type, op, target_type, node)
+```
+
+2. **Context-Guided Resolution Phase**
+```python
+def _resolve_concrete_operation(self, left: HexenType, right: HexenType, 
+                              op: str, target_type: Optional[HexenType], 
+                              node: Dict) -> HexenType:
+    """Resolve concrete types with context guidance."""
+    # Safe cases (no context needed)
+    if self._is_safe_operation(left, right, op):
+        return self._resolve_safe_operation(left, right, op)
+    
+    # Context-required cases
+    if target_type is None:
+        self._error(f"Mixed-type operation '{left} {op} {right}' requires explicit result type", node)
+        return HexenType.UNKNOWN
+    
+    return self._resolve_with_context(left, right, op, target_type, node)
+```
+
+### Key Implementation Functions
+
+1. **Comptime Type Analysis**
+```python
+def _analyze_comptime_operation(self, left: HexenType, right: HexenType, 
+                              op: str, target_type: Optional[HexenType]) -> HexenType:
+    """Analyze operations involving comptime types."""
+    # Preserve comptime types when possible
+    if self._is_safe_comptime_operation(left, right, op):
+        return self._preserve_comptime_type(left, right, op)
+    
+    # Handle promotion cases
+    if self._would_promote_comptime(left, right, op):
+        if target_type is None:
+            return HexenType.UNKNOWN  # Requires explicit type
+        return self._promote_to_target(left, right, op, target_type)
+```
+
+2. **Division Operator Handling**
+```python
+def _analyze_division(self, left: HexenType, right: HexenType, 
+                     op: str, target_type: Optional[HexenType]) -> HexenType:
+    """Special handling for division operators."""
+    if op == "/":  # Float division
+        if target_type is None:
+            return HexenType.UNKNOWN  # Always requires explicit type
+        return self._validate_float_division(left, right, target_type)
+    
+    if op == "\\":  # Integer division
+        if not self._are_integer_types(left, right):
+            return HexenType.UNKNOWN  # Integer division requires integer operands
+        return self._resolve_integer_division(left, right, target_type)
+```
+
+3. **Type Adaptation**
+```python
+def _adapt_to_context(self, type: HexenType, target_type: HexenType, 
+                     node: Dict) -> HexenType:
+    """Adapt comptime types to target context."""
+    if not self._is_comptime_type(type):
+        return type
+    
+    if self._is_safe_adaptation(type, target_type):
+        return target_type
+    
+    if self._would_lose_precision(type, target_type):
+        self._error(f"Potential precision loss in adaptation to {target_type}", node)
+        return HexenType.UNKNOWN
+    
+    return target_type
+```
+
+### Error Handling
+
+The semantic analyzer should provide clear, actionable error messages:
+
+```python
+def _error(self, message: str, node: Dict) -> None:
+    """Generate helpful error messages for binary operations."""
+    if "requires explicit result type" in message:
+        self.errors.append(f"{message}\nAdd type annotation: 'val result : type = ...'")
+    elif "potential precision loss" in message:
+        self.errors.append(f"{message}\nAdd explicit type annotation to acknowledge: 'val result : type = ...'")
+    elif "integer division requires integer operands" in message:
+        self.errors.append(f"{message}\nUse float division (/) for non-integer operands")
+    else:
+        self.errors.append(message)
+```
+
+### Testing Strategy
+
+Implement comprehensive tests for:
+
+1. **Comptime Type Preservation**
+   - Same comptime type operations
+   - Mixed comptime type operations
+   - Comptime with concrete types
+
+2. **Context Resolution**
+   - Target type guidance
+   - Mixed concrete types
+   - Precision loss cases
+
+3. **Division Operators**
+   - Float division behavior
+   - Integer division behavior
+   - Mixed type division
+
+4. **Error Cases**
+   - Missing type annotations
+   - Invalid type combinations
+   - Precision loss without acknowledgment
+
+Example test structure:
+```python
+def test_binary_operations():
+    # Comptime preservation
+    assert_type("42 + 100", "comptime_int")
+    assert_type("3.14 + 2.71", "comptime_float")
+    
+    # Context resolution
+    assert_type("val x : i32 = 42 + 100", "i32")
+    assert_type("val x : f64 = 42 + 3.14", "f64")
+    
+    # Division operators
+    assert_type("val x : f64 = 10 / 3", "f64")
+    assert_type("val x : i32 = 10 \\ 3", "i32")
+    
+    # Error cases
+    assert_error("42 + 3.14", "requires explicit result type")
+    assert_error("10.5 \\ 2.1", "integer division requires integer operands")
+```
+
+These implementation guidelines ensure consistent behavior across the compiler while maintaining the language's core principles of explicit danger and implicit safety.
