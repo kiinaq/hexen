@@ -46,14 +46,14 @@ This document outlines the complete implementation strategy for adding binary op
 // Current (flat structure)
 expression: NUMBER | STRING | BOOLEAN | IDENTIFIER | block
 
-// Required (precedence hierarchy)  
+// Required (precedence hierarchy with division operators)  
 expression: logical_or
 logical_or: logical_and (("||") logical_and)*
 logical_and: equality (("&&") equality)*
 equality: relational (("==" | "!=") relational)*
 relational: additive (("<" | ">" | "<=" | ">=") additive)*
 additive: multiplicative (("+" | "-") multiplicative)*
-multiplicative: unary (("*" | "/" | "%") unary)*
+multiplicative: unary (("*" | "/" | "\\" | "%") unary)*  // Note: Two division operators
 unary: ("-" | "!")? primary
 primary: NUMBER | STRING | BOOLEAN | IDENTIFIER | block | "(" expression ")"
 ```
@@ -63,6 +63,7 @@ primary: NUMBER | STRING | BOOLEAN | IDENTIFIER | block | "(" expression ")"
 - **No context passing** to expression analysis methods
 - **No operator-specific type resolution** logic
 - **No mixed-type operation validation**
+- **No division operator specific handling** for `/` vs `\`
 
 #### **Parser Transformer**
 - **No binary operation AST generation**
@@ -77,10 +78,15 @@ primary: NUMBER | STRING | BOOLEAN | IDENTIFIER | block | "(" expression ")"
 
 #### **1.1 Grammar Changes** (`hexen.lark`)
 ```lark
-// Replace current expression rule
-expression: primary
-
-// Add primary expressions with parentheses support
+// Replace current expression rule with complete operator hierarchy
+expression: logical_or
+logical_or: logical_and (("||") logical_and)*
+logical_and: equality (("&&") equality)*
+equality: relational (("==" | "!=") relational)*
+relational: additive (("<" | ">" | "<=" | ">=") additive)*
+additive: multiplicative (("+" | "-") multiplicative)*
+multiplicative: unary (("*" | "/" | "\\" | "%") unary)*  // Two division operators
+unary: ("-" | "!")? primary
 primary: NUMBER | STRING | BOOLEAN | IDENTIFIER | block | "(" expression ")"
 ```
 
@@ -92,6 +98,11 @@ def primary(self, children):
         return children[0]  # Direct primary
     else:
         return children[1]  # Parenthesized expression (skip parens)
+
+# Add division operator handling
+def multiplicative(self, args):
+    """Handle multiplicative operations including both division operators."""
+    return self._build_binary_operation_tree(args, ["*", "/", "\\", "%"])
 ```
 
 #### **1.3 Semantic Changes** (`semantic.py`)
@@ -116,24 +127,22 @@ def _analyze_assignment_statement(self, node: Dict):
 ```
 
 #### **1.4 Testing Requirements**
-- **Parser Tests**: `test_parentheses.py` (20 tests)
-- **Semantic Tests**: `test_context_framework.py` (15 tests)  
+- **Parser Tests**: 
+  - `test_parentheses.py` (20 tests)
+  - `test_division_operators.py` (15 tests)  # New: Test both division operators
+- **Semantic Tests**: 
+  - `test_context_framework.py` (15 tests)
+  - `test_comptime_adaptation.py` (20 tests)  # New: Test comptime type adaptation
 - **Integration Tests**: Ensure all existing tests still pass (164 tests)
 
-**Estimated Effort**: 2-3 hours, ~80 lines of changes
+**Estimated Effort**: 3-4 hours, ~100 lines of changes
 
 ---
 
 ### Phase 2: Arithmetic Operations
-*Goal: Implement +, -, *, /, % with precedence and context*
+*Goal: Implement +, -, *, /, \, % with precedence and context*
 
-#### **2.1 Grammar Extension**
-```lark
-expression: additive
-additive: multiplicative (("+" | "-") multiplicative)*
-multiplicative: primary (("*" | "/" | "%") primary)*
-primary: NUMBER | STRING | BOOLEAN | IDENTIFIER | block | "(" expression ")"
-```
+#### **2.1 Grammar Extension** (Already in Phase 1)
 
 #### **2.2 Parser Transformer Methods**
 ```python
@@ -141,7 +150,7 @@ def additive(self, args):
     return self._build_binary_operation_tree(args, ["+", "-"])
 
 def multiplicative(self, args):
-    return self._build_binary_operation_tree(args, ["*", "/", "%"])
+    return self._build_binary_operation_tree(args, ["*", "/", "\\", "%"])
 
 def _build_binary_operation_tree(self, args, operators):
     """Build left-associative binary operation tree from flat args list."""
@@ -181,20 +190,52 @@ def _analyze_binary_operation(self, node: Dict, target_type: Optional[HexenType]
     left_type = self._analyze_expression(left_node, target_type)
     right_type = self._analyze_expression(right_node, target_type)
     
+    # Special handling for division operators
+    if operator in {"/", "\\"}:
+        return self._analyze_division_operation(left_type, right_type, operator, target_type, node)
+    
     # Delegate to specific handler based on operator category
-    if operator in {"+", "-", "*", "/", "%"}:
+    if operator in {"+", "-", "*", "%"}:
         return self._resolve_arithmetic_operation(left_type, right_type, operator, target_type, node)
     else:
         self._error(f"Unknown binary operator: {operator}", node)
         return HexenType.UNKNOWN
+
+def _analyze_division_operation(self, left: HexenType, right: HexenType, 
+                              operator: str, target_type: Optional[HexenType], 
+                              node: Dict) -> HexenType:
+    """Special handling for division operators."""
+    if operator == "/":  # Float division
+        if target_type is None:
+            self._error("Float division (/) requires explicit result type annotation", node)
+            return HexenType.UNKNOWN
+        if not self._is_float_type(target_type):
+            self._error(f"Float division (/) requires float result type, got {target_type}", node)
+            return HexenType.UNKNOWN
+        return target_type
+    
+    if operator == "\\":  # Integer division
+        if not self._are_integer_types(left, right):
+            self._error("Integer division (\\) requires integer operands", node)
+            return HexenType.UNKNOWN
+        # Integer division preserves comptime types when possible
+        if self._is_comptime_operation(left, right):
+            return self._preserve_comptime_type(left, right, operator)
+        return self._resolve_integer_operation(left, right, operator, target_type, node)
 ```
 
 #### **2.4 Testing Requirements**
-- **Parser Tests**: `test_arithmetic_precedence.py` (30 tests)
-- **Semantic Tests**: `test_arithmetic_types.py` (40 tests)  
-- **Integration Tests**: `test_arithmetic_context.py` (25 tests)
+- **Parser Tests**: 
+  - `test_arithmetic_precedence.py` (30 tests)
+  - `test_division_operators.py` (25 tests)  # New: Specific division operator tests
+- **Semantic Tests**: 
+  - `test_arithmetic_types.py` (40 tests)
+  - `test_division_types.py` (35 tests)  # New: Division type resolution tests
+- **Integration Tests**: 
+  - `test_arithmetic_context.py` (25 tests)
+  - `test_comptime_division.py` (20 tests)  # New: Comptime division tests
 
-**Estimated Effort**: 4-5 hours, ~200 lines of changes
+**Estimated Effort**: 5-6 hours, ~250 lines of changes
 
 ---
 
@@ -275,12 +316,12 @@ def _error_mixed_type_operation(self, left_type: HexenType, right_type: HexenTyp
 
 | Phase | Parser Tests | Semantic Tests | Integration Tests | Total |
 |-------|-------------|----------------|------------------|-------|
-| Phase 1 | 20 | 15 | 10 | 45 |
-| Phase 2 | 30 | 40 | 25 | 95 |
+| Phase 1 | 35 | 35 | 10 | 80 |
+| Phase 2 | 55 | 75 | 45 | 175 |
 | Phase 3 | 20 | 30 | 20 | 70 |
 | Phase 4 | 25 | 30 | 20 | 75 |
 | Phase 5 | 20 | 25 | 10 | 55 |
-| **Total** | **115** | **140** | **85** | **340** |
+| **Total** | **155** | **195** | **105** | **455** |
 
 ### Testing Principles
 
@@ -298,6 +339,7 @@ def _error_mixed_type_operation(self, left_type: HexenType, right_type: HexenTyp
 - Left-associativity verification
 - Error handling (malformed syntax)
 - Parentheses and grouping
+- Division operator validation
 
 **Semantic Tests**:
 - Type resolution accuracy
@@ -305,6 +347,8 @@ def _error_mixed_type_operation(self, left_type: HexenType, right_type: HexenTyp
 - Comptime type coercion
 - Mixed-type operation detection
 - Error message quality
+- Division operator type rules
+- Comptime type adaptation
 
 **Integration Tests**:
 - End-to-end parsing + semantic analysis
@@ -312,6 +356,8 @@ def _error_mixed_type_operation(self, left_type: HexenType, right_type: HexenTyp
 - Backward compatibility verification
 - Real-world usage patterns
 - Performance regression testing
+- Division operator behavior
+- Comptime type context flow
 
 ## Technical Implementation Details
 
@@ -376,10 +422,21 @@ Each phase must meet these criteria before proceeding:
 
 ### Identified Risks and Mitigations
 
-#### **🔴 High Risk: Grammar Complexity**
-- **Risk**: Complex precedence rules could introduce parsing bugs
-- **Mitigation**: Incremental grammar extension with thorough testing at each step
-- **Detection**: Comprehensive parser tests with precedence validation
+#### **🔴 High Risk: Division Operator Complexity**
+- **Risk**: Two division operators could lead to confusion or misuse
+- **Mitigation**: 
+  - Clear error messages for operator misuse
+  - Comprehensive testing of both operators
+  - Explicit type requirements for float division
+- **Detection**: Division operator specific test suite
+
+#### **🔴 High Risk: Comptime Type Adaptation**
+- **Risk**: Context-guided resolution might not handle all cases correctly
+- **Mitigation**: 
+  - Systematic testing of comptime type adaptation
+  - Clear rules for type resolution
+  - Explicit error messages for ambiguous cases
+- **Detection**: Comptime type adaptation test suite
 
 #### **🟡 Medium Risk: Context Propagation Bugs**
 - **Risk**: Target type context might not flow correctly through nested expressions
@@ -396,7 +453,7 @@ Each phase must meet these criteria before proceeding:
 ### Recommended Implementation Order
 
 1. **Start with Phase 1** - provides maximum foundation with minimal risk
-2. **Validate thoroughly** - ensure all 45 new tests pass plus 164 existing tests
+2. **Validate thoroughly** - ensure all 80 new tests pass plus 164 existing tests
 3. **Proceed incrementally** - only move to next phase when current phase is complete
 4. **Maintain quality gates** - never compromise on testing or code quality
 5. **Document progress** - update this plan as implementation proceeds
@@ -405,7 +462,7 @@ Each phase must meet these criteria before proceeding:
 
 This plan is designed to be AI context-manageable:
 
-- **Small focused phases** (80-200 lines each)
+- **Small focused phases** (80-250 lines each)
 - **Clear success criteria** for each phase
 - **Independent development** (can pause/resume at any phase boundary)
 - **Comprehensive documentation** of all implementation details
@@ -416,10 +473,10 @@ This plan is designed to be AI context-manageable:
 **Immediate Action**: Begin with **Phase 1** implementation:
 
 1. **Create feature branch**: `feature/binary-operations-phase-1`
-2. **Implement grammar changes**: Update `hexen.lark` with parentheses support
-3. **Update parser transformer**: Add parentheses handling
-4. **Enhance semantic analyzer**: Add context parameter to expression analysis
-5. **Create comprehensive tests**: 45 new tests for Phase 1
+2. **Implement grammar changes**: Update `hexen.lark` with complete operator hierarchy
+3. **Update parser transformer**: Add division operator handling
+4. **Enhance semantic analyzer**: Add context parameter and division handling
+5. **Create comprehensive tests**: 80 new tests for Phase 1
 6. **Validate integration**: Ensure all 164 existing tests still pass
 
-This plan provides a solid foundation for implementing Hexen's binary operations system while maintaining the language's core principles of safety, clarity, and elegance. 
+This updated plan provides a solid foundation for implementing Hexen's binary operations system while maintaining the language's core principles of safety, clarity, and elegance. 
