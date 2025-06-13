@@ -89,8 +89,40 @@ class HexenTransformer(Transformer):
         }
 
     def expression(self, children):
-        # expression: primary
+        # expression: term
         return children[0]
+
+    def term(self, children):
+        # term: factor (("+" | "-") factor)*
+        if len(children) == 1:
+            return children[0]
+        result = children[0]
+        for i in range(1, len(children) - 1, 2):
+            op_token = children[i]
+            right = children[i + 1]
+            result = {
+                "type": "binary_operation",
+                "operator": str(op_token),
+                "left": result,
+                "right": right,
+            }
+        return result
+
+    def factor(self, children):
+        # factor: primary (("*" | "/" | "\\") primary)*
+        if len(children) == 1:
+            return children[0]
+        result = children[0]
+        for i in range(1, len(children) - 1, 2):
+            op_token = children[i]
+            right = children[i + 1]
+            result = {
+                "type": "binary_operation",
+                "operator": str(op_token),
+                "left": result,
+                "right": right,
+            }
+        return result
 
     def primary(self, children):
         # primary: NUMBER | STRING | BOOLEAN | IDENTIFIER | block | "(" expression ")"
@@ -98,7 +130,6 @@ class HexenTransformer(Transformer):
             return children[0]  # Direct primary expression
         else:
             # Parenthesized expression: "(" expression ")"
-            # Return the inner expression, discarding parentheses
             return children[1]
 
     @v_args(inline=True)

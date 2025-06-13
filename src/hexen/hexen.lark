@@ -25,7 +25,11 @@ return_stmt: "return" expression?
 
 assignment_stmt: IDENTIFIER "=" expression
 
-expression: primary
+expression: term
+
+term: factor (("+" | "-") factor)*
+
+factor: primary (("*" | "/" | "\\") primary)*
 
 primary: NUMBER
        | STRING

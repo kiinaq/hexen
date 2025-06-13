@@ -557,12 +557,7 @@ class SemanticAnalyzer:
         - Literals: numbers, strings
         - Identifiers: variable references
         - Blocks: unified block expressions
-
-        Future expression types:
-        - Binary operations: +, -, *, /
-        - Function calls
-        - Member access
-        - Array indexing
+        - Binary operations: +, -, *, /, \
 
         Returns HexenType.UNKNOWN for invalid expressions.
         """
@@ -574,6 +569,8 @@ class SemanticAnalyzer:
             return self._analyze_identifier(node)
         elif expr_type == "block":
             return self._analyze_block(node, node, context="expression")
+        elif expr_type == "binary_operation":
+            return self._analyze_binary_operation(node, target_type)
         else:
             self._error(f"Unknown expression type: {expr_type}", node)
             return HexenType.UNKNOWN
@@ -737,3 +734,204 @@ class SemanticAnalyzer:
         This allows for graceful handling of future type additions.
         """
         return self.type_map.get(type_str, HexenType.UNKNOWN)
+
+    def _analyze_binary_operation(
+        self, node: Dict, target_type: Optional[HexenType] = None
+    ) -> HexenType:
+        """
+        Analyze a binary operation with context-guided type resolution.
+
+        Handles:
+        - Arithmetic operations: +, -, *, /, \
+        - Type coercion and comptime type adaptation
+        - Division operator specific rules (/ vs \)
+
+        Args:
+            node: Binary operation AST node
+            target_type: Optional target type for context-guided resolution
+
+        Returns:
+            The resolved type of the operation
+        """
+        operator = node.get("operator")
+        left = node.get("left")
+        right = node.get("right")
+
+        if not operator or not left or not right:
+            self._error("Invalid binary operation", node)
+            return HexenType.UNKNOWN
+
+        # Analyze operands with context
+        left_type = self._analyze_expression(left, target_type)
+        right_type = self._analyze_expression(right, target_type)
+
+        if left_type == HexenType.UNKNOWN or right_type == HexenType.UNKNOWN:
+            return HexenType.UNKNOWN
+
+        # Handle division operators specifically
+        if operator in ["/", "\\"]:
+            return self._analyze_division_operation(
+                operator, left_type, right_type, node
+            )
+
+        # For other arithmetic operations, use standard type resolution
+        return self._resolve_binary_operation_type(
+            operator, left_type, right_type, target_type
+        )
+
+    def _analyze_division_operation(
+        self, operator: str, left_type: HexenType, right_type: HexenType, node: Dict
+    ) -> HexenType:
+        """
+        Analyze division operations with specific rules for / and \.
+
+        Rules:
+        - / (float division): Always produces float result
+        - \ (integer division): Always produces integer result
+        - Both require numeric operands
+        - Both support comptime type adaptation
+        """
+        # Check for non-numeric operands
+        if not self._is_numeric_type(left_type) or not self._is_numeric_type(
+            right_type
+        ):
+            self._error(
+                f"Division operator '{operator}' requires numeric operands, got {left_type.value} and {right_type.value}",
+                node,
+            )
+            return HexenType.UNKNOWN
+
+        # Handle float division (/)
+        if operator == "/":
+            # Float division always produces float result
+            if left_type == HexenType.COMPTIME_INT:
+                left_type = HexenType.F64  # Default to f64 for comptime_int
+            elif left_type == HexenType.COMPTIME_FLOAT:
+                left_type = HexenType.F64  # Default to f64 for comptime_float
+            elif left_type in {HexenType.I32, HexenType.I64}:
+                left_type = HexenType.F64  # Convert integers to float
+
+            if right_type == HexenType.COMPTIME_INT:
+                right_type = HexenType.F64
+            elif right_type == HexenType.COMPTIME_FLOAT:
+                right_type = HexenType.F64
+            elif right_type in {HexenType.I32, HexenType.I64}:
+                right_type = HexenType.F64
+
+            # Result is the wider of the two float types
+            return (
+                HexenType.F64
+                if HexenType.F64 in {left_type, right_type}
+                else HexenType.F32
+            )
+
+        # Handle integer division (\)
+        else:  # operator == "\\"
+            # Integer division always produces integer result
+            if left_type == HexenType.COMPTIME_INT:
+                left_type = HexenType.I32  # Default to i32 for comptime_int
+            elif left_type == HexenType.COMPTIME_FLOAT:
+                self._error(
+                    "Integer division (\\\\) cannot be used with float operands", node
+                )
+                return HexenType.UNKNOWN
+            elif left_type in {HexenType.F32, HexenType.F64}:
+                self._error(
+                    "Integer division (\\\\) cannot be used with float operands", node
+                )
+                return HexenType.UNKNOWN
+
+            if right_type == HexenType.COMPTIME_INT:
+                right_type = HexenType.I32
+            elif right_type == HexenType.COMPTIME_FLOAT:
+                self._error(
+                    "Integer division (\\\\) cannot be used with float operands", node
+                )
+                return HexenType.UNKNOWN
+            elif right_type in {HexenType.F32, HexenType.F64}:
+                self._error(
+                    "Integer division (\\\\) cannot be used with float operands", node
+                )
+                return HexenType.UNKNOWN
+
+            # Result is the wider of the two integer types
+            return (
+                HexenType.I64
+                if HexenType.I64 in {left_type, right_type}
+                else HexenType.I32
+            )
+
+    def _resolve_binary_operation_type(
+        self,
+        operator: str,
+        left_type: HexenType,
+        right_type: HexenType,
+        target_type: Optional[HexenType],
+    ) -> HexenType:
+        """
+        Resolve the result type of a binary operation with context guidance.
+
+        Handles:
+        - Type coercion and widening
+        - Comptime type adaptation
+        - Context-guided resolution
+        """
+        # Handle comptime types first
+        if left_type == HexenType.COMPTIME_INT:
+            if target_type and self._is_numeric_type(target_type):
+                left_type = target_type
+            else:
+                left_type = HexenType.I32  # Default to i32
+
+        if right_type == HexenType.COMPTIME_INT:
+            if target_type and self._is_numeric_type(target_type):
+                right_type = target_type
+            else:
+                right_type = HexenType.I32  # Default to i32
+
+        if left_type == HexenType.COMPTIME_FLOAT:
+            if target_type and self._is_float_type(target_type):
+                left_type = target_type
+            else:
+                left_type = HexenType.F64  # Default to f64
+
+        if right_type == HexenType.COMPTIME_FLOAT:
+            if target_type and self._is_float_type(target_type):
+                right_type = target_type
+            else:
+                right_type = HexenType.F64  # Default to f64
+
+        # For non-comptime types, use standard type resolution
+        if operator in ["+", "-", "*"]:
+            # Arithmetic operations
+            if self._is_float_type(left_type) or self._is_float_type(right_type):
+                # If either operand is float, result is float
+                return (
+                    HexenType.F64
+                    if HexenType.F64 in {left_type, right_type}
+                    else HexenType.F32
+                )
+            else:
+                # Both operands are integers
+                return (
+                    HexenType.I64
+                    if HexenType.I64 in {left_type, right_type}
+                    else HexenType.I32
+                )
+
+        return HexenType.UNKNOWN
+
+    def _is_numeric_type(self, type_: HexenType) -> bool:
+        """Check if a type is numeric (integer or float)."""
+        return type_ in {
+            HexenType.I32,
+            HexenType.I64,
+            HexenType.F32,
+            HexenType.F64,
+            HexenType.COMPTIME_INT,
+            HexenType.COMPTIME_FLOAT,
+        }
+
+    def _is_float_type(self, type_: HexenType) -> bool:
+        """Check if a type is a float type."""
+        return type_ in {HexenType.F32, HexenType.F64, HexenType.COMPTIME_FLOAT}
