@@ -50,7 +50,45 @@ This same pattern extends to binary operations and mixed-type expressions.
 
 ### Core Concept
 
-Integer and float literals have special "comptime" types that adapt to their usage context, eliminating the need for literal suffixes while maintaining type safety.
+Integer and float literals have special "comptime" types that adapt to their usage context, eliminating the need for literal suffixes while maintaining type safety. This design follows Hexen's core principles:
+
+- **Clean**: One clear default type (i32) for system programming
+- **Ergonomic**: No need for type suffixes, but explicit when needed
+- **Logic**: Natural progression from comptime to concrete types
+- **Pragmatic**: Optimized for the most common system programming needs
+
+### Default Type Resolution
+
+The comptime type system provides a foundation for context-guided type resolution:
+
+1. **System Programming Efficiency**
+   - Comptime types adapt to their usage context
+   - When no context is provided, `i32` is often the most efficient choice for system programming
+   - This matches the natural word size of most modern systems
+   - Aligns with system call interfaces and memory layouts
+   - Balances range with memory efficiency
+
+2. **Clean Design**
+   - Comptime types eliminate choice paralysis
+   - No need to remember multiple default types
+   - Consistent behavior across all literals
+   - Predictable performance characteristics through context
+
+3. **Explicit Promotion**
+   - When wider range is needed, explicit type annotation required
+   - Makes performance implications visible in the code
+   - Encourages conscious decisions about integer width
+   - Prevents accidental use of wider types
+
+```hexen
+// Comptime types adapt to context
+val default_int = 42    // comptime_int (no context, will be i32 in system programming)
+val counter = 1000      // comptime_int (no context, will be i32 in system programming)
+
+// Explicit context guides type resolution
+val large_num : i64 = 0xFFFFFFFF + 1  // comptime_int → i64 (explicit context)
+val precise : f64 = 3.14159265359     // comptime_float → f64 (explicit context)
+```
 
 ### Literal Type Inference
 
@@ -71,28 +109,44 @@ val z = 0.0             // comptime_float literal
 The comptime system allows the same literal to become different types based on context:
 
 ```hexen
-// Same literal, different target types
-val as_i32 : i32 = 42   // comptime_int → i32
-val as_i64 : i64 = 42   // comptime_int → i64  
-val as_f32 : f32 = 42   // comptime_int → f32
-val as_f64 : f64 = 42   // comptime_int → f64
+// Same literal, different target types - guided by context
+val as_i32 : i32 = 42   // comptime_int → i32 (context-guided)
+val as_i64 : i64 = 42   // comptime_int → i64 (context-guided)
+val as_f32 : f32 = 42   // comptime_int → f32 (context-guided)
+val as_f64 : f64 = 42   // comptime_int → f64 (context-guided)
 
-// Same literal, different float precisions
-val single : f32 = 3.14 // comptime_float → f32
-val double : f64 = 3.14 // comptime_float → f64
+// Float literals follow same context-guided pattern
+val single : f32 = 3.14 // comptime_float → f32 (context-guided)
+val double : f64 = 3.14 // comptime_float → f64 (context-guided)
 ```
 
-### Default Type Resolution
+### Design Rationale
 
-When no explicit context is provided, comptime types resolve to default concrete types:
+The comptime type system embodies Hexen's core principles:
 
-- `comptime_int` → `i32` (default integer type)
-- `comptime_float` → `f64` (default float type)
+1. **Clean & Predictable**
+   - One default type (i32) for integers
+   - One default type (f64) for floats
+   - No hidden type promotions
+   - Explicit when deviating from defaults
 
-```hexen
-val default_int = 42    // i32 (inferred default)
-val default_float = 3.14 // f64 (inferred default)
-```
+2. **System Programming Focus**
+   - i32 as default matches system interfaces
+   - Efficient memory usage by default
+   - Explicit promotion when needed
+   - No performance surprises
+
+3. **Ergonomic & Safe**
+   - No type suffixes needed
+   - Context guides type resolution
+   - Explicit annotations for non-default types
+   - Clear performance implications
+
+4. **Pragmatic & Practical**
+   - Optimized for common use cases
+   - Explicit when performance characteristics change
+   - No complex type inference rules
+   - Clear upgrade path when needed
 
 ## Type Coercion Rules
 
@@ -165,20 +219,25 @@ Key highlights:
 
 ### Variable Declaration with Context
 
+The target type of a variable declaration provides context for expression analysis:
+
 ```hexen
-// Target type provides context for expression analysis
-val precise : f64 = (20 * 3.6) / 2     // Float math: 36.0
-val truncated : i32 = (20 * 3.6) / 2   // Float math → integer: 36
-val integer : i32 = 20 * 3 / 2         // Integer math: 30
+// Target type guides expression resolution
+val precise : f64 = 42      // comptime_int → f64
+val integer : i32 = 42      // comptime_int → i32
+val float_val : f32 = 3.14  // comptime_float → f32
 ```
 
 ### Assignment with Context
 
+Assignment statements use the target variable's type as context:
+
 ```hexen
 mut flexible : f64 = 0.0
-flexible = 42                   // comptime_int → f64 (assignment context)
-flexible = (10 + 20) / 3        // Expression resolves to f64 context
+flexible = 42               // comptime_int → f64 (assignment context)
 ```
+
+For detailed rules about assignment context, type annotations, and mixed type operations, see [BINARY_OPS.md](BINARY_OPS.md).
 
 ## Uninitialized Variables (`undef`)
 
@@ -278,7 +337,7 @@ def _resolve_binary_operation_with_context(self, left: HexenType, right: HexenTy
 
 ## Examples
 
-### Complete Type System in Action
+### Core Type System Concepts
 
 ```hexen
 func demonstrate_type_system() : void = {
@@ -289,51 +348,17 @@ func demonstrate_type_system() : void = {
     val precise : f64 = 3.14    // comptime_float → f64 (default)
     val single : f32 = 3.14     // comptime_float → f32 (context)
     
-    // ===== Binary Operations =====
-    val safe_ops = 42 + 100     // comptime_int + comptime_int = comptime_int
-    val safe_div = 10 / 2       // comptime_int / comptime_int = comptime_int (5)
-    
-    // Mixed comptime types require explicit context
-    val mixed_explicit : f64 = 42 + 3.14   // ✅ Explicit context required
-    // val mixed_ambiguous = 42 + 3.14     // ❌ Error: requires explicit type
-    
-    // ===== Context-Dependent Division =====
-    val int_div : i32 = 7 / 3   // comptime division → i32: integer division = 2
-    val float_div : f64 = 7 / 3 // comptime division → f64: float division = 2.333...
-    val default_div = 7 / 3     // comptime_int / comptime_int = comptime_int (2)
-    
-    // ===== Complex Expressions with Context =====
-    val complex_int : i32 = (20 * 3) / 2       // All integer math: 30
-    val complex_float : f64 = (20 * 3.6) / 2   // Float math: 36.0
-    val complex_mixed : i32 = (20 * 3.6) / 2   // Float math → int: 36
-    
-    // ===== Mixed Concrete Types (Context Required) =====
-    val a : i32 = 10
-    val b : i64 = 20
-    
-    // val ambiguous = a + b                    // ❌ Error: needs context
-    val as_i64 : i64 = a + b                   // ✅ OK: i32 → i64 widening
-    val as_f64 : f64 = a + b                   // ✅ OK: both → f64
+    // ===== Type Coercion =====
+    val wide : i64 = i32_value  // i32 → i64 (widening)
+    val precise : f64 = f32_value  // f32 → f64 (widening)
+    val as_float : f32 = i32_value  // i32 → f32 (conversion)
     
     // ===== undef with Type Safety =====
-    val pending : i32 = undef                  // ✅ OK: explicit type
-    // val bad = undef                          // ❌ Error: no type context
-    
-    // ===== Assignment Context =====
-    mut flexible : f64 = 0.0
-    flexible = 42                              // comptime_int → f64
-    flexible = (a + b)                         // Would need: flexible = f64(a + b) concept
+    val pending : i32 = undef   // ✅ OK: explicit type
+    // val bad = undef          // ❌ Error: no type context
 }
 
-func main() : i32 = {
-    // The beauty of Hexen's type system:
-    // - Safe operations are implicit and ergonomic
-    // - Dangerous operations require explicit context  
-    // - One mental model applies everywhere
-    // - No surprises, maximum safety
-    
-    return 0  // comptime_int → i32 (return type context)
-}
+// For binary operations examples, see BINARY_OPS.md
 ```
 
 ## Benefits
