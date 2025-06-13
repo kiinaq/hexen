@@ -4,7 +4,7 @@
 
 ## Overview
 
-Hexen's binary operations system follows the **"Pedantic to write, but really easy to read"** philosophy with clear, predictable operators that eliminate ambiguity and make computational cost transparent. 
+Hexen's binary operations system follows the **"Pedantic to write, but really easy to read"** philosophy with clear, predictable operators that eliminate ambiguity and make computational cost transparent. The system is built on top of our comptime type system, ensuring consistent type resolution across all operations.
 
 ### Key Design Principles
 
@@ -12,9 +12,10 @@ Hexen's binary operations system follows the **"Pedantic to write, but really ea
    - **`/`** = Float division (mathematical, always produces float results)
    - **`\`** = Integer division (efficient, integer-only computation)
 
-2. **No Magic Type Coercion**: 
-   - Operator choice determines behavior, not context
-   - Mixed types require explicit handling
+2. **Comptime Type Foundation**: 
+   - All literals start as comptime types
+   - Operations preserve comptime types when possible
+   - Context guides resolution to concrete types
    - Clear, predictable semantics
 
 3. **Transparent Cost Model**:
@@ -26,12 +27,12 @@ Hexen's binary operations system follows the **"Pedantic to write, but really ea
 
 ### Context-Guided Resolution Strategy
 
-Binary operations in Hexen follow a unified pattern that prioritizes system programming efficiency:
+Binary operations in Hexen follow a unified pattern that leverages our comptime type system:
 
-1. **Default to `i32`**: All numeric operations default to `i32` (system programmer friendly)
-2. **Promotion Requires Explicit Type**: Any operation that would promote beyond `i32` requires explicit result type annotation
-3. **No Hidden Promotions**: Float division, mixed types, or wider integers all require explicit intent
-4. **Context Determines Behavior**: Target type guides the entire expression resolution when provided
+1. **Comptime Types First**: All numeric operations start with comptime types
+2. **Context Guides Resolution**: Target type or operation context determines final type
+3. **No Hidden Promotions**: Mixed types or operations requiring promotion need explicit context
+4. **Operator Determines Behavior**: Division operators (`/` and `\`) determine computation type, not operand types
 
 This pattern is consistent with Hexen's broader design: **"Explicit Danger, Implicit Safety"** and **"Pedantic to write, but really easy to read"**.
 
@@ -76,18 +77,17 @@ val complex_int : i32 = (a + b) * (c - d) \ (e + f)     // Integer division
 
 ### 1. Safe Operations (No Context Required)
 
-These operations are unambiguous and resolve automatically:
+These operations preserve comptime types and resolve automatically:
 
 #### Both Comptime Types
 ```hexen
-// Same comptime_int operations default to i32
-val result1 = 42 + 100          // comptime_int + comptime_int → i32
-val result2 = 42 * 100          // comptime_int + comptime_int → i32
-val result3 = 42 \ 100          // comptime_int \ comptime_int → i32
+// Comptime operations preserve comptime types
+val result1 = 42 + 100          // comptime_int + comptime_int → comptime_int
+val result2 = 42 * 100          // comptime_int * comptime_int → comptime_int
+val result3 = 42 \ 100          // comptime_int \ comptime_int → comptime_int
 
-// Operations that would promote beyond i32 require explicit type
-// val result4 = 3.14 + 2.71    // ❌ Error: comptime_float operations require explicit result type
-// val result5 = 42 / 100       // ❌ Error: Float division requires explicit result type
+// Float division requires explicit result type (would produce comptime_float)
+// val result4 = 42 / 100       // ❌ Error: Float division requires explicit result type
 
 // ✅ Explicit type annotations make intent clear
 val explicit_float : f64 = 3.14 + 2.71     // comptime_float + comptime_float → f64
@@ -95,9 +95,9 @@ val explicit_div : f64 = 42 / 100          // comptime_int / comptime_int → f6
 ```
 
 #### Mixed Comptime Types
-Mixed comptime types require explicit result type (would promote beyond i32):
+Mixed comptime types require explicit result type (would produce comptime_float):
 ```hexen
-// ❌ Mixed comptime types would promote beyond i32 → require explicit type
+// ❌ Mixed comptime types would produce comptime_float → require explicit type
 // val auto_promote1 = 42 + 3.14   // Error: Mixed comptime types require explicit result type
 // val auto_promote2 = 42 * 3.14   // Error: Mixed comptime types require explicit result type
 
@@ -107,16 +107,16 @@ val explicit_f32 : f32 = 42 * 3.14  // comptime_int * comptime_float → f32 (re
 ```
 
 #### One Comptime, One Concrete
-The comptime type adapts to the concrete type when result stays within i32:
+The comptime type adapts to the concrete type's context:
 ```hexen
 val x : i32 = 10
 val y : f64 = 3.14
 
-val result1 = x + 42            // i32 + comptime_int → i32
+val result1 = x + 42            // i32 + comptime_int → comptime_int (adapts to i32 context)
 // val result2 = y + 42         // ❌ Error: f64 + comptime_int requires explicit result type
-val result2 : f64 = y + 42      // f64 + comptime_int → f64 (explicit type required)
+val result2 : f64 = y + 42      // f64 + comptime_int → f64 (explicit context)
 // val result3 = x / 2          // ❌ Error: Float division requires explicit result type
-val result4 = x \ 2             // i32 \ comptime_int → i32 (integer division)
+val result4 = x \ 2             // i32 \ comptime_int → comptime_int (adapts to i32 context)
 ```
 
 #### Both Same Concrete Type
@@ -126,11 +126,11 @@ val b : i32 = 20
 val c : f64 = 3.14
 val d : f64 = 2.71
 
-val result1 = a + b             // i32 + i32 → i32
+val result1 = a + b             // i32 + i32 → comptime_int (adapts to i32 context)
 // val result2 = c * d          // ❌ Error: f64 * f64 requires explicit result type
-val result2 : f64 = c * d       // f64 * f64 → f64 (explicit type required)
+val result2 : f64 = c * d       // f64 * f64 → f64 (explicit context)
 // val result3 = a / b          // ❌ Error: Float division requires explicit result type
-val result4 = a \ b             // i32 \ i32 → i32 (integer division)
+val result4 = a \ b             // i32 \ i32 → comptime_int (adapts to i32 context)
 
 // ✅ Explicit type for float division
 val explicit_div : f64 = a / b  // i32 / i32 → f64 (float division)
@@ -155,9 +155,9 @@ val a : i32 = 10
 val b : i64 = 20
 
 // ✅ Context provides resolution
-val as_i32 : i32 = a + b        // i64 → i32 coercion (may truncate)
-val as_i64 : i64 = a + b        // i32 → i64 widening (safe)  
-val as_f64 : f64 = a + b        // Both → f64 conversion
+val as_i32 : i32 = a + b        // i32 + i64 → comptime_int (adapts to i32 context)
+val as_i64 : i64 = a + b        // i32 + i64 → comptime_int (adapts to i64 context)
+val as_f64 : f64 = a + b        // i32 + i64 → comptime_int (adapts to f64 context)
 ```
 
 ### 3. Mutable Assignment with Precision Loss
@@ -169,9 +169,9 @@ mut counter : i32 = 0
 mut precise : f32 = 0.0
 
 // Safe assignments - no type annotation needed
-counter = 42                          // comptime_int → i32 (safe)
-counter = 10 + 20                     // comptime_int + comptime_int → i32 (safe)
-precise = 3.14                        // comptime_float → f32 (safe)
+counter = 42                          // comptime_int (adapts to i32 context)
+counter = 10 + 20                     // comptime_int + comptime_int → comptime_int (adapts to i32 context)
+precise = 3.14                        // comptime_float (adapts to f32 context)
 
 // ❌ Error: Potential precision loss/truncation - requires explicit type annotation
 // counter = some_i64                  // Error: Potential truncation, add ': i32' to acknowledge
@@ -293,7 +293,7 @@ val explicit_div : f64 = a / c  // ✅ Mixed concrete types → explicit target 
 
 ## Division Operations: Float vs Integer
 
-Hexen provides **two distinct division operators** to eliminate ambiguity and make computational cost transparent:
+Hexen provides **two distinct division operators** to eliminate ambiguity and make computational cost transparent. The operators determine the computation type, not the operand types:
 
 ### Float Division (`/`) - Mathematical Division
 **Always produces floating-point results**, preserving mathematical precision:
@@ -327,14 +327,14 @@ result = (10 / 3) : i32         // ✅ Explicit truncation from float division
 
 ```hexen
 // Integer division (efficient, no floating-point computation)
-val fast1 = 10 \ 3              // comptime_int \ comptime_int → i32 (3, truncated)
-val fast2 = 7 \ 2               // comptime_int \ comptime_int → i32 (3, truncated)  
-val fast3 : i64 = 22 \ 7        // comptime_int \ comptime_int → i64 (3, truncated)
+val fast1 = 10 \ 3              // comptime_int \ comptime_int → comptime_int (adapts to i32 context)
+val fast2 = 7 \ 2               // comptime_int \ comptime_int → comptime_int (adapts to i32 context)
+val fast3 : i64 = 22 \ 7        // comptime_int \ comptime_int → comptime_int (adapts to i64 context)
 
 // Integer division with concrete types
 val a : i32 = 10
 val b : i32 = 3
-val efficient = a \ b           // i32 \ i32 → i32 (3, truncated)
+val efficient = a \ b           // i32 \ i32 → comptime_int (adapts to i32 context)
 
 // ❌ Float operands with integer division is an error
 // val invalid = 10.5 \ 2.1     // Error: Integer division requires integer operands
@@ -347,7 +347,7 @@ val explicit_mixed : i64 = a \ c  // ✅ Mixed concrete types → explicit targe
 
 // Mutable assignment with integer division
 mut result : i32 = 0
-result = a \ b                  // ✅ Safe: same type
+result = a \ b                  // ✅ Safe: comptime_int adapts to i32 context
 // result = c \ b               // ❌ Error: Mixed concrete types need explicit handling
 result = c \ b : i32            // ✅ Explicit truncation from i64
 ```
@@ -359,12 +359,12 @@ result = c \ b : i32            // ✅ Explicit truncation from i64
 - **`\` → Integer result**: User sees integer type, knows efficient integer operation
 
 #### **Mathematical Honesty** 
-- **`10 / 3`** naturally produces a fraction → `f64` type reveals this
-- **`10 \ 3`** explicitly requests truncation → `i32` type shows the loss
+- **`10 / 3`** naturally produces a fraction → requires explicit float type
+- **`10 \ 3`** explicitly requests truncation → produces comptime_int that adapts to context
 
 #### **No Hidden Magic**
-- Division behavior determined by **operator choice**, not context
-- No complex coercion rules or context-dependent behavior
+- Division behavior determined by **operator choice**, not operand types
+- Comptime types adapt to context consistently
 - Clear, predictable semantics
 
 ### Truncation Rules
@@ -383,7 +383,7 @@ result = (20.0 / 4.0) : i32    // 5.0 → 5 (exact)
 
 ## Complex Expression Resolution
 
-The target type guides the **entire expression tree**, not just individual operations.
+The target type guides the **entire expression tree**, not just individual operations. All expressions start with comptime types and adapt to their context.
 
 ### Nested Operations with Context
 
@@ -392,40 +392,40 @@ val a : i32 = 10
 val b : i64 = 20
 val c : f32 = 3.14
 
-// Stepwise (local) promotion: each binary op is resolved using its operands' types
-// 1. b * c: i64 * f32 → f32 (requires explicit type if not allowed by default)
-// 2. a + (b * c): i32 + f32 → f32 (requires explicit type if not allowed by default)
-// 3. Final result is coerced to target type (if provided)
-val result_f64 : f64 = a + b * c    // Stepwise: b * c → f32, then a + (b * c) → f32, then final result coerced to f64
+// Complex expression resolution with comptime types
+// 1. b * c: i64 * f32 → comptime_float (requires explicit type)
+// 2. a + (b * c): i32 + comptime_float → comptime_float (requires explicit type)
+// 3. Final result is coerced to target type
+val result_f64 : f64 = a + b * c    // Explicit context guides entire expression
 
 // ❌ Error: Mixed types require explicit result type
 // val result = a + b
 
 // ✅ Explicit target type for mixed types
-val result_i32 : i32 = a + b        // i64 coerces to i32 context (may truncate)
-val result_f64_2 : f64 = (a + 42) * (b + 3.14)  // Stepwise: (a+42):i32, (b+3.14):f64, then i32*f64 → f64
+val result_i32 : i32 = a + b        // comptime_int adapts to i32 context
+val result_f64_2 : f64 = (a + 42) * (b + 3.14)  // comptime_float adapts to f64 context
 ```
 
 ### Expression Resolution Strategy
 
-Hexen uses a **two-phase resolution approach** that balances precision with target type requirements:
+Hexen uses a **two-phase resolution approach** that leverages our comptime type system:
 
-#### Phase 1: Semantic Analysis
-1. **Determine expression semantics** based on operand types
-2. **Apply promotion rules** for comptime and mixed types
-3. **Choose computation strategy** for maximum precision
+#### Phase 1: Comptime Type Analysis
+1. **Start with comptime types** for all literals and operations
+2. **Preserve comptime types** through operations when possible
+3. **Identify promotion points** where comptime types would change
 
-#### Phase 2: Target Type Conversion
-1. **Compute expression** using determined semantics
-2. **Convert final result** to target type if needed
-3. **Apply truncation/rounding** rules as appropriate
+#### Phase 2: Context-Guided Resolution
+1. **Apply target context** to guide type resolution
+2. **Convert comptime types** to concrete types based on context
+3. **Handle precision/truncation** explicitly when needed
 
 ### Resolution Examples
 
 #### Comptime Expression with Target Context
 ```hexen
 val complex : f32 = ((10 + 20) * 3.14) / (5 + 2)
-// Phase 1 - Semantic Analysis:
+// Phase 1 - Comptime Analysis:
 // - (10 + 20): comptime_int + comptime_int = comptime_int
 // - 3.14: comptime_float 
 // - comptime_int * comptime_float = comptime_float (promotion)
@@ -433,9 +433,10 @@ val complex : f32 = ((10 + 20) * 3.14) / (5 + 2)
 // - comptime_float / comptime_int = comptime_float
 // Expression type: comptime_float
 
-// Phase 2 - Target Conversion:
-// - Compute: ((30) * 3.14) / (7) = 94.2 / 7 = 13.457...
-// - Convert: comptime_float → f32 = 13.457...f32
+// Phase 2 - Context Resolution:
+// - Target type: f32
+// - Convert comptime_float → f32
+// - Result: 13.457...f32
 ```
 
 #### Mixed Concrete Types with Context
@@ -446,203 +447,20 @@ val b : i64 = 20
 // val result = a + b   // Error: Mixed concrete types require explicit result type
 
 // ✅ With explicit type:
-val result : f64 = a + b // Both operands promoted to f64 for this operation, result is f64
-// Stepwise: a (i32) + b (i64) → both promoted to f64 for this operation
-// Result: f64(10.0) + f64(20.0) = f64(30.0)
-```
-
-## Comparison Operations
-
-Comparison operators produce boolean results and have special type resolution rules.
-
-### Basic Comparisons
-
-```hexen
-val result1 : bool = 10 < 20            // comptime_int < comptime_int = bool
-val result2 : bool = 3.14 > 2.71        // comptime_float > comptime_float = bool
-val result3 : bool = 42 == 42           // comptime_int == comptime_int = bool
-val result4 : bool = "hello" == "world" // string == string = bool
-```
-
-### Mixed-Type Comparisons
-
-Mixed-type comparisons follow promotion rules:
-
-```hexen
-val int_val : i32 = 10
-val float_val : f64 = 10.0
-
-val comparison1 : bool = int_val < float_val    // i32 promotes to f64 for comparison
-val comparison2 : bool = 42 > 3.14              // comptime_int vs comptime_float = comptime_float
-```
-
-### Equality with Type Safety
-
-```hexen
-val str_val : string = "hello"
-val int_val : i32 = 42
-
-// ❌ Type error - cannot compare different fundamental types
-val invalid : bool = str_val == int_val  // Error: Cannot compare string and i32
-```
-
-## Logical Operations
-
-Logical operators work exclusively with boolean values and follow strict type rules.
-
-### Type Rules
-
-1. **Boolean Context**:
-   - Only boolean values are allowed in logical operations
-   - No implicit coercion from other types
-   ```hexen
-   val age : i32 = 25
-   val has_license : bool = true
-   
-   // ✅ Valid: Comparison produces boolean
-   val can_drive : bool = age >= 18 && has_license
-   
-   // ❌ Invalid: No implicit coercion
-   // val invalid1 = age && has_license        // Error: i32 cannot be used in logical operation
-   // val invalid2 = "yes" || has_license     // Error: string cannot be used in logical operation
-   ```
-
-2. **Comparison Results**:
-   - Comparison operators (`<`, `>`, `<=`, `>=`, `==`, `!=`) produce boolean results
-   - Mixed type comparisons follow promotion rules
-   ```hexen
-   val int_val : i32 = 10
-   val float_val : f64 = 10.0
-   
-   // ✅ Valid: i32 promotes to f64 for comparison
-   val comparison1 : bool = int_val < float_val
-   
-   // ✅ Valid: comptime_int promotes to f64 for comparison
-   val comparison2 : bool = 42 > 3.14
-   
-   // ❌ Invalid: Cannot compare different fundamental types
-   val str_val : string = "hello"
-   // val invalid = str_val == int_val        // Error: Cannot compare string and i32
-   ```
-
-### Basic Logical Operations
-
-```hexen
-// Basic boolean operations
-val and_result : bool = true && false   // false
-val or_result : bool = true || false    // true
-val not_result : bool = !true           // false
-
-// Complex boolean expressions
-val age : i32 = 25
-val has_license : bool = true
-val has_car : bool = false
-
-val can_drive : bool = age >= 18 && has_license
-val needs_permission : bool = age < 18 || !has_license
-val can_borrow_car : bool = has_license && !has_car
-```
-
-### Short-Circuit Evaluation
-
-Logical operators use short-circuit evaluation to optimize performance:
-
-```hexen
-val a : bool = false
-val b : bool = true
-
-// Short-circuit AND: if a is false, b is never evaluated
-val result1 : bool = a && expensive_function()  // expensive_function() not called
-
-// Short-circuit OR: if a is true, b is never evaluated
-val result2 : bool = a || expensive_function()  // expensive_function() is called
-
-// Complex short-circuit example
-val age : i32 = 25
-val has_license : bool = false
-
-// If age < 18 is false, has_license is never checked
-val needs_permission : bool = age < 18 || !has_license
-```
-
-### Logical Operator Precedence
-
-Logical operators have lower precedence than comparison operators:
-
-```hexen
-// These are equivalent:
-val result1 : bool = (age >= 18) && (has_license == true)
-val result2 : bool = age >= 18 && has_license == true
-
-// Complex precedence example
-val result3 : bool = age >= 18 && has_license || age < 18 && !has_license
-// Equivalent to:
-// (age >= 18 && has_license) || (age < 18 && !has_license)
-```
-
-### Mutable Assignment with Logical Operations
-
-```hexen
-mut status : bool = false
-
-// Safe assignments - no type annotation needed
-status = true                          // bool → bool (safe)
-status = age >= 18 && has_license      // bool → bool (safe)
-
-// ❌ Error: Non-boolean value
-// status = 42                         // Error: i32 cannot be assigned to bool
-// status = "yes"                      // Error: string cannot be assigned to bool
-
-// ✅ Valid: Complex boolean expressions
-status = age >= 18 && (has_license || has_car)
-status = !status || (age < 18 && has_license)
-```
-
-## Arithmetic Operations
-
-### Addition and Subtraction
-
-```hexen
-// Basic arithmetic with context
-val sum : i32 = 10 + 20          // comptime_int + comptime_int → i32
-val diff : f64 = 10.5 - 3.2     // comptime_float - comptime_float → f64
-
-// Mixed arithmetic with context
-val a : i32 = 10
-val b : i64 = 20
-val mixed : i64 = a + b          // i32 → i64 (widening)
-```
-
-### Multiplication and Division
-
-```hexen
-// Multiplication
-val product : f32 = 3.14 * 2     // comptime_float * comptime_int → f32
-
-// Division (context-dependent behavior)
-val int_division : i32 = 10 / 3  // comptime division → i32: integer division = 3 (truncated)
-val float_division : f64 = 10 / 3 // comptime division → f64: float division = 3.333...
-```
-
-### Modulo Operation
-
-```hexen
-val remainder : i32 = 17 % 5     // Integer modulo: 2
-
-// Modulo requires integer operands
-val a : f64 = 17.5
-val b : f64 = 5.0
-// val invalid = a % b           // ❌ Error: Modulo requires integer types
+val result : f64 = a + b // comptime_int adapts to f64 context
+// Stepwise:
+// 1. a (i32) + b (i64) → comptime_int
+// 2. comptime_int adapts to f64 context
+// Result: 30.0f64
 ```
 
 ## Assignment Context Propagation
 
 Assignment context in Hexen follows the **"Pedantic to write, but really easy to read"** philosophy, where the target type explicitly guides expression resolution while maintaining clear, predictable behavior.
 
-
 ### Assignment Statement Context
 
-Assignment statements in Hexen use the target variable's type as context for expression resolution. For mutable variables (`mut`), the target type remains constant throughout the variable's lifetime. To maintain safety while keeping the code readable, explicit type annotations are only required when there's potential precision loss or truncation.
+Assignment statements use the target variable's type as context for expression resolution. For mutable variables (`mut`), the target type remains constant throughout the variable's lifetime. Comptime types adapt to this context naturally.
 
 #### Mutable Assignment Behavior
 
@@ -650,14 +468,14 @@ Assignment statements in Hexen use the target variable's type as context for exp
 mut counter : i32 = 0
 mut precise : f32 = 0.0
 
-// Safe assignments - no type annotation needed
-counter = 42                          // comptime_int → i32 (safe)
-counter = 10 + 20                     // comptime_int + comptime_int → i32 (safe)
-precise = 3.14                        // comptime_float → f32 (safe)
+// Safe assignments - comptime types adapt to context
+counter = 42                          // comptime_int adapts to i32 context
+counter = 10 + 20                     // comptime_int + comptime_int → comptime_int adapts to i32 context
+precise = 3.14                        // comptime_float adapts to f32 context
 
-// Safe mixed types - no type annotation needed
-precise = some_i32 + some_f64         // i32 + f64 → f32 (safe promotion)
-counter = some_i32 + 42               // i32 + comptime_int → i32 (safe)
+// Safe mixed types - comptime types adapt to context
+precise = some_i32 + some_f64         // comptime_float adapts to f32 context
+counter = some_i32 + 42               // comptime_int adapts to i32 context
 
 // ❌ Error: Potential precision loss/truncation - requires explicit type annotation
 // counter = some_i64                  // Error: Potential truncation, add ': i32' to acknowledge
@@ -679,11 +497,11 @@ mut result : i32 = 0
 
 // These are equivalent - type annotation applies to whole expression
 result = a + b : i32                  // (a + b) : i32
-result = a + b * c : i32              // (a + (b * c)) : i32
+result = a + b * c : i32              // (a + b * c) : i32
 result = (a + b) * c : i32            // ((a + b) * c) : i32
 
 // Complex expressions with potential precision loss
-result = some_i64 * some_f64 : i32    // ((some_i64 * some_f64)) : i32
+result = some_i64 * some_f64 : i32    // (some_i64 * some_f64) : i32
 result = (a + b) * (c + d) : i32      // ((a + b) * (c + d)) : i32
 ```
 
@@ -729,35 +547,35 @@ result = some_f64 * some_i32 : i32    // Explicit truncation
 
 #### Safe Operations (No Annotation Required)
 
-Type annotations are not required for these safe operations:
+Type annotations are not required for these safe operations where comptime types adapt naturally:
 
 ```hexen
 mut counter : i32 = 0
 mut precise : f32 = 0.0
 
 // Safe integer operations
-counter = 42                          // comptime_int → i32
-counter = 10 + 20                     // comptime_int + comptime_int → i32
-counter = some_i32 + 42               // i32 + comptime_int → i32
+counter = 42                          // comptime_int adapts to i32 context
+counter = 10 + 20                     // comptime_int + comptime_int → comptime_int adapts to i32 context
+counter = some_i32 + 42               // comptime_int adapts to i32 context
 
 // Safe float operations
-precise = 3.14                        // comptime_float → f32
-precise = 2.0 * 3.0                   // comptime_float * comptime_float → f32
-precise = some_f32 * 2.0              // f32 * comptime_float → f32
+precise = 3.14                        // comptime_float adapts to f32 context
+precise = 2.0 * 3.0                   // comptime_float * comptime_float → comptime_float adapts to f32 context
+precise = some_f32 * 2.0              // comptime_float adapts to f32 context
 
 // Safe mixed types
-precise = some_i32 + some_f32         // i32 + f32 → f32 (safe promotion)
-precise = some_i32 * 2.0              // i32 * comptime_float → f32 (safe promotion)
+precise = some_i32 + some_f32         // comptime_float adapts to f32 context
+precise = some_i32 * 2.0              // comptime_float adapts to f32 context
 ```
 
 #### Mutable Assignment Rules
 
 1. **Type Consistency**: The target type of a mutable variable cannot change
 2. **Context Priority**: The mutable variable's type provides the primary context for all assignments
-3. **Explicit Precision Loss**: Type annotations are required only when there's potential precision loss or truncation
-4. **Highest Precedence**: When used, type annotations apply to the entire expression
-5. **Predictable Behavior**: The same expression will resolve consistently based on the mutable variable's type
-
+3. **Comptime Adaptation**: Comptime types naturally adapt to the target type's context
+4. **Explicit Precision Loss**: Type annotations are required only when there's potential precision loss or truncation
+5. **Highest Precedence**: When used, type annotations apply to the entire expression
+6. **Predictable Behavior**: The same expression will resolve consistently based on the mutable variable's type
 
 ## Grammar Extensions
 
