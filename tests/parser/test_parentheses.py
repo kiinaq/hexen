@@ -236,13 +236,17 @@ class TestParenthesesWithTypes:
         assert statements[1]["value"]["type"] == "literal"
         assert statements[1]["value"]["value"] == 3.14
 
-        # Check negative integer
-        assert statements[2]["value"]["type"] == "literal"
-        assert statements[2]["value"]["value"] == -10
+        # Check negative integer (as unary operation)
+        assert statements[2]["value"]["type"] == "unary_operation"
+        assert statements[2]["value"]["operator"] == "-"
+        assert statements[2]["value"]["operand"]["type"] == "literal"
+        assert statements[2]["value"]["operand"]["value"] == 10
 
-        # Check negative float
-        assert statements[3]["value"]["type"] == "literal"
-        assert statements[3]["value"]["value"] == -2.5
+        # Check negative float (as unary operation)
+        assert statements[3]["value"]["type"] == "unary_operation"
+        assert statements[3]["value"]["operator"] == "-"
+        assert statements[3]["value"]["operand"]["type"] == "literal"
+        assert statements[3]["value"]["operand"]["value"] == 2.5
 
     def test_parentheses_preserve_type_annotations(self):
         """Test that parentheses work with explicit type annotations"""
