@@ -16,6 +16,7 @@ from .type_util import (
     is_numeric_type,
     can_coerce,
     resolve_comptime_type,
+    parse_type,
 )
 
 
@@ -44,19 +45,6 @@ class SemanticAnalyzer:
 
         # Context tracking for unified block concept
         self.block_context: List[str] = []  # Track: "function", "expression", etc.
-
-        # Type mapping from string representation (parser) to internal enum (semantic analyzer)
-        self.type_map = {
-            "i32": HexenType.I32,
-            "i64": HexenType.I64,
-            "f32": HexenType.F32,
-            "f64": HexenType.F64,
-            "string": HexenType.STRING,
-            "bool": HexenType.BOOL,
-            "void": HexenType.VOID,
-            "comptime_int": HexenType.COMPTIME_INT,
-            "comptime_float": HexenType.COMPTIME_FLOAT,
-        }
 
         # Initialize binary operations analyzer with callbacks
         self.binary_ops = BinaryOpsAnalyzer(
@@ -229,7 +217,7 @@ class SemanticAnalyzer:
         """
         # Set up function analysis context for return type validation
         self.symbol_table.current_function = name
-        self.current_function_return_type = self._parse_type(return_type_str)
+        self.current_function_return_type = parse_type(return_type_str)
 
         # Analyze function body - block handles scope + return requirements
         if body:
@@ -260,7 +248,7 @@ class SemanticAnalyzer:
 
         if type_annotation:
             # Explicit type annotation path
-            var_type = self._parse_type(type_annotation)
+            var_type = parse_type(type_annotation)
 
             # Check for explicit undef initialization
             if (
@@ -567,7 +555,7 @@ class SemanticAnalyzer:
             # Handle type annotated expressions
             expr = node.get("expression")
             type_annotation = node.get("type_annotation")
-            annotated_type = self._parse_type(type_annotation)
+            annotated_type = parse_type(type_annotation)
 
             # Analyze the expression with the annotated type as target
             expr_type = self._analyze_expression(expr, annotated_type)
@@ -667,18 +655,6 @@ class SemanticAnalyzer:
             return HexenType.STRING
         else:
             return HexenType.UNKNOWN
-
-    def _parse_type(self, type_str: str) -> HexenType:
-        """
-        Parse a type string to HexenType enum.
-
-        Handles conversion from string representation (from parser)
-        to internal enum representation using the instance type_map.
-
-        Returns HexenType.UNKNOWN for unrecognized types.
-        This allows for graceful handling of future type additions.
-        """
-        return self.type_map.get(type_str, HexenType.UNKNOWN)
 
     def _analyze_binary_operation(
         self, node: Dict, target_type: Optional[HexenType] = None

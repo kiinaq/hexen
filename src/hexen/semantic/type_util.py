@@ -76,6 +76,31 @@ TO_INTEGER_TYPE_MAP: Dict[HexenType, HexenType] = {
     HexenType.COMPTIME_INT: HexenType.I32,
 }
 
+TYPE_STRING_TO_HEXEN_TYPE: Dict[str, HexenType] = {
+    "i32": HexenType.I32,
+    "i64": HexenType.I64,
+    "f32": HexenType.F32,
+    "f64": HexenType.F64,
+    "string": HexenType.STRING,
+    "bool": HexenType.BOOL,
+    "void": HexenType.VOID,
+    "comptime_int": HexenType.COMPTIME_INT,
+    "comptime_float": HexenType.COMPTIME_FLOAT,
+}
+
+
+def parse_type(type_str: str) -> HexenType:
+    """
+    Parse a type string to HexenType enum.
+
+    Handles conversion from string representation (from parser)
+    to internal enum representation using the module-level map.
+
+    Returns HexenType.UNKNOWN for unrecognized types.
+    This allows for graceful handling of future type additions.
+    """
+    return TYPE_STRING_TO_HEXEN_TYPE.get(type_str, HexenType.UNKNOWN)
+
 
 def is_numeric_type(type_: HexenType) -> bool:
     """
