@@ -167,28 +167,28 @@ class TestMixedTypeOperations:
         errors = self.analyzer.analyze(ast)
         assert errors == []
 
-    # def test_mixed_float_types(self):
-    #     """Test operations between different float types"""
-    #     source = """
-    #     func test() : f64 = {
-    #         val a : f32 = 3.14
-    #         val b : f64 = 2.71
-    #
-    #         // Mixed float types require explicit result type
-    #         val add : f64 = a + b           // f32 + f64 -> comptime_float (adapts to f64)
-    #         val sub : f64 = a - b           // f32 - f64 -> comptime_float (adapts to f64)
-    #         val mul : f64 = a * b           // f32 * f64 -> comptime_float (adapts to f64)
-    #         val div : f64 = a / b           // f32 / f64 -> comptime_float (adapts to f64)
-    #
-    #         // Can use f32 for reduced precision
-    #         val single : f32 = a + b        // f32 + f64 -> f32 (explicit precision loss)
-    #
-    #         return add
-    #     }
-    #     """
-    #     ast = self.parser.parse(source)
-    #     errors = self.analyzer.analyze(ast)
-    #     assert errors == []
+    def test_mixed_float_types(self):
+        """Test operations between different float types"""
+        source = """
+        func test() : f64 = {
+            val a : f32 = 3.14
+            val b : f64 = 2.71
+
+            // Mixed float types require explicit result type
+            val add : f64 = a + b           // f32 + f64 -> comptime_float (adapts to f64)
+            val sub : f64 = a - b           // f32 - f64 -> comptime_float (adapts to f64)
+            val mul : f64 = a * b           // f32 * f64 -> comptime_float (adapts to f64)
+            val div : f64 = a / b           // f32 / f64 -> comptime_float (adapts to f64)
+
+            // Can use f32 for reduced precision
+            val single : f32 = a + b        // f32 + f64 -> f32 (explicit precision loss)
+
+            return add
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+        assert errors == []
 
     # def test_mixed_numeric_types(self):
     #     """Test operations between mixed numeric types"""

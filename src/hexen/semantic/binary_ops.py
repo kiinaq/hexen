@@ -187,6 +187,9 @@ class BinaryOpsAnalyzer:
 
         # For non-comptime types, use standard type resolution
         if operator in ["+", "-", "*"]:
+            # If target_type is provided and is a float type, use it
+            if target_type and is_float_type(target_type):
+                return target_type
             # Arithmetic operations
             return get_wider_type(left_type, right_type)
 
