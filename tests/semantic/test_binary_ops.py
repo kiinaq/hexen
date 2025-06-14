@@ -190,28 +190,28 @@ class TestMixedTypeOperations:
         errors = self.analyzer.analyze(ast)
         assert errors == []
 
-    # def test_mixed_numeric_types(self):
-    #     """Test operations between mixed numeric types"""
-    #     source = """
-    #     func test() : f64 = {
-    #         val a : i32 = 10
-    #         val b : f64 = 3.14
-    #
-    #         // Mixed numeric types require explicit result type
-    #         val add : f64 = a + b           // i32 + f64 -> comptime_float (adapts to f64)
-    #         val sub : f64 = a - b           // i32 - f64 -> comptime_float (adapts to f64)
-    #         val mul : f64 = a * b           // i32 * f64 -> comptime_float (adapts to f64)
-    #         val div : f64 = a / b           // i32 / f64 -> comptime_float (adapts to f64)
-    #
-    #         // Can use f32 for reduced precision
-    #         val single : f32 = a + b        // i32 + f64 -> f32 (explicit precision loss)
-    #
-    #         return add
-    #     }
-    #     """
-    #     ast = self.parser.parse(source)
-    #     errors = self.analyzer.analyze(ast)
-    #     assert errors == []
+    def test_mixed_numeric_types(self):
+        """Test operations between mixed numeric types"""
+        source = """
+        func test() : f64 = {
+            val a : i32 = 10
+            val b : f64 = 3.14
+
+            // Mixed numeric types require explicit result type
+            val add : f64 = a + b           // i32 + f64 -> comptime_float (adapts to f64)
+            val sub : f64 = a - b           // i32 - f64 -> comptime_float (adapts to f64)
+            val mul : f64 = a * b           // i32 * f64 -> comptime_float (adapts to f64)
+            val div : f64 = a / b           // i32 / f64 -> comptime_float (adapts to f64)
+
+            // Can use f32 for reduced precision
+            val single : f32 = a + b        // i32 + f64 -> f32 (explicit precision loss)
+
+            return add
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+        assert errors == []
 
 
 class TestAssignmentContext:
@@ -246,30 +246,30 @@ class TestAssignmentContext:
         errors = self.analyzer.analyze(ast)
         assert errors == []
 
-    # def test_assignment_with_mixed_types(self):
-    #     """Test assignment with mixed concrete types"""
-    #     source = """
-    #     func test() : void = {
-    #         val a : i32 = 10
-    #         val b : i64 = 20
-    #         val c : f32 = 3.14
-    #         val d : f64 = 2.71
-    #
-    #         mut i32_var : i32 = 0
-    #         mut i64_var : i64 = 0
-    #         mut f32_var : f32 = 0.0
-    #         mut f64_var : f64 = 0.0
-    #
-    #         // Mixed types require explicit type annotation for potential precision loss
-    #         i32_var = (a + b) : i32          // i32 + i64 -> comptime_int (explicit truncation)
-    #         i64_var = a + b                  // i32 + i64 -> comptime_int (adapts to i64)
-    #         f32_var = (a + c) : f32          // i32 + f32 -> comptime_float (explicit precision loss)
-    #         f64_var = a + d                  // i32 + f64 -> comptime_float (adapts to f64)
-    #     }
-    #     """
-    #     ast = self.parser.parse(source)
-    #     errors = self.analyzer.analyze(ast)
-    #     assert errors == []
+    def test_assignment_with_mixed_types(self):
+        """Test assignment with mixed concrete types"""
+        source = """
+        func test() : void = {
+            val a : i32 = 10
+            val b : i64 = 20
+            val c : f32 = 3.14
+            val d : f64 = 2.71
+
+            mut i32_var : i32 = 0
+            mut i64_var : i64 = 0
+            mut f32_var : f32 = 0.0
+            mut f64_var : f64 = 0.0
+
+            // Mixed types require explicit type annotation for potential precision loss
+            i32_var = (a + b) : i32          // i32 + i64 -> comptime_int (explicit truncation)
+            i64_var = a + b                  // i32 + i64 -> comptime_int (adapts to i64)
+            f32_var = (a + c) : f32          // i32 + f32 -> comptime_float (explicit precision loss)
+            f64_var = a + d                  // i32 + f64 -> comptime_float (adapts to f64)
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+        assert errors == []
 
     # def test_precision_loss_without_annotation(self):
     #     """Test precision loss without explicit type annotation"""

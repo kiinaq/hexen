@@ -19,6 +19,7 @@ from .type_util import (
     to_integer_type,
     get_wider_type,
     is_mixed_type_operation,
+    is_integer_type,
 )
 
 
@@ -187,8 +188,10 @@ class BinaryOpsAnalyzer:
 
         # For non-comptime types, use standard type resolution
         if operator in ["+", "-", "*"]:
-            # If target_type is provided and is a float type, use it
-            if target_type and is_float_type(target_type):
+            # If target_type is provided and is a float or integer type, use it
+            if target_type and (
+                is_float_type(target_type) or is_integer_type(target_type)
+            ):
                 return target_type
             # Arithmetic operations
             return get_wider_type(left_type, right_type)
