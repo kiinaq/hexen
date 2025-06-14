@@ -12,6 +12,11 @@ from .types import HexenType, Mutability
 from .symbol_table import Symbol, SymbolTable
 from .errors import SemanticError
 from .binary_ops import BinaryOpsAnalyzer
+from .type_util import (
+    is_numeric_type,
+    can_coerce,
+    resolve_comptime_type,
+)
 
 
 class SemanticAnalyzer:
@@ -268,7 +273,7 @@ class SemanticAnalyzer:
                 # Type annotation + value: validate compatibility with coercion
                 value_type = self._analyze_expression(value, var_type)
                 if value_type != HexenType.UNKNOWN:
-                    if self._can_coerce(value_type, var_type):
+                    if can_coerce(value_type, var_type):
                         # Coercion is allowed - resolve comptime types to concrete types
                         if value_type in {
                             HexenType.COMPTIME_INT,
@@ -299,7 +304,7 @@ class SemanticAnalyzer:
                 return
 
             # Resolve comptime types to their default concrete types for inference
-            var_type = self._resolve_comptime_type(inferred_type, HexenType.UNKNOWN)
+            var_type = resolve_comptime_type(inferred_type, HexenType.UNKNOWN)
 
         # Create and register symbol
         symbol = Symbol(
@@ -438,9 +443,6 @@ class SemanticAnalyzer:
         - Expression context: Return determines block's type (must have value)
         - Bare returns: Only allowed in void functions or statement blocks
         - No valid context: Error - return statements need context
-
-        This implements the unified block philosophy where return statements
-        work consistently but context determines their validation rules.
         """
         value = node.get("value")
 
@@ -483,7 +485,7 @@ class SemanticAnalyzer:
                 self._error("Void function cannot return a value", node)
             elif return_type != HexenType.UNKNOWN:
                 # Use coercion for return type checking
-                if not self._can_coerce(return_type, self.current_function_return_type):
+                if not can_coerce(return_type, self.current_function_return_type):
                     self._error(
                         f"Return type mismatch: expected {self.current_function_return_type.value}, "
                         f"got {return_type.value}",
@@ -533,7 +535,7 @@ class SemanticAnalyzer:
 
         # Check type compatibility with coercion
         if value_type != HexenType.UNKNOWN:
-            if not self._can_coerce(value_type, symbol.type):
+            if not can_coerce(value_type, symbol.type):
                 self._error(
                     f"Type mismatch in assignment: variable '{target_name}' is {symbol.type.value}, "
                     f"but assigned value is {value_type.value}",
@@ -571,7 +573,7 @@ class SemanticAnalyzer:
             expr_type = self._analyze_expression(expr, annotated_type)
 
             # Validate that the expression type can be coerced to the annotated type
-            if expr_type != HexenType.UNKNOWN and not self._can_coerce(
+            if expr_type != HexenType.UNKNOWN and not can_coerce(
                 expr_type, annotated_type
             ):
                 self._error(
@@ -666,83 +668,6 @@ class SemanticAnalyzer:
         else:
             return HexenType.UNKNOWN
 
-    def _can_coerce(self, from_type: HexenType, to_type: HexenType) -> bool:
-        """
-        Check if from_type can be automatically coerced to to_type.
-
-        Implements context-dependent coercion rules:
-
-        1. Comptime types (the magic sauce):
-           - comptime_int can coerce to any integer or float type
-           - comptime_float can coerce to any float type
-
-        2. Regular widening coercion:
-           - i32 can widen to i64 and f64/f32
-           - i64 can widen to f64/f32
-           - f32 can widen to f64
-
-        3. Identity coercion:
-           - Any type can coerce to itself
-
-        This approach eliminates the need for explicit casting in most cases
-        while maintaining type safety.
-        """
-        # Identity coercion - type can always coerce to itself
-        if from_type == to_type:
-            return True
-
-        # comptime type coercion (the elegant part!)
-        if from_type == HexenType.COMPTIME_INT:
-            # comptime_int can become numeric types, but NOT bool (that would be unsafe)
-            return to_type in {
-                HexenType.I32,
-                HexenType.I64,
-                HexenType.F32,
-                HexenType.F64,
-            }
-
-        if from_type == HexenType.COMPTIME_FLOAT:
-            # comptime_float can become any float type, but NOT bool (that would be unsafe)
-            return to_type in {HexenType.F32, HexenType.F64}
-
-        # Regular numeric widening coercion (for when we have concrete types)
-        widening_rules = {
-            HexenType.I32: {HexenType.I64, HexenType.F32, HexenType.F64},
-            HexenType.I64: {HexenType.F32, HexenType.F64},  # Note: may lose precision
-            HexenType.F32: {HexenType.F64},
-        }
-
-        return to_type in widening_rules.get(from_type, set())
-
-    def _resolve_comptime_type(
-        self, comptime_type: HexenType, target_type: HexenType
-    ) -> HexenType:
-        """
-        Resolve a comptime type to a concrete type based on context.
-
-        Used when we have a comptime_int or comptime_float that needs to become
-        a concrete type. Falls back to default types if no target is provided.
-        """
-        if comptime_type == HexenType.COMPTIME_INT:
-            if target_type in {
-                HexenType.I32,
-                HexenType.I64,
-                HexenType.F32,
-                HexenType.F64,
-            }:
-                return target_type
-            else:
-                return HexenType.I32  # Default integer type
-
-        elif comptime_type == HexenType.COMPTIME_FLOAT:
-            if target_type in {HexenType.F32, HexenType.F64}:
-                return target_type
-            else:
-                return HexenType.F64  # Default float type
-
-        else:
-            return comptime_type  # Not a comptime type, return as-is
-
     def _parse_type(self, type_str: str) -> HexenType:
         """
         Parse a type string to HexenType enum.
@@ -772,13 +697,6 @@ class SemanticAnalyzer:
         Handles:
         - Unary minus (-): Negates numeric values
         - Logical not (!): Negates boolean values
-
-        Args:
-            node: Unary operation AST node
-            target_type: Optional target type for context-guided resolution
-
-        Returns:
-            The resolved type of the operation
         """
         operator = node.get("operator")
         operand = node.get("operand")
@@ -796,7 +714,7 @@ class SemanticAnalyzer:
         # Handle unary minus (-)
         if operator == "-":
             # Only allow unary minus on numeric types
-            if not self._is_numeric_type(operand_type):
+            if not is_numeric_type(operand_type):
                 self._error(
                     f"Unary minus (-) requires numeric operand, got {operand_type.value}",
                     node,
@@ -825,18 +743,3 @@ class SemanticAnalyzer:
         else:
             self._error(f"Unknown unary operator: {operator}", node)
             return HexenType.UNKNOWN
-
-    def _is_numeric_type(self, type_: HexenType) -> bool:
-        """Check if a type is numeric (integer or float)."""
-        return type_ in {
-            HexenType.I32,
-            HexenType.I64,
-            HexenType.F32,
-            HexenType.F64,
-            HexenType.COMPTIME_INT,
-            HexenType.COMPTIME_FLOAT,
-        }
-
-    def _is_float_type(self, type_: HexenType) -> bool:
-        """Check if a type is a float type."""
-        return type_ in {HexenType.F32, HexenType.F64, HexenType.COMPTIME_FLOAT}

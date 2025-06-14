@@ -11,6 +11,14 @@ Handles analysis of binary operations including:
 from typing import Dict, Optional, Callable
 
 from .types import HexenType
+from .type_util import (
+    is_numeric_type,
+    is_float_type,
+    resolve_comptime_type,
+    to_float_type,
+    to_integer_type,
+    get_wider_type,
+)
 
 
 class BinaryOpsAnalyzer:
@@ -101,9 +109,7 @@ class BinaryOpsAnalyzer:
         - Both support comptime type adaptation
         """
         # Check for non-numeric operands
-        if not self._is_numeric_type(left_type) or not self._is_numeric_type(
-            right_type
-        ):
+        if not is_numeric_type(left_type) or not is_numeric_type(right_type):
             self._error(
                 f"Division operator '{operator}' requires numeric operands, got {left_type.value} and {right_type.value}",
                 node,
@@ -123,35 +129,29 @@ class BinaryOpsAnalyzer:
     ) -> HexenType:
         """Analyze float division operation."""
         # Convert operands to float types
-        left_float = self._to_float_type(left_type)
-        right_float = self._to_float_type(right_type)
+        left_float = to_float_type(left_type)
+        right_float = to_float_type(right_type)
 
         # Result is the wider of the two float types
-        return (
-            HexenType.F64
-            if HexenType.F64 in {left_float, right_float}
-            else HexenType.F32
-        )
+        return get_wider_type(left_float, right_float)
 
     def _analyze_integer_division(
         self, left_type: HexenType, right_type: HexenType, node: Dict
     ) -> HexenType:
         """Analyze integer division operation."""
         # Check for float operands
-        if self._is_float_type(left_type) or self._is_float_type(right_type):
+        if is_float_type(left_type) or is_float_type(right_type):
             self._error(
                 "Integer division (\\\\) cannot be used with float operands", node
             )
             return HexenType.UNKNOWN
 
         # Convert comptime types to concrete integer types
-        left_int = self._to_integer_type(left_type)
-        right_int = self._to_integer_type(right_type)
+        left_int = to_integer_type(left_type)
+        right_int = to_integer_type(right_type)
 
         # Result is the wider of the two integer types
-        return (
-            HexenType.I64 if HexenType.I64 in {left_int, right_int} else HexenType.I32
-        )
+        return get_wider_type(left_int, right_int)
 
     def _resolve_binary_operation_type(
         self,
@@ -169,52 +169,15 @@ class BinaryOpsAnalyzer:
         - Context-guided resolution
         """
         # Handle comptime types first
-        left_type = self._resolve_comptime_type(left_type, target_type)
-        right_type = self._resolve_comptime_type(right_type, target_type)
+        left_type = resolve_comptime_type(left_type, target_type)
+        right_type = resolve_comptime_type(right_type, target_type)
 
         # For non-comptime types, use standard type resolution
         if operator in ["+", "-", "*"]:
             # Arithmetic operations
-            if self._is_float_type(left_type) or self._is_float_type(right_type):
-                # If either operand is float, result is float
-                return (
-                    HexenType.F64
-                    if HexenType.F64 in {left_type, right_type}
-                    else HexenType.F32
-                )
-            else:
-                # Both operands are integers
-                return (
-                    HexenType.I64
-                    if HexenType.I64 in {left_type, right_type}
-                    else HexenType.I32
-                )
+            return get_wider_type(left_type, right_type)
 
         return HexenType.UNKNOWN
-
-    def _resolve_comptime_type(
-        self, comptime_type: HexenType, target_type: Optional[HexenType]
-    ) -> HexenType:
-        """
-        Resolve a comptime type to a concrete type based on context.
-
-        Used when we have a comptime_int or comptime_float that needs to become
-        a concrete type. Falls back to default types if no target is provided.
-        """
-        if comptime_type == HexenType.COMPTIME_INT:
-            if target_type and self._is_numeric_type(target_type):
-                return target_type
-            else:
-                return HexenType.I32  # Default integer type
-
-        elif comptime_type == HexenType.COMPTIME_FLOAT:
-            if target_type and self._is_float_type(target_type):
-                return target_type
-            else:
-                return HexenType.F64  # Default float type
-
-        else:
-            return comptime_type  # Not a comptime type, return as-is
 
     def _is_mixed_type_operation(
         self, left_type: HexenType, right_type: HexenType
@@ -229,42 +192,9 @@ class BinaryOpsAnalyzer:
                 left_type == HexenType.COMPTIME_FLOAT
                 and right_type == HexenType.COMPTIME_INT
             )
-            or (self._is_float_type(left_type) and not self._is_float_type(right_type))
-            or (not self._is_float_type(left_type) and self._is_float_type(right_type))
+            or (is_float_type(left_type) and not is_float_type(right_type))
+            or (not is_float_type(left_type) and is_float_type(right_type))
         )
-
-    def _is_numeric_type(self, type_: HexenType) -> bool:
-        """Check if a type is numeric (integer or float)."""
-        return type_ in {
-            HexenType.I32,
-            HexenType.I64,
-            HexenType.F32,
-            HexenType.F64,
-            HexenType.COMPTIME_INT,
-            HexenType.COMPTIME_FLOAT,
-        }
-
-    def _is_float_type(self, type_: HexenType) -> bool:
-        """Check if a type is a float type."""
-        return type_ in {HexenType.F32, HexenType.F64, HexenType.COMPTIME_FLOAT}
-
-    def _to_float_type(self, type_: HexenType) -> HexenType:
-        """Convert a type to its float equivalent."""
-        if type_ == HexenType.COMPTIME_INT:
-            return HexenType.F64
-        elif type_ == HexenType.COMPTIME_FLOAT:
-            return HexenType.F64
-        elif type_ in {HexenType.I32, HexenType.I64}:
-            return HexenType.F64
-        else:
-            return type_
-
-    def _to_integer_type(self, type_: HexenType) -> HexenType:
-        """Convert a type to its integer equivalent."""
-        if type_ == HexenType.COMPTIME_INT:
-            return HexenType.I32
-        else:
-            return type_
 
     def _analyze_expression(
         self, node: Dict, target_type: Optional[HexenType] = None
