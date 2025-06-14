@@ -25,7 +25,7 @@ return_stmt: "return" expression?
 
 assignment_stmt: IDENTIFIER "=" expression
 
-expression: logical_or
+expression: logical_or (":" type)?
 
 logical_or: logical_and (OR_OP logical_and)*
 logical_and: equality (AND_OP equality)*

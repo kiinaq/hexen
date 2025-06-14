@@ -89,8 +89,17 @@ class HexenTransformer(Transformer):
         }
 
     def expression(self, children):
-        # expression: logical_or
-        return children[0]
+        # Handle: expression [":" type]
+        if len(children) == 1:
+            return children[0]
+        else:
+            # Expression with type annotation
+            expr, type_annotation = children
+            return {
+                "type": "type_annotated_expression",
+                "expression": expr,
+                "type_annotation": type_annotation,
+            }
 
     def logical_or(self, children):
         print("[DEBUG] logical_or children:", children)

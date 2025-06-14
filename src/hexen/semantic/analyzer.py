@@ -553,18 +553,31 @@ class SemanticAnalyzer:
             node: Expression AST node
             target_type: Optional target type for context-guided resolution
 
-        Currently supported expressions:
-        - Literals: numbers, strings
-        - Identifiers: variable references
-        - Blocks: unified block expressions
-        - Binary operations: +, -, *, /, \
-        - Unary operations: -, !
-
         Returns HexenType.UNKNOWN for invalid expressions.
         """
         expr_type = node.get("type")
 
-        if expr_type == "literal":
+        if expr_type == "type_annotated_expression":
+            # Handle type annotated expressions
+            expr = node.get("expression")
+            type_annotation = node.get("type_annotation")
+            annotated_type = self._parse_type(type_annotation)
+
+            # Analyze the expression with the annotated type as target
+            expr_type = self._analyze_expression(expr, annotated_type)
+
+            # Validate that the expression type can be coerced to the annotated type
+            if expr_type != HexenType.UNKNOWN and not self._can_coerce(
+                expr_type, annotated_type
+            ):
+                self._error(
+                    f"Type mismatch: expression of type {expr_type.value} cannot be coerced to {annotated_type.value}",
+                    node,
+                )
+                return HexenType.UNKNOWN
+
+            return annotated_type
+        elif expr_type == "literal":
             return self._infer_type_from_value(node)
         elif expr_type == "identifier":
             return self._analyze_identifier(node)
@@ -748,13 +761,7 @@ class SemanticAnalyzer:
         - Arithmetic operations: +, -, *, /, \
         - Type coercion and comptime type adaptation
         - Division operator specific rules (/ vs \)
-
-        Args:
-            node: Binary operation AST node
-            target_type: Optional target type for context-guided resolution
-
-        Returns:
-            The resolved type of the operation
+        - Mixed type operations with explicit type requirements
         """
         operator = node.get("operator")
         left = node.get("left")
@@ -776,6 +783,25 @@ class SemanticAnalyzer:
             return self._analyze_division_operation(
                 operator, left_type, right_type, node
             )
+
+        # For mixed type operations, require explicit type annotation
+        if (
+            (
+                left_type == HexenType.COMPTIME_INT
+                and right_type == HexenType.COMPTIME_FLOAT
+            )
+            or (
+                left_type == HexenType.COMPTIME_FLOAT
+                and right_type == HexenType.COMPTIME_INT
+            )
+            or (self._is_float_type(left_type) and not self._is_float_type(right_type))
+            or (not self._is_float_type(left_type) and self._is_float_type(right_type))
+        ):
+            if not target_type:
+                self._error(
+                    "Mixed type operations require explicit type annotation", node
+                )
+                return HexenType.UNKNOWN
 
         # For other arithmetic operations, use standard type resolution
         return self._resolve_binary_operation_type(
