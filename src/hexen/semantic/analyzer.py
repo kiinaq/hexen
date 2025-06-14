@@ -53,10 +53,11 @@ class SemanticAnalyzer:
             "comptime_float": HexenType.COMPTIME_FLOAT,
         }
 
-        # Initialize binary operations analyzer
-        self.binary_ops = BinaryOpsAnalyzer(self._error)
-        # Provide the _analyze_expression method to binary_ops
-        self.binary_ops._analyze_expression = self._analyze_expression
+        # Initialize binary operations analyzer with callbacks
+        self.binary_ops = BinaryOpsAnalyzer(
+            error_callback=self._error,
+            analyze_expression_callback=self._analyze_expression,
+        )
 
     def analyze(self, ast: Dict) -> List[SemanticError]:
         """

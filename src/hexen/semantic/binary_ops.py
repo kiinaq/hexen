@@ -8,7 +8,7 @@ Handles analysis of binary operations including:
 - Mixed type operations with explicit type requirements
 """
 
-from typing import Dict, Optional
+from typing import Dict, Optional, Callable
 
 from .types import HexenType
 
@@ -24,15 +24,22 @@ class BinaryOpsAnalyzer:
     - Comptime type adaptation with context guidance
     """
 
-    def __init__(self, error_callback):
+    def __init__(
+        self,
+        error_callback: Callable[[str, Optional[Dict]], None],
+        analyze_expression_callback: Callable[[Dict, Optional[HexenType]], HexenType],
+    ):
         """
         Initialize the binary operations analyzer.
 
         Args:
             error_callback: Function to call when semantic errors are found
                           (typically SemanticAnalyzer._error)
+            analyze_expression_callback: Function to analyze expressions
+                                      (typically SemanticAnalyzer._analyze_expression)
         """
         self._error = error_callback
+        self._analyze_expression = analyze_expression_callback
 
     def analyze_binary_operation(
         self, node: Dict, target_type: Optional[HexenType] = None
@@ -263,11 +270,8 @@ class BinaryOpsAnalyzer:
         self, node: Dict, target_type: Optional[HexenType] = None
     ) -> HexenType:
         """
-        Analyze an expression and return its type.
+        Analyze an expression by delegating to the provided callback.
 
-        This is a placeholder that should be implemented by the main analyzer.
-        The BinaryOpsAnalyzer will receive this method from the main analyzer.
+        This is a wrapper around the main analyzer's _analyze_expression method.
         """
-        raise NotImplementedError(
-            "BinaryOpsAnalyzer requires _analyze_expression to be provided by the main analyzer"
-        )
+        return self._analyze_expression(node, target_type)
