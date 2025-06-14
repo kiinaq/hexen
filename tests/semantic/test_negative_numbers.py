@@ -210,11 +210,13 @@ class TestNegativeNumberAST:
 
         # Navigate to the return statement value
         return_stmt = ast["functions"][0]["body"]["statements"][0]
-        literal = return_stmt["value"]
+        value = return_stmt["value"]
 
-        assert literal["type"] == "literal"
-        assert literal["value"] == -42
-        assert isinstance(literal["value"], int)
+        # Expect a unary_operation node wrapping a positive literal
+        assert value["type"] == "unary_operation"
+        assert value["operator"] == "-"
+        assert value["operand"]["type"] == "literal"
+        assert value["operand"]["value"] == 42
 
     def test_negative_float_ast_structure(self):
         """Test that negative floats are parsed correctly in AST"""
@@ -227,8 +229,10 @@ class TestNegativeNumberAST:
 
         # Navigate to the return statement value
         return_stmt = ast["functions"][0]["body"]["statements"][0]
-        literal = return_stmt["value"]
+        value = return_stmt["value"]
 
-        assert literal["type"] == "literal"
-        assert literal["value"] == -3.14
-        assert isinstance(literal["value"], float)
+        # Expect a unary_operation node wrapping a positive literal
+        assert value["type"] == "unary_operation"
+        assert value["operator"] == "-"
+        assert value["operand"]["type"] == "literal"
+        assert value["operand"]["value"] == 3.14
