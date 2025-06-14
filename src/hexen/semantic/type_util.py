@@ -6,8 +6,75 @@ Provides type checking, coercion, and resolution utilities used across
 the semantic analysis phase.
 """
 
-from typing import Optional
+from typing import Optional, Dict, FrozenSet
 from .types import HexenType
+
+
+# Module-level constants for type sets and maps
+NUMERIC_TYPES: FrozenSet[HexenType] = frozenset(
+    {
+        HexenType.I32,
+        HexenType.I64,
+        HexenType.F32,
+        HexenType.F64,
+        HexenType.COMPTIME_INT,
+        HexenType.COMPTIME_FLOAT,
+    }
+)
+
+FLOAT_TYPES: FrozenSet[HexenType] = frozenset(
+    {
+        HexenType.F32,
+        HexenType.F64,
+        HexenType.COMPTIME_FLOAT,
+    }
+)
+
+INTEGER_TYPES: FrozenSet[HexenType] = frozenset(
+    {
+        HexenType.I32,
+        HexenType.I64,
+        HexenType.COMPTIME_INT,
+    }
+)
+
+# Comptime type coercion targets
+COMPTIME_INT_TARGETS: FrozenSet[HexenType] = frozenset(
+    {
+        HexenType.I32,
+        HexenType.I64,
+        HexenType.F32,
+        HexenType.F64,
+    }
+)
+
+COMPTIME_FLOAT_TARGETS: FrozenSet[HexenType] = frozenset(
+    {
+        HexenType.F32,
+        HexenType.F64,
+    }
+)
+
+# Regular numeric widening coercion rules
+WIDENING_RULES: Dict[HexenType, FrozenSet[HexenType]] = {
+    HexenType.I32: frozenset({HexenType.I64, HexenType.F32, HexenType.F64}),
+    HexenType.I64: frozenset(
+        {HexenType.F32, HexenType.F64}
+    ),  # Note: may lose precision
+    HexenType.F32: frozenset({HexenType.F64}),
+}
+
+# Type conversion maps
+TO_FLOAT_TYPE_MAP: Dict[HexenType, HexenType] = {
+    HexenType.COMPTIME_INT: HexenType.F64,
+    HexenType.COMPTIME_FLOAT: HexenType.F64,
+    HexenType.I32: HexenType.F64,
+    HexenType.I64: HexenType.F64,
+}
+
+TO_INTEGER_TYPE_MAP: Dict[HexenType, HexenType] = {
+    HexenType.COMPTIME_INT: HexenType.I32,
+}
 
 
 def is_numeric_type(type_: HexenType) -> bool:
@@ -20,14 +87,7 @@ def is_numeric_type(type_: HexenType) -> bool:
     Returns:
         True if the type is numeric (I32, I64, F32, F64, COMPTIME_INT, COMPTIME_FLOAT)
     """
-    return type_ in {
-        HexenType.I32,
-        HexenType.I64,
-        HexenType.F32,
-        HexenType.F64,
-        HexenType.COMPTIME_INT,
-        HexenType.COMPTIME_FLOAT,
-    }
+    return type_ in NUMERIC_TYPES
 
 
 def is_float_type(type_: HexenType) -> bool:
@@ -40,7 +100,7 @@ def is_float_type(type_: HexenType) -> bool:
     Returns:
         True if the type is a float type (F32, F64, COMPTIME_FLOAT)
     """
-    return type_ in {HexenType.F32, HexenType.F64, HexenType.COMPTIME_FLOAT}
+    return type_ in FLOAT_TYPES
 
 
 def is_integer_type(type_: HexenType) -> bool:
@@ -53,7 +113,7 @@ def is_integer_type(type_: HexenType) -> bool:
     Returns:
         True if the type is an integer type (I32, I64, COMPTIME_INT)
     """
-    return type_ in {HexenType.I32, HexenType.I64, HexenType.COMPTIME_INT}
+    return type_ in INTEGER_TYPES
 
 
 def can_coerce(from_type: HexenType, to_type: HexenType) -> bool:
@@ -87,26 +147,13 @@ def can_coerce(from_type: HexenType, to_type: HexenType) -> bool:
 
     # comptime type coercion
     if from_type == HexenType.COMPTIME_INT:
-        # comptime_int can become numeric types, but NOT bool
-        return to_type in {
-            HexenType.I32,
-            HexenType.I64,
-            HexenType.F32,
-            HexenType.F64,
-        }
+        return to_type in COMPTIME_INT_TARGETS
 
     if from_type == HexenType.COMPTIME_FLOAT:
-        # comptime_float can become any float type, but NOT bool
-        return to_type in {HexenType.F32, HexenType.F64}
+        return to_type in COMPTIME_FLOAT_TARGETS
 
     # Regular numeric widening coercion
-    widening_rules = {
-        HexenType.I32: {HexenType.I64, HexenType.F32, HexenType.F64},
-        HexenType.I64: {HexenType.F32, HexenType.F64},  # Note: may lose precision
-        HexenType.F32: {HexenType.F64},
-    }
-
-    return to_type in widening_rules.get(from_type, set())
+    return to_type in WIDENING_RULES.get(from_type, frozenset())
 
 
 def resolve_comptime_type(
@@ -128,17 +175,14 @@ def resolve_comptime_type(
     if comptime_type == HexenType.COMPTIME_INT:
         if target_type and is_numeric_type(target_type):
             return target_type
-        else:
-            return HexenType.I32  # Default integer type
+        return HexenType.I32  # Default integer type
 
-    elif comptime_type == HexenType.COMPTIME_FLOAT:
+    if comptime_type == HexenType.COMPTIME_FLOAT:
         if target_type and is_float_type(target_type):
             return target_type
-        else:
-            return HexenType.F64  # Default float type
+        return HexenType.F64  # Default float type
 
-    else:
-        return comptime_type  # Not a comptime type, return as-is
+    return comptime_type  # Not a comptime type, return as-is
 
 
 def to_float_type(type_: HexenType) -> HexenType:
@@ -151,14 +195,7 @@ def to_float_type(type_: HexenType) -> HexenType:
     Returns:
         The float equivalent type (F32 or F64)
     """
-    if type_ == HexenType.COMPTIME_INT:
-        return HexenType.F64
-    elif type_ == HexenType.COMPTIME_FLOAT:
-        return HexenType.F64
-    elif type_ in {HexenType.I32, HexenType.I64}:
-        return HexenType.F64
-    else:
-        return type_
+    return TO_FLOAT_TYPE_MAP.get(type_, type_)
 
 
 def to_integer_type(type_: HexenType) -> HexenType:
@@ -171,10 +208,7 @@ def to_integer_type(type_: HexenType) -> HexenType:
     Returns:
         The integer equivalent type (I32 or I64)
     """
-    if type_ == HexenType.COMPTIME_INT:
-        return HexenType.I32
-    else:
-        return type_
+    return TO_INTEGER_TYPE_MAP.get(type_, type_)
 
 
 def get_wider_type(left_type: HexenType, right_type: HexenType) -> HexenType:
@@ -193,8 +227,5 @@ def get_wider_type(left_type: HexenType, right_type: HexenType) -> HexenType:
         return (
             HexenType.F64 if HexenType.F64 in {left_type, right_type} else HexenType.F32
         )
-    else:
-        # Both are integers
-        return (
-            HexenType.I64 if HexenType.I64 in {left_type, right_type} else HexenType.I32
-        )
+    # Both are integers
+    return HexenType.I64 if HexenType.I64 in {left_type, right_type} else HexenType.I32
