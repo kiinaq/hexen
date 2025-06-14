@@ -17,6 +17,7 @@ from .type_util import (
     can_coerce,
     resolve_comptime_type,
     parse_type,
+    infer_type_from_value,
 )
 
 
@@ -572,7 +573,7 @@ class SemanticAnalyzer:
 
             return annotated_type
         elif expr_type == "literal":
-            return self._infer_type_from_value(node)
+            return infer_type_from_value(node)
         elif expr_type == "identifier":
             return self._analyze_identifier(node)
         elif expr_type == "block":
@@ -622,39 +623,6 @@ class SemanticAnalyzer:
         # Mark symbol as used for dead code analysis
         symbol.used = True
         return symbol.type
-
-    def _infer_type_from_value(self, value: Dict) -> HexenType:
-        """
-        Infer type from a literal value using comptime types.
-
-        Zig-inspired type inference rules:
-        - Integer literals have type comptime_int (arbitrary precision, context-dependent)
-        - Float literals have type comptime_float (arbitrary precision, context-dependent)
-        - String literals are string type
-        - Boolean literals are bool type
-        - comptime types can coerce to any compatible concrete type
-
-        This eliminates the need for literal suffixes and provides elegant type coercion.
-        """
-        if value.get("type") != "literal":
-            return HexenType.UNKNOWN
-
-        val = value.get("value")
-
-        if isinstance(val, bool):
-            return HexenType.BOOL
-        elif isinstance(val, int):
-            return (
-                HexenType.COMPTIME_INT
-            )  # Zig-style: context will determine final type
-        elif isinstance(val, float):
-            return (
-                HexenType.COMPTIME_FLOAT
-            )  # Zig-style: context will determine final type
-        elif isinstance(val, str):
-            return HexenType.STRING
-        else:
-            return HexenType.UNKNOWN
 
     def _analyze_binary_operation(
         self, node: Dict, target_type: Optional[HexenType] = None

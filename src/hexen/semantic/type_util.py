@@ -254,3 +254,38 @@ def get_wider_type(left_type: HexenType, right_type: HexenType) -> HexenType:
         )
     # Both are integers
     return HexenType.I64 if HexenType.I64 in {left_type, right_type} else HexenType.I32
+
+
+def infer_type_from_value(value: Dict) -> HexenType:
+    """
+    Infer a HexenType from a literal value (using comptime types).
+
+    Zig-inspired type inference rules:
+    - Integer literals have type comptime_int (arbitrary precision, context-dependent)
+    - Float literals have type comptime_float (arbitrary precision, context-dependent)
+    - String literals are string type
+    - Boolean literals are bool type
+    - comptime types can coerce to any compatible concrete type
+
+    This eliminates the need for literal suffixes and provides elegant type coercion.
+
+    Args:
+        value: A dict (AST node) representing a literal (e.g. { "type": "literal", "value": 42 })
+
+    Returns:
+        The inferred HexenType (e.g. HexenType.COMPTIME_INT, HexenType.STRING, etc.) or HexenType.UNKNOWN if the node is not a literal.
+    """
+    if value.get("type") != "literal":
+        return HexenType.UNKNOWN
+
+    val = value.get("value")
+    if isinstance(val, bool):
+        return HexenType.BOOL
+    elif isinstance(val, int):
+        return HexenType.COMPTIME_INT  # Zig-style: context will determine final type
+    elif isinstance(val, float):
+        return HexenType.COMPTIME_FLOAT  # Zig-style: context will determine final type
+    elif isinstance(val, str):
+        return HexenType.STRING
+    else:
+        return HexenType.UNKNOWN
