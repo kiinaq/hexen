@@ -89,40 +89,125 @@ class HexenTransformer(Transformer):
         }
 
     def expression(self, children):
-        # expression: term
+        # expression: logical_or
         return children[0]
 
-    def term(self, children):
-        # term: factor (("+" | "-") factor)*
+    def logical_or(self, children):
+        print("[DEBUG] logical_or children:", children)
         if len(children) == 1:
             return children[0]
-        result = children[0]
-        for i in range(1, len(children) - 1, 2):
-            op_token = children[i]
+        left = children[0]
+        i = 1
+        while i < len(children):
+            op = children[i]
             right = children[i + 1]
-            result = {
+            left = {
                 "type": "binary_operation",
-                "operator": str(op_token),
-                "left": result,
+                "operator": str(op),
+                "left": left,
                 "right": right,
             }
-        return result
+            i += 2
+        return left
 
-    def factor(self, children):
-        # factor: primary (("*" | "/" | "\\") primary)*
+    def logical_and(self, children):
+        print("[DEBUG] logical_and children:", children)
         if len(children) == 1:
             return children[0]
-        result = children[0]
-        for i in range(1, len(children) - 1, 2):
-            op_token = children[i]
+        left = children[0]
+        i = 1
+        while i < len(children):
+            op = children[i]
             right = children[i + 1]
-            result = {
+            left = {
                 "type": "binary_operation",
-                "operator": str(op_token),
-                "left": result,
+                "operator": str(op),
+                "left": left,
                 "right": right,
             }
-        return result
+            i += 2
+        return left
+
+    def equality(self, children):
+        print("[DEBUG] equality children:", children)
+        if len(children) == 1:
+            return children[0]
+        left = children[0]
+        i = 1
+        while i < len(children):
+            op = children[i]
+            right = children[i + 1]
+            left = {
+                "type": "binary_operation",
+                "operator": str(op),
+                "left": left,
+                "right": right,
+            }
+            i += 2
+        return left
+
+    def relational(self, children):
+        print("[DEBUG] relational children:", children)
+        if len(children) == 1:
+            return children[0]
+        left = children[0]
+        i = 1
+        while i < len(children):
+            op = children[i]
+            right = children[i + 1]
+            left = {
+                "type": "binary_operation",
+                "operator": str(op),
+                "left": left,
+                "right": right,
+            }
+            i += 2
+        return left
+
+    def additive(self, children):
+        print("[DEBUG] additive children:", children)
+        if len(children) == 1:
+            return children[0]
+        left = children[0]
+        i = 1
+        while i < len(children):
+            op = children[i]
+            right = children[i + 1]
+            left = {
+                "type": "binary_operation",
+                "operator": str(op),
+                "left": left,
+                "right": right,
+            }
+            i += 2
+        return left
+
+    def multiplicative(self, children):
+        print("[DEBUG] multiplicative children:", children)
+        if len(children) == 1:
+            return children[0]
+        left = children[0]
+        i = 1
+        while i < len(children):
+            op = children[i]
+            right = children[i + 1]
+            left = {
+                "type": "binary_operation",
+                "operator": str(op),
+                "left": left,
+                "right": right,
+            }
+            i += 2
+        return left
+
+    def unary(self, children):
+        # unary: ("-" | "!")? primary
+        if len(children) == 1:
+            return children[0]
+        # Handle unary operators
+        op = str(children[0])
+        operand = children[1]
+        return {"type": "unary_operation", "operator": op, "operand": operand}
 
     def primary(self, children):
         # primary: NUMBER | STRING | BOOLEAN | IDENTIFIER | block | "(" expression ")"
@@ -131,6 +216,25 @@ class HexenTransformer(Transformer):
         else:
             # Parenthesized expression: "(" expression ")"
             return children[1]
+
+    def _build_binary_operation_tree(self, children):
+        print("[DEBUG] _build_binary_operation_tree children:", children)
+        if len(children) == 1:
+            return children[0]  # Single operand
+        result = children[0]
+        for i in range(1, len(children) - 1, 2):
+            operator = str(children[i])
+            right_operand = children[i + 1]
+            print(
+                f"[DEBUG] Building node: left={result}, op={operator}, right={right_operand}"
+            )
+            result = {
+                "type": "binary_operation",
+                "operator": operator,
+                "left": result,
+                "right": right_operand,
+            }
+        return result
 
     @v_args(inline=True)
     def statement(self, stmt):

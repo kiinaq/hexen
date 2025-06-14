@@ -25,18 +25,24 @@ return_stmt: "return" expression?
 
 assignment_stmt: IDENTIFIER "=" expression
 
-expression: term
+expression: logical_or
 
-term: factor (("+" | "-") factor)*
+logical_or: logical_and (OR_OP logical_and)*
+logical_and: equality (AND_OP equality)*
+equality: relational (EQ_OP relational)*
+relational: additive (REL_OP additive)*
+additive: multiplicative (ADD_OP multiplicative)*
+multiplicative: unary (MUL_OP unary)*
+unary: (UNARY_OP)? primary
+primary: NUMBER | STRING | BOOLEAN | IDENTIFIER | block | "(" expression ")"
 
-factor: primary (("*" | "/" | "\\") primary)*
-
-primary: NUMBER
-       | STRING
-       | BOOLEAN
-       | IDENTIFIER
-       | block
-       | "(" expression ")"
+OR_OP: "||"
+AND_OP: "&&"
+EQ_OP: "==" | "!="
+REL_OP: "<" | ">" | "<=" | ">="
+ADD_OP: "+" | "-"
+MUL_OP: "*" | "/" | "\\" | "%"
+UNARY_OP: "-" | "!"
 
 type: TYPE_I32
     | TYPE_I64
