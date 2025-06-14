@@ -289,3 +289,20 @@ def infer_type_from_value(value: Dict) -> HexenType:
         return HexenType.STRING
     else:
         return HexenType.UNKNOWN
+
+
+def is_mixed_type_operation(left_type: HexenType, right_type: HexenType) -> bool:
+    """
+    Check if an operation involves mixed types that require explicit handling.
+
+    Returns True if the operation is between comptime_int and comptime_float, or between float and non-float types.
+    """
+    return (
+        (left_type == HexenType.COMPTIME_INT and right_type == HexenType.COMPTIME_FLOAT)
+        or (
+            left_type == HexenType.COMPTIME_FLOAT
+            and right_type == HexenType.COMPTIME_INT
+        )
+        or (is_float_type(left_type) and not is_float_type(right_type))
+        or (not is_float_type(left_type) and is_float_type(right_type))
+    )

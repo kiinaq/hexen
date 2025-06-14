@@ -18,6 +18,7 @@ from .type_util import (
     to_float_type,
     to_integer_type,
     get_wider_type,
+    is_mixed_type_operation,
 )
 
 
@@ -84,7 +85,7 @@ class BinaryOpsAnalyzer:
             )
 
         # For mixed type operations, require explicit type annotation
-        if self._is_mixed_type_operation(left_type, right_type):
+        if is_mixed_type_operation(left_type, right_type):
             if not target_type:
                 self._error(
                     "Mixed type operations require explicit type annotation", node
@@ -178,23 +179,6 @@ class BinaryOpsAnalyzer:
             return get_wider_type(left_type, right_type)
 
         return HexenType.UNKNOWN
-
-    def _is_mixed_type_operation(
-        self, left_type: HexenType, right_type: HexenType
-    ) -> bool:
-        """Check if an operation involves mixed types that require explicit handling."""
-        return (
-            (
-                left_type == HexenType.COMPTIME_INT
-                and right_type == HexenType.COMPTIME_FLOAT
-            )
-            or (
-                left_type == HexenType.COMPTIME_FLOAT
-                and right_type == HexenType.COMPTIME_INT
-            )
-            or (is_float_type(left_type) and not is_float_type(right_type))
-            or (not is_float_type(left_type) and is_float_type(right_type))
-        )
 
     def _analyze_expression(
         self, node: Dict, target_type: Optional[HexenType] = None
