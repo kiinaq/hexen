@@ -94,24 +94,24 @@ class TestDivisionOperators:
         self.parser = HexenParser()
         self.analyzer = SemanticAnalyzer()
 
-    # def test_float_division(self):
-    #     """Test float division operator (/)"""
-    #     source = """
-    #     func test() : f64 = {
-    #         // Float division always requires explicit type
-    #         val div1 : f64 = 10 / 3         // comptime_int / comptime_int -> f64 (3.333...)
-    #         val div2 : f64 = 7 / 2          // comptime_int / comptime_int -> f64 (3.5)
-    #         val div3 : f32 = 22 / 7         // comptime_int / comptime_int -> f32 (3.142857...)
-    #
-    #         // Float division with float literals
-    #         val div4 : f64 = 10.5 / 2.1     // comptime_float / comptime_float -> f64
-    #
-    #         return div1
-    #     }
-    #     """
-    #     ast = self.parser.parse(source)
-    #     errors = self.analyzer.analyze(ast)
-    #     assert errors == []
+    def test_float_division(self):
+        """Test float division operator (/)"""
+        source = """
+        func test() : f64 = {
+            // Float division always requires explicit type
+            val div1 : f64 = 10 / 3         // comptime_int / comptime_int -> f64 (3.333...)
+            val div2 : f64 = 7 / 2          // comptime_int / comptime_int -> f64 (3.5)
+            val div3 : f32 = 22 / 7         // comptime_int / comptime_int -> f32 (3.142857...)
+
+            // Float division with float literals
+            val div4 : f64 = 10.5 / 2.1     // comptime_float / comptime_float -> f64
+
+            return div1
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+        assert errors == []
 
     def test_integer_division(self):
         """Test integer division operator (\)"""

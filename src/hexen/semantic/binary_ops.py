@@ -81,7 +81,7 @@ class BinaryOpsAnalyzer:
         # Handle division operators specifically
         if operator in ["/", "\\"]:
             return self._analyze_division_operation(
-                operator, left_type, right_type, node
+                operator, left_type, right_type, node, target_type
             )
 
         # For mixed type operations, require explicit type annotation
@@ -98,7 +98,12 @@ class BinaryOpsAnalyzer:
         )
 
     def _analyze_division_operation(
-        self, operator: str, left_type: HexenType, right_type: HexenType, node: Dict
+        self,
+        operator: str,
+        left_type: HexenType,
+        right_type: HexenType,
+        node: Dict,
+        target_type: Optional[HexenType] = None,
     ) -> HexenType:
         """
         Analyze division operations with specific rules for / and \.
@@ -119,21 +124,28 @@ class BinaryOpsAnalyzer:
 
         # Handle float division (/)
         if operator == "/":
-            return self._analyze_float_division(left_type, right_type)
+            return self._analyze_float_division(left_type, right_type, target_type)
 
         # Handle integer division (\)
         else:  # operator == "\\"
             return self._analyze_integer_division(left_type, right_type, node)
 
     def _analyze_float_division(
-        self, left_type: HexenType, right_type: HexenType
+        self,
+        left_type: HexenType,
+        right_type: HexenType,
+        target_type: Optional[HexenType] = None,
     ) -> HexenType:
         """Analyze float division operation."""
         # Convert operands to float types
         left_float = to_float_type(left_type)
         right_float = to_float_type(right_type)
 
-        # Result is the wider of the two float types
+        # If target type is provided and it's a float type, use it
+        if target_type and is_float_type(target_type):
+            return target_type
+
+        # Otherwise, result is the wider of the two float types
         return get_wider_type(left_float, right_float)
 
     def _analyze_integer_division(
