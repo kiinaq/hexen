@@ -11,10 +11,10 @@ from typing import Dict, List, Optional
 from .types import HexenType, Mutability
 from .symbol_table import SymbolTable
 from .errors import SemanticError
-from .binary_ops import BinaryOpsAnalyzer
+from .binary_ops_analyzer import BinaryOpsAnalyzer
+from .unary_ops_analyzer import UnaryOpsAnalyzer
 from .declaration_analyzer import DeclarationAnalyzer
 from .type_util import (
-    is_numeric_type,
     can_coerce,
     parse_type,
     infer_type_from_value,
@@ -49,6 +49,12 @@ class SemanticAnalyzer:
 
         # Initialize binary operations analyzer with callbacks
         self.binary_ops = BinaryOpsAnalyzer(
+            error_callback=self._error,
+            analyze_expression_callback=self._analyze_expression,
+        )
+
+        # Initialize unary operations analyzer with callbacks
+        self.unary_ops = UnaryOpsAnalyzer(
             error_callback=self._error,
             analyze_expression_callback=self._analyze_expression,
         )
@@ -457,57 +463,9 @@ class SemanticAnalyzer:
         self, node: Dict, target_type: Optional[HexenType] = None
     ) -> HexenType:
         """
-        Analyze a unary operation with context-guided type resolution.
-
-        Handles:
-        - Unary minus (-): Negates numeric values
-        - Logical not (!): Negates boolean values
+        Analyze a unary operation by delegating to UnaryOpsAnalyzer.
         """
-        operator = node.get("operator")
-        operand = node.get("operand")
-
-        if not operator or not operand:
-            self._error("Invalid unary operation", node)
-            return HexenType.UNKNOWN
-
-        # Analyze operand with context
-        operand_type = self._analyze_expression(operand, target_type)
-
-        if operand_type == HexenType.UNKNOWN:
-            return HexenType.UNKNOWN
-
-        # Handle unary minus (-)
-        if operator == "-":
-            # Only allow unary minus on numeric types
-            if not is_numeric_type(operand_type):
-                self._error(
-                    f"Unary minus (-) requires numeric operand, got {operand_type.value}",
-                    node,
-                )
-                return HexenType.UNKNOWN
-
-            # For comptime types, preserve them
-            if operand_type == HexenType.COMPTIME_INT:
-                return HexenType.COMPTIME_INT
-            if operand_type == HexenType.COMPTIME_FLOAT:
-                return HexenType.COMPTIME_FLOAT
-
-            # For concrete types, return the same type
-            return operand_type
-
-        # Handle logical not (!)
-        elif operator == "!":
-            if operand_type != HexenType.BOOL:
-                self._error(
-                    f"Logical not (!) requires boolean operand, got {operand_type.value}",
-                    node,
-                )
-                return HexenType.UNKNOWN
-            return HexenType.BOOL
-
-        else:
-            self._error(f"Unknown unary operator: {operator}", node)
-            return HexenType.UNKNOWN
+        return self.unary_ops.analyze_unary_operation(node, target_type)
 
     def _set_function_context(self, name: str, return_type: HexenType) -> None:
         """Set the current function context for return type validation."""
