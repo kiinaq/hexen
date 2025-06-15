@@ -331,24 +331,44 @@ class TestBinaryOperationErrors:
     #     assert any("Mixed concrete types require explicit result type" in e.message for e in errors)
     #     assert any("comptime_float operations require explicit result type" in e.message for e in errors)
 
-    # def test_invalid_integer_division(self):
-    #     """Test invalid integer division operations"""
-    #     source = """
-    #     func test() : void = {
-    #         // Integer division requires integer operands
-    #         val div1 = 10.5 \ 2.1          // Error: Integer division requires integer operands
-    #         val div2 = 3.14 \ 42           // Error: Integer division requires integer operands
-    #
-    #         // Mixed types with integer division
-    #         val a : i32 = 10
-    #         val b : f64 = 3.14
-    #         val div3 = a \ b               // Error: Integer division requires integer operands
-    #     }
-    #     """
-    #     ast = self.parser.parse(source)
-    #     errors = self.analyzer.analyze(ast)
-    #     assert len(errors) == 3
-    #     assert all("Integer division requires integer operands" in e.message for e in errors)
+    def test_invalid_integer_division(self):
+        """Test invalid integer division operations"""
+        source = """
+        func test() : void = {
+            // Integer division requires integer operands
+            val div1 = 10.5 \ 2.1          // Error: Integer division requires integer operands
+            val div2 = 3.14 \ 42           // Error: Integer division requires integer operands
+
+            // Mixed types with integer division
+            val a : i32 = 10
+            val b : f64 = 3.14
+            val div3 = a \ b               // Error: Integer division requires integer operands
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+        assert len(errors) == 6  # 3 integer division errors + 3 type inference errors
+
+        # Check for integer division errors
+        division_errors = [e for e in errors if "Integer division" in e.message]
+        assert len(division_errors) == 3
+        assert all(
+            "Integer division (\\\\) cannot be used with float operands" in e.message
+            for e in division_errors
+        )
+
+        # Check for type inference errors
+        type_errors = [
+            e for e in errors if "Cannot infer type for variable" in e.message
+        ]
+        assert len(type_errors) == 3
+        assert all(
+            any(
+                f"Cannot infer type for variable 'div{i}'" in e.message
+                for i in range(1, 4)
+            )
+            for e in type_errors
+        )
 
     # def test_precision_loss_without_annotation(self):
     #     """Test precision loss without explicit type annotation"""
