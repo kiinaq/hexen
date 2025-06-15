@@ -140,7 +140,9 @@ class BinaryOpsAnalyzer:
 
         # Handle float division (/)
         if operator == "/":
-            return self._analyze_float_division(left_type, right_type, target_type)
+            return self._analyze_float_division(
+                left_type, right_type, target_type, node
+            )
 
         # Handle integer division (\)
         else:  # operator == "\\"
@@ -151,8 +153,16 @@ class BinaryOpsAnalyzer:
         left_type: HexenType,
         right_type: HexenType,
         target_type: Optional[HexenType] = None,
+        node: Optional[Dict] = None,
     ) -> HexenType:
         """Analyze float division operation."""
+        # If no target type is provided, emit error about requiring explicit type
+        if target_type is None and node is not None:
+            self._emit_missing_type_annotation_error(
+                "Float division requires explicit result type", node
+            )
+            return HexenType.UNKNOWN
+
         # Convert operands to float types
         left_float = to_float_type(left_type)
         right_float = to_float_type(right_type)
