@@ -204,11 +204,21 @@ class TestUnaryOperatorIntegration:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        # Only 6 errors should be produced (not 8)
-        assert len(errors) == 6
-        assert any("Mixed types require explicit result type" in str(e) for e in errors)
+        # 7 errors should be produced
+        assert len(errors) == 7
+        # Check for mixed type errors
+        mixed_type_errors = [
+            e for e in errors if "Mixed types require explicit result type" in str(e)
+        ]
+        assert len(mixed_type_errors) == 3, "Expected 3 mixed type errors"
+        # Check for type inference errors
+        type_inference_errors = [
+            e for e in errors if "Cannot infer type for variable" in str(e)
+        ]
+        assert len(type_inference_errors) == 3, "Expected 3 type inference errors"
+        assert any("Cannot infer type for variable 'a'" in str(e) for e in errors)
+        assert any("Cannot infer type for variable 'b'" in str(e) for e in errors)
         assert any("Cannot infer type for variable 'c'" in str(e) for e in errors)
-        # 'h' is now valid, so we do not check for its error
 
     def test_unary_operators_with_undef(self):
         """Test unary operators with uninitialized variables"""

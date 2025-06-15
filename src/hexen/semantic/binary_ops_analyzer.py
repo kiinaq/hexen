@@ -4,12 +4,13 @@ Hexen Binary Operations Analyzer
 Handles analysis of binary operations including:
 - Arithmetic operations (+, -, *, /, \)
 - Logical operations (&&, ||)
+- Comparison operations (<, >, <=, >=, ==, !=)
 - Type coercion and comptime type adaptation
 - Division operator specific rules (/ vs \)
 - Mixed type operations with explicit type requirements
 """
 
-from typing import Dict, Optional, Callable
+from typing import Dict, Optional, Callable, Set
 
 from .types import HexenType
 from .type_util import (
@@ -22,6 +23,12 @@ from .type_util import (
     is_mixed_type_operation,
     is_integer_type,
 )
+
+# Set of comparison operators
+COMPARISON_OPERATORS: Set[str] = {"<", ">", "<=", ">=", "==", "!="}
+
+# Set of equality operators (subset of comparison operators)
+EQUALITY_OPERATORS: Set[str] = {"==", "!="}
 
 
 class BinaryOpsAnalyzer:
@@ -80,7 +87,13 @@ class BinaryOpsAnalyzer:
         if left_type == HexenType.UNKNOWN or right_type == HexenType.UNKNOWN:
             return HexenType.UNKNOWN
 
-        # Handle logical operators first
+        # Handle comparison operators
+        if operator in COMPARISON_OPERATORS:
+            return self._analyze_comparison_operation(
+                operator, left_type, right_type, node, target_type
+            )
+
+        # Handle logical operators
         if operator in ["&&", "||"]:
             # Logical operations require boolean operands
             if left_type != HexenType.BOOL or right_type != HexenType.BOOL:
@@ -113,6 +126,86 @@ class BinaryOpsAnalyzer:
         return self._resolve_binary_operation_type(
             operator, left_type, right_type, target_type
         )
+
+    def _analyze_comparison_operation(
+        self,
+        operator: str,
+        left_type: HexenType,
+        right_type: HexenType,
+        node: Dict,
+        target_type: Optional[HexenType] = None,
+    ) -> HexenType:
+        """
+        Analyze comparison operations with type safety rules.
+
+        Rules:
+        1. All comparison operations produce boolean results
+        2. Only comparable types can be compared:
+           - Numeric types can be compared with each other
+           - Strings can only be compared with strings
+           - Booleans can only be compared with booleans
+        3. Mixed numeric types follow comptime promotion rules
+        4. No implicit coercion to boolean
+        5. Equality operators (==, !=) have stricter type rules than relational operators
+
+        Args:
+            operator: The comparison operator (<, >, <=, >=, ==, !=)
+            left_type: Type of left operand
+            right_type: Type of right operand
+            node: AST node for error reporting
+            target_type: Optional target type for context guidance
+
+        Returns:
+            HexenType.BOOL if comparison is valid, HexenType.UNKNOWN otherwise
+        """
+        # All comparison operations produce boolean results
+        if target_type is not None and target_type != HexenType.BOOL:
+            self._error(
+                f"Comparison operation '{operator}' always produces boolean result, got target type {target_type.value}",
+                node,
+            )
+            return HexenType.UNKNOWN
+
+        # Handle equality operators (==, !=) first
+        if operator in EQUALITY_OPERATORS:
+            # For equality, types must be exactly the same
+            if left_type != right_type:
+                # Special case: comptime types can be compared if they're both numeric
+                if is_numeric_type(left_type) and is_numeric_type(right_type):
+                    # Allow comparison but warn about potential precision loss
+                    self._error(
+                        f"Comparison between different numeric types may have unexpected results: {left_type.value} {operator} {right_type.value}",
+                        node,
+                    )
+                else:
+                    self._error(
+                        f"Cannot compare different types with {operator}: {left_type.value} and {right_type.value}",
+                        node,
+                    )
+                    return HexenType.UNKNOWN
+            return HexenType.BOOL
+
+        # Handle relational operators (<, >, <=, >=)
+        # These can only be used with numeric types
+        if not is_numeric_type(left_type) or not is_numeric_type(right_type):
+            self._error(
+                f"Relational operator '{operator}' can only be used with numeric types, got {left_type.value} and {right_type.value}",
+                node,
+            )
+            return HexenType.UNKNOWN
+
+        # For numeric comparisons, apply comptime promotion rules
+        if is_mixed_type_operation(left_type, right_type):
+            # Emit a warning about mixed numeric type comparison
+            self._error(
+                f"Comparison between different numeric types may have unexpected results: {left_type.value} {operator} {right_type.value}",
+                node,
+            )
+            # Always return boolean for comparison operations
+            return HexenType.BOOL
+
+        # For same-type numeric comparisons, result is boolean
+        return HexenType.BOOL
 
     def _analyze_division_operation(
         self,

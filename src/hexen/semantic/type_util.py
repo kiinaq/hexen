@@ -314,3 +314,13 @@ def is_mixed_type_operation(left_type: HexenType, right_type: HexenType) -> bool
             and left_type != right_type
         )
     )
+
+
+def is_string_type(type_: HexenType) -> bool:
+    """Check if a type is a string type."""
+    return type_ == HexenType.STRING
+
+
+def is_boolean_type(type_: HexenType) -> bool:
+    """Check if a type is a boolean type."""
+    return type_ == HexenType.BOOL

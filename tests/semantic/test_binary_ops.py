@@ -519,3 +519,134 @@ class TestLogicalOperations:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         assert errors == []
+
+
+class TestComparisonOperations:
+    """Test comparison operations semantic analysis"""
+
+    def setup_method(self):
+        self.parser = HexenParser()
+        self.analyzer = SemanticAnalyzer()
+
+    def test_numeric_comparisons(self):
+        """Test numeric type comparisons"""
+        source = """
+        func test() : void = {
+            // Same type comparisons
+            val a : i32 = 10
+            val b : i32 = 20
+            val c : f64 = 3.14
+            val d : f64 = 2.71
+            
+            val result1 : bool = a < b              // i32 < i32 -> bool
+            val result2 : bool = c > d              // f64 > f64 -> bool
+            val result3 : bool = a <= b             // i32 <= i32 -> bool
+            val result4 : bool = c >= d             // f64 >= f64 -> bool
+            
+            // Mixed numeric type comparisons
+            val result5 : bool = a < c              // i32 < f64 -> bool (with warning)
+            val result6 : bool = c > a              // f64 > i32 -> bool (with warning)
+            
+            // Comptime numeric comparisons
+            val result7 : bool = 42 < 100           // comptime_int < comptime_int -> bool
+            val result8 : bool = 3.14 > 2.71        // comptime_float > comptime_float -> bool
+            val result9 : bool = 42 < 3.14          // comptime_int < comptime_float -> bool (with warning)
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+        # Should have warnings about mixed numeric type comparisons
+        assert len(errors) == 3, (
+            "Expected 3 warnings about mixed numeric type comparisons"
+        )
+        assert all(
+            "Comparison between different numeric types may have unexpected results"
+            in str(e)
+            for e in errors
+        )
+
+    def test_equality_comparisons(self):
+        """Test equality operator comparisons"""
+        source = """
+        func test() : void = {
+            // Same type equality
+            val a : i32 = 10
+            val b : i32 = 20
+            val c : string = "hello"
+            val d : string = "world"
+            val e : bool = true
+            val f : bool = false
+            
+            val result1 : bool = a == b             // i32 == i32 -> bool
+            val result2 : bool = c == d             // string == string -> bool
+            val result3 : bool = e == f             // bool == bool -> bool
+            
+            // Mixed type equality (should error)
+            val result4 : bool = a == c             // Error: i32 == string
+            val result5 : bool = c == e             // Error: string == bool
+            val result6 : bool = e == a             // Error: bool == i32
+            
+            // Comptime equality
+            val result7 : bool = 42 == 42           // comptime_int == comptime_int -> bool
+            val result8 : bool = "hello" == "world" // string == string -> bool
+            val result9 : bool = true == false      // bool == bool -> bool
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+        assert len(errors) == 3, "Expected 3 errors for invalid type comparisons"
+        assert all("Cannot compare different types with ==" in str(e) for e in errors)
+
+    def test_relational_operator_restrictions(self):
+        """Test restrictions on relational operators"""
+        source = """
+        func test() : void = {
+            val a : string = "hello"
+            val b : string = "world"
+            val c : bool = true
+            val d : bool = false
+            
+            // Relational operators only work with numeric types
+            val result1 : bool = a < b              // Error: string < string
+            val result2 : bool = c > d              // Error: bool > bool
+            val result3 : bool = a <= b             // Error: string <= string
+            val result4 : bool = c >= d             // Error: bool >= bool
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+        assert len(errors) == 4, (
+            "Expected 4 errors for invalid relational operator usage"
+        )
+        assert all(
+            "Relational operator" in str(e)
+            and "can only be used with numeric types" in str(e)
+            for e in errors
+        )
+
+    def test_comparison_target_type(self):
+        """Test comparison operations with target type context"""
+        source = """
+        func test() : void = {
+            val a : i32 = 10
+            val b : i32 = 20
+            
+            // Comparison operations always produce bool
+            val result1 : i32 = a < b              // Error: cannot assign bool to i32
+            val result2 : string = a == b          // Error: cannot assign bool to string
+            val result3 : f64 = a > b              // Error: cannot assign bool to f64
+            
+            // Valid boolean assignments
+            val result4 : bool = a < b             // i32 < i32 -> bool
+            val result5 : bool = a == b            // i32 == i32 -> bool
+            val result6 : bool = a > b             // i32 > i32 -> bool
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+        assert len(errors) == 3, "Expected 3 errors for invalid target types"
+        assert all(
+            "Comparison operation" in str(e)
+            and "always produces boolean result" in str(e)
+            for e in errors
+        )
