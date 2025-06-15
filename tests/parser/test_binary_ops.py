@@ -7,6 +7,7 @@ Focuses on:
 3. Operator precedence in AST
 4. Parenthesized expressions
 5. Syntax error cases
+6. Logical operations (&&, ||)
 """
 
 import pytest
@@ -209,3 +210,97 @@ def test_complex_expressions():
         "right": {"type": "literal", "value": 50},
     }
     verify_binary_operation_ast(statements[0]["value"], "-", first_add, div_op)
+
+
+def test_logical_operators():
+    """Test parsing of logical operators (&&, ||)."""
+    source = """
+    func main(): i32 = {
+        val and_op = true && false
+        val or_op = true || false
+        val complex = (true && false) || (false && true)
+        val nested = true && (false || true) && false
+        return 0
+    }
+    """
+    parser = HexenParser()
+    ast = parser.parse(source)
+    statements = ast["functions"][0]["body"]["statements"]
+
+    # Test basic AND operation
+    verify_binary_operation_ast(
+        statements[0]["value"],
+        "&&",
+        {"type": "literal", "value": True},
+        {"type": "literal", "value": False},
+    )
+
+    # Test basic OR operation
+    verify_binary_operation_ast(
+        statements[1]["value"],
+        "||",
+        {"type": "literal", "value": True},
+        {"type": "literal", "value": False},
+    )
+
+    # Test complex logical expression: (true && false) || (false && true)
+    and_op1 = {
+        "type": "binary_operation",
+        "operator": "&&",
+        "left": {"type": "literal", "value": True},
+        "right": {"type": "literal", "value": False},
+    }
+    and_op2 = {
+        "type": "binary_operation",
+        "operator": "&&",
+        "left": {"type": "literal", "value": False},
+        "right": {"type": "literal", "value": True},
+    }
+    verify_binary_operation_ast(statements[2]["value"], "||", and_op1, and_op2)
+
+    # Test nested logical expression: true && (false || true) && false
+    or_op = {
+        "type": "binary_operation",
+        "operator": "||",
+        "left": {"type": "literal", "value": False},
+        "right": {"type": "literal", "value": True},
+    }
+    and_op1 = {
+        "type": "binary_operation",
+        "operator": "&&",
+        "left": {"type": "literal", "value": True},
+        "right": or_op,
+    }
+    verify_binary_operation_ast(
+        statements[3]["value"],
+        "&&",
+        and_op1,
+        {"type": "literal", "value": False},
+    )
+
+
+def test_logical_operator_syntax_errors():
+    """Test syntax errors in logical operations."""
+    invalid_sources = [
+        # Missing operands
+        "val x = true &&",  # Missing right operand
+        "val x = && true",  # Missing left operand
+        "val x = &&",  # Missing both operands
+        # Invalid operator sequences
+        "val x = true && && false",  # Double operator
+        "val x = true && || false",  # Invalid operator sequence
+        "val x = true || && false",  # Invalid operator sequence
+        # Invalid parentheses
+        "val x = (true && false",  # Unclosed parenthesis
+        "val x = true && false)",  # Extra closing parenthesis
+        "val x = ((true && false)",  # Mismatched parentheses
+        # Invalid expressions
+        "val x = true &&",  # Incomplete expression
+        "val x = &&",  # Just operator
+        "val x = ()",  # Empty parentheses
+    ]
+
+    parser = HexenParser()
+    for source in invalid_sources:
+        with pytest.raises(SyntaxError):
+            parser.parse(source)

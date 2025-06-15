@@ -3,6 +3,7 @@ Hexen Binary Operations Analyzer
 
 Handles analysis of binary operations including:
 - Arithmetic operations (+, -, *, /, \)
+- Logical operations (&&, ||)
 - Type coercion and comptime type adaptation
 - Division operator specific rules (/ vs \)
 - Mixed type operations with explicit type requirements
@@ -79,13 +80,25 @@ class BinaryOpsAnalyzer:
         if left_type == HexenType.UNKNOWN or right_type == HexenType.UNKNOWN:
             return HexenType.UNKNOWN
 
-        # Always handle division operators first
+        # Handle logical operators first
+        if operator in ["&&", "||"]:
+            # Logical operations require boolean operands
+            if left_type != HexenType.BOOL or right_type != HexenType.BOOL:
+                self._error(
+                    f"Logical operator '{operator}' requires boolean operands, got {left_type.value} and {right_type.value}",
+                    node,
+                )
+                return HexenType.UNKNOWN
+            # Logical operations always produce boolean results
+            return HexenType.BOOL
+
+        # Handle division operators next
         if operator in ["/", "\\"]:
             return self._analyze_division_operation(
                 operator, left_type, right_type, node, target_type
             )
 
-        # (If no target_type is provided) inspect the operation (operator, left_type, right_type) and (if applicable) emit a granular error (as per BINARY_OPS.md) for missing type annotation.
+        # Handle mixed type operations and float operations
         if target_type is None:
             if is_mixed_type_operation(left_type, right_type):
                 self._error("Mixed types require explicit result type", node)
@@ -96,7 +109,7 @@ class BinaryOpsAnalyzer:
                 )
                 return HexenType.UNKNOWN
 
-        # (If a target_type is provided (or if no granular error was emitted) then proceed as before.)
+        # Handle remaining arithmetic operations
         return self._resolve_binary_operation_type(
             operator, left_type, right_type, target_type
         )
@@ -192,10 +205,17 @@ class BinaryOpsAnalyzer:
         - Type coercion and widening
         - Comptime type adaptation
         - Context-guided resolution
+        - Logical operations (&&, ||)
         """
         # Handle comptime types first
         left_type = resolve_comptime_type(left_type, target_type)
         right_type = resolve_comptime_type(right_type, target_type)
+
+        # Handle logical operators
+        if operator in ["&&", "||"]:
+            # Logical operations always produce boolean results
+            # Note: Operand type validation is done in analyze_binary_operation
+            return HexenType.BOOL
 
         # For non-comptime types, use standard type resolution
         if operator in ["+", "-", "*"]:

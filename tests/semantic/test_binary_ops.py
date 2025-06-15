@@ -8,6 +8,7 @@ These tests validate that binary operations follow the type system rules:
 - Mixed type operations
 - Assignment context
 - Error cases
+- Logical operations (&&, ||)
 
 See TYPE_SYSTEM.md and BINARY_OPS.md for detailed specifications.
 """
@@ -393,3 +394,128 @@ class TestBinaryOperationErrors:
             )
             for e in type_errors
         )
+
+
+class TestLogicalOperations:
+    """Test logical operations (&&, ||)"""
+
+    def setup_method(self):
+        self.parser = HexenParser()
+        self.analyzer = SemanticAnalyzer()
+
+    def test_basic_logical_operations(self):
+        """Test basic logical operations with boolean operands"""
+        source = """
+        func test() : bool = {
+            // Basic logical operations
+            val and_op = true && false
+            val or_op = true || false
+            val complex = (true && false) || (false && true)
+            val nested = true && (false || true) && false
+            
+            // Logical operations with boolean variables
+            val a : bool = true
+            val b : bool = false
+            val var_and = a && b
+            val var_or = a || b
+            val var_complex = (a && b) || (!a && b)
+            
+            return and_op
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+        assert errors == []
+
+    def test_logical_operation_errors(self):
+        """Test error cases for logical operations"""
+        source = """
+        func test() : void = {
+            // Non-boolean operands
+            val a : i32 = 10
+            val b : f64 = 3.14
+            val c : string = "hello"
+    
+            // Invalid logical operations
+            val error1 = a && true          // Error: Logical operator requires boolean operands
+            val error2 = true && b          // Error: Logical operator requires boolean operands
+            val error3 = c || false         // Error: Logical operator requires boolean operands
+            val error4 = true && 42         // Error: Logical operator requires boolean operands
+            val error5 = 3.14 || false      // Error: Logical operator requires boolean operands
+    
+            // Mixed type logical operations
+            val error6 = true && 1          // Error: Logical operator requires boolean operands
+            val error7 = false || "true"    // Error: Logical operator requires boolean operands
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+        print("[DEBUG] Errors:", [e.message for e in errors])
+
+        # Check for logical operation errors
+        logical_errors = [e for e in errors if "Logical operator" in e.message]
+        assert len(logical_errors) == 7, "Expected 7 logical operation errors"
+        assert all(
+            "Logical operator" in e.message
+            and "requires boolean operands" in e.message
+            and "got" in e.message
+            for e in logical_errors
+        ), "Missing or incorrect error message for logical operations"
+
+        # Check for type inference errors
+        type_errors = [
+            e for e in errors if "Cannot infer type for variable" in e.message
+        ]
+        assert len(type_errors) == 7, "Expected 7 type inference errors"
+        assert all(
+            any(
+                f"Cannot infer type for variable 'error{i}'" in e.message
+                for i in range(1, 8)
+            )
+            for e in type_errors
+        ), "Missing type inference errors"
+
+    def test_logical_operation_precedence(self):
+        """Test operator precedence in logical operations"""
+        source = """
+        func test() : bool = {
+            // Test AND precedence over OR
+            val a : bool = true
+            val b : bool = false
+            val c : bool = true
+            
+            // a && b || c should be (a && b) || c
+            val prec1 = a && b || c
+            
+            // a || b && c should be a || (b && c)
+            val prec2 = a || b && c
+            
+            // Complex precedence
+            val prec3 = !a && b || c && !b
+            
+            return prec1
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+        assert errors == []
+
+    def test_logical_operation_with_unary_not(self):
+        """Test logical operations with unary NOT operator"""
+        source = """
+        func test() : bool = {
+            val a : bool = true
+            val b : bool = false
+            
+            // Logical operations with NOT
+            val not_and = !a && b
+            val not_or = !a || b
+            val complex_not = !(a && b) || !(a || b)
+            val nested_not = !(!a && b) || !(a && !b)
+            
+            return not_and
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+        assert errors == []

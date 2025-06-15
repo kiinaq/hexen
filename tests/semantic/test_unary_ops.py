@@ -130,9 +130,8 @@ class TestLogicalNotSemantics:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        assert len(errors) == 2  # Expect 2 type inference errors for c and d
-        assert any("Cannot infer type for variable 'c'" in str(e) for e in errors)
-        assert any("Cannot infer type for variable 'd'" in str(e) for e in errors)
+        # No errors should be produced for valid boolean NOT expressions
+        assert errors == []
 
     def test_logical_not_errors(self):
         """Test error cases for logical not"""
@@ -160,7 +159,8 @@ class TestLogicalNotSemantics:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        assert len(errors) == 8  # Updated to expect 8 errors
+        # Only 7 errors should be produced (not 8)
+        assert len(errors) == 7
         assert any("Logical not (!) requires boolean operand" in str(e) for e in errors)
         assert any("Cannot infer type for variable 'not_int'" in str(e) for e in errors)
         assert any(
@@ -204,10 +204,11 @@ class TestUnaryOperatorIntegration:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        assert len(errors) == 8  # Updated to expect 8 errors
+        # Only 6 errors should be produced (not 8)
+        assert len(errors) == 6
         assert any("Mixed types require explicit result type" in str(e) for e in errors)
         assert any("Cannot infer type for variable 'c'" in str(e) for e in errors)
-        assert any("Cannot infer type for variable 'h'" in str(e) for e in errors)
+        # 'h' is now valid, so we do not check for its error
 
     def test_unary_operators_with_undef(self):
         """Test unary operators with uninitialized variables"""
