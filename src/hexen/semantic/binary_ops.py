@@ -72,28 +72,43 @@ class BinaryOpsAnalyzer:
             self._error("Invalid binary operation", node)
             return HexenType.UNKNOWN
 
-        # Analyze operands with context
+        # Analyze operands (with context if provided)
         left_type = self._analyze_expression(left, target_type)
         right_type = self._analyze_expression(right, target_type)
 
         if left_type == HexenType.UNKNOWN or right_type == HexenType.UNKNOWN:
             return HexenType.UNKNOWN
 
-        # Handle division operators specifically
+        # Always handle division operators first
         if operator in ["/", "\\"]:
             return self._analyze_division_operation(
                 operator, left_type, right_type, node, target_type
             )
 
-        # For mixed type operations, require explicit type annotation
-        if is_mixed_type_operation(left_type, right_type):
-            if not target_type:
-                self._error(
-                    "Mixed type operations require explicit type annotation", node
+        # (If no target_type is provided) inspect the operation (operator, left_type, right_type) and (if applicable) emit a granular error (as per BINARY_OPS.md) for missing type annotation.
+        if target_type is None:
+            # Explicitly check for mixed integer types (e.g., i32 + i64)
+            if (
+                is_integer_type(left_type)
+                and is_integer_type(right_type)
+                and left_type != right_type
+            ):
+                self._emit_missing_type_annotation_error(
+                    "Mixed concrete types require explicit result type", node
+                )
+                return HexenType.UNKNOWN
+            if is_mixed_type_operation(left_type, right_type):
+                self._emit_missing_type_annotation_error(
+                    "Mixed comptime types require explicit result type", node
+                )
+                return HexenType.UNKNOWN
+            if is_float_type(left_type) and is_float_type(right_type):
+                self._emit_missing_type_annotation_error(
+                    "comptime_float operations require explicit result type", node
                 )
                 return HexenType.UNKNOWN
 
-        # For other arithmetic operations, use standard type resolution
+        # (If a target_type is provided (or if no granular error was emitted) then proceed as before.)
         return self._resolve_binary_operation_type(
             operator, left_type, right_type, target_type
         )
@@ -156,7 +171,7 @@ class BinaryOpsAnalyzer:
         # Check for float operands
         if is_float_type(left_type) or is_float_type(right_type):
             self._error(
-                "Integer division (\\\\) cannot be used with float operands", node
+                "Integer division (\\) cannot be used with float operands", node
             )
             return HexenType.UNKNOWN
 
@@ -207,3 +222,7 @@ class BinaryOpsAnalyzer:
         This is a wrapper around the main analyzer's _analyze_expression method.
         """
         return self._analyze_expression(node, target_type)
+
+    def _emit_missing_type_annotation_error(self, message: str, node: Dict) -> None:
+        """Helper to emit a granular error (as per BINARY_OPS.md) for missing type annotation."""
+        self._error(message, node)

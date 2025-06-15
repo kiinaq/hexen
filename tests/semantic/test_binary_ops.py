@@ -304,32 +304,56 @@ class TestBinaryOperationErrors:
         self.parser = HexenParser()
         self.analyzer = SemanticAnalyzer()
 
-    # def test_missing_type_annotation(self):
-    #     """Test missing type annotations for operations requiring them"""
-    #     source = """
-    #     func test() : void = {
-    #         // Float division requires explicit type
-    #         val div1 = 10 / 3              // Error: Float division requires explicit result type
-    #
-    #         // Mixed comptime types require explicit type
-    #         val add1 = 42 + 3.14           // Error: Mixed comptime types require explicit result type
-    #
-    #         // Mixed concrete types require explicit type
-    #         val a : i32 = 10
-    #         val b : i64 = 20
-    #         val add2 = a + b               // Error: Mixed concrete types require explicit result type
-    #
-    #         // Float operations require explicit type
-    #         val add3 = 3.14 + 2.71         // Error: comptime_float operations require explicit result type
-    #     }
-    #     """
-    #     ast = self.parser.parse(source)
-    #     errors = self.analyzer.analyze(ast)
-    #     assert len(errors) == 4
-    #     assert any("Float division requires explicit result type" in e.message for e in errors)
-    #     assert any("Mixed comptime types require explicit result type" in e.message for e in errors)
-    #     assert any("Mixed concrete types require explicit result type" in e.message for e in errors)
-    #     assert any("comptime_float operations require explicit result type" in e.message for e in errors)
+    def test_missing_type_annotation(self):
+        """Test missing type annotations for operations requiring them"""
+        source = """
+        func test() : void = {
+            // Float division requires explicit type
+            val div1 = 10 / 3              // Error: Float division requires explicit result type
+
+            // Mixed comptime types require explicit type
+            val add1 = 42 + 3.14           // Error: Mixed comptime types require explicit result type
+
+            // Mixed concrete types require explicit type
+            val a : i32 = 10
+            val b : i64 = 20
+            val add2 = a + b               // Error: Mixed concrete types require explicit result type
+
+            // Float operations require explicit type
+            val add3 = 3.14 + 2.71         // Error: comptime_float operations require explicit result type
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+        print("[DEBUG] Errors:", [e.message for e in errors])
+        assert len(errors) == 8, "Expected 8 errors (4 granular + 4 infer errors)"
+        assert any(
+            "Float division requires explicit result type" in e.message for e in errors
+        ), "Missing granular error for div1"
+        assert any(
+            "Mixed comptime types require explicit result type" in e.message
+            for e in errors
+        ), "Missing granular error for add1"
+        assert any(
+            "Mixed concrete types require explicit result type" in e.message
+            for e in errors
+        ), "Missing granular error for add2"
+        assert any(
+            "comptime_float operations require explicit result type" in e.message
+            for e in errors
+        ), "Missing granular error for add3"
+        assert any(
+            "Cannot infer type for variable 'div1'" in e.message for e in errors
+        ), "Missing infer error for div1"
+        assert any(
+            "Cannot infer type for variable 'add1'" in e.message for e in errors
+        ), "Missing infer error for add1"
+        assert any(
+            "Cannot infer type for variable 'add2'" in e.message for e in errors
+        ), "Missing infer error for add2"
+        assert any(
+            "Cannot infer type for variable 'add3'" in e.message for e in errors
+        ), "Missing infer error for add3"
 
     def test_invalid_integer_division(self):
         """Test invalid integer division operations"""
@@ -347,13 +371,14 @@ class TestBinaryOperationErrors:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
+        print("[DEBUG] Errors:", [e.message for e in errors])
         assert len(errors) == 6  # 3 integer division errors + 3 type inference errors
 
         # Check for integer division errors
         division_errors = [e for e in errors if "Integer division" in e.message]
         assert len(division_errors) == 3
         assert all(
-            "Integer division (\\\\) cannot be used with float operands" in e.message
+            "Integer division (\) cannot be used with float operands" in e.message
             for e in division_errors
         )
 
