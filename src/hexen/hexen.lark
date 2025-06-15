@@ -33,7 +33,8 @@ equality: relational (EQ_OP relational)*
 relational: additive (REL_OP additive)*
 additive: multiplicative (ADD_OP multiplicative)*
 multiplicative: unary (MUL_OP unary)*
-unary: (UNARY_OP)? primary
+unary: UNARY_OP unary
+     | primary
 primary: NUMBER | STRING | BOOLEAN | IDENTIFIER | block | "(" expression ")"
 
 OR_OP: "||"
