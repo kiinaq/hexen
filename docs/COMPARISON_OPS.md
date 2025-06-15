@@ -15,54 +15,61 @@ Hexen's comparison and logical operations system follows the same **"Explicit Da
 
 2. **Comptime Type Foundation**: 
    - All literals start as comptime types
-   - Comparison operations preserve comptime types when possible
-   - Context guides resolution to concrete types
+   - Comparison operations preserve comptime types when comparing same types
+   - No automatic type promotion or conversion
    - Clear, predictable semantics
 
 3. **Type-Safe Comparisons**:
-   - Only comparable types can be compared
-   - Mixed numeric types follow comptime promotion rules
+   - Only identical types can be compared directly
+   - No automatic type promotion or conversion
+   - Mixed types require explicit type handling
    - No comparison between fundamentally different types
+   - Attempting to compare different types results in a compiler error
 
 ## Comparison Operations
 
 ### Basic Comparisons
 
-Comparison operators produce boolean results and follow our comptime type system:
+Comparison operators produce boolean results and follow strict type matching:
 
 ```hexen
-// Comptime integer comparisons
+// Same type comparisons - comptime types preserved
 val result1 : bool = 10 < 20            // comptime_int < comptime_int → bool
 val result2 : bool = 42 == 42           // comptime_int == comptime_int → bool
 
-// Comptime float comparisons
+// Same type float comparisons
 val result3 : bool = 3.14 > 2.71        // comptime_float > comptime_float → bool
 val result4 : bool = 3.14 == 3.14       // comptime_float == comptime_float → bool
 
-// String comparisons
+// Same type string comparisons
 val result5 : bool = "hello" == "world" // string == string → bool
+
+// Same concrete type comparisons
+val a : i32 = 10
+val b : i32 = 20
+val result6 : bool = a < b              // i32 < i32 → bool
 ```
 
 ### Mixed-Type Comparisons
 
-Mixed-type comparisons follow our comptime promotion rules:
+Mixed-type comparisons require explicit type handling:
 
 ```hexen
 val int_val : i32 = 10
 val float_val : f64 = 10.0
 
-// Comptime with concrete types
-val comparison1 : bool = int_val < 42              // i32 < comptime_int → bool
-val comparison2 : bool = 3.14 > float_val          // comptime_float > f64 → bool
+// ❌ Type error - cannot compare different types directly
+// val comparison1 : bool = int_val < float_val       // Error: Cannot compare i32 and f64
+// val comparison2 : bool = 42 > 3.14                 // Error: Cannot compare comptime_int and comptime_float
 
-// Mixed concrete types
-val comparison3 : bool = int_val < float_val       // i32 < f64 → bool (comptime_float adapts to f64)
-val comparison4 : bool = 42 > 3.14                 // comptime_int > comptime_float → bool
+// ✅ Valid: Explicit type conversion required
+val comparison1 : bool = (int_val : f64) < float_val  // Explicit conversion to f64
+val comparison2 : bool = (42 : f64) > 3.14            // Explicit conversion to f64
 
 // ❌ Type error - cannot compare different fundamental types
 val str_val : string = "hello"
 val int_val : i32 = 42
-// val invalid = str_val == int_val                // Error: Cannot compare string and i32
+// val invalid = str_val == int_val                   // Error: Cannot compare string and i32
 ```
 
 ### Comparison Operator Precedence
@@ -101,16 +108,17 @@ Logical operators work exclusively with boolean values and follow strict type ru
 
 2. **Comparison Results**:
    - Comparison operators produce boolean results
-   - Mixed type comparisons follow comptime promotion rules
+   - Only identical types can be compared
+   - Mixed types require explicit conversion
    ```hexen
    val int_val : i32 = 10
    val float_val : f64 = 10.0
    
-   // ✅ Valid: comptime_float adapts to f64 for comparison
-   val comparison1 : bool = int_val < float_val
+   // ❌ Invalid: Cannot compare different types
+   // val comparison1 = int_val < float_val        // Error: Cannot compare i32 and f64
    
-   // ✅ Valid: comptime_int adapts to f64 for comparison
-   val comparison2 : bool = 42 > 3.14
+   // ✅ Valid: Explicit type conversion
+   val comparison1 : bool = (int_val : f64) < float_val
    
    // ❌ Invalid: Cannot compare different fundamental types
    val str_val : string = "hello"
@@ -125,7 +133,7 @@ val and_result : bool = true && false   // bool && bool → bool
 val or_result : bool = true || false    // bool || bool → bool
 val not_result : bool = !true           // !bool → bool
 
-// Complex boolean expressions
+// Complex boolean expressions with explicit type handling
 val age : i32 = 25
 val has_license : bool = true
 val has_car : bool = false
@@ -177,7 +185,7 @@ val result3 : bool = age >= 18 && has_license || age < 18 && !has_license
 ```hexen
 mut status : bool = false
 
-// Safe assignments - comptime types adapt to context
+// Safe assignments - boolean expressions only
 status = true                          // bool → bool
 status = age >= 18 && has_license      // bool → bool
 
@@ -194,23 +202,23 @@ status = !status || (age < 18 && has_license)
 
 ### Expression Analysis with Context
 
-The semantic analyzer should handle comparison and logical operations following our comptime system:
+The semantic analyzer should handle comparison and logical operations following our strict type system:
 
 ```python
 def _analyze_comparison(self, node: Dict, target_type: Optional[HexenType] = None) -> HexenType:
-    """Analyze comparison operation with optional target type context."""
+    """Analyze comparison operation with strict type checking."""
     
 def _analyze_logical_operation(self, node: Dict, target_type: Optional[HexenType] = None) -> HexenType:
-    """Analyze logical operation with context-guided type resolution."""
+    """Analyze logical operation with strict boolean type checking."""
 ```
 
 ### Type Resolution Rules
 
 1. **Comparison Operations**:
-   - Start with comptime types for literals
-   - Apply comptime promotion rules for mixed types
+   - Only identical types can be compared directly
+   - No automatic type promotion or conversion
+   - Mixed types require explicit conversion
    - Always produce boolean result
-   - Require comparable types
 
 2. **Logical Operations**:
    - Require boolean operands
@@ -219,17 +227,17 @@ def _analyze_logical_operation(self, node: Dict, target_type: Optional[HexenType
    - Follow short-circuit evaluation
 
 3. **Assignment Context**:
-   - Target type guides expression resolution
-   - Comptime types adapt to boolean context
+   - Target type must be bool for logical operations
    - No implicit coercion to boolean
+   - Explicit type conversion required for mixed types
 
 ## Benefits
 
 ### Developer Experience
 
 1. **Ergonomic**: Common boolean operations work seamlessly
-2. **Predictable**: Same context pattern applies everywhere
-3. **Safe**: No implicit boolean coercion
+2. **Predictable**: Strict type rules apply everywhere
+3. **Safe**: No implicit type coercion
 4. **Consistent**: One mental model for all operations
 
 ### Type Safety
@@ -237,7 +245,7 @@ def _analyze_logical_operation(self, node: Dict, target_type: Optional[HexenType
 1. **Compile-time validation**: All type compatibility checked at compile time
 2. **No silent bugs**: Ambiguous operations cause compilation errors
 3. **Clear semantics**: Boolean operations are always explicit
-4. **Context clarity**: Assignment target type makes intent clear
+4. **Type clarity**: Explicit type conversion makes intent clear
 
 ### Future-Proof Design
 
