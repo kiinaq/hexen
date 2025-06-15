@@ -271,30 +271,31 @@ class TestAssignmentContext:
         errors = self.analyzer.analyze(ast)
         assert errors == []
 
-    # def test_precision_loss_without_annotation(self):
-    #     """Test precision loss without explicit type annotation"""
-    #     source = """
-    #     func test() : void = {
-    #         val a : i64 = 0xFFFFFFFF
-    #         val b : f64 = 3.14159265359
-    #
-    #         mut i32_var : i32 = 0
-    #         mut f32_var : f32 = 0.0
-    #
-    #         // Potential truncation without type annotation
-    #         i32_var = a                    // Error: Potential truncation, add ': i32'
-    #         i32_var = (a + b) : i32        // Mixed types with potential truncation, explicit type
-    #
-    #         // Potential precision loss without type annotation
-    #         f32_var = b                    // Error: Potential precision loss, add ': f32'
-    #         f32_var = (a + b) : f32        // Mixed types with potential precision loss, explicit type
-    #     }
-    #     """
-    #     ast = self.parser.parse(source)
-    #     errors = self.analyzer.analyze(ast)
-    #     assert len(errors) == 2
-    #     assert any("Potential truncation" in e.message for e in errors)
-    #     assert any("Potential precision loss" in e.message for e in errors)
+    def test_precision_loss_without_annotation(self):
+        """Test precision loss without explicit type annotation"""
+        source = """
+        func test() : void = {
+            val a : i64 = 1234567890123456789  // Large i64 value in decimal
+            val b : f64 = 3.14159265359
+
+            mut i32_var : i32 = 0
+            mut f32_var : f32 = 0.0
+
+            // Potential truncation without type annotation
+            i32_var = a                    // Error: Potential truncation, add ': i32'
+            i32_var = (a + b) : i32        // Mixed types with potential truncation, explicit type
+
+            // Potential precision loss without type annotation
+            f32_var = b                    // Error: Potential precision loss, add ': f32'
+            f32_var = (a + b) : f32        // Mixed types with potential precision loss, explicit type
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+        print("\n[DEBUG] Actual errors:", [e.message for e in errors])  # Debug print
+        assert len(errors) == 2
+        assert any("Potential truncation" in e.message for e in errors)
+        assert any("Potential precision loss" in e.message for e in errors)
 
 
 class TestBinaryOperationErrors:
@@ -392,28 +393,3 @@ class TestBinaryOperationErrors:
             )
             for e in type_errors
         )
-
-    # def test_precision_loss_without_annotation(self):
-    #     """Test precision loss without explicit type annotation"""
-    #     source = """
-    #     func test() : void = {
-    #         val a : i64 = 0xFFFFFFFF + 1
-    #         val b : f64 = 3.14159265359
-    #
-    #         mut i32_var : i32 = 0
-    #         mut f32_var : f32 = 0.0
-    #
-    #         // Potential truncation without type annotation
-    #         i32_var = a                    // Error: Potential truncation, add ': i32'
-    #         i32_var = a + b                // Error: Mixed types with potential truncation, add ': i32'
-    #
-    #         // Potential precision loss without type annotation
-    #         f32_var = b                    // Error: Potential precision loss, add ': f32'
-    #         f32_var = a + b                // Error: Mixed types with potential precision loss, add ': f32'
-    #     }
-    #     """
-    #     ast = self.parser.parse(source)
-    #     errors = self.analyzer.analyze(ast)
-    #     assert len(errors) == 4
-    #     assert any("Potential truncation" in e.message for e in errors)
-    #     assert any("Potential precision loss" in e.message for e in errors)

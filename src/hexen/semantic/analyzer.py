@@ -351,6 +351,34 @@ class SemanticAnalyzer:
 
         # Check type compatibility with coercion
         if value_type != HexenType.UNKNOWN:
+            # --- Truncation/Precision Loss Detection ---
+            # Only check if the assignment value is NOT a type_annotated_expression
+            if value.get("type") != "type_annotated_expression":
+                # Integer truncation: assigning i64 to i32
+                if value_type == HexenType.I64 and symbol.type == HexenType.I32:
+                    self._error(
+                        "Potential truncation, add ': i32' to acknowledge", node
+                    )
+                    return
+                # Float precision loss: assigning f64 to f32
+                elif value_type == HexenType.F64 and symbol.type == HexenType.F32:
+                    self._error(
+                        "Potential precision loss, add ': f32' to acknowledge", node
+                    )
+                    return
+                # Mixed int/float: assigning f64 or i64 to i32, or f64 to f32
+                elif value_type == HexenType.F64 and symbol.type == HexenType.I32:
+                    self._error(
+                        "Potential truncation, add ': i32' to acknowledge", node
+                    )
+                    return
+                elif value_type == HexenType.I64 and symbol.type == HexenType.F32:
+                    self._error(
+                        "Potential precision loss, add ': f32' to acknowledge", node
+                    )
+                    return
+
+            # Check type compatibility with coercion after truncation/precision loss checks
             if not can_coerce(value_type, symbol.type):
                 self._error(
                     f"Type mismatch in assignment: variable '{target_name}' is {symbol.type.value}, "
