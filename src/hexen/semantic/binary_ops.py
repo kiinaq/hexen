@@ -87,19 +87,9 @@ class BinaryOpsAnalyzer:
 
         # (If no target_type is provided) inspect the operation (operator, left_type, right_type) and (if applicable) emit a granular error (as per BINARY_OPS.md) for missing type annotation.
         if target_type is None:
-            # Explicitly check for mixed integer types (e.g., i32 + i64)
-            if (
-                is_integer_type(left_type)
-                and is_integer_type(right_type)
-                and left_type != right_type
-            ):
-                self._emit_missing_type_annotation_error(
-                    "Mixed concrete types require explicit result type", node
-                )
-                return HexenType.UNKNOWN
             if is_mixed_type_operation(left_type, right_type):
                 self._emit_missing_type_annotation_error(
-                    "Mixed comptime types require explicit result type", node
+                    "Mixed types require explicit result type", node
                 )
                 return HexenType.UNKNOWN
             if is_float_type(left_type) and is_float_type(right_type):

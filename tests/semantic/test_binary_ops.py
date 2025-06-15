@@ -331,12 +331,10 @@ class TestBinaryOperationErrors:
             "Float division requires explicit result type" in e.message for e in errors
         ), "Missing granular error for div1"
         assert any(
-            "Mixed comptime types require explicit result type" in e.message
-            for e in errors
+            "Mixed types require explicit result type" in e.message for e in errors
         ), "Missing granular error for add1"
         assert any(
-            "Mixed concrete types require explicit result type" in e.message
-            for e in errors
+            "Mixed types require explicit result type" in e.message for e in errors
         ), "Missing granular error for add2"
         assert any(
             "comptime_float operations require explicit result type" in e.message
