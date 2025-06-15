@@ -52,7 +52,7 @@ val result6 : bool = a < b              // i32 < i32 → bool
 
 ### Mixed-Type Comparisons
 
-Mixed-type comparisons require explicit type handling:
+Mixed-type comparisons require explicit type handling at the expression level:
 
 ```hexen
 val int_val : i32 = 10
@@ -62,14 +62,17 @@ val float_val : f64 = 10.0
 // val comparison1 : bool = int_val < float_val       // Error: Cannot compare i32 and f64
 // val comparison2 : bool = 42 > 3.14                 // Error: Cannot compare comptime_int and comptime_float
 
-// ✅ Valid: Explicit type conversion required
-val comparison1 : bool = (int_val : f64) < float_val  // Explicit conversion to f64
-val comparison2 : bool = (42 : f64) > 3.14            // Explicit conversion to f64
+// ✅ Valid: Explicit type conversion at expression level
+val comparison1 : bool = int_val < float_val : f64    // Promote to f64 (right operand's type)
+val comparison2 : bool = int_val < float_val : i32    // Promote to i32 (left operand's type)
+val comparison3 : bool = 42 > 3.14 : f64             // Promote to f64 (right operand's type)
+val comparison4 : bool = 42 > 3.14 : comptime_int    // Promote to comptime_int (left operand's type)
 
 // ❌ Type error - cannot compare different fundamental types
 val str_val : string = "hello"
 val int_val : i32 = 42
 // val invalid = str_val == int_val                   // Error: Cannot compare string and i32
+// val also_invalid = str_val == int_val : string     // Error: Cannot convert i32 to string
 ```
 
 ### Comparison Operator Precedence
@@ -108,8 +111,8 @@ Logical operators work exclusively with boolean values and follow strict type ru
 
 2. **Comparison Results**:
    - Comparison operators produce boolean results
-   - Only identical types can be compared
-   - Mixed types require explicit conversion
+   - Only identical types can be compared directly
+   - Mixed types require explicit type conversion at expression level
    ```hexen
    val int_val : i32 = 10
    val float_val : f64 = 10.0
@@ -117,12 +120,14 @@ Logical operators work exclusively with boolean values and follow strict type ru
    // ❌ Invalid: Cannot compare different types
    // val comparison1 = int_val < float_val        // Error: Cannot compare i32 and f64
    
-   // ✅ Valid: Explicit type conversion
-   val comparison1 : bool = (int_val : f64) < float_val
+   // ✅ Valid: Explicit type conversion at expression level
+   val comparison1 : bool = int_val < float_val : f64    // Promote to f64 (right operand's type)
+   val comparison2 : bool = int_val < float_val : i32    // Promote to i32 (left operand's type)
    
    // ❌ Invalid: Cannot compare different fundamental types
    val str_val : string = "hello"
    // val invalid = str_val == int_val            // Error: Cannot compare string and i32
+   // val also_invalid = str_val == int_val : string  // Error: Cannot convert i32 to string
    ```
 
 ### Basic Logical Operations
