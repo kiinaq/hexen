@@ -88,12 +88,10 @@ class BinaryOpsAnalyzer:
         # (If no target_type is provided) inspect the operation (operator, left_type, right_type) and (if applicable) emit a granular error (as per BINARY_OPS.md) for missing type annotation.
         if target_type is None:
             if is_mixed_type_operation(left_type, right_type):
-                self._emit_missing_type_annotation_error(
-                    "Mixed types require explicit result type", node
-                )
+                self._error("Mixed types require explicit result type", node)
                 return HexenType.UNKNOWN
             if is_float_type(left_type) and is_float_type(right_type):
-                self._emit_missing_type_annotation_error(
+                self._error(
                     "comptime_float operations require explicit result type", node
                 )
                 return HexenType.UNKNOWN
@@ -148,9 +146,7 @@ class BinaryOpsAnalyzer:
         """Analyze float division operation."""
         # If no target type is provided, emit error about requiring explicit type
         if target_type is None and node is not None:
-            self._emit_missing_type_annotation_error(
-                "Float division requires explicit result type", node
-            )
+            self._error("Float division requires explicit result type", node)
             return HexenType.UNKNOWN
 
         # Convert operands to float types
@@ -222,7 +218,3 @@ class BinaryOpsAnalyzer:
         This is a wrapper around the main analyzer's _analyze_expression method.
         """
         return self._analyze_expression(node, target_type)
-
-    def _emit_missing_type_annotation_error(self, message: str, node: Dict) -> None:
-        """Helper to emit a granular error (as per BINARY_OPS.md) for missing type annotation."""
-        self._error(message, node)
