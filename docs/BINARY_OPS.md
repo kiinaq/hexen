@@ -162,7 +162,7 @@ val as_f64 : f64 = a + b        // i32 + i64 → comptime_int (adapts to f64 con
 
 ### 3. Mutable Assignment with Precision Loss
 
-When reassigning to a mutable variable with potential precision loss, explicit type annotation is required:
+When reassigning to a mutable variable with potential precision loss, explicit type annotation is required. The type annotation MUST match the mutable variable's declared type - it is not a conversion but an explicit acknowledgment of the operation:
 
 ```hexen
 mut counter : i32 = 0
@@ -173,15 +173,20 @@ counter = 42                          // comptime_int (adapts to i32 context)
 counter = 10 + 20                     // comptime_int + comptime_int → comptime_int (adapts to i32 context)
 precise = 3.14                        // comptime_float (adapts to f32 context)
 
-// ❌ Error: Potential precision loss/truncation - requires explicit type annotation
-// counter = some_i64                  // Error: Potential truncation, add ': i32' to acknowledge
-// counter = some_i64 + some_f64       // Error: Mixed types with potential truncation, add ': i32'
-// precise = 3.14159265359             // Error: Potential precision loss, add ': f32'
+// ❌ Error: Type annotation must match mutable variable's type
+// counter = some_i64 : i64              // Error: Type annotation must match mutable variable's type (i32)
+// counter = some_i64 + some_f64 : f64   // Error: Type annotation must match mutable variable's type (i32)
+// precise = 3.14159265359 : f64         // Error: Type annotation must match mutable variable's type (f32)
 
-// ✅ Explicit acknowledgment of precision loss/truncation
-counter = some_i64 : i32              // Explicit: "I know this might truncate"
-counter = some_i64 + some_f64 : i32   // Explicit: "I know this might truncate"
-precise = 3.14159265359 : f32         // Explicit: "I know this will lose precision"
+// ❌ Error: Potential precision loss/truncation - requires explicit type annotation
+// counter = some_i64                     // Error: Potential truncation, add ': i32' to acknowledge
+// counter = some_i64 + some_f64          // Error: Mixed types with potential truncation, add ': i32'
+// precise = 3.14159265359                // Error: Potential precision loss, add ': f32'
+
+// ✅ Explicit acknowledgment of precision loss/truncation (type matches mutable variable)
+counter = some_i64 : i32              // Explicit: "I know this might truncate to i32"
+counter = some_i64 + some_f64 : i32   // Explicit: "I know this might truncate to i32"
+precise = 3.14159265359 : f32         // Explicit: "I know this will lose precision to f32"
 ```
 
 ### 4. Comptime Type Resolution Rules
@@ -477,15 +482,15 @@ precise = 3.14                        // comptime_float adapts to f32 context
 precise = some_i32 + some_f64         // comptime_float adapts to f32 context
 counter = some_i32 + 42               // comptime_int adapts to i32 context
 
-// ❌ Error: Potential precision loss/truncation - requires explicit type annotation
-// counter = some_i64                  // Error: Potential truncation, add ': i32' to acknowledge
-// counter = some_i64 + some_f64       // Error: Mixed types with potential truncation, add ': i32'
-// precise = 3.14159265359             // Error: Potential precision loss, add ': f32'
+// ❌ Error: Type annotation must match mutable variable's type
+// counter = some_i64 : i64              // Error: Type annotation must match mutable variable's type (i32)
+// counter = some_i64 + some_f64 : f64   // Error: Type annotation must match mutable variable's type (i32)
+// precise = 3.14159265359 : f64         // Error: Type annotation must match mutable variable's type (f32)
 
-// ✅ Explicit acknowledgment of precision loss/truncation
-counter = some_i64 : i32              // Explicit: "I know this might truncate"
-counter = some_i64 + some_f64 : i32   // Explicit: "I know this might truncate"
-precise = 3.14159265359 : f32         // Explicit: "I know this will lose precision"
+// ✅ Explicit acknowledgment of precision loss/truncation (type matches mutable variable)
+counter = some_i64 : i32              // Explicit: "I know this might truncate to i32"
+counter = some_i64 + some_f64 : i32   // Explicit: "I know this might truncate to i32"
+precise = 3.14159265359 : f32         // Explicit: "I know this will lose precision to f32"
 ```
 
 #### Type Annotation Precedence
@@ -507,65 +512,54 @@ result = (a + b) * (c + d) : i32      // ((a + b) * (c + d)) : i32
 
 #### When Type Annotations Are Required
 
-The compiler requires explicit type annotations in these cases:
+The compiler requires explicit type annotations in these cases, and the type annotation MUST match the mutable variable's declared type:
 
 1. **Integer Truncation**:
 ```hexen
 mut counter : i32 = 0
-// ❌ Error: Potential truncation
-// counter = some_i64                  // Error: Add ': i32' to acknowledge truncation
-// counter = 0xFFFFFFFF + 1            // Error: Add ': i32' to acknowledge truncation
+// ❌ Error: Type annotation must match mutable variable's type
+// counter = some_i64 : i64              // Error: Type annotation must match mutable variable's type (i32)
+// counter = 0xFFFFFFFF + 1 : i64        // Error: Type annotation must match mutable variable's type (i32)
 
-// ✅ Explicit acknowledgment
-counter = some_i64 : i32              // Explicit truncation
-counter = 0xFFFFFFFF + 1 : i32        // Explicit truncation
+// ❌ Error: Potential truncation without type annotation
+// counter = some_i64                     // Error: Add ': i32' to acknowledge truncation
+// counter = 0xFFFFFFFF + 1               // Error: Add ': i32' to acknowledge truncation
+
+// ✅ Explicit acknowledgment (type matches mutable variable)
+counter = some_i64 : i32              // Explicit truncation to i32
+counter = 0xFFFFFFFF + 1 : i32        // Explicit truncation to i32
 ```
 
 2. **Float Precision Loss**:
 ```hexen
 mut precise : f32 = 0.0
-// ❌ Error: Potential precision loss
-// precise = 3.14159265359             // Error: Add ': f32' to acknowledge precision loss
-// precise = some_f64 * 2.0            // Error: Add ': f32' to acknowledge precision loss
+// ❌ Error: Type annotation must match mutable variable's type
+// precise = 3.14159265359 : f64         // Error: Type annotation must match mutable variable's type (f32)
+// precise = some_f64 * 2.0 : f64        // Error: Type annotation must match mutable variable's type (f32)
 
-// ✅ Explicit acknowledgment
-precise = 3.14159265359 : f32         // Explicit precision loss
-precise = some_f64 * 2.0 : f32        // Explicit precision loss
+// ❌ Error: Potential precision loss without type annotation
+// precise = 3.14159265359                // Error: Add ': f32' to acknowledge precision loss
+// precise = some_f64 * 2.0               // Error: Add ': f32' to acknowledge precision loss
+
+// ✅ Explicit acknowledgment (type matches mutable variable)
+precise = 3.14159265359 : f32         // Explicit precision loss to f32
+precise = some_f64 * 2.0 : f32        // Explicit precision loss to f32
 ```
 
 3. **Mixed Types with Potential Issues**:
 ```hexen
 mut result : i32 = 0
-// ❌ Error: Mixed types with potential truncation
-// result = some_i64 + some_f64        // Error: Add ': i32' to acknowledge truncation
-// result = some_f64 * some_i32        // Error: Add ': i32' to acknowledge truncation
+// ❌ Error: Type annotation must match mutable variable's type
+// result = some_i64 + some_f64 : f64    // Error: Type annotation must match mutable variable's type (i32)
+// result = some_f64 * some_i32 : f64    // Error: Type annotation must match mutable variable's type (i32)
 
-// ✅ Explicit acknowledgment
-result = some_i64 + some_f64 : i32    // Explicit truncation
-result = some_f64 * some_i32 : i32    // Explicit truncation
-```
+// ❌ Error: Mixed types with potential truncation without type annotation
+// result = some_i64 + some_f64           // Error: Add ': i32' to acknowledge truncation
+// result = some_f64 * some_i32           // Error: Add ': i32' to acknowledge truncation
 
-#### Safe Operations (No Annotation Required)
-
-Type annotations are not required for these safe operations where comptime types adapt naturally:
-
-```hexen
-mut counter : i32 = 0
-mut precise : f32 = 0.0
-
-// Safe integer operations
-counter = 42                          // comptime_int adapts to i32 context
-counter = 10 + 20                     // comptime_int + comptime_int → comptime_int adapts to i32 context
-counter = some_i32 + 42               // comptime_int adapts to i32 context
-
-// Safe float operations
-precise = 3.14                        // comptime_float adapts to f32 context
-precise = 2.0 * 3.0                   // comptime_float * comptime_float → comptime_float adapts to f32 context
-precise = some_f32 * 2.0              // comptime_float adapts to f32 context
-
-// Safe mixed types
-precise = some_i32 + some_f32         // comptime_float adapts to f32 context
-precise = some_i32 * 2.0              // comptime_float adapts to f32 context
+// ✅ Explicit acknowledgment (type matches mutable variable)
+result = some_i64 + some_f64 : i32    // Explicit truncation to i32
+result = some_f64 * some_i32 : i32    // Explicit truncation to i32
 ```
 
 #### Mutable Assignment Rules
@@ -574,8 +568,9 @@ precise = some_i32 * 2.0              // comptime_float adapts to f32 context
 2. **Context Priority**: The mutable variable's type provides the primary context for all assignments
 3. **Comptime Adaptation**: Comptime types naturally adapt to the target type's context
 4. **Explicit Precision Loss**: Type annotations are required only when there's potential precision loss or truncation
-5. **Highest Precedence**: When used, type annotations apply to the entire expression
-6. **Predictable Behavior**: The same expression will resolve consistently based on the mutable variable's type
+5. **Type Annotation Match**: Type annotations MUST match the mutable variable's declared type - they are not conversions but explicit acknowledgments
+6. **Highest Precedence**: When used, type annotations apply to the entire expression
+7. **Predictable Behavior**: The same expression will resolve consistently based on the mutable variable's type
 
 ## Grammar Extensions
 
