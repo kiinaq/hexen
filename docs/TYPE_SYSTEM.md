@@ -239,6 +239,160 @@ flexible = 42               // comptime_int → f64 (assignment context)
 
 For detailed rules about assignment context, type annotations, and mixed type operations, see [BINARY_OPS.md](BINARY_OPS.md).
 
+## Reassignment and Type Annotations
+
+### Mutable Variable Reassignment
+
+Mutable variables (`mut`) can be reassigned while maintaining their declared type. The target type provides context for all assignments, and comptime types adapt naturally to this context.
+
+#### Basic Reassignment
+
+```hexen
+// Integer reassignment
+mut counter : i32 = 0
+counter = 42                // comptime_int → i32
+counter = -100             // comptime_int → i32
+counter = 65535            // comptime_int → i32
+
+// Float reassignment
+mut precise : f32 = 0.0
+precise = 3.14             // comptime_float → f32
+precise = -2.5             // comptime_float → f32
+precise = 0.0001           // comptime_float → f32
+
+// String reassignment
+mut message : string = ""
+message = "hello"          // string → string
+message = "world"          // string → string
+
+// Boolean reassignment
+mut flag : bool = false
+flag = true                // bool → bool
+flag = false               // bool → bool
+```
+
+#### Type-Specific Rules
+
+Each type has specific reassignment rules:
+
+```hexen
+// Integer types
+mut small : i32 = 0
+mut large : i64 = 0
+
+// Safe integer reassignments
+small = 42                 // comptime_int → i32
+large = 42                 // comptime_int → i64
+large = 4294967295        // comptime_int → i64
+
+// Float types
+mut single : f32 = 0.0
+mut double : f64 = 0.0
+
+// Safe float reassignments
+single = 3.14              // comptime_float → f32
+double = 3.14              // comptime_float → f64
+double = 3.14159265359     // comptime_float → f64
+```
+
+### Type Annotations for Precision Loss
+
+When reassignment might cause precision loss or truncation, explicit type annotations are required. This follows our "Explicit Danger, Implicit Safety" principle.
+
+#### Integer Precision Loss
+
+```hexen
+mut small : i32 = 0
+val large : i64 = 9223372036854775807  // Maximum i64 value
+
+// ❌ Error: Potential truncation
+// small = large                        // Error: Potential truncation, add ': i32' to acknowledge
+
+// ✅ Explicit acknowledgment of truncation
+small = large : i32                    // Explicit: "I know this will truncate"
+small = 9223372036854775807 : i32      // Explicit truncation of literal
+```
+
+#### Float Precision Loss
+
+```hexen
+mut single : f32 = 0.0
+val double : f64 = 3.141592653589793   // More precise than f32 can represent
+
+// ❌ Error: Potential precision loss
+// single = double                      // Error: Potential precision loss, add ': f32' to acknowledge
+
+// ✅ Explicit acknowledgment of precision loss
+single = double : f32                   // Explicit: "I know this will lose precision"
+single = 3.141592653589793 : f32        // Explicit precision loss of literal
+```
+
+#### Mixed Type Precision Loss
+
+```hexen
+mut precise : f32 = 0.0
+val big_int : i64 = 9223372036854775807
+
+// ❌ Error: Mixed types with potential precision loss
+// precise = big_int                    // Error: Mixed types with potential precision loss, add ': f32'
+
+// ✅ Explicit acknowledgment
+precise = big_int : f32                 // Explicit: "I know this will lose precision"
+precise = 9223372036854775807 : f32     // Explicit precision loss of literal
+```
+
+### Type Annotation Rules
+
+1. **Scope**: Type annotations apply to the entire expression
+2. **Precedence**: Type annotations have highest precedence in expressions
+3. **Documentation**: They serve as explicit acknowledgment of precision loss
+4. **Safety**: They prevent accidental precision loss or truncation
+
+```hexen
+mut result : i32 = 0
+val a : i64 = 1000
+val b : f64 = 3.14
+
+// These are equivalent - type annotation applies to whole expression
+result = a : i32                        // (a) : i32
+result = a + b : i32                    // (a + b) : i32
+result = (a + b) : i32                  // ((a + b)) : i32
+
+// Complex expressions with potential precision loss
+result = a * b : i32                    // (a * b) : i32
+result = (a + b) * (a - b) : i32        // ((a + b) * (a - b)) : i32
+```
+
+### Error Messages
+
+Error messages for reassignment follow a consistent pattern, providing clear guidance:
+
+```hexen
+mut small : i32 = 0
+val large : i64 = 9223372036854775807
+
+// ❌ Error messages with guidance
+// small = large
+// Error: Potential truncation in assignment to i32 variable
+// Add ': i32' to explicitly acknowledge truncation
+
+// small = 3.14159
+// Error: Mixed types with potential truncation in assignment to i32 variable
+// Add ': i32' to explicitly acknowledge truncation
+
+// ✅ Following the guidance
+small = large : i32                     // Explicit acknowledgment
+small = 3.14159 : i32                   // Explicit acknowledgment
+```
+
+### Benefits
+
+1. **Type Safety**: All type conversions are explicit and intentional
+2. **Code Clarity**: Type annotations document potential precision loss
+3. **Error Prevention**: Accidental precision loss is caught at compile time
+4. **Maintainability**: Clear documentation of type conversion intent
+5. **Consistency**: Follows the "Explicit Danger, Implicit Safety" principle
+
 ## Uninitialized Variables (`undef`)
 
 ### Philosophy Consistency
