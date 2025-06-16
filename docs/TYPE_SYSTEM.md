@@ -86,7 +86,7 @@ val default_int = 42    // comptime_int (no context, will be i32 in system progr
 val counter = 1000      // comptime_int (no context, will be i32 in system programming)
 
 // Explicit context guides type resolution
-val large_num : i64 = 0xFFFFFFFF + 1  // comptime_int → i64 (explicit context)
+val large_num : i64 = 4294967295 + 1  // comptime_int → i64 (explicit context)
 val precise : f64 = 3.14159265359     // comptime_float → f64 (explicit context)
 ```
 
@@ -297,7 +297,7 @@ double = 3.14159265359     // comptime_float → f64
 
 ### Type Annotations for Precision Loss
 
-When reassignment might cause precision loss or truncation, explicit type annotations are required. This follows our "Explicit Danger, Implicit Safety" principle.
+When reassignment might cause precision loss or truncation, explicit type annotations are required. This follows our "Explicit Danger, Implicit Safety" principle. **Important**: The type annotation must match the mutable variable's declared type - it is not a conversion but an explicit acknowledgment of the variable's type.
 
 #### Integer Precision Loss
 
@@ -307,10 +307,11 @@ val large : i64 = 9223372036854775807  // Maximum i64 value
 
 // ❌ Error: Potential truncation
 // small = large                        // Error: Potential truncation, add ': i32' to acknowledge
+// small = large : i64                  // Error: Type annotation must match variable's type (i32)
 
 // ✅ Explicit acknowledgment of truncation
-small = large : i32                    // Explicit: "I know this will truncate"
-small = 9223372036854775807 : i32      // Explicit truncation of literal
+small = large : i32                    // Explicit: "I know this will truncate to i32"
+small = 9223372036854775807 : i32      // Explicit: "I know this will truncate to i32"
 ```
 
 #### Float Precision Loss
@@ -321,10 +322,11 @@ val double : f64 = 3.141592653589793   // More precise than f32 can represent
 
 // ❌ Error: Potential precision loss
 // single = double                      // Error: Potential precision loss, add ': f32' to acknowledge
+// single = double : f64                // Error: Type annotation must match variable's type (f32)
 
 // ✅ Explicit acknowledgment of precision loss
-single = double : f32                   // Explicit: "I know this will lose precision"
-single = 3.141592653589793 : f32        // Explicit precision loss of literal
+single = double : f32                   // Explicit: "I know this will lose precision to f32"
+single = 3.141592653589793 : f32        // Explicit: "I know this will lose precision to f32"
 ```
 
 #### Mixed Type Precision Loss
@@ -335,32 +337,35 @@ val big_int : i64 = 9223372036854775807
 
 // ❌ Error: Mixed types with potential precision loss
 // precise = big_int                    // Error: Mixed types with potential precision loss, add ': f32'
+// precise = big_int : i64              // Error: Type annotation must match variable's type (f32)
 
 // ✅ Explicit acknowledgment
-precise = big_int : f32                 // Explicit: "I know this will lose precision"
-precise = 9223372036854775807 : f32     // Explicit precision loss of literal
+precise = big_int : f32                 // Explicit: "I know this will lose precision to f32"
+precise = 9223372036854775807 : f32     // Explicit: "I know this will lose precision to f32"
 ```
 
 ### Type Annotation Rules
 
-1. **Scope**: Type annotations apply to the entire expression
-2. **Precedence**: Type annotations have highest precedence in expressions
-3. **Documentation**: They serve as explicit acknowledgment of precision loss
-4. **Safety**: They prevent accidental precision loss or truncation
+1. **Type Match**: Type annotations must match the mutable variable's declared type
+2. **Not Conversion**: Type annotations are not conversions but explicit acknowledgments
+3. **Scope**: Type annotations apply to the entire expression
+4. **Precedence**: Type annotations have highest precedence in expressions
+5. **Documentation**: They serve as explicit acknowledgment of precision loss
+6. **Safety**: They prevent accidental precision loss or truncation
 
 ```hexen
 mut result : i32 = 0
 val a : i64 = 1000
 val b : f64 = 3.14
 
-// These are equivalent - type annotation applies to whole expression
-result = a : i32                        // (a) : i32
-result = a + b : i32                    // (a + b) : i32
-result = (a + b) : i32                  // ((a + b)) : i32
+// ❌ Error: Wrong type annotation
+// result = a : i64                     // Error: Type annotation must match variable's type (i32)
+// result = b : f64                     // Error: Type annotation must match variable's type (i32)
 
-// Complex expressions with potential precision loss
-result = a * b : i32                    // (a * b) : i32
-result = (a + b) * (a - b) : i32        // ((a + b) * (a - b)) : i32
+// ✅ Correct: Type annotation matches variable's type
+result = a : i32                        // Explicit: "I know this will truncate to i32"
+result = b : i32                        // Explicit: "I know this will truncate to i32"
+result = (a + b) : i32                  // Explicit: "I know this will truncate to i32"
 ```
 
 ### Error Messages
@@ -376,13 +381,16 @@ val large : i64 = 9223372036854775807
 // Error: Potential truncation in assignment to i32 variable
 // Add ': i32' to explicitly acknowledge truncation
 
+// small = large : i64
+// Error: Type annotation must match variable's type (i32)
+
 // small = 3.14159
 // Error: Mixed types with potential truncation in assignment to i32 variable
 // Add ': i32' to explicitly acknowledge truncation
 
 // ✅ Following the guidance
-small = large : i32                     // Explicit acknowledgment
-small = 3.14159 : i32                   // Explicit acknowledgment
+small = large : i32                     // Explicit acknowledgment of i32 type
+small = 3.14159 : i32                   // Explicit acknowledgment of i32 type
 ```
 
 ### Benefits
@@ -392,6 +400,7 @@ small = 3.14159 : i32                   // Explicit acknowledgment
 3. **Error Prevention**: Accidental precision loss is caught at compile time
 4. **Maintainability**: Clear documentation of type conversion intent
 5. **Consistency**: Follows the "Explicit Danger, Implicit Safety" principle
+6. **Type Integrity**: Type annotations enforce the mutable variable's declared type
 
 ## Uninitialized Variables (`undef`)
 
