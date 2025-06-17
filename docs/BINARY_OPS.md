@@ -60,8 +60,8 @@ val result1 : i32 = 2 + 3 * 4           // 2 + (3 * 4) = 14
 val result2 : i32 = (2 + 3) * 4         // (2 + 3) * 4 = 20
 
 // Division operators have same precedence level - but different precision!
-val float_precise : i32 = (10 / 3) * 9  // (10 / 3) * 9 = (3.333... * 9) = 30.0 → 30 (preserves precision)
-val int_truncated : i32 = (10 \ 3) * 9  // (10 \ 3) * 9 = (3 * 9) = 27 (early truncation)
+val float_precise : i32 = ((10 / 3) * 9) : i32  // (10 / 3) * 9 = (3.333... * 9) = 30.0 → 30 (explicit truncation)
+val int_truncated : i32 = (10 \ 3) * 9          // (10 \ 3) * 9 = (3 * 9) = 27 (no truncation needed)
 val mixed : f64 = 20 * (3 / 2)          // 20 * (1.5) = 30.0
 
 // Comparison precedence  
@@ -73,92 +73,139 @@ val complex_float : f64 = (a + b) * (c - d) / (e + f)   // Float division
 val complex_int : i32 = (a + b) * (c - d) \ (e + f)     // Integer division
 ```
 
-## Type Resolution Rules
+## How Comptime Types Work in Binary Operations
 
-### 1. Safe Operations (No Context Required)
+### The Foundation: Smart Literal Adaptation
 
-These operations preserve comptime types and resolve automatically:
+Before diving into complex rules, understand that **all binary operations in Hexen start with comptime types**. These "smart literals" adapt to their usage context, creating a consistent and predictable system.
 
-#### Both Comptime Types
 ```hexen
-// Comptime operations preserve comptime types
-val result1 = 42 + 100          // comptime_int + comptime_int → comptime_int
-val result2 = 42 * 100          // comptime_int * comptime_int → comptime_int
-val result3 = 42 \ 100          // comptime_int \ comptime_int → comptime_int
-
-// Float division requires explicit result type (would produce comptime_float)
-// val result4 = 42 / 100       // ❌ Error: Float division requires explicit result type
-
-// ✅ Explicit type annotations make intent clear
-val explicit_float : f64 = 3.14 + 2.71     // comptime_float + comptime_float → f64
-val explicit_div : f64 = 42 / 100          // comptime_int / comptime_int → f64 (float division)
+// Every numeric literal starts as a comptime type
+42        // comptime_int
+3.14      // comptime_float
+-100      // comptime_int
+2.5       // comptime_float
 ```
 
-#### Mixed Comptime Types
-Mixed comptime types require explicit result type (would produce comptime_float):
-```hexen
-// ❌ Mixed comptime types would produce comptime_float → require explicit type
-// val auto_promote1 = 42 + 3.14   // Error: Mixed comptime types require explicit result type
-// val auto_promote2 = 42 * 3.14   // Error: Mixed comptime types require explicit result type
+When these comptime types meet in binary operations, they follow simple, logical rules.
 
-// ✅ Explicit type annotations make intent clear
-val explicit_f64 : f64 = 42 + 3.14  // comptime_int + comptime_float → f64 (full precision)
-val explicit_f32 : f32 = 42 * 3.14  // comptime_int * comptime_float → f32 (reduced precision)
+### Rule 1: Comptime + Comptime = Stay Comptime (When Safe)
+
+When both operands are comptime types, the result **stays comptime** if it's safe and unambiguous:
+
+```hexen
+// ✅ Safe comptime operations - stay comptime until assigned
+val integers = 42 + 100         // comptime_int + comptime_int → comptime_int
+val more_math = 10 * 5          // comptime_int * comptime_int → comptime_int  
+val division = 20 \ 4           // comptime_int \ comptime_int → comptime_int (integer division)
+
+// These become concrete types when assigned
+val small : i32 = integers      // comptime_int → i32
+val large : i64 = integers      // comptime_int → i64 (same literal, different type!)
 ```
 
-#### One Comptime, One Concrete
-The comptime type adapts to the concrete type's context:
-```hexen
-val x : i32 = 10
-val y : f64 = 3.14
+But some operations **would change the comptime type** and need explicit guidance:
 
-val result1 = x + 42            // i32 + comptime_int → comptime_int (adapts to i32 context)
-// val result2 = y + 42         // ❌ Error: f64 + comptime_int requires explicit result type
-val result2 : f64 = y + 42      // f64 + comptime_int → f64 (explicit context)
-// val result3 = x / 2          // ❌ Error: Float division requires explicit result type
-val result4 = x \ 2             // i32 \ comptime_int → comptime_int (adapts to i32 context)
+```hexen
+// ❌ These operations would change comptime type - need explicit target
+// val mixed = 42 + 3.14        // comptime_int + comptime_float would → comptime_float (ambiguous)
+// val float_div = 42 / 3       // comptime_int / comptime_int would → comptime_float (division)
+// val float_ops = 3.14 + 2.71  // comptime_float + comptime_float needs explicit type
+
+// ✅ Explicit type makes intent clear
+val mixed : f64 = 42 + 3.14     // Now we know: want f64 precision
+val float_div : f32 = 42 / 3    // Now we know: want f32 float division
+val float_ops : f64 = 3.14 + 2.71 // Now we know: want f64 precision
 ```
 
-#### Both Same Concrete Type
+### Rule 2: Comptime + Concrete = Comptime Adapts
+
+When a comptime type meets a concrete type, the **comptime type adapts** to the concrete type's "world":
+
+```hexen
+val count : i32 = 100
+val ratio : f64 = 2.5
+
+// Comptime types adapt to the concrete type's context
+val result1 = count + 42        // i32 + comptime_int → comptime_int (in i32 world)
+val result2 = count * 2         // i32 * comptime_int → comptime_int (in i32 world)
+val result3 = count \ 10        // i32 \ comptime_int → comptime_int (in i32 world)
+
+// But float contexts need explicit types (would promote beyond i32)
+// val result4 = ratio + 42     // ❌ f64 + comptime_int needs explicit type
+val result4 : f64 = ratio + 42  // ✅ Explicit: comptime_int adapts to f64 world
+```
+
+### Rule 3: Concrete + Concrete = Need Context (When Mixed)
+
+When two different concrete types meet, **explicit context is required**:
+
+```hexen
+val small : i32 = 10
+val large : i64 = 20
+val precise : f64 = 3.14
+
+// ❌ Ambiguous - which type should win?
+// val mixed1 = small + large   // Error: i32 + i64 needs explicit result type
+// val mixed2 = small + precise // Error: i32 + f64 needs explicit result type
+
+// ✅ Explicit context resolves the ambiguity
+val as_i32 : i32 = small + large   // Both adapt to i32 context
+val as_i64 : i64 = small + large   // Both adapt to i64 context  
+val as_f64 : f64 = small + precise // Both adapt to f64 context
+```
+
+### Rule 4: Same Concrete Types = Stay in Their World
+
+When both operands are the **same concrete type**, they can stay in their world for some operations:
+
 ```hexen
 val a : i32 = 10
 val b : i32 = 20
+
+// ✅ Same concrete types - can stay in i32 world
+val result1 = a + b             // i32 + i32 → comptime_int (in i32 world)
+val result2 = a * b             // i32 * i32 → comptime_int (in i32 world) 
+val result3 = a \ b             // i32 \ i32 → comptime_int (in i32 world)
+
+// But operations that would change precision need explicit type
 val c : f64 = 3.14
 val d : f64 = 2.71
-
-val result1 = a + b             // i32 + i32 → comptime_int (adapts to i32 context)
-// val result2 = c * d          // ❌ Error: f64 * f64 requires explicit result type
-val result2 : f64 = c * d       // f64 * f64 → f64 (explicit context)
-// val result3 = a / b          // ❌ Error: Float division requires explicit result type
-val result4 = a \ b             // i32 \ i32 → comptime_int (adapts to i32 context)
-
-// ✅ Explicit type for float division
-val explicit_div : f64 = a / b  // i32 / i32 → f64 (float division)
+// val result4 = c + d          // ❌ f64 + f64 needs explicit type (precision matters)
+val result4 : f64 = c + d       // ✅ Explicit: stay in f64 world
 ```
 
-### 2. Context-Required Operations
+## Visual Mental Model
 
-Mixed concrete types require explicit target context:
+Think of it like **smart literal adaptation in different "worlds"**:
 
-#### The Problem
-```hexen
-val a : i32 = 10
-val b : i64 = 20
+```
+🌍 i32 World          🌍 i64 World          🌍 f64 World
+┌─────────────┐      ┌─────────────┐      ┌─────────────┐
+│   10 + 42   │      │   10 + 42   │      │   10 + 42   │
+│      ↓      │      │      ↓      │      │      ↓      │
+│  comptime   │      │  comptime   │      │  comptime   │  
+│   adapts    │      │   adapts    │      │   adapts    │
+│   to i32    │      │   to i64    │      │   to f64    │
+└─────────────┘      └─────────────┘      └─────────────┘
 
-// ❌ Ambiguous - which type should win?
-// val result = a + b              // Error: "Mixed-type operation 'i32 + i64' requires explicit result type"
+// Same literals, different worlds, different results!
+val small : i32 = 10 + 42    // comptime → i32
+val large : i64 = 10 + 42    // comptime → i64  
+val float : f64 = 10 + 42    // comptime → f64
 ```
 
-#### The Solution - Explicit Context
-```hexen
-val a : i32 = 10
-val b : i64 = 20
+## Type Resolution Rules Summary
 
-// ✅ Context provides resolution
-val as_i32 : i32 = a + b        // i32 + i64 → comptime_int (adapts to i32 context)
-val as_i64 : i64 = a + b        // i32 + i64 → comptime_int (adapts to i64 context)
-val as_f64 : f64 = a + b        // i32 + i64 → comptime_int (adapts to f64 context)
-```
+### ✅ **Safe Operations (No Explicit Type Needed)**
+1. **comptime + comptime** → stays comptime (when safe)
+2. **comptime + concrete** → comptime adapts to concrete's world
+3. **same concrete + same concrete** → stay in their world (when safe)
+
+### ⚠️ **Context-Required Operations (Need Explicit Type)**
+1. **comptime + comptime** → would change comptime type
+2. **different concrete + different concrete** → ambiguous without context
+3. **any operation** → would promote beyond current precision
 
 ### 3. Mutable Assignment with Precision Loss
 
@@ -187,6 +234,15 @@ precise = 3.14                        // comptime_float (adapts to f32 context)
 counter = some_i64 : i32              // Explicit: "I know this might truncate to i32"
 counter = some_i64 + some_f64 : i32   // Explicit: "I know this might truncate to i32"
 precise = 3.14159265359 : f32         // Explicit: "I know this will lose precision to f32"
+
+// 🎯 Critical Rule: Type annotation ONLY allowed with explicit left side type
+// ❌ FORBIDDEN: Type annotation without explicit left side type
+// val result = mixed_expr : i32        // Error: No explicit left side type to match
+// mut temp = large_value : i64         // Error: No explicit left side type to match
+
+// ✅ CORRECT: Must have explicit type on left side
+// val result : i32 = mixed_expr : i32  // Both sides have i32 - explicit acknowledgment
+// mut temp : i64 = large_value : i64   // Both sides have i64 - explicit acknowledgment
 ```
 
 ### 4. Comptime Type Resolution Rules

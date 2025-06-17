@@ -48,105 +48,174 @@ This same pattern extends to binary operations and mixed-type expressions.
 
 ## Comptime Type System
 
-### Core Concept
+### The Problem: Literal Type Ambiguity
 
-Integer and float literals have special "comptime" types that adapt to their usage context, eliminating the need for literal suffixes while maintaining type safety. This design follows Hexen's core principles:
+In most systems programming languages, numeric literals face a fundamental problem:
 
-- **Clean**: One clear default type (i32) for system programming
-- **Ergonomic**: No need for type suffixes, but explicit when needed
-- **Logic**: Natural progression from comptime to concrete types
-- **Pragmatic**: Optimized for the most common system programming needs
+```c
+// C/C++ - requires explicit suffixes or casting
+int32_t a = 42;        // OK, but what if we want i64?
+int64_t b = 42L;       // Requires suffix
+float c = 42.0f;       // Requires suffix
+double d = 42.0;       // OK, but inconsistent with int
 
-### Default Type Resolution
-
-The comptime type system provides a foundation for context-guided type resolution:
-
-1. **System Programming Efficiency**
-   - Comptime types adapt to their usage context
-   - When no context is provided, `i32` is often the most efficient choice for system programming
-   - This matches the natural word size of most modern systems
-   - Aligns with system call interfaces and memory layouts
-   - Balances range with memory efficiency
-
-2. **Clean Design**
-   - Comptime types eliminate choice paralysis
-   - No need to remember multiple default types
-   - Consistent behavior across all literals
-   - Predictable performance characteristics through context
-
-3. **Explicit Promotion**
-   - When wider range is needed, explicit type annotation required
-   - Makes performance implications visible in the code
-   - Encourages conscious decisions about integer width
-   - Prevents accidental use of wider types
-
-```hexen
-// Comptime types adapt to context
-val default_int = 42    // comptime_int (no context, will be i32 in system programming)
-val counter = 1000      // comptime_int (no context, will be i32 in system programming)
-
-// Explicit context guides type resolution
-val large_num : i64 = 4294967295 + 1  // comptime_int → i64 (explicit context)
-val precise : f64 = 3.14159265359     // comptime_float → f64 (explicit context)
+// Rust - requires explicit types or suffixes
+let a: i32 = 42;       // OK, but what if we want i64?
+let b = 42i64;         // Requires suffix
+let c = 42.0f32;       // Requires suffix
 ```
 
-### Literal Type Inference
+This creates three problems:
+1. **Suffix Hell**: Remembering and typing suffixes for every literal
+2. **Inflexibility**: Hard to change types without updating all literals
+3. **Inconsistency**: Different rules for integers vs floats
+
+### The Solution: Context-Adaptive Literals
+
+Hexen solves this with **comptime types** - special types that literals have initially, which then adapt to their usage context:
 
 ```hexen
-// Integer literals become comptime_int
-val a = 42              // comptime_int literal
-val b = -123            // comptime_int literal  
-val c = 0               // comptime_int literal
-
-// Float literals become comptime_float
-val x = 3.14            // comptime_float literal
-val y = -2.5            // comptime_float literal
-val z = 0.0             // comptime_float literal
+// ✨ Same literal, different contexts, no suffixes needed
+val small : i32 = 42    // 42 is comptime_int → becomes i32
+val large : i64 = 42    // 42 is comptime_int → becomes i64  
+val precise : f64 = 42  // 42 is comptime_int → becomes f64
+val single : f32 = 3.14 // 3.14 is comptime_float → becomes f32
+val double : f64 = 3.14 // 3.14 is comptime_float → becomes f64
 ```
 
-### Context-Dependent Resolution
+### How Comptime Types Work
 
-The comptime system allows the same literal to become different types based on context:
+#### Step 1: Literal Parsing
+When the parser encounters a literal, it assigns a **comptime type**:
 
 ```hexen
-// Same literal, different target types - guided by context
-val as_i32 : i32 = 42   // comptime_int → i32 (context-guided)
-val as_i64 : i64 = 42   // comptime_int → i64 (context-guided)
-val as_f32 : f32 = 42   // comptime_int → f32 (context-guided)
-val as_f64 : f64 = 42   // comptime_int → f64 (context-guided)
-
-// Float literals follow same context-guided pattern
-val single : f32 = 3.14 // comptime_float → f32 (context-guided)
-val double : f64 = 3.14 // comptime_float → f64 (context-guided)
+42      // Gets type: comptime_int
+-123    // Gets type: comptime_int
+3.14    // Gets type: comptime_float
+-2.5    // Gets type: comptime_float
 ```
 
-### Design Rationale
+#### Step 2: Context Resolution
+During type checking, comptime types look at their **usage context** and adapt:
 
-The comptime type system embodies Hexen's core principles:
+```hexen
+// Context comes from variable declaration
+val counter : i32 = 42           // comptime_int sees i32 context → becomes i32
+val big_counter : i64 = 42       // comptime_int sees i64 context → becomes i64
+val percentage : f32 = 42        // comptime_int sees f32 context → becomes f32
 
-1. **Clean & Predictable**
-   - One default type (i32) for integers
-   - One default type (f64) for floats
-   - No hidden type promotions
-   - Explicit when deviating from defaults
+// Context comes from function parameters
+func process_data(count: i64) { ... }
+process_data(1000)               // comptime_int sees i64 parameter → becomes i64
 
-2. **System Programming Focus**
-   - i32 as default matches system interfaces
-   - Efficient memory usage by default
-   - Explicit promotion when needed
-   - No performance surprises
+// Context comes from return types
+func get_count() : i32 = 42      // comptime_int sees i32 return → becomes i32
+```
 
-3. **Ergonomic & Safe**
-   - No type suffixes needed
-   - Context guides type resolution
-   - Explicit annotations for non-default types
-   - Clear performance implications
+#### Step 3: Default Resolution
+When there's **no context**, comptime types use sensible defaults:
 
-4. **Pragmatic & Practical**
-   - Optimized for common use cases
-   - Explicit when performance characteristics change
-   - No complex type inference rules
-   - Clear upgrade path when needed
+```hexen
+val counter = 42      // No context → comptime_int becomes i32 (system default)
+val pi = 3.14         // No context → comptime_float becomes f64 (precision default)
+```
+
+### Comptime Type Rules
+
+#### comptime_int can become:
+- `i32`, `i64` (integer types)
+- `f32`, `f64` (float types - integer to float conversion)
+
+#### comptime_float can become:
+- `f32`, `f64` (float types only)
+- **Cannot** become integers (would lose decimal part)
+
+#### Safety Rules:
+```hexen
+// ✅ Safe conversions (implicit)
+val int_var : i32 = 42      // comptime_int → i32 ✓
+val float_var : f64 = 42    // comptime_int → f64 ✓  
+val precise : f32 = 3.14    // comptime_float → f32 ✓
+
+// ❌ Implicit conversions that lose data (compilation errors)
+// val bad_int : i32 = 3.14    // Error: comptime_float → i32 requires explicit acknowledgment
+// val bad_bool : bool = 42    // Error: comptime_int → bool not meaningful
+// val bad_str : string = 3.14 // Error: comptime_float → string not meaningful
+
+// ✅ Explicit conversions with precision loss (allowed with acknowledgment)
+val explicit_int : i32 = 3.14 : i32    // comptime_float → i32 ✓ (explicit truncation)
+val explicit_bool = if 42 != 0 { true } else { false }  // Explicit logic for bool conversion
+```
+
+### Real-World Benefits
+
+#### Before (Traditional Languages)
+```c
+// C/C++ style - suffix hell
+uint32_t small_timeout = 1000U;
+uint64_t large_timeout = 1000UL;    // Change type = change suffix
+float32_t ratio = 0.75f;
+float64_t precise_ratio = 0.75;     // Inconsistent rules
+
+// Changing i32 to i64 requires updating every literal
+int32_t process_batch(int32_t count) {
+    return count * 2;  // What if count overflows?
+}
+```
+
+#### After (Hexen with Comptime)
+```hexen
+// ✨ Hexen style - no suffixes needed
+val small_timeout : i32 = 1000     // Clean and clear
+val large_timeout : i64 = 1000     // Same literal, different type
+val ratio : f32 = 0.75             // Consistent syntax
+val precise_ratio : f64 = 0.75     // Same literal, different precision
+
+// Changing i32 to i64 only requires changing the type annotation
+func process_batch(count: i64) : i64 = {
+    return count * 2               // All literals adapt automatically
+}
+```
+
+### Context Propagation Examples
+
+Comptime types work seamlessly in complex expressions:
+
+```hexen
+// Function parameters provide context
+func calculate(base: i64, multiplier: f32) : f64 = {
+    return base * multiplier
+}
+
+// All literals adapt to their context automatically
+val result = calculate(1000, 2.5)    // 1000→i64, 2.5→f32, result is f64
+
+// Array context
+val numbers : [i64; 3] = [10, 20, 30]   // All comptime_int → i64
+
+// Mixed operations with explicit context
+val mixed : f64 = 42 + 3.14             // 42→f64, 3.14→f64, result is f64
+```
+
+### Design Philosophy
+
+The comptime system embodies Hexen's **"Explicit Danger, Implicit Safety"** principle:
+
+- **Implicit Safety**: Common, safe literal usage requires no extra syntax
+- **Explicit Context**: When you need specific types, you provide explicit context
+- **No Hidden Behavior**: Type resolution is predictable and visible
+- **Fail Fast**: Unsafe conversions are caught at compile time
+
+### Implementation Mental Model
+
+Think of comptime types as "smart literals" that ask their context: *"What type do you need me to be?"*
+
+1. **Parser**: Creates comptime_int/comptime_float for all numeric literals
+2. **Type Checker**: Propagates target types as context through expressions  
+3. **Resolution**: Comptime types check if they can safely become the target type
+4. **Error**: If conversion is unsafe or no context exists, compilation fails with helpful message
+
+This creates a clean, consistent system where the same literal works everywhere without sacrificing type safety.
 
 ## Type Coercion Rules
 
@@ -164,20 +233,28 @@ val x : i32 = some_i32_value  // i32 → i32
 - **Cannot** coerce to `bool`, `string` (type safety)
 
 **comptime_float** can coerce to:
-- `f32`, `f64` (float types only)
-- **Cannot** coerce to integer types (precision loss prevention)
-- **Cannot** coerce to `bool`, `string` (type safety)
+- `f32`, `f64` (float types - implicit, safe)
+- `i32`, `i64` (integer types - **explicit only**, requires `: i32` or `: i64` annotation)
+- **Cannot** coerce to `bool`, `string` (not meaningful)
 
 ```hexen
-// ✅ Safe comptime coercions
-val int_var : i32 = 42      // comptime_int → i32
-val float_var : f64 = 42    // comptime_int → f64
-val precise : f32 = 3.14    // comptime_float → f32
+// ✅ Safe implicit comptime coercions
+val int_var : i32 = 42      // comptime_int → i32 (implicit, safe)
+val float_var : f64 = 42    // comptime_int → f64 (implicit, safe)
+val precise : f32 = 3.14    // comptime_float → f32 (implicit, safe)
 
-// ❌ Unsafe comptime coercions (compilation errors)
-val bad_bool : bool = 42       // comptime_int cannot → bool
-val bad_string : string = 3.14 // comptime_float cannot → string
-val bad_int : i32 = 3.14       // comptime_float cannot → i32 (precision loss)
+// ❌ Implicit coercions that lose data or meaning (compilation errors)
+// val bad_bool : bool = 42    // Error: comptime_int → bool requires explicit logic
+// val bad_string : string = 3.14 // Error: comptime_float → string not meaningful
+// val bad_int : i32 = 3.14    // Error: comptime_float → i32 requires explicit ': i32'
+
+// ✅ Explicit coercions with precision loss (allowed with acknowledgment)
+val explicit_int : i32 = 3.14 : i32    // comptime_float → i32 (explicit truncation)
+val explicit_logic : bool = if 42 != 0 { true } else { false }  // Explicit boolean logic
+
+// 🎯 Critical Pattern: Type annotation ALWAYS at end, ALWAYS matches left side
+//    └─ target type ─┘   └─ expression ─┘ : └─ SAME type ─┘
+//    This is NOT conversion - it's explicit acknowledgment of result type
 ```
 
 ### 3. Regular Type Widening
@@ -346,12 +423,79 @@ precise = 9223372036854775807 : f32     // Explicit: "I know this will lose prec
 
 ### Type Annotation Rules
 
-1. **Type Match**: Type annotations must match the mutable variable's declared type
-2. **Not Conversion**: Type annotations are not conversions but explicit acknowledgments
-3. **Scope**: Type annotations apply to the entire expression
+Type annotations (`: type`) follow a strict, consistent pattern throughout Hexen:
+
+#### **Fundamental Rule: Explicit Result Type Declaration**
+Type annotations are **always** an explicit remark of the **result type**:
+- **Position**: Must be at the end of the right-hand side expression
+- **Match Requirement**: Must exactly match the left-hand side type  
+- **Purpose**: Explicit acknowledgment, not type conversion
+
+```hexen
+// ✅ Correct pattern: result type explicitly declared at end
+val variable : i32 = expression : i32
+mut variable : f32 = expression : f32
+
+// ❌ Wrong patterns
+// val variable : i32 = expression : f64    // Error: annotation doesn't match left side
+// val variable : i32 = : i32 expression    // Error: annotation not at end
+// val variable : i32 = (expression : f64)  // Error: nested annotation doesn't match
+// val variable = expression : i32          // Error: type annotation requires explicit left side type
+```
+
+#### **Design Philosophy**
+1. **Type Match**: Type annotations must match the target variable's declared type
+2. **Not Conversion**: Type annotations are not conversions but explicit acknowledgments  
+3. **Scope**: Type annotations apply to the entire expression on the right
 4. **Precedence**: Type annotations have highest precedence in expressions
 5. **Documentation**: They serve as explicit acknowledgment of precision loss
 6. **Safety**: They prevent accidental precision loss or truncation
+7. **Consistency**: Same rule applies everywhere - declarations, assignments, function returns
+
+#### **The Universal Pattern**
+```hexen
+// Every type annotation follows this exact pattern:
+target_variable : target_type = expression : SAME_target_type
+
+// Examples across all contexts:
+val number : i32 = 3.14 : i32           // Variable declaration
+mut counter : i32 = large_value : i32   // Reassignment
+func process() : f64 = calculation : f64 // Function return
+array[index] : i32 = mixed_expr : i32   // Array assignment
+```
+
+**Key Points:**
+- `: type` is **always** at the rightmost end of the expression
+- `: type` **always** matches the left-hand side target type exactly
+- `: type` is an **explicit acknowledgment**, not a type conversion
+- `: type` **requires** an explicit type on the left side to match against
+- This pattern works **everywhere** in Hexen - no exceptions
+
+#### **Critical Rule: No Type Annotation Without Explicit Left Side Type**
+
+Type annotations can **only** be used when there's an explicit type declaration on the left side:
+
+```hexen
+// ❌ FORBIDDEN: Type annotation without explicit left side type
+// val result = 42 + 3.14 : f64        // Error: No explicit left side type to match
+// val mixed = some_expr : i32         // Error: No explicit left side type to match
+// mut counter = large_value : i32     // Error: No explicit left side type to match
+
+// ✅ CORRECT: Explicit left side type that matches right side annotation
+val result : f64 = (42 + 3.14) : f64   // Both sides have f64
+val mixed : i32 = some_expr : i32       // Both sides have i32
+mut counter : i32 = large_value : i32   // Both sides have i32
+
+// ✅ CORRECT: No type annotation needed when left side provides context
+val result : f64 = 42 + 3.14           // Left side provides f64 context
+val mixed : i32 = some_expr             // Left side provides i32 context
+```
+
+**Why this rule exists:**
+- **Consistency**: Type annotations are acknowledgments, not inference hints
+- **Clarity**: The left side type must be explicit to make the contract clear
+- **Safety**: Prevents ambiguous type annotation usage
+- **Predictability**: Same pattern everywhere - no special cases
 
 ```hexen
 mut result : i32 = 0
