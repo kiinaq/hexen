@@ -251,6 +251,9 @@ val precise : f64 = f32_value  // f32 → f64
 // Integer to float conversion
 val as_float : f32 = i32_value  // i32 → f32
 val as_double : f64 = i64_value // i64 → f64
+
+// Precision loss requires explicit acknowledgment
+val may_lose_precision : f32 = i64_value : f32  // i64 → f32 (explicit: may lose precision)
 ```
 
 **Widening Rules:**
