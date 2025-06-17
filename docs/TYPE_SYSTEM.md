@@ -75,12 +75,13 @@ This creates three problems:
 Hexen solves this with **comptime types** - special types that literals have initially, which then adapt to their usage context:
 
 ```hexen
-// ✨ Same literal, different contexts, no suffixes needed
-val small : i32 = 42    // 42 is comptime_int → becomes i32
-val large : i64 = 42    // 42 is comptime_int → becomes i64  
-val precise : f64 = 42  // 42 is comptime_int → becomes f64
-val single : f32 = 3.14 // 3.14 is comptime_float → becomes f32
-val double : f64 = 3.14 // 3.14 is comptime_float → becomes f64
+// ✨ Safe conversions are implicit, unsafe conversions are explicit
+val small : i32 = 42    // comptime_int → i32 (safe, implicit)
+val large : i64 = 42    // comptime_int → i64 (safe, implicit)
+val precise : f64 = 42  // comptime_int → f64 (safe, implicit)
+val double : f64 = 3.14 // comptime_float → f64 (safe, implicit)
+val single : f32 = 3.14 // comptime_float → f32 (safe, implicit)
+val truncated : i32 = 3.14 : i32 // comptime_float → i32 (unsafe, explicit)
 ```
 
 ### How Comptime Types Work
@@ -100,9 +101,9 @@ During type checking, comptime types look at their **usage context** and adapt:
 
 ```hexen
 // Context comes from variable declaration
-val counter : i32 = 42           // comptime_int sees i32 context → becomes i32
-val big_counter : i64 = 42       // comptime_int sees i64 context → becomes i64
-val percentage : f32 = 42        // comptime_int sees f32 context → becomes f32
+val counter : i32 = 42       // comptime_int → i32 (safe, implicit)
+val big_counter : i64 = 42   // comptime_int → i64 (safe, implicit)
+val percentage : f32 = 42    // comptime_int → f32 (safe, implicit)
 
 // Context comes from function parameters
 func process_data(count: i64) { ... }
@@ -116,95 +117,55 @@ func get_count() : i32 = 42      // comptime_int sees i32 return → becomes i32
 When there's **no context**, comptime types use sensible defaults:
 
 ```hexen
-val counter = 42      // No context → comptime_int becomes i32 (system default)
-val pi = 3.14         // No context → comptime_float becomes f64 (precision default)
+val counter = 42      // No explicit type → comptime_int becomes i32 (system default)
+val pi = 3.14         // No explicit type → comptime_float becomes f64 (precision default)
 ```
 
-### Comptime Type Rules
 
-#### comptime_int can become:
-- `i32`, `i64` (integer types)
-- `f32`, `f64` (float types - integer to float conversion)
-
-#### comptime_float can become:
-- `f32`, `f64` (float types only)
-- **Cannot** become integers (would lose decimal part)
-
-#### Safety Rules:
-```hexen
-// ✅ Safe conversions (implicit)
-val int_var : i32 = 42      // comptime_int → i32 ✓
-val float_var : f64 = 42    // comptime_int → f64 ✓  
-val precise : f32 = 3.14    // comptime_float → f32 ✓
-
-// ❌ Implicit conversions that lose data (compilation errors)
-// val bad_int : i32 = 3.14    // Error: comptime_float → i32 requires explicit acknowledgment
-// val bad_bool : bool = 42    // Error: comptime_int → bool not meaningful
-// val bad_str : string = 3.14 // Error: comptime_float → string not meaningful
-
-// ✅ Explicit conversions with precision loss (allowed with acknowledgment)
-val explicit_int : i32 = 3.14 : i32    // comptime_float → i32 ✓ (explicit truncation)
-val explicit_bool = if 42 != 0 { true } else { false }  // Explicit logic for bool conversion
-```
-
-### Real-World Benefits
-
-#### Before (Traditional Languages)
-```c
-// C/C++ style - suffix hell
-uint32_t small_timeout = 1000U;
-uint64_t large_timeout = 1000UL;    // Change type = change suffix
-float32_t ratio = 0.75f;
-float64_t precise_ratio = 0.75;     // Inconsistent rules
-
-// Changing i32 to i64 requires updating every literal
-int32_t process_batch(int32_t count) {
-    return count * 2;  // What if count overflows?
-}
-```
-
-#### After (Hexen with Comptime)
-```hexen
-// ✨ Hexen style - no suffixes needed
-val small_timeout : i32 = 1000     // Clean and clear
-val large_timeout : i64 = 1000     // Same literal, different type
-val ratio : f32 = 0.75             // Consistent syntax
-val precise_ratio : f64 = 0.75     // Same literal, different precision
-
-// Changing i32 to i64 only requires changing the type annotation
-func process_batch(count: i64) : i64 = {
-    return count * 2               // All literals adapt automatically
-}
-```
-
-### Context Propagation Examples
-
-Comptime types work seamlessly in complex expressions:
-
-```hexen
-// Function parameters provide context
-func calculate(base: i64, multiplier: f32) : f64 = {
-    return base * multiplier
-}
-
-// All literals adapt to their context automatically
-val result = calculate(1000, 2.5)    // 1000→i64, 2.5→f32, result is f64
-
-// Array context
-val numbers : [i64; 3] = [10, 20, 30]   // All comptime_int → i64
-
-// Mixed operations with explicit context
-val mixed : f64 = 42 + 3.14             // 42→f64, 3.14→f64, result is f64
-```
 
 ### Design Philosophy
 
 The comptime system embodies Hexen's **"Explicit Danger, Implicit Safety"** principle:
 
-- **Implicit Safety**: Common, safe literal usage requires no extra syntax
-- **Explicit Context**: When you need specific types, you provide explicit context
+- **Implicit Safety**: Safe conversions (within comptime table) require no extra syntax
+- **Explicit Danger**: Unsafe conversions (outside comptime table) require explicit acknowledgment
 - **No Hidden Behavior**: Type resolution is predictable and visible
 - **Fail Fast**: Unsafe conversions are caught at compile time
+
+#### **The Safe vs Unsafe Conversion Rule**
+
+Comptime types can coerce **implicitly** to all types in their allowed table:
+
+**comptime_int → All Numeric Types (Implicit)**
+```hexen
+val a : i32 = 42    // ✅ Safe: comptime_int → i32 (implicit)
+val b : i64 = 42    // ✅ Safe: comptime_int → i64 (implicit)
+val c : f32 = 42    // ✅ Safe: comptime_int → f32 (implicit)
+val d : f64 = 42    // ✅ Safe: comptime_int → f64 (implicit)
+```
+
+**comptime_float → Float Types Only (Implicit)**
+```hexen
+val e : f32 = 3.14  // ✅ Safe: comptime_float → f32 (implicit)
+val f : f64 = 3.14  // ✅ Safe: comptime_float → f64 (implicit)
+```
+
+**Outside the Table = Explicit Annotation Required**
+```hexen
+// ❌ Unsafe conversions require explicit acknowledgment
+// val g : i32 = 3.14      // Error: comptime_float → i32 requires ': i32'
+// val h : i64 = 3.14      // Error: comptime_float → i64 requires ': i64'
+
+// ✅ Explicit acknowledgment of unsafe conversion
+val g : i32 = 3.14 : i32   // comptime_float → i32 (explicit truncation)
+val h : i64 = 3.14 : i64   // comptime_float → i64 (explicit truncation)
+```
+
+**Why this rule matters:**
+- **Clear Safety Boundary**: Everything in the table is guaranteed safe
+- **Explicit Danger**: Conversions that lose data require acknowledgment
+- **No Arbitrary Restrictions**: All safe conversions work seamlessly
+- **Consistent Pattern**: Same explicit acknowledgment pattern for all unsafe operations
 
 ### Implementation Mental Model
 
@@ -216,6 +177,23 @@ Think of comptime types as "smart literals" that ask their context: *"What type 
 4. **Error**: If conversion is unsafe or no context exists, compilation fails with helpful message
 
 This creates a clean, consistent system where the same literal works everywhere without sacrificing type safety.
+
+### Context Propagation Examples
+
+Comptime types work seamlessly in function calls and complex expressions:
+
+```hexen
+// Function parameters provide context
+func calculate(base: i64, multiplier: f32) : f64 = {
+    return base * multiplier
+}
+
+// Literals adapt to parameter types automatically
+val result = calculate(1000, 2.5)       // 1000→i64, 2.5→f32, result is f64
+
+// Mixed operations with explicit target context
+val mixed : f64 = (42 + 3.14) : f64     // Explicit: result type f64
+```
 
 ## Type Coercion Rules
 
@@ -236,6 +214,8 @@ val x : i32 = some_i32_value  // i32 → i32
 - `f32`, `f64` (float types - implicit, safe)
 - `i32`, `i64` (integer types - **explicit only**, requires `: i32` or `: i64` annotation)
 - **Cannot** coerce to `bool`, `string` (not meaningful)
+
+**Key Rule**: All transformations **within the table** are implicit (safe). Transformations **outside the table** require explicit type annotation.
 
 ```hexen
 // ✅ Safe implicit comptime coercions
