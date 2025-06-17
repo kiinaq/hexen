@@ -104,18 +104,20 @@ val small : i32 = integers      // comptime_int → i32
 val large : i64 = integers      // comptime_int → i64 (same literal, different type!)
 ```
 
-But some operations **would change the comptime type** and need explicit guidance:
+But some operations **would change the comptime type** and need explicit guidance **when no context is provided**:
 
 ```hexen
-// ❌ These operations would change comptime type - need explicit target
-// val mixed = 42 + 3.14        // comptime_int + comptime_float would → comptime_float (ambiguous)
-// val float_div = 42 / 3       // comptime_int / comptime_int would → comptime_float (division)
-// val float_ops = 3.14 + 2.71  // comptime_float + comptime_float needs explicit type
+// ❌ These operations require explicit context when no assignment target type is provided
+// val mixed = 42 + 3.14        // comptime_int + comptime_float → comptime_float (needs explicit type)
+// val float_div = 42 / 3       // comptime_int / comptime_int → comptime_float (needs explicit type)
 
-// ✅ Explicit type makes intent clear
-val mixed : f64 = 42 + 3.14     // Now we know: want f64 precision
-val float_div : f32 = 42 / 3    // Now we know: want f32 float division
-val float_ops : f64 = 3.14 + 2.71 // Now we know: want f64 precision
+// ✅ But they work fine when context is provided
+val mixed : f64 = 42 + 3.14     // comptime_int + comptime_float → comptime_float (adapts to f64)
+val float_div : f32 = 42 / 3    // comptime_int / comptime_int → comptime_float (adapts to f32)
+
+// ✅ And comptime_float operations work with context or defaults
+val float_ops : f64 = 3.14 + 2.71  // comptime_float + comptime_float → comptime_float (adapts to f64)
+val float_default = 3.14 + 2.71    // comptime_float + comptime_float → comptime_float (defaults to f64)
 ```
 
 ### Rule 2: Comptime + Concrete = Comptime Adapts
@@ -256,11 +258,13 @@ val add_ints = 42 + 100             // comptime_int + comptime_int = comptime_in
 val mul_ints = 42 * 100             // comptime_int * comptime_int = comptime_int → i32
 val idiv_ints = 42 \ 100            // comptime_int \ comptime_int = comptime_int → i32
 
-// Operations that would promote beyond i32 require explicit type
-// val div_ints = 42 / 100          // ❌ Error: Float division requires explicit result type
-// val add_floats = 3.14 + 2.71     // ❌ Error: comptime_float operations require explicit result type
-// val mul_floats = 3.14 * 2.71     // ❌ Error: comptime_float operations require explicit result type
-// val div_floats = 3.14 / 2.71     // ❌ Error: comptime_float operations require explicit result type
+// Operations that would promote beyond i32 require explicit type when no context provided
+// val div_ints = 42 / 100          // ❌ Error: Float division requires explicit result type (no default)
+
+// comptime_float operations default to f64 (precision default, consistent with TYPE_SYSTEM.md)
+val add_floats = 3.14 + 2.71     // comptime_float + comptime_float → comptime_float → f64 (default)
+val mul_floats = 3.14 * 2.71     // comptime_float * comptime_float → comptime_float → f64 (default)
+val div_floats = 3.14 / 2.71     // comptime_float / comptime_float → comptime_float → f64 (default)
 
 // ✅ Explicit type annotations make intent clear
 val explicit_div : f64 = 42 / 100   // comptime_int / comptime_int → f64 (float division)
@@ -269,18 +273,18 @@ val explicit_mul : f32 = 3.14 * 2.71 // comptime_float * comptime_float → f32
 val explicit_fdiv : f64 = 3.14 / 2.71 // comptime_float / comptime_float → f64
 ```
 
-#### Mixed Comptime Types (Require Explicit Type)
+#### Mixed Comptime Types (Require Explicit Type When No Context)
 ```hexen
-// Mixed comptime types require explicit result type (would promote beyond i32)
-// val auto_promote1 = 42 + 3.14    // ❌ Error: Mixed comptime types require explicit result type
-// val auto_promote2 = 42 * 3.14    // ❌ Error: Mixed comptime types require explicit result type
-// val auto_promote3 = 42 / 3.14    // ❌ Error: Mixed comptime types require explicit result type
-// val auto_promote4 = 42 - 3.14    // ❌ Error: Mixed comptime types require explicit result type
+// Mixed comptime types require explicit result type when no context is provided (would promote beyond i32)
+// val auto_promote1 = 42 + 3.14    // ❌ Error: Mixed comptime types require explicit result type (no context)
+// val auto_promote2 = 42 * 3.14    // ❌ Error: Mixed comptime types require explicit result type (no context)
+// val auto_promote3 = 42 / 3.14    // ❌ Error: Mixed comptime types require explicit result type (no context)
+// val auto_promote4 = 42 - 3.14    // ❌ Error: Mixed comptime types require explicit result type (no context)
 
-// Complex expressions also require explicit type when they would promote
-// val x = 10 + (10 / 2)            // ❌ Error: Contains float division, requires explicit result type
-// val y = 42 * 3.14                // ❌ Error: Mixed comptime types require explicit result type
-// val z = 100 - 3.14               // ❌ Error: Mixed comptime types require explicit result type
+// Complex expressions also require explicit type when they would promote and no context
+// val x = 10 + (10 / 2)            // ❌ Error: Contains float division, requires explicit result type (no context)
+// val y = 42 * 3.14                // ❌ Error: Mixed comptime types require explicit result type (no context)
+// val z = 100 - 3.14               // ❌ Error: Mixed comptime types require explicit result type (no context)
 
 // ❌ Integer division with mixed comptime types is an error
 // val invalid = 42 \ 3.14          // Error: Integer division (\) requires integer operands
@@ -440,6 +444,24 @@ result = (-10.9 / 2.0) : i32   // -5.45 → -5
 
 // Exact conversions when possible
 result = (20.0 / 4.0) : i32    // 5.0 → 5 (exact)
+```
+
+## Complex Expression Resolution
+
+The target type guides the **entire expression tree**, not just individual operations. All expressions start with comptime types and adapt to their context.
+
+### Function Return Context (Consistent with TYPE_SYSTEM.md)
+
+Function return types provide context for binary operations, just like variable assignments:
+
+```hexen
+// Return type provides context for binary operations
+func get_count() : i32 = 42 + 100       // comptime_int + comptime_int → comptime_int (adapts to i32)
+func get_ratio() : f64 = 42 + 3.14      // comptime_int + comptime_float → comptime_float (adapts to f64)
+func precise_calc() : f32 = 10 / 3      // Float division → comptime_float (adapts to f32)
+
+// Mixed concrete types in return context
+func mixed_sum(a: i32, b: i64) : f64 = a + b  // i32 + i64 → comptime_int (adapts to f64)
 ```
 
 ## Complex Expression Resolution
