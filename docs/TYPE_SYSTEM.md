@@ -117,8 +117,12 @@ func get_count() : i32 = 42      // comptime_int sees i32 return → becomes i32
 When there's **no context**, comptime types use sensible defaults:
 
 ```hexen
+// Same defaults for both val and mut
 val counter = 42      // No explicit type → comptime_int becomes i32 (system default)
 val pi = 3.14         // No explicit type → comptime_float becomes f64 (precision default)
+
+mut counter = 42      // No explicit type → comptime_int becomes i32 (system default)
+mut pi = 3.14         // No explicit type → comptime_float becomes f64 (precision default)
 ```
 
 
@@ -276,6 +280,49 @@ Key highlights:
 - **Implementation guidelines** for semantic analyzer
 
 ## Assignment and Context
+
+### Variable Declaration Types: `val` vs `mut`
+
+Hexen provides two variable declaration keywords with distinct mutability characteristics:
+
+#### **`val` - Immutable Variables**
+- **Single Assignment**: Can only be assigned once at declaration
+- **Compile-time Enforcement**: Reassignment attempts cause compilation errors
+- **Type Context**: Same type coercion and context rules as `mut`
+- **Use Case**: Constants, configuration values, computed results that shouldn't change
+
+```hexen
+val config : string = "production"     // ✅ OK: initialization
+val result : i32 = compute_value()     // ✅ OK: initialization with function call
+val derived : f64 = result * 2.5       // ✅ OK: initialization with expression
+
+// config = "development"              // ❌ Error: Cannot reassign val variable
+// result = 42                         // ❌ Error: Cannot reassign val variable
+```
+
+#### **`mut` - Mutable Variables**
+- **Multiple Assignment**: Can be reassigned after declaration
+- **Type Preservation**: Must maintain the same declared type across reassignments
+- **Type Context**: Target type provides context for all reassignments
+- **Use Case**: Counters, accumulators, state variables that need to change
+
+```hexen
+mut counter : i32 = 0                  // ✅ OK: initialization
+counter = 42                           // ✅ OK: reassignment with same type
+counter = compute_value()              // ✅ OK: reassignment with expression
+counter = large_value : i32            // ✅ OK: reassignment with explicit acknowledgment
+
+// counter = "text"                    // ❌ Error: Cannot change type (i32 → string)
+```
+
+#### **Key Principle: Same Type System, Different Mutability**
+Both `val` and `mut` follow identical rules for:
+- **Comptime type adaptation**: Literals adapt to declared types
+- **Type coercion**: Same safety rules for safe/unsafe conversions  
+- **Type annotations**: Same explicit acknowledgment patterns
+- **Context propagation**: Same context-guided expression resolution
+
+The **only** difference is reassignment capability after initialization.
 
 ### Variable Declaration with Context
 
@@ -537,11 +584,11 @@ The `undef` system follows the same **"explicit danger, implicit safety"** princ
 
 ```hexen
 // ❌ Implicit undef (dangerous - no type info)
-val pending = undef             // Error: Cannot infer type
+mut pending = undef             // Error: Cannot infer type
 
 // ✅ Explicit undef (safe - type specified)
-val pending : i32 = undef       // OK: Type explicitly provided
-val config : string = undef     // OK: Type explicitly provided
+mut pending : i32 = undef       // OK: Type explicitly provided
+mut config : string = undef     // OK: Type explicitly provided
 ```
 
 ### undef with Binary Operations
@@ -553,6 +600,68 @@ mut value : i32 = undef
 value = 42                      // comptime_int → i32 (assignment context)
 value = 10 + 20                 // comptime_int + comptime_int → i32 (assignment context)
 ```
+
+### `undef` with `val` vs `mut` Variables
+
+The `undef` keyword works differently with immutable and mutable variables:
+
+#### **`val` with `undef` - Not Allowed (Use Expression Blocks Instead)**
+```hexen
+val config : string = undef        // ❌ Error: val + undef creates unusable variable
+val result : i32 = undef           // ❌ Error: val + undef creates unusable variable
+
+// Later assignments would break immutability:
+// config = "production"           // ❌ Error: val variables cannot be reassigned
+// result = compute_value()        // ❌ Error: val variables cannot be reassigned
+```
+
+**Why this is forbidden**: `val` variables with `undef` create a contradiction:
+- `val` variables can only be assigned once (at declaration)
+- `undef` requires a later assignment to become usable
+- This breaks the immutability contract
+
+**✅ Use Expression Blocks Instead**: For complex initialization, use Hexen's expression blocks:
+```hexen
+// ✅ Complex initialization with expression blocks
+val config : string = {
+    if development_mode {
+        return "development"
+    } else {
+        return "production"
+    }
+}
+
+val result : i32 = {
+    // Setup work in statement block (scoped)
+    {
+        val temp_data = load_data()
+        validate(temp_data)
+    }
+    
+    // Complex computation
+    val base = expensive_computation()
+    return base * multiplier_factor()
+}
+```
+
+**→ See [UNIFIED_BLOCK_SYSTEM.md](UNIFIED_BLOCK_SYSTEM.md) for complete details on expression blocks and complex initialization patterns**
+
+#### **`mut` with `undef` - Proper Deferred Initialization**
+```hexen
+mut config : string = undef        // ✅ OK: deferred initialization
+mut result : i32 = undef           // ✅ OK: deferred initialization
+
+// Later assignments are allowed:
+config = "production"              // ✅ OK: first real assignment
+result = compute_value()           // ✅ OK: first real assignment
+result = 42                        // ✅ OK: subsequent reassignment
+```
+
+#### **Design Rationale**
+- **`val` + `undef`**: Creates an unusable variable (cannot be assigned later)
+- **`mut` + `undef`**: Enables proper deferred initialization patterns
+- **Type Safety**: Both require explicit type annotation (`undef` alone is not allowed)
+- **Consistency**: Follows the mutability contract - `val` = single assignment, `mut` = multiple assignments
 
 ## Error Messages
 
@@ -576,7 +685,18 @@ Add type annotation: 'val result : i64 = ...' or 'val result : f64 = ...'
 Variable 'pending' must have either explicit type or value
 ```
 
-All errors suggest the same solution: **add explicit type annotation**.
+#### val Reassignment Errors
+```
+Cannot reassign immutable variable 'config': val variables can only be assigned once at declaration
+```
+
+#### val + undef Errors
+```
+Invalid usage: val variable 'result' declared with undef cannot be assigned later
+Consider using 'mut result : i32 = undef' for deferred initialization
+```
+
+All errors suggest appropriate solutions: **add explicit type annotation** or **choose correct mutability keyword**.
 
 ## Implementation Guidelines
 
@@ -631,20 +751,46 @@ def _resolve_binary_operation_with_context(self, left: HexenType, right: HexenTy
 
 ```hexen
 func demonstrate_type_system() : void = {
-    // ===== Comptime Type Magic =====
+    // ===== Comptime Type Magic (val - immutable) =====
     val default_int = 42        // comptime_int → i32 (default)
     val explicit_i64 : i64 = 42 // comptime_int → i64 (context)
     val as_float : f32 = 42     // comptime_int → f32 (context)
     val precise : f64 = 3.14    // comptime_float → f64 (default)
     val single : f32 = 3.14     // comptime_float → f32 (context)
     
-    // ===== Type Coercion =====
+    // ===== Type Coercion (val - immutable) =====
     val wide : i64 = i32_value  // i32 → i64 (widening)
     val precise : f64 = f32_value  // f32 → f64 (widening)
     val as_float : f32 = i32_value  // i32 → f32 (conversion)
     
-    // ===== undef with Type Safety =====
-    val pending : i32 = undef   // ✅ OK: explicit type
+    // ===== Mutable Variables with Reassignment =====
+    mut counter : i32 = 0       // Mutable integer
+    counter = 42                // ✅ OK: reassignment
+    counter = large_value : i32 // ✅ OK: reassignment with explicit acknowledgment
+    
+    mut accumulator : f64 = 0.0 // Mutable float
+    accumulator = 3.14          // ✅ OK: comptime_float → f64
+    accumulator = counter       // ✅ OK: i32 → f64 (widening)
+    
+    // ===== Complex Initialization with Expression Blocks =====
+    val complex_init : i32 = {
+        // Setup work (scoped)
+        {
+            val config = load_config()
+            validate_system(config)
+        }
+        
+        // Complex computation  
+        val base = expensive_computation()
+        val factor = get_dynamic_factor()
+        return base * factor
+    }
+    
+    // ===== undef with Different Mutability =====
+    // val pending : i32 = undef   // ❌ Error: val + undef creates unusable variable
+    mut pending : i32 = undef   // ✅ OK: mut allows later assignment
+    pending = compute_value()   // ✅ OK: deferred initialization
+    
     // val bad = undef          // ❌ Error: no type context
 }
 
