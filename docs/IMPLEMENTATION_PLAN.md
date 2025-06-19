@@ -137,7 +137,7 @@ After comprehensive test analysis, we discovered that **function parameters are 
 
 - [ ] **val + undef Prohibition**:
   - Clear error: "val + undef creates unusable variable"
-  - Suggestion: "Consider using 'mut' for deferred initialization"
+  - Suggestion: "Consider using 'mut' for deferred initialization or expression blocks for complex initialization (see UNIFIED_BLOCK_SYSTEM.md)"
   - Rationale explanation in error messages
 
 - [ ] **mut + undef Requirements**:
@@ -210,7 +210,7 @@ After comprehensive test analysis, we discovered that **function parameters are 
       'precision_loss': "Potential {loss_type}, add ': {target_type}' to acknowledge",
       'type_mismatch': "Type annotation must match variable's declared type",
       'mixed_types': "Mixed-type operation requires explicit result type",
-      'val_undef': "val + undef creates unusable variable, use mut instead"
+      'val_undef': "val + undef creates unusable variable, use mut instead or expression blocks for complex initialization"
   }
   ```
 
