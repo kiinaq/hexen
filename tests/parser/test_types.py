@@ -74,14 +74,40 @@ class TestTypeAnnotations:
         func = ast["functions"][0]
         assert func["return_type"] == "bool"
 
+    def test_function_return_type_f32(self):
+        """Test f32 return type annotation"""
+        source = """
+        func test() : f32  = {
+            return 42.0
+        }
+        """
+
+        ast = self.parser.parse(source)
+        func = ast["functions"][0]
+        assert func["return_type"] == "f32"
+
+    def test_function_return_type_void(self):
+        """Test void return type annotation"""
+        source = """
+        func test() : void  = {
+            return
+        }
+        """
+
+        ast = self.parser.parse(source)
+        func = ast["functions"][0]
+        assert func["return_type"] == "void"
+
     def test_all_type_annotations_work(self):
         """Test that all type annotations parse correctly (regression test for TODO fix)"""
         test_cases = [
             ("i32", "i32"),
             ("i64", "i64"),
+            ("f32", "f32"),
             ("f64", "f64"),
             ("string", "string"),
             ("bool", "bool"),
+            ("void", "void"),
         ]
 
         for type_name, expected in test_cases:

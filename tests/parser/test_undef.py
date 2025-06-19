@@ -119,15 +119,47 @@ class TestUndefDeclarations:
         func test() : i32  = {
             val a: i32 = undef
             val b: i64 = undef
-            val c: f64 = undef
-            val d: string = undef
+            val c: f32 = undef
+            val d: f64 = undef
+            val e: string = undef
+            val f: bool = undef
             return 0
         }
         """
         result = self.parser.parse(code)
         statements = result["functions"][0]["body"]["statements"]
 
-        expected_types = ["i32", "i64", "f64", "string"]
+        expected_types = ["i32", "i64", "f32", "f64", "string", "bool"]
         for i, expected_type in enumerate(expected_types):
             assert statements[i]["type_annotation"] == expected_type
             assert statements[i]["value"]["name"] == "undef"
+
+    def test_undef_with_f32_specifically(self):
+        """Test undef works specifically with f32 type"""
+        code = """
+        func test() : i32  = {
+            mut precise : f32 = undef
+            return 0
+        }
+        """
+        result = self.parser.parse(code)
+        stmt = result["functions"][0]["body"]["statements"][0]
+        assert stmt["type"] == "mut_declaration"
+        assert stmt["name"] == "precise"
+        assert stmt["type_annotation"] == "f32"
+        assert stmt["value"]["name"] == "undef"
+
+    def test_undef_with_bool_specifically(self):
+        """Test undef works specifically with bool type"""
+        code = """
+        func test() : i32  = {
+            val flag : bool = undef
+            return 0
+        }
+        """
+        result = self.parser.parse(code)
+        stmt = result["functions"][0]["body"]["statements"][0]
+        assert stmt["type"] == "val_declaration"
+        assert stmt["name"] == "flag"
+        assert stmt["type_annotation"] == "bool"
+        assert stmt["value"]["name"] == "undef"

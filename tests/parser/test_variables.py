@@ -141,3 +141,93 @@ class TestVariableDeclarations:
             assert "name" in decl
             assert "type_annotation" in decl
             assert "value" in decl
+
+    def test_val_with_explicit_type_annotations(self):
+        """Test val declarations with explicit type annotations"""
+        source = """
+        func main() : i32  = {
+            val integer : i32 = 42
+            val long_int : i64 = 123
+            val single : f32 = 3.14
+            val double : f64 = 2.718
+            val text : string = "hello"
+            val flag : bool = true
+            return 0
+        }
+        """
+
+        ast = self.parser.parse(source)
+        statements = ast["functions"][0]["body"]["statements"]
+
+        expected_types = ["i32", "i64", "f32", "f64", "string", "bool"]
+        expected_names = ["integer", "long_int", "single", "double", "text", "flag"]
+        expected_values = [42, 123, 3.14, 2.718, "hello", True]
+
+        for i, (expected_type, expected_name, expected_value) in enumerate(
+            zip(expected_types, expected_names, expected_values)
+        ):
+            decl = statements[i]
+            assert decl["type"] == "val_declaration"
+            assert decl["name"] == expected_name
+            assert decl["type_annotation"] == expected_type
+            assert decl["value"]["value"] == expected_value
+
+    def test_mut_with_explicit_type_annotations(self):
+        """Test mut declarations with explicit type annotations"""
+        source = """
+        func main() : i32  = {
+            mut counter : i32 = 0
+            mut big_counter : i64 = 1000
+            mut precise : f32 = 0.0
+            mut very_precise : f64 = 0.0
+            mut message : string = ""
+            mut active : bool = false
+            return 0
+        }
+        """
+
+        ast = self.parser.parse(source)
+        statements = ast["functions"][0]["body"]["statements"]
+
+        expected_types = ["i32", "i64", "f32", "f64", "string", "bool"]
+        expected_names = [
+            "counter",
+            "big_counter",
+            "precise",
+            "very_precise",
+            "message",
+            "active",
+        ]
+        expected_values = [0, 1000, 0.0, 0.0, "", False]
+
+        for i, (expected_type, expected_name, expected_value) in enumerate(
+            zip(expected_types, expected_names, expected_values)
+        ):
+            decl = statements[i]
+            assert decl["type"] == "mut_declaration"
+            assert decl["name"] == expected_name
+            assert decl["type_annotation"] == expected_type
+            assert decl["value"]["value"] == expected_value
+
+    def test_mixed_explicit_and_inferred_types(self):
+        """Test mixing explicit type annotations with type inference"""
+        source = """
+        func main() : i32  = {
+            val inferred_int = 42
+            val explicit_int : i32 = 42
+            mut inferred_string = "hello"
+            mut explicit_string : string = "world"
+            return 0
+        }
+        """
+
+        ast = self.parser.parse(source)
+        statements = ast["functions"][0]["body"]["statements"]
+
+        # Check inferred types have None annotation
+        assert statements[0]["type_annotation"] is None
+        assert statements[2]["type_annotation"] is None
+
+        # Check explicit types have proper annotation
+        assert statements[1]["type_annotation"] == "i32"
+        assert statements[3]["type_annotation"] == "string"

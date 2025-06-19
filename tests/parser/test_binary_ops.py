@@ -304,3 +304,28 @@ def test_logical_operator_syntax_errors():
     for source in invalid_sources:
         with pytest.raises(SyntaxError):
             parser.parse(source)
+
+
+def test_binary_operations_with_type_annotations():
+    """Test binary operations combined with type annotations"""
+    source = """
+    func main(): i32 = {
+        val mixed : f64 = (42 + 3.14) : f64
+        val complex : i32 = (10 * 20 + 30) : i32
+        val logical : bool = (true && false) : bool
+        return 0
+    }
+    """
+    parser = HexenParser()
+    ast = parser.parse(source)
+
+    # Get the variable declarations from the function body
+    statements = ast["functions"][0]["body"]["statements"]
+
+    # Check that type annotations are properly parsed with binary operations
+    for i, stmt in enumerate(statements[:3]):  # Skip return statement
+        assert stmt["type"] in ["val_declaration"]
+        expr = stmt["value"]
+        assert expr["type"] == "type_annotation"
+        # The expression inside should be a binary operation
+        assert expr["expression"]["type"] == "binary_operation"
