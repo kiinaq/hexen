@@ -326,6 +326,6 @@ def test_binary_operations_with_type_annotations():
     for i, stmt in enumerate(statements[:3]):  # Skip return statement
         assert stmt["type"] in ["val_declaration"]
         expr = stmt["value"]
-        assert expr["type"] == "type_annotation"
+        assert expr["type"] == "type_annotated_expression"
         # The expression inside should be a binary operation
         assert expr["expression"]["type"] == "binary_operation"

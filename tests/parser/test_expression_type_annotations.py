@@ -34,10 +34,10 @@ class TestExpressionTypeAnnotations:
 
         # Check the expression has type annotation
         expr = val_decl["value"]
-        assert expr["type"] == "type_annotation"
+        assert expr["type"] == "type_annotated_expression"
         assert expr["expression"]["type"] == "literal"
         assert expr["expression"]["value"] == 42
-        assert expr["annotation_type"] == "i32"
+        assert expr["type_annotation"] == "i32"
 
     def test_float_literal_type_annotation(self):
         """Test float literal with type annotation"""
@@ -53,9 +53,9 @@ class TestExpressionTypeAnnotations:
 
         val_decl = statements[0]
         expr = val_decl["value"]
-        assert expr["type"] == "type_annotation"
+        assert expr["type"] == "type_annotated_expression"
         assert expr["expression"]["value"] == 3.14
-        assert expr["annotation_type"] == "f32"
+        assert expr["type_annotation"] == "f32"
 
     def test_binary_operation_type_annotation(self):
         """Test binary operation with type annotation"""
@@ -71,8 +71,8 @@ class TestExpressionTypeAnnotations:
 
         val_decl = statements[0]
         expr = val_decl["value"]
-        assert expr["type"] == "type_annotation"
-        assert expr["annotation_type"] == "f64"
+        assert expr["type"] == "type_annotated_expression"
+        assert expr["type_annotation"] == "f64"
 
         # Check the inner binary operation
         binary_op = expr["expression"]
@@ -95,8 +95,8 @@ class TestExpressionTypeAnnotations:
 
         val_decl = statements[0]
         expr = val_decl["value"]
-        assert expr["type"] == "type_annotation"
-        assert expr["annotation_type"] == "i32"
+        assert expr["type"] == "type_annotated_expression"
+        assert expr["type_annotation"] == "i32"
 
         # Check the inner complex expression
         binary_op = expr["expression"]
@@ -118,8 +118,8 @@ class TestExpressionTypeAnnotations:
 
         val_decl = statements[1]
         expr = val_decl["value"]
-        assert expr["type"] == "type_annotation"
-        assert expr["annotation_type"] == "i32"
+        assert expr["type"] == "type_annotated_expression"
+        assert expr["type_annotation"] == "i32"
 
         # Check the identifier
         identifier = expr["expression"]
@@ -151,8 +151,8 @@ class TestExpressionTypeAnnotations:
         ):
             val_decl = statements[i]
             expr = val_decl["value"]
-            assert expr["type"] == "type_annotation"
-            assert expr["annotation_type"] == expected_type
+            assert expr["type"] == "type_annotated_expression"
+            assert expr["type_annotation"] == expected_type
             assert expr["expression"]["value"] == expected_value
 
     def test_mut_variable_with_type_annotation(self):
@@ -172,8 +172,8 @@ class TestExpressionTypeAnnotations:
         assert mut_decl["type_annotation"] == "f64"
 
         expr = mut_decl["value"]
-        assert expr["type"] == "type_annotation"
-        assert expr["annotation_type"] == "f64"
+        assert expr["type"] == "type_annotated_expression"
+        assert expr["type_annotation"] == "f64"
 
     def test_parenthesized_expression_type_annotation(self):
         """Test parenthesized expression with type annotation"""
@@ -189,8 +189,8 @@ class TestExpressionTypeAnnotations:
 
         val_decl = statements[0]
         expr = val_decl["value"]
-        assert expr["type"] == "type_annotation"
-        assert expr["annotation_type"] == "i32"
+        assert expr["type"] == "type_annotated_expression"
+        assert expr["type_annotation"] == "i32"
 
         # The expression should be the parenthesized content
         inner_expr = expr["expression"]
@@ -211,8 +211,8 @@ class TestExpressionTypeAnnotations:
 
         val_decl = statements[0]
         expr = val_decl["value"]
-        assert expr["type"] == "type_annotation"
-        assert expr["annotation_type"] == "f64"
+        assert expr["type"] == "type_annotated_expression"
+        assert expr["type_annotation"] == "f64"
 
         # Check that the inner expression is properly parsed
         inner_expr = expr["expression"]

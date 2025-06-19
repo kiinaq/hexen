@@ -141,8 +141,8 @@ class TestTypeAnnotationErrors:
         assert return_stmt["type"] == "return_statement"
         # The return value should have a type annotation
         return_value = return_stmt["value"]
-        assert return_value["type"] == "type_annotation"
-        assert return_value["annotation_type"] == "i32"
+        assert return_value["type"] == "type_annotated_expression"
+        assert return_value["type_annotation"] == "i32"
         assert return_value["expression"]["value"] == 42
 
     def test_valid_complex_type_annotations(self):
@@ -198,16 +198,14 @@ class TestTypeAnnotationErrors:
         expr = val_decl["value"]
 
         # The type annotation should wrap the entire binary operation
-        if expr["type"] == "type_annotation":
-            # Type annotation has higher precedence - wraps the whole expression
-            assert expr["annotation_type"] == "i32"
-            inner_expr = expr["expression"]
-            assert inner_expr["type"] == "binary_operation"
-            assert inner_expr["operator"] == "+"
-        else:
-            # Type annotation has lower precedence - only applies to the right operand
-            assert expr["type"] == "binary_operation"
-            assert expr["right"]["type"] == "type_annotation"
+        # (This confirms type annotations have LOW precedence - they apply to whole expressions)
+        assert expr["type"] == "type_annotated_expression"
+        assert expr["type_annotation"] == "i32"
+
+        # The inner expression should be the binary operation
+        inner_expr = expr["expression"]
+        assert inner_expr["type"] == "binary_operation"
+        assert inner_expr["operator"] == "+"
 
     def test_multiple_type_annotations_error(self):
         """Test that multiple type annotations on same expression cause error"""
