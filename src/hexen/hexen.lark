@@ -61,8 +61,8 @@ TYPE_STRING: "string"
 TYPE_BOOL: "bool"
 TYPE_VOID: "void"
 
-VAL: "val"
-MUT: "mut"
+VAL: /val\b/
+MUT: /mut\b/
 
 // Terminals
 IDENTIFIER: /(?!val\b|mut\b|true\b|false\b)[a-zA-Z_][a-zA-Z0-9_]*/

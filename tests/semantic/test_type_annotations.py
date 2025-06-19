@@ -29,6 +29,7 @@ class TestTypeAnnotationBasics:
             val single : f32 = 2.718 : f32      // ✅ Both sides f32
             val double : f64 = 3.14159 : f64    // ✅ Both sides f64
             
+            val large_value : i64 = 9223372036854775807
             mut counter : i32 = 0
             counter = large_value : i32          // ✅ Both sides i32 (assignment)
         }
@@ -56,6 +57,14 @@ class TestTypeAnnotationBasics:
         """Test that type annotations must be at rightmost end"""
         source = """
         func test() : void = {
+            // Define variables for complex expressions
+            val a : f64 = 2.0
+            val b : f64 = 3.0
+            val c : f64 = 4.0
+            val x : f32 = 1.0
+            val y : f32 = 2.0
+            val z : f32 = 3.0
+            
             // ✅ Correct: annotation at rightmost end
             val result : i32 = (10 + 20) : i32
             val complex : f64 = (a * b + c) : f64
@@ -179,6 +188,10 @@ class TestTypeAnnotationWithoutExplicitLeftType:
         """Test that type annotations cannot be used without explicit left-side type"""
         source = """
         func test() : void = {
+            // Define helper variables  
+            val some_expr : i32 = 100
+            val large_value : i64 = 9223372036854775807
+            
             // ❌ FORBIDDEN: Type annotation without explicit left side type
             val result = 42 + 3.14 : f64      // Error: No explicit left side type
             val mixed = some_expr : i32       // Error: No explicit left side type
@@ -200,6 +213,10 @@ class TestTypeAnnotationWithoutExplicitLeftType:
         """Test that type annotations work when left-side type is explicit"""
         source = """
         func test() : void = {
+            // Define helper variables
+            val some_expr : i32 = 100
+            val large_value : i64 = 9223372036854775807
+            
             // ✅ CORRECT: Explicit left side type that matches right side annotation
             val result : f64 = (42 + 3.14) : f64    // Both sides have f64
             val mixed : i32 = some_expr : i32        // Both sides have i32
@@ -336,7 +353,7 @@ class TestTypeAnnotationIntegration:
             val large : i64 = 1000000
             
             val result : i32 = {
-                val temp = large * 2
+                val temp : i64 = large * 2
                 return temp : i32     // Explicit acknowledgment in expression block
             }
             

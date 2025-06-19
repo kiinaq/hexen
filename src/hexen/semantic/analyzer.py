@@ -319,6 +319,7 @@ class SemanticAnalyzer:
         - Target must be a declared variable
         - Target must be mutable (mut, not val)
         - Value type must be coercible to target type (using coercion)
+        - Type annotations enable precision loss operations (acknowledgment)
         - Supports self-assignment (x = x)
         - No chained assignment (a = b = c)
 
@@ -346,39 +347,48 @@ class SemanticAnalyzer:
             self._error(f"Cannot assign to immutable variable '{target_name}'", node)
             return
 
-        # Analyze the value expression
+        # Analyze the value expression with target type context
         value_type = self._analyze_expression(value, symbol.type)
 
         # Check type compatibility with coercion
         if value_type != HexenType.UNKNOWN:
-            # --- Truncation/Precision Loss Detection ---
-            # Only check if the assignment value is NOT a type_annotated_expression
+            # Type annotations are handled in _analyze_expression, so if we get here
+            # without errors, either it's a safe operation or it was acknowledged
+
+            # Only check precision loss if NOT a type_annotated_expression
             if value.get("type") != "type_annotated_expression":
-                # Integer truncation: assigning i64 to i32
-                if value_type == HexenType.I64 and symbol.type == HexenType.I32:
-                    self._error(
-                        "Potential truncation, add ': i32' to acknowledge", node
-                    )
-                    return
-                # Float precision loss: assigning f64 to f32
-                elif value_type == HexenType.F64 and symbol.type == HexenType.F32:
-                    self._error(
-                        "Potential precision loss, add ': f32' to acknowledge", node
-                    )
-                    return
-                # Mixed int/float: assigning f64 or i64 to i32, or f64 to f32
-                elif value_type == HexenType.F64 and symbol.type == HexenType.I32:
-                    self._error(
-                        "Potential truncation, add ': i32' to acknowledge", node
-                    )
-                    return
-                elif value_type == HexenType.I64 and symbol.type == HexenType.F32:
-                    self._error(
-                        "Potential precision loss, add ': f32' to acknowledge", node
-                    )
+                # Check for precision loss operations that require acknowledgment
+                if self._is_precision_loss_operation(value_type, symbol.type):
+                    # Generate appropriate error message based on operation type
+                    if value_type == HexenType.I64 and symbol.type == HexenType.I32:
+                        self._error(
+                            "Potential truncation, Add ': i32' to explicitly acknowledge",
+                            node,
+                        )
+                    elif value_type == HexenType.F64 and symbol.type == HexenType.F32:
+                        self._error(
+                            "Potential precision loss, Add ': f32' to explicitly acknowledge",
+                            node,
+                        )
+                    elif value_type == HexenType.F64 and symbol.type == HexenType.I32:
+                        self._error(
+                            "Potential truncation, Add ': i32' to explicitly acknowledge",
+                            node,
+                        )
+                    elif value_type == HexenType.I64 and symbol.type == HexenType.F32:
+                        self._error(
+                            "Potential precision loss, Add ': f32' to explicitly acknowledge",
+                            node,
+                        )
+                    else:
+                        # Generic precision loss message
+                        self._error(
+                            f"Potential precision loss, Add ': {symbol.type.value}' to explicitly acknowledge",
+                            node,
+                        )
                     return
 
-            # Check type compatibility with coercion after truncation/precision loss checks
+            # Check type compatibility with coercion for non-precision-loss cases
             if not can_coerce(value_type, symbol.type):
                 self._error(
                     f"Type mismatch in assignment: variable '{target_name}' is {symbol.type.value}, "
@@ -408,25 +418,8 @@ class SemanticAnalyzer:
         expr_type = node.get("type")
 
         if expr_type == "type_annotated_expression":
-            # Handle type annotated expressions
-            expr = node.get("expression")
-            type_annotation = node.get("type_annotation")
-            annotated_type = parse_type(type_annotation)
-
-            # Analyze the expression with the annotated type as target
-            expr_type = self._analyze_expression(expr, annotated_type)
-
-            # Validate that the expression type can be coerced to the annotated type
-            if expr_type != HexenType.UNKNOWN and not can_coerce(
-                expr_type, annotated_type
-            ):
-                self._error(
-                    f"Type mismatch: expression of type {expr_type.value} cannot be coerced to {annotated_type.value}",
-                    node,
-                )
-                return HexenType.UNKNOWN
-
-            return annotated_type
+            # Handle type annotated expressions - Phase 1 implementation
+            return self._analyze_type_annotated_expression(node, target_type)
         elif expr_type == "literal":
             return infer_type_from_value(node)
         elif expr_type == "identifier":
@@ -440,6 +433,95 @@ class SemanticAnalyzer:
         else:
             self._error(f"Unknown expression type: {expr_type}", node)
             return HexenType.UNKNOWN
+
+    def _analyze_type_annotated_expression(
+        self, node: Dict, target_type: Optional[HexenType] = None
+    ) -> HexenType:
+        """
+        Analyze type annotated expressions implementing "Explicit Danger, Implicit Safety".
+
+        Key rules:
+        1. Type annotation must match the target type exactly (left-hand side)
+        2. Type annotations require explicit left-side types
+        3. Type annotations enable precision loss operations (acknowledgment)
+        4. Type annotations are NOT conversions, they're acknowledgments
+        """
+        expr = node.get("expression")
+        type_annotation = node.get("type_annotation")
+        annotated_type = parse_type(type_annotation)
+
+        # Rule: Type annotations require explicit left-side types
+        if target_type is None:
+            self._error(
+                "Type annotation requires explicit left side type",
+                node,
+            )
+            return HexenType.UNKNOWN
+
+        # Rule: Type annotation must match target type exactly
+        if annotated_type != target_type:
+            self._error(
+                f"Type annotation must match variable's declared type: "
+                f"expected {target_type.value}, got {annotated_type.value}",
+                node,
+            )
+            return HexenType.UNKNOWN
+
+        # Analyze the expression with the annotated type as target
+        expr_type = self._analyze_expression(expr, annotated_type)
+
+        # Type annotation enables precision loss operations (acknowledgment)
+        # This means we allow operations that would normally be rejected
+        if expr_type != HexenType.UNKNOWN:
+            # Check if this is a precision loss operation that needs acknowledgment
+            if self._is_precision_loss_operation(expr_type, annotated_type):
+                # Type annotation acknowledged - allow the operation
+                return annotated_type
+
+            # For safe operations, still check coercion
+            if not can_coerce(expr_type, annotated_type):
+                self._error(
+                    f"Type mismatch: expression of type {expr_type.value} cannot be coerced to {annotated_type.value}",
+                    node,
+                )
+                return HexenType.UNKNOWN
+        else:
+            # If expression analysis failed (e.g., due to undefined variables),
+            # the type annotation structure is still valid - return the annotated type
+            # This allows type annotation validation to work even when expressions have errors
+            pass
+
+        return annotated_type
+
+    def _is_precision_loss_operation(
+        self, from_type: HexenType, to_type: HexenType
+    ) -> bool:
+        """
+        Check if an operation represents precision loss that requires acknowledgment.
+
+        These are the "dangerous" operations that require explicit acknowledgment:
+        - i64 → i32 (truncation)
+        - f64 → f32 (precision loss)
+        - float → integer (truncation + precision loss)
+        - comptime_float → integer (truncation)
+        """
+        return (
+            # Integer truncation
+            (from_type == HexenType.I64 and to_type == HexenType.I32)
+            or
+            # Float precision loss
+            (from_type == HexenType.F64 and to_type == HexenType.F32)
+            or
+            # Float to integer conversion (any combination)
+            (
+                from_type in {HexenType.F32, HexenType.F64, HexenType.COMPTIME_FLOAT}
+                and to_type in {HexenType.I32, HexenType.I64}
+            )
+            or
+            # Mixed precision loss (i64 → f32, f64 → i32)
+            (from_type == HexenType.I64 and to_type == HexenType.F32)
+            or (from_type == HexenType.F64 and to_type == HexenType.I32)
+        )
 
     def _analyze_identifier(self, node: Dict) -> HexenType:
         """

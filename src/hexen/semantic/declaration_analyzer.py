@@ -210,24 +210,22 @@ class DeclarationAnalyzer:
                 is_initialized = False
             elif value:
                 # Type annotation + value: validate compatibility with coercion
+                # Pass var_type as target_type for context-guided analysis
                 value_type = self._analyze_expression(value, var_type)
                 if value_type != HexenType.UNKNOWN:
-                    if can_coerce(value_type, var_type):
-                        # Coercion is allowed - resolve comptime types to concrete types
-                        if value_type in {
-                            HexenType.COMPTIME_INT,
-                            HexenType.COMPTIME_FLOAT,
-                        }:
-                            # The comptime type becomes the target type through coercion
-                            pass
-                        # else: regular coercion (e.g., i32 -> i64), also fine
-                    else:
-                        # Cannot coerce - this is a type error
-                        self._error(
-                            f"Type mismatch: variable '{name}' declared as {var_type.value} "
-                            f"but assigned value of type {value_type.value}",
-                            node,
-                        )
+                    # Type annotations are handled in _analyze_expression
+                    # If we get here without errors, the operation was either safe or acknowledged
+
+                    # Check for remaining type compatibility
+                    if not can_coerce(value_type, var_type):
+                        # Only report error if not a type_annotated_expression
+                        # (type annotations handle their own validation)
+                        if value.get("type") != "type_annotated_expression":
+                            self._error(
+                                f"Type mismatch: variable '{name}' declared as {var_type.value} "
+                                f"but assigned value of type {value_type.value}",
+                                node,
+                            )
         else:
             # Type inference path - must have value
             if not value:
