@@ -22,6 +22,7 @@ from .type_util import (
     get_wider_type,
     is_mixed_type_operation,
     is_integer_type,
+    can_coerce,
 )
 
 # Set of comparison operators
@@ -121,6 +122,26 @@ class BinaryOpsAnalyzer:
                     "comptime_float operations require explicit result type", node
                 )
                 return HexenType.UNKNOWN
+        else:
+            # When target_type is provided, check if mixed types can be safely resolved
+            if is_mixed_type_operation(left_type, right_type):
+                # Check if the target type can safely accommodate both operand types
+                if not (
+                    can_coerce(left_type, target_type)
+                    and can_coerce(right_type, target_type)
+                ):
+                    self._error("Mixed types require explicit result type", node)
+                    return HexenType.UNKNOWN
+                # If both types can coerce to target, allow the operation to proceed
+
+            # For float operations with target context, allow if target can accommodate
+            if is_float_type(left_type) and is_float_type(right_type):
+                if not is_float_type(target_type):
+                    self._error(
+                        "comptime_float operations require explicit result type", node
+                    )
+                    return HexenType.UNKNOWN
+                # If target is also float type, allow the operation to proceed
 
         # Handle remaining arithmetic operations
         return self._resolve_binary_operation_type(
@@ -312,6 +333,14 @@ class BinaryOpsAnalyzer:
 
         # For non-comptime types, use standard type resolution
         if operator in ["+", "-", "*"]:
+            # Handle string concatenation for + operator
+            if (
+                operator == "+"
+                and left_type == HexenType.STRING
+                and right_type == HexenType.STRING
+            ):
+                return HexenType.STRING
+
             # If target_type is provided and is a float or integer type, use it
             if target_type and (
                 is_float_type(target_type) or is_integer_type(target_type)

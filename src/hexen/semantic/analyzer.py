@@ -15,9 +15,10 @@ from .binary_ops_analyzer import BinaryOpsAnalyzer
 from .unary_ops_analyzer import UnaryOpsAnalyzer
 from .declaration_analyzer import DeclarationAnalyzer
 from .type_util import (
-    can_coerce,
     parse_type,
     infer_type_from_value,
+    resolve_comptime_type,
+    can_coerce,
 )
 
 
@@ -344,7 +345,11 @@ class SemanticAnalyzer:
 
         # Check mutability - only mut variables can be assigned to
         if symbol.mutability == Mutability.IMMUTABLE:
-            self._error(f"Cannot assign to immutable variable '{target_name}'", node)
+            self._error(
+                f"Cannot assign to immutable variable '{target_name}'. "
+                f"val variables can only be assigned once at declaration",
+                node,
+            )
             return
 
         # Analyze the value expression with target type context
@@ -360,55 +365,59 @@ class SemanticAnalyzer:
                 # For complex expressions (like binary operations), check what the natural type would be
                 # without target type influence to detect precision loss scenarios
                 if value.get("type") == "binary_operation":
-                    # Analyze the expression without target context to get its natural type
-                    natural_type = self._analyze_expression(value, None)
+                    # Check if this might involve comptime types that could safely resolve
+                    # If so, skip the precision loss check to avoid false positives
+                    left = value.get("left", {})
+                    right = value.get("right", {})
 
-                    # If the natural type is different and would cause precision loss, require acknowledgment
-                    if (
-                        natural_type != HexenType.UNKNOWN
-                        and natural_type != symbol.type
-                        and self._is_precision_loss_operation(natural_type, symbol.type)
-                    ):
-                        # Generate appropriate error message based on operation type
+                    # Get operand types
+                    left_type = (
+                        self._analyze_expression(left, symbol.type)
+                        if left
+                        else HexenType.UNKNOWN
+                    )
+                    right_type = (
+                        self._analyze_expression(right, symbol.type)
+                        if right
+                        else HexenType.UNKNOWN
+                    )
+
+                    # If either operand is a comptime type that can coerce to target, this is likely safe
+                    has_comptime_operand = left_type in {
+                        HexenType.COMPTIME_INT,
+                        HexenType.COMPTIME_FLOAT,
+                    } or right_type in {
+                        HexenType.COMPTIME_INT,
+                        HexenType.COMPTIME_FLOAT,
+                    }
+
+                    # If we have comptime operands that can coerce to target type, skip precision loss check
+                    if has_comptime_operand:
                         if (
-                            natural_type == HexenType.I64
-                            and symbol.type == HexenType.I32
+                            left_type
+                            in {HexenType.COMPTIME_INT, HexenType.COMPTIME_FLOAT}
+                            and can_coerce(left_type, symbol.type)
+                        ) or (
+                            right_type
+                            in {HexenType.COMPTIME_INT, HexenType.COMPTIME_FLOAT}
+                            and can_coerce(right_type, symbol.type)
                         ):
-                            self._error(
-                                "Potential truncation, Add ': i32' to explicitly acknowledge",
-                                node,
-                            )
-                        elif (
-                            natural_type == HexenType.F64
-                            and symbol.type == HexenType.F32
-                        ):
-                            self._error(
-                                "Potential precision loss, Add ': f32' to explicitly acknowledge",
-                                node,
-                            )
-                        elif (
-                            natural_type == HexenType.F64
-                            and symbol.type == HexenType.I32
-                        ):
-                            self._error(
-                                "Potential truncation, Add ': i32' to explicitly acknowledge",
-                                node,
-                            )
-                        elif (
-                            natural_type == HexenType.I64
-                            and symbol.type == HexenType.F32
-                        ):
-                            self._error(
-                                "Potential precision loss, Add ': f32' to explicitly acknowledge",
-                                node,
-                            )
+                            # Skip precision loss check - comptime types can safely adapt
+                            pass
                         else:
-                            # Generic precision loss message
-                            self._error(
-                                f"Potential precision loss, Add ': {symbol.type.value}' to explicitly acknowledge",
-                                node,
-                            )
-                        return
+                            # Proceed with precision loss check
+                            self._check_precision_loss_in_binary_op(value, symbol, node)
+                    else:
+                        # No comptime operands, but check if this is a safe mixed concrete operation
+                        # If both operand types can coerce to target type, it's safe - skip precision loss check
+                        if can_coerce(left_type, symbol.type) and can_coerce(
+                            right_type, symbol.type
+                        ):
+                            # Both types can safely coerce to target - no precision loss check needed
+                            pass
+                        else:
+                            # Proceed with precision loss check for truly problematic cases
+                            self._check_precision_loss_in_binary_op(value, symbol, node)
                 else:
                     # For non-binary operations, use the existing logic
                     # Check for precision loss operations that require acknowledgment
@@ -450,9 +459,13 @@ class SemanticAnalyzer:
 
             # Check type compatibility with coercion for non-precision-loss cases
             if not can_coerce(value_type, symbol.type):
+                # Resolve comptime types for better error messages
+                display_value_type = resolve_comptime_type(
+                    value_type, HexenType.UNKNOWN
+                )
                 self._error(
                     f"Type mismatch in assignment: variable '{target_name}' is {symbol.type.value}, "
-                    f"but assigned value is {value_type.value}",
+                    f"but assigned value is {display_value_type.value}",
                     node,
                 )
                 return
@@ -643,9 +656,48 @@ class SemanticAnalyzer:
         self.current_function_return_type = return_type
 
     def _clear_function_context(self) -> None:
-        """Clear the current function context."""
-        self.symbol_table.current_function = None
-        self.current_function_return_type = None
+        """Clear function context."""
+        self.current_function = None
+
+    def _check_precision_loss_in_binary_op(self, value, symbol, node):
+        """Helper method to check precision loss in binary operations."""
+        # Analyze the expression without target context to get its natural type
+        natural_type = self._analyze_expression(value, None)
+
+        # If the natural type is different and would cause precision loss, require acknowledgment
+        if (
+            natural_type != HexenType.UNKNOWN
+            and natural_type != symbol.type
+            and self._is_precision_loss_operation(natural_type, symbol.type)
+        ):
+            # Generate appropriate error message based on operation type
+            if natural_type == HexenType.I64 and symbol.type == HexenType.I32:
+                self._error(
+                    "Potential truncation, Add ': i32' to explicitly acknowledge",
+                    node,
+                )
+            elif natural_type == HexenType.F64 and symbol.type == HexenType.F32:
+                self._error(
+                    "Potential precision loss, Add ': f32' to explicitly acknowledge",
+                    node,
+                )
+            elif natural_type == HexenType.F64 and symbol.type == HexenType.I32:
+                self._error(
+                    "Potential truncation, Add ': i32' to explicitly acknowledge",
+                    node,
+                )
+            elif natural_type == HexenType.I64 and symbol.type == HexenType.F32:
+                self._error(
+                    "Potential precision loss, Add ': f32' to explicitly acknowledge",
+                    node,
+                )
+            else:
+                # Generic precision loss message
+                self._error(
+                    f"Potential precision loss, Add ': {symbol.type.value}' to explicitly acknowledge",
+                    node,
+                )
+            return
 
     def _get_current_scope(self):
         """Return the current (innermost) scope dictionary from the symbol table."""

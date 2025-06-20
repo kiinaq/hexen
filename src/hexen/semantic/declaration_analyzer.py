@@ -191,7 +191,7 @@ class DeclarationAnalyzer:
 
         Handles variable-specific logic:
         - Type inference and validation with comptime type coercion
-        - undef handling
+        - undef handling with val/mut validation
         - Symbol table registration
         """
         var_type = None
@@ -208,6 +208,18 @@ class DeclarationAnalyzer:
                 and value.get("name") == "undef"
             ):
                 is_initialized = False
+
+                # PHASE 3: Validate val + undef prohibition
+                if mutability == Mutability.IMMUTABLE:
+                    self._error(
+                        f"Invalid usage: val variable '{name}' declared with undef creates unusable variable. "
+                        f"val variables cannot be assigned later. "
+                        f"Consider using 'mut' for deferred initialization "
+                        f"or expression blocks for complex initialization (see UNIFIED_BLOCK_SYSTEM.md)",
+                        node,
+                    )
+                    return
+
             elif value:
                 # Type annotation + value: validate compatibility with coercion
                 # Pass var_type as target_type for context-guided analysis
@@ -231,6 +243,15 @@ class DeclarationAnalyzer:
             if not value:
                 self._error(
                     f"Variable '{name}' must have either explicit type or value",
+                    node,
+                )
+                return
+
+            # PHASE 3: Special handling for undef without explicit type
+            if value.get("type") == "identifier" and value.get("name") == "undef":
+                self._error(
+                    f"Cannot infer type for variable '{name}': undef requires explicit type annotation. "
+                    f"Use 'mut {name} : type = undef' or 'val {name} : type = value'",
                     node,
                 )
                 return
