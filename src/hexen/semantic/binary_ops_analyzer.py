@@ -114,6 +114,7 @@ class BinaryOpsAnalyzer:
 
         # Handle mixed type operations and float operations
         if target_type is None:
+            # No target context - require explicit types for ambiguous operations
             if is_mixed_type_operation(left_type, right_type):
                 self._error("Mixed types require explicit result type", node)
                 return HexenType.UNKNOWN
@@ -125,14 +126,9 @@ class BinaryOpsAnalyzer:
         else:
             # When target_type is provided, check if mixed types can be safely resolved
             if is_mixed_type_operation(left_type, right_type):
-                # Check if the target type can safely accommodate both operand types
-                if not (
-                    can_coerce(left_type, target_type)
-                    and can_coerce(right_type, target_type)
-                ):
-                    self._error("Mixed types require explicit result type", node)
-                    return HexenType.UNKNOWN
-                # If both types can coerce to target, allow the operation to proceed
+                # For mixed types with target context, let the resolver handle it
+                # The _resolve_binary_operation_type will check if coercion is possible
+                pass  # Allow to proceed to resolver
 
             # For float operations with target context, allow if target can accommodate
             if is_float_type(left_type) and is_float_type(right_type):
@@ -321,17 +317,13 @@ class BinaryOpsAnalyzer:
         - Context-guided resolution
         - Logical operations (&&, ||)
         """
-        # Handle comptime types first
-        left_type = resolve_comptime_type(left_type, target_type)
-        right_type = resolve_comptime_type(right_type, target_type)
-
         # Handle logical operators
         if operator in ["&&", "||"]:
             # Logical operations always produce boolean results
             # Note: Operand type validation is done in analyze_binary_operation
             return HexenType.BOOL
 
-        # For non-comptime types, use standard type resolution
+        # For arithmetic operations
         if operator in ["+", "-", "*"]:
             # Handle string concatenation for + operator
             if (
@@ -341,13 +333,30 @@ class BinaryOpsAnalyzer:
             ):
                 return HexenType.STRING
 
-            # If target_type is provided and is a float or integer type, use it
+            # If target_type is provided and is a numeric type, use it
+            # This enables context-guided resolution for mixed types
             if target_type and (
                 is_float_type(target_type) or is_integer_type(target_type)
             ):
-                return target_type
-            # Arithmetic operations
-            return get_wider_type(left_type, right_type)
+                # Resolve comptime types to target type for context guidance
+                left_resolved = resolve_comptime_type(left_type, target_type)
+                right_resolved = resolve_comptime_type(right_type, target_type)
+
+                # Check if both operands can coerce to target type
+                if can_coerce(left_resolved, target_type) and can_coerce(
+                    right_resolved, target_type
+                ):
+                    return target_type
+
+                # If coercion is not possible, fall back to standard resolution
+                return get_wider_type(left_resolved, right_resolved)
+
+            # No target context - resolve comptime types with defaults
+            left_resolved = resolve_comptime_type(left_type, None)
+            right_resolved = resolve_comptime_type(right_type, None)
+
+            # Standard arithmetic type resolution
+            return get_wider_type(left_resolved, right_resolved)
 
         return HexenType.UNKNOWN
 
