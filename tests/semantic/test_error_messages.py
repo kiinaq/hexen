@@ -272,9 +272,10 @@ class TestComptimeTypeErrorMessages:
         assert len(errors) == 1
 
         error_msg = errors[0].message
-        assert "Type mismatch" in error_msg
-        assert "comptime_float" in error_msg
-        assert "i32" in error_msg
+        # This is now correctly detected as a precision loss operation
+        assert "Potential truncation" in error_msg
+        assert "Add ': i32'" in error_msg
+        assert "acknowledge" in error_msg
 
     def test_undef_without_type_error_message(self):
         """Test error message for undef without explicit type"""

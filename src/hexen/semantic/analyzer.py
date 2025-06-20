@@ -301,6 +301,58 @@ class SemanticAnalyzer:
                 # Void functions cannot have return values
                 self._error("Void function cannot return a value", node)
             elif return_type != HexenType.UNKNOWN:
+                # Check for precision loss operations that require acknowledgment
+                if self._is_precision_loss_operation(
+                    return_type, self.current_function_return_type
+                ):
+                    # For non-type-annotated expressions, require acknowledgment
+                    if value.get("type") != "type_annotated_expression":
+                        # Generate appropriate error message based on operation type
+                        if (
+                            return_type == HexenType.I64
+                            and self.current_function_return_type == HexenType.I32
+                        ):
+                            self._error(
+                                "Potential truncation, Add ': i32' to explicitly acknowledge",
+                                node,
+                            )
+                        elif (
+                            return_type == HexenType.F64
+                            and self.current_function_return_type == HexenType.F32
+                        ):
+                            self._error(
+                                "Potential precision loss, Add ': f32' to explicitly acknowledge",
+                                node,
+                            )
+                        elif return_type in {
+                            HexenType.F32,
+                            HexenType.F64,
+                            HexenType.COMPTIME_FLOAT,
+                        } and self.current_function_return_type in {
+                            HexenType.I32,
+                            HexenType.I64,
+                        }:
+                            # Float to integer conversion - use "truncation" terminology
+                            self._error(
+                                f"Potential truncation, Add ': {self.current_function_return_type.value}' to explicitly acknowledge",
+                                node,
+                            )
+                        elif (
+                            return_type == HexenType.I64
+                            and self.current_function_return_type == HexenType.F32
+                        ):
+                            self._error(
+                                "Potential precision loss, Add ': f32' to explicitly acknowledge",
+                                node,
+                            )
+                        else:
+                            # Generic precision loss message
+                            self._error(
+                                f"Potential precision loss, Add ': {self.current_function_return_type.value}' to explicitly acknowledge",
+                                node,
+                            )
+                        return
+
                 # Use coercion for return type checking
                 if not can_coerce(return_type, self.current_function_return_type):
                     self._error(
@@ -529,7 +581,8 @@ class SemanticAnalyzer:
         # Rule: Type annotations require explicit left-side types
         if target_type is None:
             self._error(
-                "Type annotation requires explicit left side type",
+                "Type annotation requires explicit left side type. "
+                f"Add explicit type: 'val result : {annotated_type.value} = ...'",
                 node,
             )
             return HexenType.UNKNOWN

@@ -291,7 +291,7 @@ class TestCrossTypeConversions:
             // ✅ Integer to float conversions are safe (widening)
             val float_from_i32 : f32 = int32_val  // i32 → f32
             val double_from_i32 : f64 = int32_val // i32 → f64
-            val float_from_i64 : f32 = int64_val  // i64 → f32 (may lose precision for very large)
+            val float_from_i64 : f32 = int64_val : f32  // i64 → f32 (may lose precision - acknowledge)
             val double_from_i64 : f64 = int64_val // i64 → f64
             
             // ✅ Safe in assignments too

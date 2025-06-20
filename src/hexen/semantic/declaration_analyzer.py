@@ -228,6 +228,53 @@ class DeclarationAnalyzer:
                     # Type annotations are handled in _analyze_expression
                     # If we get here without errors, the operation was either safe or acknowledged
 
+                    # Check for precision loss operations that require acknowledgment
+                    if self._is_precision_loss_operation(value_type, var_type):
+                        # For non-type-annotated expressions, require acknowledgment
+                        if value.get("type") != "type_annotated_expression":
+                            # Generate appropriate error message based on operation type
+                            if (
+                                value_type == HexenType.I64
+                                and var_type == HexenType.I32
+                            ):
+                                self._error(
+                                    "Potential truncation, Add ': i32' to explicitly acknowledge",
+                                    node,
+                                )
+                            elif (
+                                value_type == HexenType.F64
+                                and var_type == HexenType.F32
+                            ):
+                                self._error(
+                                    "Potential precision loss, Add ': f32' to explicitly acknowledge",
+                                    node,
+                                )
+                            elif value_type in {
+                                HexenType.F32,
+                                HexenType.F64,
+                                HexenType.COMPTIME_FLOAT,
+                            } and var_type in {HexenType.I32, HexenType.I64}:
+                                # Float to integer conversion - use "truncation" terminology
+                                self._error(
+                                    f"Potential truncation, Add ': {var_type.value}' to explicitly acknowledge",
+                                    node,
+                                )
+                            elif (
+                                value_type == HexenType.I64
+                                and var_type == HexenType.F32
+                            ):
+                                self._error(
+                                    "Potential precision loss, Add ': f32' to explicitly acknowledge",
+                                    node,
+                                )
+                            else:
+                                # Generic precision loss message
+                                self._error(
+                                    f"Potential precision loss, Add ': {var_type.value}' to explicitly acknowledge",
+                                    node,
+                                )
+                            return
+
                     # Check for remaining type compatibility
                     if not can_coerce(value_type, var_type):
                         # Only report error if not a type_annotated_expression
@@ -281,3 +328,33 @@ class DeclarationAnalyzer:
 
         if not self._declare_symbol(symbol):
             self._error(f"Failed to declare variable '{name}'", node)
+
+    def _is_precision_loss_operation(
+        self, from_type: HexenType, to_type: HexenType
+    ) -> bool:
+        """
+        Check if an operation represents precision loss that requires acknowledgment.
+
+        These are the "dangerous" operations that require explicit acknowledgment:
+        - i64 → i32 (truncation)
+        - f64 → f32 (precision loss)
+        - float → integer (truncation + precision loss)
+        - comptime_float → integer (truncation)
+        """
+        return (
+            # Integer truncation
+            (from_type == HexenType.I64 and to_type == HexenType.I32)
+            or
+            # Float precision loss
+            (from_type == HexenType.F64 and to_type == HexenType.F32)
+            or
+            # Float to integer conversion (any combination)
+            (
+                from_type in {HexenType.F32, HexenType.F64, HexenType.COMPTIME_FLOAT}
+                and to_type in {HexenType.I32, HexenType.I64}
+            )
+            or
+            # Mixed precision loss (i64 → f32, f64 → i32)
+            (from_type == HexenType.I64 and to_type == HexenType.F32)
+            or (from_type == HexenType.F64 and to_type == HexenType.I32)
+        )
