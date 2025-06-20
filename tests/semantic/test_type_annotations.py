@@ -154,15 +154,15 @@ class TestTypeAnnotationRequirements:
         mixed_type_errors = [
             e
             for e in errors
-            if "require explicit result type" in e.message
-            or "operations require explicit result type" in e.message
+            if "requires explicit result type" in e.message
+            or "Mixed-type operation" in e.message
         ]
         assert len(mixed_type_errors) == 3
 
         for error in mixed_type_errors:
             assert (
-                "require explicit result type" in error.message
-                or "operations require explicit result type" in error.message
+                "requires explicit result type" in error.message
+                or "Mixed-type operation" in error.message
             )
 
     def test_type_annotation_not_required_for_safe_operations(self):

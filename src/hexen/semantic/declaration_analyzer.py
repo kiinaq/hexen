@@ -258,8 +258,15 @@ class DeclarationAnalyzer:
 
             inferred_type = self._analyze_expression(value)
             if inferred_type == HexenType.UNKNOWN:
-                self._error(f"Cannot infer type for variable '{name}'", node)
-                return
+                # Check if this is likely a mixed-type operation that already reported a specific error
+                if value.get("type") == "binary_operation":
+                    # Binary operation analyzer already provided a specific error about mixed types
+                    # Don't add a generic "Cannot infer type" error - just return
+                    return
+                else:
+                    # For other cases, provide a generic type inference error
+                    self._error(f"Cannot infer type for variable '{name}'", node)
+                    return
 
             # Resolve comptime types to their default concrete types for inference
             var_type = resolve_comptime_type(inferred_type, HexenType.UNKNOWN)

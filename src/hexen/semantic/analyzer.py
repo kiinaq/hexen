@@ -435,11 +435,14 @@ class SemanticAnalyzer:
                                 "Potential precision loss, Add ': f32' to explicitly acknowledge",
                                 node,
                             )
-                        elif (
-                            value_type == HexenType.F64 and symbol.type == HexenType.I32
-                        ):
+                        elif value_type in {
+                            HexenType.F32,
+                            HexenType.F64,
+                            HexenType.COMPTIME_FLOAT,
+                        } and symbol.type in {HexenType.I32, HexenType.I64}:
+                            # Float to integer conversion - use "truncation" terminology
                             self._error(
-                                "Potential truncation, Add ': i32' to explicitly acknowledge",
+                                f"Potential truncation, Add ': {symbol.type.value}' to explicitly acknowledge",
                                 node,
                             )
                         elif (
@@ -681,9 +684,14 @@ class SemanticAnalyzer:
                     "Potential precision loss, Add ': f32' to explicitly acknowledge",
                     node,
                 )
-            elif natural_type == HexenType.F64 and symbol.type == HexenType.I32:
+            elif natural_type in {
+                HexenType.F32,
+                HexenType.F64,
+                HexenType.COMPTIME_FLOAT,
+            } and symbol.type in {HexenType.I32, HexenType.I64}:
+                # Float to integer conversion - use "truncation" terminology
                 self._error(
-                    "Potential truncation, Add ': i32' to explicitly acknowledge",
+                    f"Potential truncation, Add ': {symbol.type.value}' to explicitly acknowledge",
                     node,
                 )
             elif natural_type == HexenType.I64 and symbol.type == HexenType.F32:

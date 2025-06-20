@@ -116,7 +116,12 @@ class BinaryOpsAnalyzer:
         if target_type is None:
             # No target context - require explicit types for ambiguous operations
             if is_mixed_type_operation(left_type, right_type):
-                self._error("Mixed types require explicit result type", node)
+                # Provide specific error with type information
+                self._error(
+                    f"Mixed-type operation '{left_type.value} {operator} {right_type.value}' requires explicit result type annotation. "
+                    f"Add explicit type annotation: 'val result : i64 = ...' or 'val result : f64 = ...'",
+                    node,
+                )
                 return HexenType.UNKNOWN
             if is_float_type(left_type) and is_float_type(right_type):
                 self._error(
