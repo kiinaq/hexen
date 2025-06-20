@@ -357,36 +357,96 @@ class SemanticAnalyzer:
 
             # Only check precision loss if NOT a type_annotated_expression
             if value.get("type") != "type_annotated_expression":
-                # Check for precision loss operations that require acknowledgment
-                if self._is_precision_loss_operation(value_type, symbol.type):
-                    # Generate appropriate error message based on operation type
-                    if value_type == HexenType.I64 and symbol.type == HexenType.I32:
-                        self._error(
-                            "Potential truncation, Add ': i32' to explicitly acknowledge",
-                            node,
-                        )
-                    elif value_type == HexenType.F64 and symbol.type == HexenType.F32:
-                        self._error(
-                            "Potential precision loss, Add ': f32' to explicitly acknowledge",
-                            node,
-                        )
-                    elif value_type == HexenType.F64 and symbol.type == HexenType.I32:
-                        self._error(
-                            "Potential truncation, Add ': i32' to explicitly acknowledge",
-                            node,
-                        )
-                    elif value_type == HexenType.I64 and symbol.type == HexenType.F32:
-                        self._error(
-                            "Potential precision loss, Add ': f32' to explicitly acknowledge",
-                            node,
-                        )
-                    else:
-                        # Generic precision loss message
-                        self._error(
-                            f"Potential precision loss, Add ': {symbol.type.value}' to explicitly acknowledge",
-                            node,
-                        )
-                    return
+                # For complex expressions (like binary operations), check what the natural type would be
+                # without target type influence to detect precision loss scenarios
+                if value.get("type") == "binary_operation":
+                    # Analyze the expression without target context to get its natural type
+                    natural_type = self._analyze_expression(value, None)
+
+                    # If the natural type is different and would cause precision loss, require acknowledgment
+                    if (
+                        natural_type != HexenType.UNKNOWN
+                        and natural_type != symbol.type
+                        and self._is_precision_loss_operation(natural_type, symbol.type)
+                    ):
+                        # Generate appropriate error message based on operation type
+                        if (
+                            natural_type == HexenType.I64
+                            and symbol.type == HexenType.I32
+                        ):
+                            self._error(
+                                "Potential truncation, Add ': i32' to explicitly acknowledge",
+                                node,
+                            )
+                        elif (
+                            natural_type == HexenType.F64
+                            and symbol.type == HexenType.F32
+                        ):
+                            self._error(
+                                "Potential precision loss, Add ': f32' to explicitly acknowledge",
+                                node,
+                            )
+                        elif (
+                            natural_type == HexenType.F64
+                            and symbol.type == HexenType.I32
+                        ):
+                            self._error(
+                                "Potential truncation, Add ': i32' to explicitly acknowledge",
+                                node,
+                            )
+                        elif (
+                            natural_type == HexenType.I64
+                            and symbol.type == HexenType.F32
+                        ):
+                            self._error(
+                                "Potential precision loss, Add ': f32' to explicitly acknowledge",
+                                node,
+                            )
+                        else:
+                            # Generic precision loss message
+                            self._error(
+                                f"Potential precision loss, Add ': {symbol.type.value}' to explicitly acknowledge",
+                                node,
+                            )
+                        return
+                else:
+                    # For non-binary operations, use the existing logic
+                    # Check for precision loss operations that require acknowledgment
+                    if self._is_precision_loss_operation(value_type, symbol.type):
+                        # Generate appropriate error message based on operation type
+                        if value_type == HexenType.I64 and symbol.type == HexenType.I32:
+                            self._error(
+                                "Potential truncation, Add ': i32' to explicitly acknowledge",
+                                node,
+                            )
+                        elif (
+                            value_type == HexenType.F64 and symbol.type == HexenType.F32
+                        ):
+                            self._error(
+                                "Potential precision loss, Add ': f32' to explicitly acknowledge",
+                                node,
+                            )
+                        elif (
+                            value_type == HexenType.F64 and symbol.type == HexenType.I32
+                        ):
+                            self._error(
+                                "Potential truncation, Add ': i32' to explicitly acknowledge",
+                                node,
+                            )
+                        elif (
+                            value_type == HexenType.I64 and symbol.type == HexenType.F32
+                        ):
+                            self._error(
+                                "Potential precision loss, Add ': f32' to explicitly acknowledge",
+                                node,
+                            )
+                        else:
+                            # Generic precision loss message
+                            self._error(
+                                f"Potential precision loss, Add ': {symbol.type.value}' to explicitly acknowledge",
+                                node,
+                            )
+                        return
 
             # Check type compatibility with coercion for non-precision-loss cases
             if not can_coerce(value_type, symbol.type):

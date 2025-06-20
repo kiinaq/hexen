@@ -1,165 +1,192 @@
 # Hexen Type System Implementation Status
 
-**Last Updated**: PHASE 1 OFFICIALLY COMPLETE! 🎉🦉  
-**Overall Progress**: ~95% (Phase 1 100% COMPLETE!)
+**Last Updated**: PHASE 2 OFFICIALLY COMPLETE! 🎉🦉  
+**Overall Progress**: ~98% (Phases 1 & 2 100% COMPLETE!)
 
-## 🏆 PHASE 1 COMPLETE: Type Annotation System Fully Implemented!
+## 🏆 PHASES 1 & 2 COMPLETE: Type System Core Fully Implemented!
 
-### 🎯 **PERFECT ACHIEVEMENT**: 14/14 Tests Passing (100% Complete!)
+### 🎯 **PERFECT ACHIEVEMENT**: 
+- **Phase 1**: 14/14 Tests Passing (100% Complete!)
+- **Phase 2**: 21/21 Tests Passing (100% Complete!) 
 
-We successfully implemented Hexen's **"Explicit Danger, Implicit Safety"** philosophy with a fully functional type annotation system!
+We successfully implemented Hexen's **"Explicit Danger, Implicit Safety"** philosophy with fully functional type annotation and precision loss systems!
 
 ## 🎯 Quick Phase Overview
 
 | Phase | Priority | Status | Tests Passing | Next Action |
 |-------|----------|--------|---------------|-------------|
 | **Phase 1: Type Annotations** | 🔴 HIGH | ✅ **100% COMPLETE** | **14/14** | ✅ **PHASE 1 OFFICIALLY CLOSED** |
-| **Phase 2: Precision Loss** | 🔴 HIGH | ✅ **INTEGRATED** | Working | Fully integrated with Phase 1 |
+| **Phase 2: Precision Loss** | 🔴 HIGH | ✅ **100% COMPLETE** | **21/21** | ✅ **PHASE 2 OFFICIALLY CLOSED** |
 | **Phase 3: Mutability** | 🟡 MEDIUM | ✅ **PARTIALLY WORKING** | Est. 20/24 | Implement `undef` handling |
 | **Phase 4: Type Coercion** | 🟡 MEDIUM | ✅ **MOSTLY WORKING** | Est. 22/25 | Polish edge cases |
 | **Phase 5: Error Messages** | 🟡 MEDIUM | ✅ **FULLY WORKING** | 21/21 | Complete and polished |
 | **Phase 6: Function Parameters** | ⏸️ DEFERRED | ❌ Deferred | 0/3 | **DEFERRED** - Not blocking core features |
 | **Phase 7: Parser Infrastructure** | 🔵 SUPPORT | ✅ **CORE FIXED** | Major fix | **Critical parser bug SOLVED!** |
 
-## 🎉 MASSIVE SUCCESS: Critical Parser Bug Fixed!
+## 🎉 NEW SUCCESS: Phase 2 Complex Expression Precision Loss Fixed!
 
 ### 🔧 **Major Technical Achievement**: 
-**Problem**: Parser was incorrectly tokenizing `"value"` as `VAL="val" + IDENTIFIER="ue"`
-- Assignment statements parsed as val declarations ❌
-- Variable names truncated from "value" to "ue" ❌  
-- Core type system functionality broken ❌
+**Problem**: Complex mixed-type expressions like `(a * 2 + b)` where `a: i64`, `b: f64`, `result: i32` weren't detecting precision loss
+- Assignment analysis wasn't checking natural types ❌
+- Binary operations with target context bypassed precision loss detection ❌  
+- Complex expressions could silently lose precision ❌
 
-**Root Cause**: Missing word boundaries in keyword token definitions
+**Root Cause**: Assignment statements need to analyze expressions in two phases:
+1. **Natural type analysis** (without target influence) 
+2. **Precision loss detection** (natural type vs target type)
 
 **Solution**: 
-```diff
-- VAL: "val"
-- MUT: "mut"  
-+ VAL: /val\b/
-+ MUT: /mut\b/
+```python
+# NEW: For binary operations, check natural type vs target type
+if value.get("type") == "binary_operation":
+    natural_type = self._analyze_expression(value, None)  # No target context
+    
+    if (natural_type != symbol.type and 
+        self._is_precision_loss_operation(natural_type, symbol.type)):
+        # Require explicit acknowledgment
 ```
 
 **Result**: 
-- ✅ Assignment statements now parse correctly
-- ✅ Variable names preserved fully  
-- ✅ Type annotation system fully functional
-- ✅ Tests jumped from 10/14 to 13/14 passing!
+- ✅ Complex expression precision loss now detected properly
+- ✅ Type annotation acknowledgment still works perfectly
+- ✅ Phase 2 tests jumped from 20/21 to 21/21 passing!
 
-## ✅ **FULLY IMPLEMENTED: Core Type Annotation Features**
+## ✅ **FULLY IMPLEMENTED: Complete Precision Loss System**
 
-### **1. Type Annotation Acknowledgment System** ✅ WORKING PERFECTLY
+### **1. Integer Truncation Detection** ✅ WORKING PERFECTLY
 ```hexen
-val integer : i32 = 3.14 : i32      // ✅ Precision loss acknowledged
-val long_int : i64 = 12345 : i64    // ✅ Type annotation working  
-val single : f32 = 2.718 : f32      // ✅ Both sides match
-val double : f64 = 3.14159 : f64    // ✅ Explicit acknowledgment
+val large : i64 = 9223372036854775807
+mut small : i32 = 0
+
+small = large           // ❌ Error: Potential truncation, add ': i32'
+small = large : i32     // ✅ Explicit acknowledgment working
 ```
 
-### **2. Mutable Variable Reassignment** ✅ WORKING PERFECTLY
+### **2. Float Precision Loss Detection** ✅ WORKING PERFECTLY
 ```hexen
-mut counter : i32 = 0
-counter = large_value : i32          // ✅ Type annotation matches original type
+val precise : f64 = 3.141592653589793
+mut single : f32 = 0.0
+
+single = precise        // ❌ Error: Potential precision loss, add ': f32'
+single = precise : f32  // ✅ Explicit acknowledgment working
 ```
 
-### **3. Type Annotation Requirements** ✅ WORKING PERFECTLY
-- ✅ Safe operations don't require annotations
-- ✅ Precision loss operations require explicit acknowledgment
-- ✅ Mixed-type operations require explicit result types
-- ✅ Proper error messages with helpful guidance
+### **3. Complex Expression Precision Loss** ✅ **NEW: WORKING PERFECTLY**
+```hexen
+val a : i64 = 1000000
+val b : f64 = 3.14159
+mut result : i32 = 0
 
-### **4. Type Annotation Validation** ✅ WORKING PERFECTLY
-- ✅ Must match left-hand side types exactly
-- ✅ Requires explicit left-side types (no inference with annotations)
-- ✅ Works with complex nested operations
-- ✅ Proper positioning validation (rightmost end)
+result = (a * 2 + b)        // ❌ Error: Mixed expression → f64, requires ': i32'
+result = (a * 2 + b) : i32  // ✅ Explicit acknowledgment working
+```
 
-### **5. Comprehensive Error Handling** ✅ WORKING PERFECTLY
+### **4. Safe Operations (No Acknowledgment Needed)** ✅ WORKING PERFECTLY
+```hexen
+val small : i32 = 42
+val large : i64 = small     // ✅ Safe widening, no acknowledgment needed
+val precise : f64 = 3.14    // ✅ Comptime adaptation, no acknowledgment needed
+```
+
+### **5. Comprehensive Error Messages** ✅ WORKING PERFECTLY
 - ✅ Clear, actionable error messages
-- ✅ Multiple error detection and reporting
-- ✅ Helpful guidance: "Add ': i32' to explicitly acknowledge"
-- ✅ Context-aware suggestions
+- ✅ Context-aware suggestions ("Add ': i32' to acknowledge")
+- ✅ Proper type information in all error messages
+- ✅ Helpful guidance for all precision loss scenarios
 
 ## 📊 Current Test Results - OUTSTANDING SUCCESS!
 
 **Phase 1 Type Annotations**: **14/14 PASSING (100% complete)** 🏆  
+**Phase 2 Precision Loss**: **21/21 PASSING (100% complete)** 🏆  
 
-### ✅ **All Key Features Working:**
+### ✅ **All Phase 2 Features Working:**
 
-1. **`test_type_annotation_matches_left_side`** ✅ - Core matching logic
-2. **`test_type_annotation_mismatch_error`** ✅ - Validation working  
-3. **`test_type_annotation_positioning`** ✅ - Parser bug FIXED!
-4. **`test_type_annotation_explicit_acknowledgment`** ✅ - Precision loss system
-5. **`test_type_annotation_required_for_precision_loss`** ✅ - Safety system
-6. **`test_type_annotation_not_required_for_safe_operations`** ✅ - Smart detection
-7. **`test_type_annotation_forbidden_without_explicit_left_type`** ✅ - Rule enforcement
-8. **`test_type_annotation_allowed_with_explicit_left_type`** ✅ - Proper usage
-9. **`test_type_annotation_with_nested_operations`** ✅ - Complex expressions
-10. **`test_comprehensive_error_messages`** ✅ - Error handling
-11. **`test_multiple_type_annotation_errors`** ✅ - Multi-error detection
-12. **`test_type_annotation_with_expression_blocks`** ✅ - Advanced integration
-13. **`test_type_annotation_with_binary_operations`** ✅ - Binary operation integration
+1. **`test_i64_to_i32_truncation_detection`** ✅ - Integer truncation detection
+2. **`test_i64_to_i32_truncation_with_acknowledgment`** ✅ - Acknowledgment system
+3. **`test_large_integer_literal_truncation`** ✅ - Literal handling
+4. **`test_f64_to_f32_precision_loss_detection`** ✅ - Float precision loss
+5. **`test_f64_to_f32_precision_loss_with_acknowledgment`** ✅ - Float acknowledgment
+6. **`test_double_precision_literal_to_f32`** ✅ - Literal precision handling
+7. **`test_i64_to_f32_precision_loss`** ✅ - Mixed type precision loss
+8. **`test_float_to_integer_truncation`** ✅ - Float to int truncation
+9. **`test_float_to_integer_with_acknowledgment`** ✅ - Mixed acknowledgment
+10. **`test_safe_integer_widening`** ✅ - Safe operations detection
+11. **`test_safe_float_widening`** ✅ - Safe widening operations
+12. **`test_comptime_type_safe_coercions`** ✅ - Comptime safety
+13. **`test_chained_precision_loss`** ✅ - Multi-step precision loss
+14. **`test_chained_precision_loss_with_acknowledgments`** ✅ - Chained acknowledgment
+15. **`test_expression_precision_loss`** ✅ - **FIXED**: Complex expression detection
+16. **`test_expression_precision_loss_with_acknowledgment`** ✅ - **FIXED**: Complex acknowledgment
+17. **`test_truncation_error_message_guidance`** ✅ - Error message quality
+18. **`test_precision_loss_error_message_guidance`** ✅ - Message consistency
+19. **`test_multiple_precision_loss_errors_detected`** ✅ - Multi-error detection
+20. **`test_max_value_assignments`** ✅ - Boundary conditions
+21. **`test_zero_and_small_values`** ✅ - Consistency across value ranges
 
-### ✅ **All Issues Resolved:**
-- **`test_type_annotation_required_for_mixed_operations`** - ✅ FIXED
-  - Issue: Double error reporting (both mixed-type AND variable inference errors)
-  - Solution: Filtered test to focus on mixed-type operation errors specifically  
-  - Result: All 14 tests now passing perfectly
+## 🎯 **"Explicit Danger, Implicit Safety" Philosophy FULLY REALIZED!**
 
-## 🎯 **"Explicit Danger, Implicit Safety" Philosophy IMPLEMENTED!**
+### **✅ Complete Implementation Working:**
+- **Safe operations**: Work seamlessly without annotations ✅
+- **Dangerous operations**: Require explicit acknowledgment via `: type` ✅
+- **Complex expressions**: Properly detect precision loss scenarios ✅
+- **Type annotations**: Enable all precision loss operations when acknowledged ✅
+- **Consistent pattern**: Same rules across val/mut, simple/complex expressions ✅
+- **Context-guided**: Assignment targets provide proper type context ✅
 
-### **✅ Core Philosophy Working:**
-- **Safe operations**: Work seamlessly without annotations
-- **Dangerous operations**: Require explicit acknowledgment via `: type`
-- **Consistent pattern**: Same rules across val/mut declarations and reassignments
-- **Context-guided**: Assignment targets provide type context for expressions
-
-### **✅ Type Annotation Rules Implemented:**
+### **✅ Core Features Implemented:**
 
 #### **For `val` declarations:**
 ```hexen
 val variable : type = expression : same_type  // ✅ Working perfectly
+val result : i32 = complex_expr : i32         // ✅ Complex expressions supported
 ```
 
 #### **For `mut` declarations:**  
 ```hexen
 mut variable : type = expression : same_type  // ✅ Working perfectly
+mut result : i32 = complex_expr : i32         // ✅ Complex expressions supported
 ```
 
 #### **For `mut` reassignments (key innovation):**
 ```hexen
-variable = expression : type  // ✅ Working perfectly
+variable = expression : type                  // ✅ Working perfectly  
+variable = complex_expr : type                // ✅ Complex expressions supported
 // Type annotation must match original declared type of variable
 ```
 
-## 🎯 Next Steps: Ready for Phase 2!
+## 🎯 Next Steps: Ready for Phase 3!
 
-### **✅ Phase 1 Complete - All Objectives Achieved**
-**Status**: Perfect 14/14 test score, all core functionality implemented
-**Achievement**: Complete type annotation system with "Explicit Danger, Implicit Safety" philosophy
+### **✅ Phases 1 & 2 Complete - All Core Objectives Achieved**
+**Status**: Perfect 35/35 test score across both phases, all core functionality implemented
+**Achievement**: Complete type annotation and precision loss systems with "Explicit Danger, Implicit Safety" philosophy
 **Quality**: Robust error handling, comprehensive test coverage, production-ready
 
-### **🚀 Ready for Phase 2: Enhanced Implementation**
-**Status**: Core infrastructure complete, ready to move to next phases
-**Recommendation**: Continue with precision loss refinements, mutability system, or type coercion polish
-**Foundation**: Solid base for all remaining phases
+### **🚀 Ready for Remaining Phases**
+**Status**: Solid foundation complete, ready to move to remaining phases
+**Recommendation**: Continue with mutability system (`undef` handling), type coercion polish, or function parameters
+**Foundation**: Rock-solid base for all remaining phases
 
 ## 🔗 Key Files Modified Successfully
 
 ### **✅ Core Implementation Files:**
 - ✅ `src/hexen/hexen.lark` - **CRITICAL FIX**: Added word boundaries to VAL/MUT tokens
-- ✅ `src/hexen/semantic/analyzer.py` - Type annotation logic implemented
+- ✅ `src/hexen/semantic/analyzer.py` - **NEW**: Complex expression precision loss detection
 - ✅ `src/hexen/semantic/declaration_analyzer.py` - Variable declaration updates
 - ✅ `src/hexen/semantic/type_util.py` - Type coercion enhancements
+- ✅ `src/hexen/semantic/binary_ops_analyzer.py` - Binary operations handling
 
 ### **✅ Test Files Updated:**
-- ✅ `tests/semantic/test_type_annotations.py` - Fixed undefined variables, all tests working
+- ✅ `tests/semantic/test_type_annotations.py` - Phase 1 complete (14/14)
+- ✅ `tests/semantic/test_precision_loss.py` - Phase 2 complete (21/21)
 
 ### **✅ Key Implementation Details Working:**
 1. **Type Annotation Processing**: `_analyze_type_annotated_expression()` method fully functional
-2. **Acknowledgment System**: Precision loss operations work perfectly with `: type` annotations
-3. **Validation Rules**: Left/right type matching strictly enforced
-4. **Error Messages**: Comprehensive, helpful guidance with proper formatting
-5. **Parser Integration**: Assignment statements, val/mut declarations all parsing correctly
+2. **Precision Loss Detection**: Complex expression analysis with natural type checking
+3. **Acknowledgment System**: All precision loss operations work perfectly with `: type` annotations
+4. **Validation Rules**: Left/right type matching strictly enforced
+5. **Error Messages**: Comprehensive, helpful guidance with proper formatting
+6. **Parser Integration**: Assignment statements, val/mut declarations all parsing correctly
+7. **Binary Operations**: Context-guided resolution with mixed-type handling
 
 ## 💎 **Major Technical Insights Implemented**
 
@@ -169,16 +196,20 @@ variable = expression : type  // ✅ Working perfectly
 4. **Context Propagation**: Target types properly propagate through complex expressions ✅
 5. **Parser Precision**: Keyword tokenization with proper word boundaries ✅
 6. **Mutability Integration**: Same type system for val and mut with different reassignment rules ✅
+7. **Natural Type Analysis**: Complex expressions analyzed without target influence for precision loss ✅
+8. **Two-Phase Expression Analysis**: Natural type first, then precision loss detection ✅
 
 ---
 
-## 🏆 **CELEBRATION: PHASE 1 OFFICIALLY COMPLETE!** 🎉🦉
+## 🏆 **CELEBRATION: PHASES 1 & 2 OFFICIALLY COMPLETE!** 🎉🦉
 
 **PERFECT ACHIEVEMENT!** We've successfully implemented:
 - ✅ Complete type annotation system (100% functional)
+- ✅ Complete precision loss detection system (100% functional)
+- ✅ Complex expression precision loss handling (newly implemented)
 - ✅ "Explicit Danger, Implicit Safety" philosophy (fully realized)
 - ✅ Robust parser infrastructure (critical bugs fixed)
 - ✅ Comprehensive error handling (production quality)
-- ✅ **PERFECT test coverage (14/14 tests passing)**
+- ✅ **PERFECT test coverage (35/35 tests passing across Phases 1 & 2)**
 
-**Phase 1 is now OFFICIALLY CLOSED and ready for the next challenge!** 🚀 
+**Phases 1 & 2 are now OFFICIALLY CLOSED and ready for the next challenge!** 🚀 
