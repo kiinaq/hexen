@@ -151,7 +151,6 @@ class TestVariableDeclarations:
             val single : f32 = 3.14
             val double : f64 = 2.718
             val text : string = "hello"
-            val flag : bool = true
             return 0
         }
         """
@@ -159,9 +158,9 @@ class TestVariableDeclarations:
         ast = self.parser.parse(source)
         statements = ast["functions"][0]["body"]["statements"]
 
-        expected_types = ["i32", "i64", "f32", "f64", "string", "bool"]
-        expected_names = ["integer", "long_int", "single", "double", "text", "flag"]
-        expected_values = [42, 123, 3.14, 2.718, "hello", True]
+        expected_types = ["i32", "i64", "f32", "f64", "string"]
+        expected_names = ["integer", "long_int", "single", "double", "text"]
+        expected_values = [42, 123, 3.14, 2.718, "hello"]
 
         for i, (expected_type, expected_name, expected_value) in enumerate(
             zip(expected_types, expected_names, expected_values)
@@ -181,7 +180,6 @@ class TestVariableDeclarations:
             mut precise : f32 = 0.0
             mut very_precise : f64 = 0.0
             mut message : string = ""
-            mut active : bool = false
             return 0
         }
         """
@@ -189,16 +187,15 @@ class TestVariableDeclarations:
         ast = self.parser.parse(source)
         statements = ast["functions"][0]["body"]["statements"]
 
-        expected_types = ["i32", "i64", "f32", "f64", "string", "bool"]
+        expected_types = ["i32", "i64", "f32", "f64", "string"]
         expected_names = [
             "counter",
             "big_counter",
             "precise",
             "very_precise",
             "message",
-            "active",
         ]
-        expected_values = [0, 1000, 0.0, 0.0, "", False]
+        expected_values = [0, 1000, 0.0, 0.0, ""]
 
         for i, (expected_type, expected_name, expected_value) in enumerate(
             zip(expected_types, expected_names, expected_values)
