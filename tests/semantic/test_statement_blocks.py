@@ -324,7 +324,7 @@ class TestStatementBlockIntegration:
         """Test statement block with undef variables"""
         source = """
         func withUndef() : i32 = {
-            val x : i32 = undef
+            mut x : i32 = undef
             {
                 val temp = 42
                 val message = "processing"

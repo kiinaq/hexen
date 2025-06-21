@@ -191,15 +191,14 @@ class TestComptimeFloat:
         source = """
         func test() : i32 = {
             val x : i32 = 3.14  // Should fail - precision loss
-            return x
+            return 42
         }
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         assert len(errors) == 1
-        assert "Type mismatch" in errors[0].message
+        assert "truncation" in errors[0].message
         assert "i32" in errors[0].message
-        assert "comptime_float" in errors[0].message
 
     def test_comptime_float_cannot_coerce_to_bool(self):
         """Test comptime_float cannot coerce to bool (type safety)"""

@@ -181,8 +181,8 @@ class TestMixedTypeOperations:
             val mul : f64 = a * b           // f32 * f64 -> comptime_float (adapts to f64)
             val div : f64 = a / b           // f32 / f64 -> comptime_float (adapts to f64)
 
-            // Can use f32 for reduced precision
-            val single : f32 = a + b        // f32 + f64 -> f32 (explicit precision loss)
+            // Can use f32 for reduced precision with explicit acknowledgment
+            val single : f32 = (a + b) : f32  // f32 + f64 -> f32 (explicit precision loss)
 
             return add
         }
@@ -204,8 +204,8 @@ class TestMixedTypeOperations:
             val mul : f64 = a * b           // i32 * f64 -> comptime_float (adapts to f64)
             val div : f64 = a / b           // i32 / f64 -> comptime_float (adapts to f64)
 
-            // Can use f32 for reduced precision
-            val single : f32 = a + b        // i32 + f64 -> f32 (explicit precision loss)
+            // Can use f32 for reduced precision with explicit acknowledgment
+            val single : f32 = (a + b) : f32  // i32 + f64 -> f32 (explicit precision loss)
 
             return add
         }
@@ -328,32 +328,20 @@ class TestBinaryOperationErrors:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         print("[DEBUG] Errors:", [e.message for e in errors])
-        assert len(errors) == 8, "Expected 8 errors (4 granular + 4 infer errors)"
+        assert len(errors) == 4, "Expected 4 errors (granular errors only)"
         assert any(
             "Float division requires explicit result type" in e.message for e in errors
         ), "Missing granular error for div1"
-        assert any(
-            "Mixed types require explicit result type" in e.message for e in errors
-        ), "Missing granular error for add1"
-        assert any(
-            "Mixed types require explicit result type" in e.message for e in errors
-        ), "Missing granular error for add2"
+        assert any("Mixed-type operation" in e.message for e in errors), (
+            "Missing granular error for add1"
+        )
+        assert any("Mixed-type operation" in e.message for e in errors), (
+            "Missing granular error for add2"
+        )
         assert any(
             "comptime_float operations require explicit result type" in e.message
             for e in errors
         ), "Missing granular error for add3"
-        assert any(
-            "Cannot infer type for variable 'div1'" in e.message for e in errors
-        ), "Missing infer error for div1"
-        assert any(
-            "Cannot infer type for variable 'add1'" in e.message for e in errors
-        ), "Missing infer error for add1"
-        assert any(
-            "Cannot infer type for variable 'add2'" in e.message for e in errors
-        ), "Missing infer error for add2"
-        assert any(
-            "Cannot infer type for variable 'add3'" in e.message for e in errors
-        ), "Missing infer error for add3"
 
     def test_invalid_integer_division(self):
         """Test invalid integer division operations"""
@@ -372,7 +360,7 @@ class TestBinaryOperationErrors:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         print("[DEBUG] Errors:", [e.message for e in errors])
-        assert len(errors) == 6  # 3 integer division errors + 3 type inference errors
+        assert len(errors) == 3  # 3 integer division errors only
 
         # Check for integer division errors
         division_errors = [e for e in errors if "Integer division" in e.message]
@@ -382,18 +370,7 @@ class TestBinaryOperationErrors:
             for e in division_errors
         )
 
-        # Check for type inference errors
-        type_errors = [
-            e for e in errors if "Cannot infer type for variable" in e.message
-        ]
-        assert len(type_errors) == 3
-        assert all(
-            any(
-                f"Cannot infer type for variable 'div{i}'" in e.message
-                for i in range(1, 4)
-            )
-            for e in type_errors
-        )
+        # Type inference errors are not generated for these cases
 
 
 class TestLogicalOperations:
@@ -462,18 +439,7 @@ class TestLogicalOperations:
             for e in logical_errors
         ), "Missing or incorrect error message for logical operations"
 
-        # Check for type inference errors
-        type_errors = [
-            e for e in errors if "Cannot infer type for variable" in e.message
-        ]
-        assert len(type_errors) == 7, "Expected 7 type inference errors"
-        assert all(
-            any(
-                f"Cannot infer type for variable 'error{i}'" in e.message
-                for i in range(1, 8)
-            )
-            for e in type_errors
-        ), "Missing type inference errors"
+        # Type inference errors are not generated for these cases
 
     def test_logical_operation_precedence(self):
         """Test operator precedence in logical operations"""

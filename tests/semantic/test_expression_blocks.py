@@ -304,7 +304,7 @@ class TestExpressionBlockIntegration:
         """Test expression block with undef values"""
         source = """
         func main() : i32  = {
-            val x: i32 = undef
+            mut x: i32 = undef
             val result = {
                 return 42
             }

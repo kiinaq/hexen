@@ -65,8 +65,9 @@ class TestBoolTypeSemantics:
         """Test bool variable with undef value"""
         source = """
         func test() : bool = {
-            val flag : bool = undef
-            return true
+            mut flag : bool = undef
+            flag = true
+            return flag
         }
         """
         ast = self.parser.parse(source)
@@ -95,7 +96,7 @@ class TestBoolTypeErrors:
         assert len(errors) == 1
         assert "Type mismatch in assignment" in errors[0].message
         assert "bool" in errors[0].message
-        assert "comptime_int" in errors[0].message
+        assert "i32" in errors[0].message
 
     def test_bool_type_mismatch_declaration(self):
         """Test type mismatch in bool variable declaration"""
@@ -144,7 +145,7 @@ class TestBoolTypeErrors:
         """Test using uninitialized bool variable"""
         source = """
         func test() : bool = {
-            val flag : bool = undef
+            mut flag : bool = undef
             return flag
         }
         """

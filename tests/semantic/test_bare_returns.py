@@ -291,7 +291,7 @@ class TestBareReturnIntegration:
         """Test bare return with undef variable handling"""
         source = """
         func setupWithUndef() : void = {
-            val x : i32 = undef
+            mut x : i32 = undef
             val message = "initialized"
             return
         }
