@@ -19,10 +19,16 @@ Hexen's comparison and logical operations system follows the same **"Explicit Da
    - No automatic type promotion or conversion
    - Clear, predictable semantics
 
-3. **Type-Safe Comparisons**:
+3. **Intentionally More Restrictive Than Arithmetic Operations**:
+   - **Arithmetic operations**: Allow mixed types with explicit context (e.g., `val result : f64 = int_val + float_val`)
+   - **Comparison operations**: Require identical types for type safety
+   - **Reason**: The `bool` result type cannot provide meaningful context for resolving operand type mismatches
+   - **Design choice**: Eliminates ambiguity about which type conversion should occur in comparisons
+
+4. **Type-Safe Comparisons**:
    - Only identical types can be compared directly
    - No automatic type promotion or conversion
-   - Mixed types require explicit type handling
+   - Mixed types require separate type conversion handling before comparison
    - No comparison between fundamentally different types
    - Attempting to compare different types results in a compiler error
 
@@ -68,13 +74,45 @@ val int_val : i32 = 42
 // val invalid = str_val == int_val            // Error: Cannot compare string and i32
 ```
 
+### Why Comparisons Are More Restrictive Than Arithmetic
+
+Unlike arithmetic operations, comparison operations cannot benefit from context-guided type resolution:
+
+#### **Arithmetic Operations: Context Helps Resolve Type Conflicts**
+```hexen
+// ✅ Target type provides context for resolving mixed operands
+val result : f64 = int_val + float_val  // The f64 target guides: int_val coerces to f64, then add
+val sum : i64 = small_int + large_int   // The i64 target guides: small_int coerces to i64, then add
+```
+
+#### **Comparison Operations: No Meaningful Context Available**
+```hexen
+// ❌ The bool result type cannot guide operand resolution
+// val result : bool = int_val < float_val  // Which should coerce? i32→f64 or f64→i32?
+// val check : bool = small_int > large_int // Which should coerce? i32→i64 or i64→i32?
+
+// ✅ Must handle type conversion explicitly before comparison
+val int_as_float : f64 = int_val        // i32 → f64 (widening coercion)
+val result : bool = int_as_float < float_val
+
+val large_as_small : i32 = large_int : i32  // i64 → i32 (explicit truncation acknowledgment)
+val check : bool = small_int < large_as_small
+```
+
+#### **Design Rationale**
+1. **Eliminates Ambiguity**: No hidden decisions about which operand should coerce
+2. **Prevents Subtle Bugs**: Avoids precision loss or overflow in implicit conversions  
+3. **Makes Intent Explicit**: Developer must choose the comparison precision level
+4. **Type Safety**: Catches potential logic errors at compile time
+
 ### Type Resolution Rules
 
 1. **Comparison Operations**:
    - Only identical types can be compared directly
    - No automatic type promotion or conversion
-   - Mixed types require separate type conversion handling
+   - Mixed types require separate type conversion handling before comparison
    - Always produce boolean result
+   - **Contrast with arithmetic**: Arithmetic operations allow mixed types with explicit target context, comparisons do not
 
 ## Logical Operations
 
@@ -205,8 +243,9 @@ def _analyze_logical_operation(self, node: Dict, target_type: Optional[HexenType
 1. **Comparison Operations**:
    - Only identical types can be compared directly
    - No automatic type promotion or conversion
-   - Mixed types require separate type conversion handling
+   - Mixed types require separate type conversion handling before comparison
    - Always produce boolean result
+   - **Intentionally more restrictive than arithmetic operations** for type safety
 
 2. **Logical Operations**:
    - Require boolean operands
@@ -215,9 +254,9 @@ def _analyze_logical_operation(self, node: Dict, target_type: Optional[HexenType
    - Follow short-circuit evaluation
 
 3. **Assignment Context**:
-   - Target type must be bool for logical operations
-   - No implicit coercion to boolean
-   - Explicit type conversion required for mixed types
+   - Target type must be bool for logical/comparison operations
+   - The `bool` result type cannot provide meaningful context for resolving operand type mismatches
+   - Explicit type conversion required for mixed-type operands before comparison
 
 ## Benefits
 
