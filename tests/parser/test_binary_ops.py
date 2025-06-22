@@ -23,7 +23,7 @@ def verify_binary_operation_ast(ast, expected_operator, expected_left, expected_
 
 
 def test_basic_arithmetic_operators():
-    """Test parsing of basic arithmetic operators (+, -, *, /, \)."""
+    """Test parsing of basic arithmetic operators (+, -, *, /, \\)."""
     source = """
     func main(): i32 = {
         val add = 10 + 20

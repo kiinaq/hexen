@@ -1,5 +1,8 @@
 """
-Test bool type parsing functionality in Hexen
+Test module for boolean type parsing in Hexen
+
+Part of the consolidated Hexen parser test suite.
+Tests: Boolean literals, logical operators, precedence, and error cases.
 """
 
 from src.hexen.parser import HexenParser
