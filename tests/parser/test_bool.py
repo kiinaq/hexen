@@ -1,9 +1,27 @@
 """
-Test bool type parsing functionality in Hexen
+Test module for boolean type parsing in Hexen
+
+Part of the consolidated Hexen parser test suite.
+Tests: Boolean literals, logical operators, precedence, and error cases.
 """
 
 from src.hexen.parser import HexenParser
 import pytest
+
+
+def verify_binary_operation_ast(ast, expected_operator, expected_left, expected_right):
+    """Helper to verify binary operation AST structure."""
+    assert ast["type"] == "binary_operation"
+    assert ast["operator"] == expected_operator
+    assert ast["left"] == expected_left
+    assert ast["right"] == expected_right
+
+
+def verify_unary_operation_ast(node, expected_operator, expected_operand):
+    """Helper function to verify unary operation AST structure."""
+    assert node["type"] == "unary_operation"
+    assert node["operator"] == expected_operator
+    assert node["operand"] == expected_operand
 
 
 class TestBoolTypeParsing:
@@ -213,3 +231,190 @@ class TestBoolTypeEdgeCases:
         assert expr_block["type"] == "block"
         inner_decl = expr_block["statements"][0]
         assert inner_decl["value"]["value"] is True
+
+
+class TestBooleanOperators:
+    """Test boolean logical operators (&&, ||, !)"""
+
+    def setup_method(self):
+        self.parser = HexenParser()
+
+    def test_logical_operators(self):
+        """Test parsing of logical operators (&&, ||)."""
+        source = """
+        func main(): i32 = {
+            val and_op = true && false
+            val or_op = true || false
+            val complex = (true && false) || (false && true)
+            val nested = true && (false || true) && false
+            return 0
+        }
+        """
+        ast = self.parser.parse(source)
+        statements = ast["functions"][0]["body"]["statements"]
+
+        # Test basic AND operation
+        verify_binary_operation_ast(
+            statements[0]["value"],
+            "&&",
+            {"type": "literal", "value": True},
+            {"type": "literal", "value": False},
+        )
+
+        # Test basic OR operation
+        verify_binary_operation_ast(
+            statements[1]["value"],
+            "||",
+            {"type": "literal", "value": True},
+            {"type": "literal", "value": False},
+        )
+
+        # Test complex logical expression: (true && false) || (false && true)
+        and_op1 = {
+            "type": "binary_operation",
+            "operator": "&&",
+            "left": {"type": "literal", "value": True},
+            "right": {"type": "literal", "value": False},
+        }
+        and_op2 = {
+            "type": "binary_operation",
+            "operator": "&&",
+            "left": {"type": "literal", "value": False},
+            "right": {"type": "literal", "value": True},
+        }
+        verify_binary_operation_ast(statements[2]["value"], "||", and_op1, and_op2)
+
+        # Test nested logical expression: true && (false || true) && false
+        or_op = {
+            "type": "binary_operation",
+            "operator": "||",
+            "left": {"type": "literal", "value": False},
+            "right": {"type": "literal", "value": True},
+        }
+        and_op1 = {
+            "type": "binary_operation",
+            "operator": "&&",
+            "left": {"type": "literal", "value": True},
+            "right": or_op,
+        }
+        verify_binary_operation_ast(
+            statements[3]["value"],
+            "&&",
+            and_op1,
+            {"type": "literal", "value": False},
+        )
+
+    def test_logical_not_with_booleans(self):
+        """Test logical not with boolean literals"""
+        source = """
+        func main(): bool = {
+            val a : bool = true
+            val b : bool = false
+            val x = !a
+            val y = !b
+            val z = !(a && b)  // Logical not with expression
+            return true
+        }
+        """
+        ast = self.parser.parse(source)
+        statements = ast["functions"][0]["body"]["statements"]
+
+        # Test single negation of variable
+        verify_unary_operation_ast(
+            statements[2]["value"], "!", {"type": "identifier", "name": "a"}
+        )
+
+        # Test negation of false variable
+        verify_unary_operation_ast(
+            statements[3]["value"], "!", {"type": "identifier", "name": "b"}
+        )
+
+        # Test negation of expression
+        inner_expr = {
+            "type": "binary_operation",
+            "operator": "&&",
+            "left": {"type": "identifier", "name": "a"},
+            "right": {"type": "identifier", "name": "b"},
+        }
+        verify_unary_operation_ast(statements[4]["value"], "!", inner_expr)
+
+
+class TestBooleanPrecedence:
+    """Test operator precedence with boolean operators"""
+
+    def setup_method(self):
+        self.parser = HexenParser()
+
+    def test_logical_not_precedence(self):
+        """Test precedence of logical not with other operators"""
+        source = """
+        func main(): bool = {
+            val a : bool = true
+            val b : bool = false
+            val x = !a && b     // (!a) && b
+            val y = !(a && b)   // !(a && b)
+            val z = !!a         // !(!a)
+            return true
+        }
+        """
+        ast = self.parser.parse(source)
+        statements = ast["functions"][0]["body"]["statements"]
+
+        # Test !a && b
+        not_a = {
+            "type": "unary_operation",
+            "operator": "!",
+            "operand": {"type": "identifier", "name": "a"},
+        }
+        verify_binary_operation_ast(
+            statements[2]["value"], "&&", not_a, {"type": "identifier", "name": "b"}
+        )
+
+        # Test !(a && b)
+        inner_and = {
+            "type": "binary_operation",
+            "operator": "&&",
+            "left": {"type": "identifier", "name": "a"},
+            "right": {"type": "identifier", "name": "b"},
+        }
+        verify_unary_operation_ast(statements[3]["value"], "!", inner_and)
+
+        # Test !!a
+        inner_not = {
+            "type": "unary_operation",
+            "operator": "!",
+            "operand": {"type": "identifier", "name": "a"},
+        }
+        verify_unary_operation_ast(statements[4]["value"], "!", inner_not)
+
+
+class TestBooleanErrors:
+    """Test error cases for boolean operations"""
+
+    def setup_method(self):
+        self.parser = HexenParser()
+
+    def test_logical_operator_syntax_errors(self):
+        """Test syntax errors in logical operations."""
+        invalid_sources = [
+            # Missing operands
+            "val x = true &&",  # Missing right operand
+            "val x = && true",  # Missing left operand
+            "val x = &&",  # Missing both operands
+            # Invalid operator sequences
+            "val x = true && && false",  # Double operator
+            "val x = true && || false",  # Invalid operator sequence
+            "val x = true || && false",  # Invalid operator sequence
+            # Invalid parentheses
+            "val x = (true && false",  # Unclosed parenthesis
+            "val x = true && false)",  # Extra closing parenthesis
+            "val x = ((true && false)",  # Mismatched parentheses
+            # Invalid expressions
+            "val x = true &&",  # Incomplete expression
+            "val x = &&",  # Just operator
+            "val x = ()",  # Empty parentheses
+        ]
+
+        for source in invalid_sources:
+            with pytest.raises(SyntaxError):
+                self.parser.parse(source)

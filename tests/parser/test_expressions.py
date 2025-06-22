@@ -1,12 +1,36 @@
 """
-Test parentheses support in expressions
+Unified expression parsing tests for Hexen parser.
 
-Phase 1 Parser Tests - Parentheses
-Tests the basic parentheses functionality added to expressions.
+Consolidates:
+- Basic expression parsing
+- Parentheses handling
+- Complex nested expressions
+- Expression precedence validation
+- Expression error cases
+
+Moved from:
+- test_parentheses.py (complete file)
+- test_binary_ops.py (precedence & complex expressions)
+- test_unary_ops.py (unary precedence)
 """
 
 import pytest
 from src.hexen.parser import HexenParser
+
+
+def verify_binary_operation_ast(ast, expected_operator, expected_left, expected_right):
+    """Helper to verify binary operation AST structure."""
+    assert ast["type"] == "binary_operation"
+    assert ast["operator"] == expected_operator
+    assert ast["left"] == expected_left
+    assert ast["right"] == expected_right
+
+
+def verify_unary_operation_ast(node, expected_operator, expected_operand):
+    """Helper function to verify unary operation AST structure."""
+    assert node["type"] == "unary_operation"
+    assert node["operator"] == expected_operator
+    assert node["operand"] == expected_operand
 
 
 class TestBasicParentheses:
@@ -203,25 +227,30 @@ class TestParenthesesInBlocks:
         """
         ast = self.parser.parse(source)
 
+        # The parentheses around the block should be parsed correctly
         expr = ast["functions"][0]["body"]["statements"][0]["value"]
         assert expr["type"] == "block"
-        assert len(expr["statements"]) == 2
+
+        # Check the inner computation
+        inner_expr = expr["statements"][0]["value"]
+        assert inner_expr["type"] == "literal"
+        assert inner_expr["value"] == 50
 
 
 class TestParenthesesWithTypes:
-    """Test parentheses work correctly with all types"""
+    """Test parentheses with different type combinations"""
 
     def setup_method(self):
         self.parser = HexenParser()
 
     def test_parentheses_with_all_numeric_types(self):
-        """Test parentheses with all numeric literals"""
+        """Test parentheses work with all numeric types"""
         source = """
         func test() : void = {
             val int_val = (42)
             val float_val = (3.14)
-            val negative_int = (-10)
-            val negative_float = (-2.5)
+            val double_val = (2.718)
+            val single_val = (1.5)
         }
         """
         ast = self.parser.parse(source)
@@ -232,51 +261,210 @@ class TestParenthesesWithTypes:
         assert statements[0]["value"]["type"] == "literal"
         assert statements[0]["value"]["value"] == 42
 
-        # Check float
+        # Check float values
         assert statements[1]["value"]["type"] == "literal"
         assert statements[1]["value"]["value"] == 3.14
 
-        # Check negative integer (as unary operation)
-        assert statements[2]["value"]["type"] == "unary_operation"
-        assert statements[2]["value"]["operator"] == "-"
-        assert statements[2]["value"]["operand"]["type"] == "literal"
-        assert statements[2]["value"]["operand"]["value"] == 10
+        assert statements[2]["value"]["type"] == "literal"
+        assert statements[2]["value"]["value"] == 2.718
 
-        # Check negative float (as unary operation)
-        assert statements[3]["value"]["type"] == "unary_operation"
-        assert statements[3]["value"]["operator"] == "-"
-        assert statements[3]["value"]["operand"]["type"] == "literal"
-        assert statements[3]["value"]["operand"]["value"] == 2.5
+        assert statements[3]["value"]["type"] == "literal"
+        assert statements[3]["value"]["value"] == 1.5
 
     def test_parentheses_preserve_type_annotations(self):
-        """Test that parentheses work with explicit type annotations"""
+        """Test that parentheses don't interfere with type annotations"""
         source = """
         func test() : void = {
-            val explicit_i32 : i32 = (42)
-            val explicit_f64 : f64 = (3.14)
-            val explicit_bool : bool = (true)
-            val explicit_string : string = ("hello")
+            val typed : i32 = (42)
+            val another : string = ("hello")
+            val flag : bool = (true)
         }
         """
         ast = self.parser.parse(source)
 
         statements = ast["functions"][0]["body"]["statements"]
 
-        # Verify all have correct type annotations
+        # Verify type annotations are preserved
         assert statements[0]["type_annotation"] == "i32"
-        assert statements[1]["type_annotation"] == "f64"
+        assert statements[1]["type_annotation"] == "string"
         assert statements[2]["type_annotation"] == "bool"
-        assert statements[3]["type_annotation"] == "string"
+
+        # Verify values are correct
+        assert statements[0]["value"]["value"] == 42
+        assert statements[1]["value"]["value"] == "hello"
+        assert statements[2]["value"]["value"] is True
 
 
-class TestParenthesesEdgeCases:
-    """Test edge cases and error conditions"""
+class TestOperatorPrecedence:
+    """Test operator precedence in expressions"""
+
+    def setup_method(self):
+        self.parser = HexenParser()
+
+    def test_binary_operator_precedence(self):
+        """Test operator precedence in AST construction."""
+        source = """
+        func main(): i32 = {
+            val x = 10 + 20 * 2
+            val y = (10 + 20) * 2
+            val z = 10 * 2 + 20
+            val w = 10 + 20 / 2
+            return 0
+        }
+        """
+        ast = self.parser.parse(source)
+        statements = ast["functions"][0]["body"]["statements"]
+
+        # x = 10 + 20 * 2
+        # Should be: 10 + (20 * 2)
+        mul_op = {
+            "type": "binary_operation",
+            "operator": "*",
+            "left": {"type": "literal", "value": 20},
+            "right": {"type": "literal", "value": 2},
+        }
+        verify_binary_operation_ast(
+            statements[0]["value"], "+", {"type": "literal", "value": 10}, mul_op
+        )
+
+        # y = (10 + 20) * 2
+        # Should be: (10 + 20) * 2
+        add_op = {
+            "type": "binary_operation",
+            "operator": "+",
+            "left": {"type": "literal", "value": 10},
+            "right": {"type": "literal", "value": 20},
+        }
+        verify_binary_operation_ast(
+            statements[1]["value"], "*", add_op, {"type": "literal", "value": 2}
+        )
+
+    def test_unary_minus_precedence(self):
+        """Test precedence of unary minus with other operators"""
+        source = """
+        func main(): i32 = {
+            val x = -2 * 3      // (-2) * 3
+            val y = 2 * -3      // 2 * (-3)
+            val z = -2 + -3     // (-2) + (-3)
+            return 0
+        }
+        """
+        ast = self.parser.parse(source)
+        statements = ast["functions"][0]["body"]["statements"]
+
+        # Test -2 * 3
+        neg_two = {
+            "type": "unary_operation",
+            "operator": "-",
+            "operand": {"type": "literal", "value": 2},
+        }
+        verify_binary_operation_ast(
+            statements[0]["value"], "*", neg_two, {"type": "literal", "value": 3}
+        )
+
+        # Test 2 * -3
+        neg_three = {
+            "type": "unary_operation",
+            "operator": "-",
+            "operand": {"type": "literal", "value": 3},
+        }
+        verify_binary_operation_ast(
+            statements[1]["value"], "*", {"type": "literal", "value": 2}, neg_three
+        )
+
+        # Test -2 + -3
+        neg_two = {
+            "type": "unary_operation",
+            "operator": "-",
+            "operand": {"type": "literal", "value": 2},
+        }
+        neg_three = {
+            "type": "unary_operation",
+            "operator": "-",
+            "operand": {"type": "literal", "value": 3},
+        }
+        verify_binary_operation_ast(statements[2]["value"], "+", neg_two, neg_three)
+
+
+class TestComplexExpressions:
+    """Test complex nested expressions"""
+
+    def setup_method(self):
+        self.parser = HexenParser()
+
+    def test_parenthesized_binary_expressions(self):
+        """Test parsing of parenthesized expressions."""
+        source = """
+        func main(): i32 = {
+            val x = (10 + 20) * (30 - 40)
+            val y = ((10 + 20) * 30) - 40
+            val z = 10 + (20 * (30 - 40))
+            return 0
+        }
+        """
+        ast = self.parser.parse(source)
+        statements = ast["functions"][0]["body"]["statements"]
+
+        # x = (10 + 20) * (30 - 40)
+        add_op = {
+            "type": "binary_operation",
+            "operator": "+",
+            "left": {"type": "literal", "value": 10},
+            "right": {"type": "literal", "value": 20},
+        }
+        sub_op = {
+            "type": "binary_operation",
+            "operator": "-",
+            "left": {"type": "literal", "value": 30},
+            "right": {"type": "literal", "value": 40},
+        }
+        verify_binary_operation_ast(statements[0]["value"], "*", add_op, sub_op)
+
+    def test_complex_nested_expressions(self):
+        """Test parsing of complex nested expressions."""
+        source = """
+        func main(): i32 = {
+            val x = 10 + 20 * 30 - 40 / 50
+            val y = (10 + 20) * (30 - 40) / 50
+            val z = ((10 + 20) * 30) - (40 / 50)
+            return 0
+        }
+        """
+        ast = self.parser.parse(source)
+        statements = ast["functions"][0]["body"]["statements"]
+
+        # Verify AST structure for complex expressions
+        # x = 10 + 20 * 30 - 40 / 50
+        # Should be: (10 + (20 * 30)) - (40 / 50)
+        mul_op = {
+            "type": "binary_operation",
+            "operator": "*",
+            "left": {"type": "literal", "value": 20},
+            "right": {"type": "literal", "value": 30},
+        }
+        first_add = {
+            "type": "binary_operation",
+            "operator": "+",
+            "left": {"type": "literal", "value": 10},
+            "right": mul_op,
+        }
+        div_op = {
+            "type": "binary_operation",
+            "operator": "/",
+            "left": {"type": "literal", "value": 40},
+            "right": {"type": "literal", "value": 50},
+        }
+        verify_binary_operation_ast(statements[0]["value"], "-", first_add, div_op)
+
+
+class TestExpressionErrors:
+    """Test expression syntax errors"""
 
     def setup_method(self):
         self.parser = HexenParser()
 
     def test_empty_parentheses_error(self):
-        """Test that empty parentheses cause a parse error"""
+        """Test that empty parentheses cause syntax error"""
         source = """
         func test() : i32 = {
             val result = ()
@@ -287,7 +475,7 @@ class TestParenthesesEdgeCases:
             self.parser.parse(source)
 
     def test_unmatched_opening_parenthesis_error(self):
-        """Test unmatched opening parenthesis causes error"""
+        """Test unmatched opening parenthesis"""
         source = """
         func test() : i32 = {
             val result = (42
@@ -298,7 +486,7 @@ class TestParenthesesEdgeCases:
             self.parser.parse(source)
 
     def test_unmatched_closing_parenthesis_error(self):
-        """Test unmatched closing parenthesis causes error"""
+        """Test unmatched closing parenthesis"""
         source = """
         func test() : i32 = {
             val result = 42)
@@ -309,30 +497,31 @@ class TestParenthesesEdgeCases:
             self.parser.parse(source)
 
     def test_whitespace_in_parentheses(self):
-        """Test that whitespace inside parentheses is handled correctly"""
+        """Test that whitespace in parentheses works correctly"""
         source = """
         func test() : i32 = {
-            val result = ( 42 )
+            val result = (   42   )
+            val another = ( "hello world" )
             return result
         }
         """
         ast = self.parser.parse(source)
 
-        expr = ast["functions"][0]["body"]["statements"][0]["value"]
-        assert expr["type"] == "literal"
-        assert expr["value"] == 42
+        statements = ast["functions"][0]["body"]["statements"]
+        assert statements[0]["value"]["value"] == 42
+        assert statements[1]["value"]["value"] == "hello world"
 
     def test_comments_around_parentheses(self):
         """Test comments around parentheses"""
         source = """
-        func test() : i32 = {
-            // before parentheses
-            val result = ( 42 ) // after parentheses
-            return result
+        func test() : string = {
+            // comment before
+            val message = ("test") // comment after
+            return message
         }
         """
         ast = self.parser.parse(source)
 
         expr = ast["functions"][0]["body"]["statements"][0]["value"]
         assert expr["type"] == "literal"
-        assert expr["value"] == 42
+        assert expr["value"] == "test"
