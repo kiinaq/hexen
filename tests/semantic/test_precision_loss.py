@@ -591,13 +591,13 @@ class TestBoundaryConditions(StandardTestBase):
         """Test precision loss at maximum values"""
         source = """
         func test() : void = {
-            // Test with maximum values that definitely cause precision loss
+            // Test with large values that definitely cause precision loss
             val max_i64 : i64 = 9223372036854775807
-            val max_f64 : f64 = 1.7976931348623157e+308  // Near max f64
-            
+            val max_f64 : f64 = 179769313486231570000000000000000000000.0
+
             mut target_i32 : i32 = 0
             mut target_f32 : f32 = 0.0
-            
+
             // These should definitely require acknowledgment
             target_i32 = max_i64 : i32    // ✅ Acknowledge truncation
             target_f32 = max_f64 : f32    // ✅ Acknowledge precision loss

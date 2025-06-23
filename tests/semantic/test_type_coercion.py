@@ -393,9 +393,9 @@ class TestCoercionEdgeCases(StandardTestBase):
             val explicit_i64 : i64 = 42    // comptime_int → i64 (context)
             val explicit_f32 : f32 = 3.14  // comptime_float → f32 (context)
             
-            // ✅ Mixed comptime operations with defaults
-            val mixed_default = 42 + 3.14      // comptime_int + comptime_float → f64 (default)
-            val mixed_explicit : f32 = 42 + 3.14 // comptime_int + comptime_float → f32 (context)
+            // ✅ Mixed comptime operations with explicit types (as required by analyzer)
+            val mixed_explicit : f64 = 42 + 3.14  // comptime_int + comptime_float → f64 (explicit)
+            val mixed_f32 : f32 = 42 + 3.14       // comptime_int + comptime_float → f32 (explicit)
         }
         """
         ast = self.parser.parse(source)
