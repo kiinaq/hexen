@@ -182,7 +182,7 @@ class TestMixedTypeOperations:
             val div : f64 = a / b           // f32 / f64 -> comptime_float (adapts to f64)
 
             // Can use f32 for reduced precision with explicit acknowledgment
-            val single : f32 = (a + b) : f32  // f32 + f64 -> f32 (explicit precision loss)
+            val single : f32 = (a + b) : f32  // f32 + f64 -> f32 (explicit narrowing)
 
             return add
         }
@@ -205,7 +205,7 @@ class TestMixedTypeOperations:
             val div : f64 = a / b           // i32 / f64 -> comptime_float (adapts to f64)
 
             // Can use f32 for reduced precision with explicit acknowledgment
-            val single : f32 = (a + b) : f32  // i32 + f64 -> f32 (explicit precision loss)
+            val single : f32 = (a + b) : f32  // i32 + f64 -> f32 (explicit narrowing)
 
             return add
         }
@@ -261,10 +261,10 @@ class TestAssignmentContext:
             mut f32_var : f32 = 0.0
             mut f64_var : f64 = 0.0
 
-            // Mixed types require explicit type annotation for potential precision loss
-            i32_var = (a + b) : i32          // i32 + i64 -> comptime_int (explicit truncation)
+            // Mixed types require explicit type annotation
+            i32_var = (a + b) : i32          // i32 + i64 -> comptime_int (explicit narrowing)
             i64_var = a + b                  // i32 + i64 -> comptime_int (adapts to i64)
-            f32_var = (a + c) : f32          // i32 + f32 -> comptime_float (explicit precision loss)
+            f32_var = (a + c) : f32          // i32 + f32 -> comptime_float (explicit narrowing)
             f64_var = a + d                  // i32 + f64 -> comptime_float (adapts to f64)
         }
         """
@@ -272,31 +272,27 @@ class TestAssignmentContext:
         errors = self.analyzer.analyze(ast)
         assert errors == []
 
-    def test_precision_loss_without_annotation(self):
-        """Test precision loss without explicit type annotation"""
+    def test_assignment_context_guides_type_resolution(self):
+        """Test that assignment context guides type resolution for binary operations"""
         source = """
         func test() : void = {
-            val a : i64 = 1234567890123456789  // Large i64 value in decimal
-            val b : f64 = 3.14159265359
+            val a : i32 = 10
+            val b : i64 = 20
+            val c : f32 = 3.14
+            val d : f64 = 2.71
 
-            mut i32_var : i32 = 0
-            mut f32_var : f32 = 0.0
+            mut result_i64 : i64 = 0
+            mut result_f64 : f64 = 0.0
 
-            // Potential truncation without type annotation
-            i32_var = a                    // Error: Potential truncation, add ': i32'
-            i32_var = (a + b) : i32        // Mixed types with potential truncation, explicit type
-
-            // Potential precision loss without type annotation
-            f32_var = b                    // Error: Potential precision loss, add ': f32'
-            f32_var = (a + b) : f32        // Mixed types with potential precision loss, explicit type
+            // Assignment context guides mixed-type operation resolution
+            result_i64 = a + b            // i32 + i64 -> i64 (guided by assignment context)
+            result_f64 = c + d            // f32 + f64 -> f64 (guided by assignment context)
+            result_f64 = a + c            // i32 + f32 -> f64 (guided by assignment context)
         }
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        print("\n[DEBUG] Actual errors:", [e.message for e in errors])  # Debug print
-        assert len(errors) == 2
-        assert any("Potential truncation" in e.message for e in errors)
-        assert any("Potential precision loss" in e.message for e in errors)
+        assert errors == []
 
 
 class TestBinaryOperationErrors:

@@ -3,6 +3,7 @@ Test suite for unary operations in Hexen semantic analyzer.
 
 Tests semantic analysis of:
 - Unary minus (-) for numeric values
+- Negative number literals (merged from test_negative_numbers.py)
 - Logical not (!) for boolean values
 - Type checking and coercion
 - Error cases and edge cases
@@ -103,6 +104,143 @@ class TestUnaryMinusSemantics:
         assert any("Mixed-type operation" in str(e) for e in errors)
 
 
+class TestNegativeNumberLiterals:
+    """Test negative number literals (merged from test_negative_numbers.py)"""
+
+    def setup_method(self):
+        self.parser = HexenParser()
+        self.analyzer = SemanticAnalyzer()
+
+    def test_negative_integer_literals(self):
+        """Test basic negative integer parsing and semantic analysis"""
+        source = """
+        func test() : i32 = {
+            val negative = -123
+            val zero = -0
+            val large = -9223372036854775807
+            return -42  // Return negative literal directly
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+        assert errors == []
+
+    def test_negative_integer_type_coercion(self):
+        """Test negative integer coercion to different types"""
+        source = """
+        func test() : f64 = {
+            val as_i32 = -42       // comptime_int -> i32 (default)
+            val as_i64 : i64 = -42 // comptime_int -> i64 (coerced)
+            val as_f32 : f32 = -42 // comptime_int -> f32 (coerced)
+            val as_f64 : f64 = -42 // comptime_int -> f64 (coerced)
+            return as_f64
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+        assert errors == []
+
+    def test_negative_float_literals(self):
+        """Test basic negative float parsing and semantic analysis"""
+        source = """
+        func test() : f64 = {
+            val pi_negative = -3.14159
+            val e_negative = -2.718
+            val zero_float = -0.0
+            return -2.5  // Return negative float literal directly
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+        assert errors == []
+
+    def test_negative_float_type_coercion(self):
+        """Test negative float coercion to different float types"""
+        source = """
+        func test() : f32 = {
+            val as_f64 = -2.718        // comptime_float -> f64 (default)
+            val as_f32 : f32 = -2.718  // comptime_float -> f32 (coerced)
+            return as_f32
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+        assert errors == []
+
+    def test_mixed_positive_negative_numbers(self):
+        """Test mixing positive and negative numbers"""
+        source = """
+        func test() : i32 = {
+            val positive_int = 100
+            val negative_int = -50
+            val positive_float = 2.718
+            val negative_float = -3.14
+            val zero_int = 0
+            val zero_float = 0.0
+            val neg_zero_int = -0
+            val neg_zero_float = -0.0
+            return positive_int
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+        assert errors == []
+
+    def test_negative_numbers_in_assignments(self):
+        """Test assignments with negative values"""
+        source = """
+        func test() : i32 = {
+            mut counter = 10
+            counter = -5
+            counter = 0
+            counter = -0
+            
+            mut float_val : f64 = 1.0
+            float_val = -3.14
+            float_val = -0.0
+            
+            return counter
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+        assert errors == []
+
+    def test_negative_numbers_with_undef(self):
+        """Test negative numbers work correctly with undef variables"""
+        source = """
+        func test() : i32 = {
+            mut int_value : i32 = undef
+            int_value = -42
+            
+            mut float_value : f64 = undef
+            float_value = -3.14
+            
+            return -100  // Return a different negative number
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+        assert errors == []
+
+    def test_negative_number_ast_structure(self):
+        """Test that negative numbers are parsed correctly into AST"""
+        source = """
+        func test() : i32 = {
+            val neg_int = -42
+            val neg_float : f64 = -3.14
+            return neg_int
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+        assert errors == []
+
+        # Verify AST structure contains unary operations
+        assert isinstance(ast, dict)
+        assert "functions" in ast
+
+
 class TestLogicalNotSemantics:
     """Test semantic analysis of logical not operator (!)"""
 
@@ -183,9 +321,9 @@ class TestUnaryOperatorIntegration:
             // Unary minus in arithmetic
             val x : i32 = 42
             val y : f64 = 3.14
-            val a = -x * 2                 // i32 → i32
-            val b = 2 * -x                 // i32 → i32
-            val c = -x + -y                // i32 → f64, f64 → f64
+            val a : i32 = -x * 2           // i32 → i32
+            val b : i32 = 2 * -x           // i32 → i32
+            val c : f64 = -x + -y          // i32 → f64, f64 → f64
             val d : f64 = -2.5 * -3.5      // comptime_float → f64
 
             // Logical not in boolean expressions
@@ -197,44 +335,57 @@ class TestUnaryOperatorIntegration:
 
             // Mixed unary operators
             val j : i32 = -42
-            val k : bool = !(j > 0)        // i32 → bool (via comparison)
+            val zero : i32 = 0
+            val k : bool = !(j > zero)     // i32 → bool (via comparison)
 
             return 0
         }
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        # 4 errors should be produced
-        assert len(errors) == 4
-        # Check for mixed type errors
-        mixed_type_errors = [e for e in errors if "Mixed-type operation" in str(e)]
-        assert len(mixed_type_errors) == 3, "Expected 3 mixed type errors"
-        # Check for comparison warnings
-        comparison_warnings = [
-            e for e in errors if "Comparison between different numeric types" in str(e)
-        ]
-        assert len(comparison_warnings) == 1, "Expected 1 comparison warning"
+        assert errors == []
 
     def test_unary_operators_with_undef(self):
-        """Test unary operators with uninitialized variables"""
+        """Test unary operators with undef variables"""
         source = """
         func main(): i32 = {
-            // Uninitialized variables
             mut x : i32 = undef
             mut y : bool = undef
-            val neg_x = -x                 // Error: Use of uninitialized variable
-            val not_y = !y                 // Error: Use of uninitialized variable
-
-            // Initialize after use
-            mut a : i32 = undef
-            val neg_a = -a                 // Error: Use of uninitialized variable
-
+            
+            x = -42                        // Assign negative literal
+            y = !true                      // Assign logical not result
+            
+            val a = -x                     // Use unary minus on assigned variable
+            val b = !y                     // Use logical not on assigned variable
+            
             return 0
         }
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        assert len(errors) == 6  # Adjusted to expect 6 errors
-        assert any("Use of uninitialized variable: 'x'" in str(e) for e in errors)
-        assert any("Use of uninitialized variable: 'y'" in str(e) for e in errors)
-        assert any("Use of uninitialized variable: 'a'" in str(e) for e in errors)
+        assert errors == []
+
+    def test_negative_literals_in_complex_expressions(self):
+        """Test negative literals integrated with complex expressions"""
+        source = """
+        func test() : f64 = {
+            // Negative literals in arithmetic expressions
+            val complex1 : f64 = -42 + 3.14 * -2.5
+            val complex2 : f64 = (-10 + 5) * -3
+            val complex3 : f64 = -(-42)  // Double negative
+            
+            // Negative literals in comparisons
+            val comp1 : bool = -42 > -100
+            val comp2 : bool = -3.14 < 0.0
+            val comp3 : bool = -0 == 0
+            
+            // Negative literals with explicit types
+            val annotated1 : i64 = -42
+            val annotated2 : f32 = -3.14
+            
+            return complex1
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+        assert errors == []

@@ -1,30 +1,24 @@
 """
-Concrete Type Coercion Tests for Hexen
+Test suite for type coercion system in Hexen
 
-Tests ONLY the concrete type coercion rules (non-comptime types) as described in TYPE_SYSTEM.md:
+Tests the comprehensive type coercion system described in TYPE_SYSTEM.md:
 - Integer widening: i32 → {i64, f32, f64}, i64 → {f32, f64}
 - Float widening: f32 → f64
-- Safe conversions vs precision loss scenarios
-- Context-guided coercion in assignments and expressions
-- Integration with the "Explicit Danger, Implicit Safety" principle
+- Safe conversions and context-guided coercion
+- Integration with assignment and return contexts
 
-NOTE: Comptime type testing is now consolidated in test_comptime_types.py
-This file focuses exclusively on concrete type coercion (i32, i64, f32, f64, etc.)
+This file focuses on SAFE COERCION (widening), not precision loss scenarios.
+Precision loss testing is comprehensively covered in test_precision_loss.py.
 """
 
-from src.hexen.parser import HexenParser
-from src.hexen.semantic import SemanticAnalyzer
+from tests.semantic import StandardTestBase
 
 
-class TestIntegerWidening:
-    """Test integer type widening rules"""
-
-    def setup_method(self):
-        self.parser = HexenParser()
-        self.analyzer = SemanticAnalyzer()
+class TestIntegerWidening(StandardTestBase):
+    """Test safe integer widening coercions"""
 
     def test_i32_to_i64_widening(self):
-        """Test i32 to i64 widening (always safe)"""
+        """Test i32 to i64 widening is always safe"""
         source = """
         func test() : void = {
             val small : i32 = 42
@@ -33,11 +27,7 @@ class TestIntegerWidening:
             val wide : i64 = small
             
             mut wide_mut : i64 = 0
-            wide_mut = small        // Safe in assignment too
-            
-            // ✅ Works with expressions
-            val computed : i64 = small + 100
-            val doubled : i64 = small * 2
+            wide_mut = small                // Safe in reassignment too
         }
         """
         ast = self.parser.parse(source)
@@ -45,18 +35,18 @@ class TestIntegerWidening:
         assert errors == []
 
     def test_i32_to_f32_conversion(self):
-        """Test i32 to f32 conversion (safe for typical values)"""
+        """Test i32 to f32 conversion"""
         source = """
         func test() : void = {
             val integer : i32 = 42
             
-            // ✅ i32 → f32 conversion is considered safe
+            // ✅ i32 → f32 conversion is safe for typical values
             val as_float : f32 = integer
             
             mut float_mut : f32 = 0.0
-            float_mut = integer     // Safe in assignment
+            float_mut = integer
             
-            // ✅ Works with expressions
+            // Complex expressions maintain safety
             val computed : f32 = integer + 3.14
         }
         """
@@ -65,19 +55,16 @@ class TestIntegerWidening:
         assert errors == []
 
     def test_i32_to_f64_conversion(self):
-        """Test i32 to f64 conversion (always safe)"""
+        """Test i32 to f64 conversion"""
         source = """
         func test() : void = {
             val integer : i32 = 42
             
-            // ✅ i32 → f64 conversion is always safe (high precision)
+            // ✅ i32 → f64 conversion is always safe (double precision)
             val as_double : f64 = integer
             
             mut double_mut : f64 = 0.0
-            double_mut = integer    // Safe in assignment
-            
-            // ✅ Works with complex expressions
-            val computed : f64 = integer * 2.5 + 1.0
+            double_mut = integer
         }
         """
         ast = self.parser.parse(source)
@@ -88,38 +75,25 @@ class TestIntegerWidening:
         """Test i64 to float conversions"""
         source = """
         func test() : void = {
-            val large : i64 = 1000000
+            val large : i64 = 1000
             
-            // ✅ i64 → f32 allowed (may lose precision for very large values)
-            val as_float : f32 = large
-            
-            // ✅ i64 → f64 is safer (higher precision)
+            // ✅ i64 → f64 is generally safe
             val as_double : f64 = large
             
-            mut float_mut : f32 = 0.0
-            mut double_mut : f64 = 0.0
-            
-            float_mut = large       // Allowed
-            double_mut = large      // Allowed
+            mut target_f64 : f64 = 0.0
+            target_f64 = large
         }
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        # This test depends on implementation - some systems may require acknowledgment
-        # for i64 → f32 due to potential precision loss for very large integers
-        # May or may not produce errors depending on implementation
-        assert isinstance(errors, list)  # Ensure errors is a list
+        assert errors == []
 
 
-class TestFloatWidening:
-    """Test floating-point type widening rules"""
-
-    def setup_method(self):
-        self.parser = HexenParser()
-        self.analyzer = SemanticAnalyzer()
+class TestFloatWidening(StandardTestBase):
+    """Test safe float widening coercions"""
 
     def test_f32_to_f64_widening(self):
-        """Test f32 to f64 widening (always safe)"""
+        """Test f32 to f64 widening is always safe"""
         source = """
         func test() : void = {
             val single : f32 = 3.14
@@ -128,11 +102,7 @@ class TestFloatWidening:
             val double : f64 = single
             
             mut double_mut : f64 = 0.0
-            double_mut = single     // Safe in assignment
-            
-            // ✅ Works with expressions
-            val computed : f64 = single + 2.718
-            val multiplied : f64 = single * 2.0
+            double_mut = single
         }
         """
         ast = self.parser.parse(source)
@@ -140,17 +110,15 @@ class TestFloatWidening:
         assert errors == []
 
     def test_mixed_float_expressions(self):
-        """Test expressions mixing f32 and f64"""
+        """Test expressions mixing f32 and f64 with explicit context"""
         source = """
         func test() : void = {
             val single : f32 = 3.14
             val double : f64 = 2.718
             
-            // Mixed float operations may require explicit result type
-            val result : f64 = single + double  // f32 + f64 → f64 context
-            
-            mut target : f64 = 0.0
-            target = single + double            // Assignment provides f64 context
+            // ✅ Mixed expressions require explicit context
+            val result_f64 : f64 = single + double
+            val result_f32 : f32 = single + double : f32
         }
         """
         ast = self.parser.parse(source)
@@ -158,152 +126,68 @@ class TestFloatWidening:
         assert errors == []
 
 
-class TestNarrowingRequiresAcknowledgment:
-    """Test that narrowing conversions require explicit acknowledgment"""
+class TestSafeConversions(StandardTestBase):
+    """Test all safe type conversions that don't require explicit acknowledgment"""
 
-    def setup_method(self):
-        self.parser = HexenParser()
-        self.analyzer = SemanticAnalyzer()
-
-    def test_i64_to_i32_narrowing_error(self):
-        """Test that i64 to i32 narrowing requires acknowledgment"""
+    def test_comprehensive_safe_conversions(self):
+        """Test all safe conversion patterns"""
         source = """
         func test() : void = {
-            val large : i64 = 1000000
-            mut small : i32 = 0
+            val small_int : i32 = 42
+            val large_int : i64 = 1000
+            val small_float : f32 = 3.14
+            val large_float : f64 = 2.718
             
-            // ❌ Narrowing requires explicit acknowledgment
-            small = large
-        }
-        """
-        ast = self.parser.parse(source)
-        errors = self.analyzer.analyze(ast)
-        assert len(errors) == 1
-        assert (
-            "truncation" in errors[0].message.lower()
-            or "precision" in errors[0].message.lower()
-            or "narrowing" in errors[0].message.lower()
-        )
-
-    def test_i64_to_i32_narrowing_with_acknowledgment(self):
-        """Test that i64 to i32 narrowing works with explicit acknowledgment"""
-        source = """
-        func test() : void = {
-            val large : i64 = 1000000
-            mut small : i32 = 0
-            
-            // ✅ Explicit acknowledgment allows narrowing
-            small = large : i32
+            // ✅ All safe widening conversions
+            val i32_to_i64 : i64 = small_int
+            val i32_to_f32 : f32 = small_int  
+            val i32_to_f64 : f64 = small_int
+            val i64_to_f64 : f64 = large_int
+            val f32_to_f64 : f64 = small_float
         }
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         assert errors == []
 
-    def test_f64_to_f32_narrowing_error(self):
-        """Test that f64 to f32 narrowing requires acknowledgment"""
+    def test_safe_conversions_in_assignments(self):
+        """Test safe conversions work in assignment contexts"""
         source = """
         func test() : void = {
-            val precise : f64 = 3.141592653589793
-            mut single : f32 = 0.0
+            val source_i32 : i32 = 42
+            val source_f32 : f32 = 3.14
             
-            // ❌ Precision loss requires explicit acknowledgment
-            single = precise
-        }
-        """
-        ast = self.parser.parse(source)
-        errors = self.analyzer.analyze(ast)
-        assert len(errors) == 1
-        assert "precision" in errors[0].message.lower()
-
-    def test_f64_to_f32_narrowing_with_acknowledgment(self):
-        """Test that f64 to f32 narrowing works with explicit acknowledgment"""
-        source = """
-        func test() : void = {
-            val precise : f64 = 3.141592653589793
-            mut single : f32 = 0.0
-            
-            // ✅ Explicit acknowledgment allows precision loss
-            single = precise : f32
-        }
-        """
-        ast = self.parser.parse(source)
-        errors = self.analyzer.analyze(ast)
-        assert errors == []
-
-
-class TestCrossTypeConversions:
-    """Test conversions between integer and float types"""
-
-    def setup_method(self):
-        self.parser = HexenParser()
-        self.analyzer = SemanticAnalyzer()
-
-    def test_float_to_integer_requires_acknowledgment(self):
-        """Test that float to integer conversion requires acknowledgment"""
-        source = """
-        func test() : void = {
-            val float_val : f32 = 3.14
-            val double_val : f64 = 2.718
-            
-            mut int32_var : i32 = 0
-            mut int64_var : i64 = 0
-            
-            // ❌ Float to integer truncation requires acknowledgment
-            int32_var = float_val   // f32 → i32 truncation
-            int64_var = double_val  // f64 → i64 truncation
-        }
-        """
-        ast = self.parser.parse(source)
-        errors = self.analyzer.analyze(ast)
-        assert len(errors) == 2
-
-        for error in errors:
-            assert (
-                "truncation" in error.message.lower()
-                or "type mismatch" in error.message.lower()
-                or "conversion" in error.message.lower()
-            )
-
-    def test_float_to_integer_with_acknowledgment(self):
-        """Test that float to integer conversion works with acknowledgment"""
-        source = """
-        func test() : void = {
-            val float_val : f32 = 3.14
-            val double_val : f64 = 2.718
-            
-            mut int32_var : i32 = 0
-            mut int64_var : i64 = 0
-            
-            // ✅ Explicit acknowledgment allows truncation
-            int32_var = float_val : i32   // f32 → i32 with acknowledgment
-            int64_var = double_val : i64  // f64 → i64 with acknowledgment
-        }
-        """
-        ast = self.parser.parse(source)
-        errors = self.analyzer.analyze(ast)
-        assert errors == []
-
-    def test_integer_to_float_safe_conversions(self):
-        """Test that integer to float conversions are generally safe"""
-        source = """
-        func test() : void = {
-            val int32_val : i32 = 42
-            val int64_val : i64 = 1000000
-            
-            // ✅ Integer to float conversions are safe (widening)
-            val float_from_i32 : f32 = int32_val  // i32 → f32
-            val double_from_i32 : f64 = int32_val // i32 → f64
-            val float_from_i64 : f32 = int64_val : f32  // i64 → f32 (may lose precision - acknowledge)
-            val double_from_i64 : f64 = int64_val // i64 → f64
-            
-            // ✅ Safe in assignments too
+            // ✅ Safe conversions in assignments
+            mut target_i64 : i64 = 0
             mut target_f32 : f32 = 0.0
             mut target_f64 : f64 = 0.0
             
-            target_f32 = int32_val
-            target_f64 = int32_val
-            target_f64 = int64_val
+            target_i64 = source_i32     // i32 → i64
+            target_f32 = source_i32     // i32 → f32
+            target_f64 = source_i32     // i32 → f64
+            target_f64 = source_f32     // f32 → f64
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+        assert errors == []
+
+    def test_comptime_type_safety(self):
+        """Test that comptime types safely coerce to all appropriate concrete types"""
+        source = """
+        func test() : void = {
+            // ✅ Comptime int can safely become any numeric type
+            val as_i32 : i32 = 42
+            val as_i64 : i64 = 42
+            val as_f32 : f32 = 42
+            val as_f64 : f64 = 42
+            
+            // ✅ Comptime float can safely become any float type
+            val float_f32 : f32 = 3.14
+            val float_f64 : f64 = 3.14
+            
+            // ✅ Mixed comptime operations with context
+            val mixed_result : f64 = 42 + 3.14
         }
         """
         ast = self.parser.parse(source)
@@ -311,12 +195,8 @@ class TestCrossTypeConversions:
         assert errors == []
 
 
-class TestContextGuidedCoercion:
+class TestContextGuidedCoercion(StandardTestBase):
     """Test context-guided type coercion in complex scenarios"""
-
-    def setup_method(self):
-        self.parser = HexenParser()
-        self.analyzer = SemanticAnalyzer()
 
     def test_assignment_context_guides_coercion(self):
         """Test that assignment target type guides coercion"""
@@ -367,10 +247,27 @@ class TestContextGuidedCoercion:
         func test() : void = {
             val source : i32 = 42
             
-            // ✅ Declaration type guides coercion
-            val widened_i64 : i64 = source      // i32 → i64 (declaration context)
-            val converted_f32 : f32 = source    // i32 → f32 (declaration context)
-            val converted_f64 : f64 = source    // i32 → f64 (declaration context)
+            // Variable declaration type provides context for widening
+            val widened_i64 : i64 = source     // i32 → i64 (declaration context)
+            val converted_f32 : f32 = source   // i32 → f32 (declaration context)
+            val converted_f64 : f64 = source   // i32 → f64 (declaration context)
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+        assert errors == []
+
+    def test_expression_context_propagation(self):
+        """Test that context propagates through expressions"""
+        source = """
+        func test() : void = {
+            val a : i32 = 10
+            val b : i32 = 20
+            
+            // ✅ Expression context guides result type
+            val sum_i64 : i64 = a + b           // i32 + i32 → i64 (context)
+            val sum_f64 : f64 = a + b           // i32 + i32 → f64 (context)
+            val complex : f64 = (a * b) + 100  // Complex expression → f64 (context)
         }
         """
         ast = self.parser.parse(source)
@@ -378,25 +275,21 @@ class TestContextGuidedCoercion:
         assert errors == []
 
 
-class TestComplexCoercionScenarios:
-    """Test complex scenarios involving multiple type coercions"""
-
-    def setup_method(self):
-        self.parser = HexenParser()
-        self.analyzer = SemanticAnalyzer()
+class TestComplexCoercionScenarios(StandardTestBase):
+    """Test complex coercion scenarios and edge cases"""
 
     def test_chained_safe_coercions(self):
-        """Test chained safe type coercions"""
+        """Test chained safe coercions work correctly"""
         source = """
         func test() : void = {
             val start : i32 = 42
             
-            // Chain of safe coercions
+            // Chained safe coercions
             val step1 : i64 = start         // i32 → i64
             val step2 : f64 = step1         // i64 → f64
             
-            // Or in one step
-            val direct : f64 = start        // i32 → f64 (direct safe conversion)
+            // Direct multi-step coercion
+            val direct : f64 = start        // i32 → f64 (direct)
         }
         """
         ast = self.parser.parse(source)
@@ -404,56 +297,32 @@ class TestComplexCoercionScenarios:
         assert errors == []
 
     def test_mixed_type_expressions_with_coercion(self):
-        """Test expressions mixing different concrete types"""
+        """Test mixed-type expressions with safe coercion"""
         source = """
         func test() : void = {
             val int_val : i32 = 10
-            val long_val : i64 = 20
-            val float_val : f32 = 3.14
-            val double_val : f64 = 2.718
+            val float_val : f64 = 3.14
             
-            // Mixed operations requiring explicit result type context
-            val mixed1 : i64 = int_val + long_val       // i32 + i64 → i64
-            val mixed2 : f64 = float_val + double_val   // f32 + f64 → f64
-            val mixed3 : f64 = int_val + double_val     // i32 + f64 → f64
+            // ✅ Mixed expressions with explicit result type
+            val result_f64 : f64 = int_val + float_val  // i32 + f64 → f64
+            val result_i64 : i64 = int_val + int_val    // i32 + i32 → i64
         }
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         assert errors == []
 
-    def test_coercion_with_precision_loss_chain(self):
-        """Test coercion chains that involve precision loss"""
+    def test_nested_expression_coercion(self):
+        """Test coercion in nested expressions"""
         source = """
         func test() : void = {
-            val start : f64 = 3.141592653589793
+            val a : i32 = 10
+            val b : i32 = 20
+            val c : f32 = 3.14
             
-            // Chain involving precision loss - requires acknowledgment
-            mut intermediate : f32 = 0.0
-            mut final : i32 = 0
-            
-            // ❌ Each step with potential precision loss needs acknowledgment
-            intermediate = start    // f64 → f32 precision loss
-            final = intermediate    // f32 → i32 truncation
-        }
-        """
-        ast = self.parser.parse(source)
-        errors = self.analyzer.analyze(ast)
-        assert len(errors) >= 2  # At least two precision loss errors
-
-    def test_coercion_with_acknowledgment_chain(self):
-        """Test coercion chains with proper acknowledgments"""
-        source = """
-        func test() : void = {
-            val start : f64 = 3.141592653589793
-            
-            // Chain with proper acknowledgments
-            mut intermediate : f32 = 0.0
-            mut final : i32 = 0
-            
-            // ✅ Explicit acknowledgment at each step
-            intermediate = start : f32       // Acknowledge f64 → f32 precision loss
-            final = intermediate : i32       // Acknowledge f32 → i32 truncation
+            // ✅ Nested expressions with context-guided coercion
+            val result1 : f64 = (a + b) * 2    // (i32 + i32) * i32 → f64
+            val result2 : f64 = a + (b * c)    // i32 + (i32 * f32) → f64
         }
         """
         ast = self.parser.parse(source)
@@ -461,56 +330,131 @@ class TestComplexCoercionScenarios:
         assert errors == []
 
 
-class TestCoercionErrorMessages:
-    """Test that type coercion error messages are helpful and consistent"""
+class TestCoercionEdgeCases(StandardTestBase):
+    """Test edge cases and boundary conditions for type coercion"""
 
-    def setup_method(self):
-        self.parser = HexenParser()
-        self.analyzer = SemanticAnalyzer()
-
-    def test_widening_vs_narrowing_error_messages(self):
-        """Test that error messages distinguish between widening and narrowing"""
+    def test_same_type_assignments(self):
+        """Test that same-type assignments always work"""
         source = """
         func test() : void = {
-            val large : i64 = 1000000
-            val precise : f64 = 3.14159
+            val int_val : i32 = 42
+            val float_val : f64 = 3.14
+            val bool_val : bool = true
+            val string_val : string = "hello"
             
-            mut small : i32 = 0
-            mut single : f32 = 0.0
+            // ✅ Same type assignments (identity coercion)
+            mut int_mut : i32 = int_val
+            mut float_mut : f64 = float_val
+            mut bool_mut : bool = bool_val
+            mut string_mut : string = string_val
             
-            // Should generate helpful error messages
-            small = large       // Narrowing error
-            single = precise    // Precision loss error
+            // ✅ Reassignments of same type
+            int_mut = int_val
+            float_mut = float_val
+            bool_mut = bool_val
+            string_mut = string_val
         }
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        assert len(errors) == 2
+        assert errors == []
 
-        error_messages = [e.message for e in errors]
-        # Should contain guidance on solutions
-        assert any(": i32" in msg for msg in error_messages)
-        assert any(": f32" in msg for msg in error_messages)
-        assert any(
-            "truncation" in msg.lower() or "precision" in msg.lower()
-            for msg in error_messages
-        )
+    def test_zero_and_small_values_coercion(self):
+        """Test coercion with zero and small values"""
+        source = """
+        func test() : void = {
+            val zero_i32 : i32 = 0
+            val small_i32 : i32 = 1
+            val zero_f32 : f32 = 0.0
+            val small_f32 : f32 = 0.1
+            
+            // ✅ Safe coercion works for all values
+            val zero_i64 : i64 = zero_i32
+            val small_i64 : i64 = small_i32
+            val zero_f64 : f64 = zero_f32
+            val small_f64 : f64 = small_f32
+            val zero_float : f64 = zero_i32
+            val small_float : f64 = small_i32
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+        assert errors == []
 
-    def test_mixed_type_error_messages(self):
-        """Test error messages for mixed-type operations"""
+    def test_comptime_type_default_resolution(self):
+        """Test comptime type default resolution behavior"""
+        source = """
+        func test() : void = {
+            // ✅ Comptime types use sensible defaults
+            val default_int = 42        // comptime_int → i32 (default)
+            val default_float = 3.14    // comptime_float → f64 (default)
+            
+            // ✅ Context overrides defaults
+            val explicit_i64 : i64 = 42    // comptime_int → i64 (context)
+            val explicit_f32 : f32 = 3.14  // comptime_float → f32 (context)
+            
+            // ✅ Mixed comptime operations with defaults
+            val mixed_default = 42 + 3.14      // comptime_int + comptime_float → f64 (default)
+            val mixed_explicit : f32 = 42 + 3.14 // comptime_int + comptime_float → f32 (context)
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+        assert errors == []
+
+
+class TestCoercionErrorMessages(StandardTestBase):
+    """Test error messages for type coercion scenarios"""
+
+    def test_clear_error_messages_for_unsupported_coercions(self):
+        """Test clear error messages for type coercions that aren't supported"""
+        source = """
+        func test() : void = {
+            val int_val : i32 = 42
+            val string_val : string = "hello"
+            val bool_val : bool = true
+            
+            // ❌ Unsupported coercions should give clear errors
+            val bad1 : string = int_val     // i32 → string not supported
+            val bad2 : i32 = string_val     // string → i32 not supported  
+            val bad3 : bool = int_val       // i32 → bool not supported
+            val bad4 : i32 = bool_val       // bool → i32 not supported
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+        assert len(errors) == 4
+
+        # Check that error messages are informative
+        for error in errors:
+            assert (
+                "Type mismatch" in error.message
+                or "Cannot coerce" in error.message
+                or "Invalid conversion" in error.message
+            )
+
+    def test_mixed_type_operation_error_messages(self):
+        """Test error messages for mixed-type operations without context"""
         source = """
         func test() : void = {
             val a : i32 = 10
             val b : i64 = 20
+            val c : f32 = 3.14
+            val d : f64 = 2.718
             
-            // Should provide clear guidance
-            val result = a + b
+            // ❌ Mixed operations without explicit context
+            val mixed1 = a + b     // i32 + i64 needs context
+            val mixed2 = c + d     // f32 + f64 needs context  
+            val mixed3 = a + c     // i32 + f32 needs context
         }
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        assert len(errors) == 1
+        assert len(errors) == 3
 
-        error_msg = errors[0].message
-        assert "Mixed-type operation" in error_msg or "explicit" in error_msg.lower()
-        assert "i32" in error_msg and "i64" in error_msg
+        for error in errors:
+            assert (
+                "requires explicit result type" in error.message
+                or "Mixed-type operation" in error.message
+                or "ambiguous" in error.message.lower()
+            )
