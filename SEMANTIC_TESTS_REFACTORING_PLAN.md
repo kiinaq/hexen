@@ -293,55 +293,48 @@ python -m pytest tests/semantic/test_unary_ops.py -v
 
 **Ready for Session 5:** ✅ Operations consolidation complete, ready for mutability & assignment cleanup
 
----
+## ✅ **SESSION 5: Mutability & Assignment Cleanup** [COMPLETED]
 
-### **SESSION 5: Mutability & Assignment Cleanup** 🔄
-*Estimated Time: 1-2 hours*
+**Status**: COMPLETED ✅  
+**Date**: Session 5 completed  
+**Files Updated**: `test_mutability.py`, `test_assignment.py`, `test_binary_ops.py`
 
-#### **Objectives**
-- Clean up overlap between mutability and assignment testing
-- Focus each file on its core responsibility
-- Eliminate assignment duplicates from other files
+### **Objectives Achieved**:
+1. ✅ **Focused `test_mutability.py`** on pure val/mut semantics and variable lifecycle
+2. ✅ **Focused `test_assignment.py`** on assignment statement validation and context-guided resolution
+3. ✅ **Removed assignment overlaps** from `test_binary_ops.py` and other files
+4. ✅ **Created clear boundaries** between mutability concepts and assignment mechanics
 
-#### **Tasks**
-1. **Focus** `test_mutability.py` → val/mut semantics, undef patterns
-2. **Focus** `test_assignment.py` → assignment statement validation
-3. **Remove assignment overlaps** from other files
-4. **Create clear boundaries** between the two files
+### **Key Changes**:
 
-#### **Files Modified**
-- `tests/semantic/test_mutability.py` - Focus on val/mut/undef semantics
-- `tests/semantic/test_assignment.py` - Focus on assignment statement validation
-- Remove assignment tests from context framework and other files
+#### **test_mutability.py (16 tests)**:
+- **Reorganized into semantic categories**: Variable semantics, scoping, integration, type system integration
+- **Focused on mutability concepts**: val vs mut lifecycle, undef interaction patterns, scope isolation
+- **Enhanced test coverage**: Added comprehensive val/mut shadowing, type system integration
+- **Clear separation**: Removed assignment statement validation (moved to assignment file)
 
-#### **Clear Boundaries**
-```python
-# test_mutability.py - FOCUSED
-class TestValVariableSemantics:
-    """val declaration, immutability, undef prohibition"""
-    
-class TestMutVariableSemantics:
-    """mut declaration, reassignment, undef support"""
-    
-class TestMutabilityWithTypeSystem:
-    """Interaction with comptime types, coercion"""
+#### **test_assignment.py (45 tests)**:
+- **Comprehensive assignment validation**: Target validation, type compatibility, block contexts
+- **Assignment-specific features**: Explicit type annotations, undef variable handling, error messages
+- **Context-guided resolution**: Added tests for assignment context guiding type resolution
+- **Integration scenarios**: Assignment chains, variable references, complex expressions
 
-# test_assignment.py - FOCUSED  
-class TestAssignmentStatementValidation:
-    """Assignment statement parsing and validation"""
-    
-class TestAssignmentTypeChecking:
-    """Type compatibility in assignments"""
-    
-class TestAssignmentScoping:
-    """Variable existence and scope in assignments"""
-```
+#### **test_binary_ops.py**:
+- **Removed assignment context overlap**: Eliminated `TestAssignmentContext` class (moved to assignment file)
+- **Focused on pure operations**: Binary operations, logical operations, comparison operations
+- **Clean separation**: Assignment context now properly belongs in assignment tests
 
-#### **Validation**
-```bash
-python -m pytest tests/semantic/test_mutability.py -v
-python -m pytest tests/semantic/test_assignment.py -v
-```
+### **Test Results**:
+- ✅ **test_mutability.py**: 16/16 tests passing
+- ✅ **test_assignment.py**: 45/45 tests passing  
+- ✅ **test_binary_ops.py**: 18/18 tests passing (after cleanup)
+- ✅ **No regressions**: All existing functionality preserved
+
+### **Quality Improvements**:
+1. **Clear Responsibility Boundaries**: Each file has a single, well-defined purpose
+2. **Comprehensive Coverage**: Assignment context testing properly integrated
+3. **Maintainable Structure**: Easy to understand which file handles which semantics
+4. **Documentation**: Enhanced docstrings explaining file boundaries and overlaps
 
 ---
 
@@ -473,7 +466,7 @@ python -m pytest tests/semantic/ --cov=src/hexen/semantic --cov-report=html
 - [x] **Session 2**: Core Type System Consolidation ✅ **COMPLETED**
 - [x] **Session 3**: Precision Loss & Type Annotations ✅ **COMPLETED**
 - [x] **Session 4**: Operations Consolidation ✅ **COMPLETED**
-- [ ] **Session 5**: Mutability & Assignment Cleanup 🔄
+- [x] **Session 5**: Mutability & Assignment Cleanup 🔄 **COMPLETED**
 - [ ] **Session 6**: Block System Unification 🧱
 - [ ] **Session 7**: Integration & Final Cleanup 🎯
 

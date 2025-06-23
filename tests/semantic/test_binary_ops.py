@@ -1,14 +1,24 @@
 """
-Tests for binary operations semantic analysis in Hexen
+Test suite for binary operations in Hexen
 
-These tests validate that binary operations follow the type system rules:
-- Comptime type preservation and adaptation
-- Context-guided resolution
-- Division operators (float vs integer)
-- Mixed type operations
-- Assignment context
-- Error cases
+Tests binary operations with focus on:
+- Comptime type operations and adaptation
+- Division operators (/ vs \)
+- Mixed type operations requiring context
 - Logical operations (&&, ||)
+- Comparison operations (==, !=, <, >, <=, >=)
+- Error conditions and edge cases
+- Integration with type system
+
+This file focuses on PURE BINARY OPERATIONS:
+- Operator behavior and precedence
+- Type resolution and context requirements
+- Comptime type preservation and adaptation
+- Error detection for invalid operations
+
+ASSIGNMENT CONTEXT is covered in test_assignment.py.
+PRECISION LOSS scenarios are covered in test_precision_loss.py.
+MUTABILITY semantics are covered in test_mutability.py.
 
 See TYPE_SYSTEM.md and BINARY_OPS.md for detailed specifications.
 """
@@ -215,84 +225,8 @@ class TestMixedTypeOperations:
         assert errors == []
 
 
-class TestAssignmentContext:
-    """Test binary operations in assignment context"""
-
-    def setup_method(self):
-        self.parser = HexenParser()
-        self.analyzer = SemanticAnalyzer()
-
-    def test_assignment_with_comptime_types(self):
-        """Test assignment with comptime types"""
-        source = """
-        func test() : void = {
-            // Comptime types adapt to target type
-            mut i32_var : i32 = 0
-            mut i64_var : i64 = 0
-            mut f32_var : f32 = 0.0
-            mut f64_var : f64 = 0.0
-            
-            // Safe assignments - comptime types adapt to context
-            i32_var = 42 + 100             // comptime_int + comptime_int -> comptime_int (adapts to i32)
-            i64_var = 42 + 100             // comptime_int + comptime_int -> comptime_int (adapts to i64)
-            f32_var = 3.14 + 2.71          // comptime_float + comptime_float -> comptime_float (adapts to f32)
-            f64_var = 3.14 + 2.71          // comptime_float + comptime_float -> comptime_float (adapts to f64)
-            
-            // Mixed comptime types adapt to target type
-            f64_var = 42 + 3.14            // comptime_int + comptime_float -> comptime_float (adapts to f64)
-            f32_var = 42 + 3.14            // comptime_int + comptime_float -> comptime_float (adapts to f32)
-        }
-        """
-        ast = self.parser.parse(source)
-        errors = self.analyzer.analyze(ast)
-        assert errors == []
-
-    def test_assignment_with_mixed_types(self):
-        """Test assignment with mixed concrete types"""
-        source = """
-        func test() : void = {
-            val a : i32 = 10
-            val b : i64 = 20
-            val c : f32 = 3.14
-            val d : f64 = 2.71
-
-            mut i32_var : i32 = 0
-            mut i64_var : i64 = 0
-            mut f32_var : f32 = 0.0
-            mut f64_var : f64 = 0.0
-
-            // Mixed types require explicit type annotation
-            i32_var = (a + b) : i32          // i32 + i64 -> comptime_int (explicit narrowing)
-            i64_var = a + b                  // i32 + i64 -> comptime_int (adapts to i64)
-            f32_var = (a + c) : f32          // i32 + f32 -> comptime_float (explicit narrowing)
-            f64_var = a + d                  // i32 + f64 -> comptime_float (adapts to f64)
-        }
-        """
-        ast = self.parser.parse(source)
-        errors = self.analyzer.analyze(ast)
-        assert errors == []
-
-    def test_assignment_context_guides_type_resolution(self):
-        """Test that assignment context guides type resolution for binary operations"""
-        source = """
-        func test() : void = {
-            val a : i32 = 10
-            val b : i64 = 20
-            val c : f32 = 3.14
-            val d : f64 = 2.71
-
-            mut result_i64 : i64 = 0
-            mut result_f64 : f64 = 0.0
-
-            // Assignment context guides mixed-type operation resolution
-            result_i64 = a + b            // i32 + i64 -> i64 (guided by assignment context)
-            result_f64 = c + d            // f32 + f64 -> f64 (guided by assignment context)
-            result_f64 = a + c            // i32 + f32 -> f64 (guided by assignment context)
-        }
-        """
-        ast = self.parser.parse(source)
-        errors = self.analyzer.analyze(ast)
-        assert errors == []
+# Assignment context testing moved to test_assignment.py
+# This file focuses on pure binary operations without assignment overlap
 
 
 class TestBinaryOperationErrors:
