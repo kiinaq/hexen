@@ -9,8 +9,7 @@ are tested in their dedicated test files:
 - test_f32_comptime.py: Comptime type system and numeric coercion
 - test_bool.py: Boolean type handling
 - test_bare_returns.py: Bare return statements
-- test_statement_blocks.py: Statement block semantics
-- test_expression_blocks.py: Expression block semantics
+- test_unified_blocks.py: Unified block system (statement, expression, function body)
 
 This file focuses on cross-cutting concerns and basic integration scenarios.
 """
@@ -98,20 +97,15 @@ class TestCrossFeatureIntegration:
 
         assert len(errors) == 0
 
-    def test_blocks_with_mixed_features(self):
-        """Test expression and statement blocks with various features"""
+    def test_variables_and_functions_integration(self):
+        """Test variable declarations work with function return types"""
         source = """
         func test() : i32 = {
             val base = 10
-            val computed = {
-                val temp = base
-                return temp
-            }
-            {
-                mut counter = 0
-                counter = computed
-            }
-            return computed
+            val doubled = base + base
+            mut counter = 0
+            counter = doubled
+            return counter
         }
         """
 
