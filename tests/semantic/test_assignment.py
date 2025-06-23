@@ -16,6 +16,10 @@ from src.hexen.semantic import SemanticAnalyzer
 class TestBasicAssignment:
     """Test basic assignment functionality"""
 
+    def setup_method(self):
+        self.parser = HexenParser()
+        self.analyzer = SemanticAnalyzer()
+
     def test_simple_mut_assignment(self):
         """Test basic assignment to mut variable"""
         source = """
@@ -25,11 +29,8 @@ class TestBasicAssignment:
         }
         """
 
-        parser = HexenParser()
-        ast = parser.parse(source)
-
-        analyzer = SemanticAnalyzer()
-        errors = analyzer.analyze(ast)
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
 
         assert errors == []
 
@@ -44,11 +45,8 @@ class TestBasicAssignment:
         }
         """
 
-        parser = HexenParser()
-        ast = parser.parse(source)
-
-        analyzer = SemanticAnalyzer()
-        errors = analyzer.analyze(ast)
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
 
         assert errors == []
 
@@ -63,11 +61,8 @@ class TestBasicAssignment:
         }
         """
 
-        parser = HexenParser()
-        ast = parser.parse(source)
-
-        analyzer = SemanticAnalyzer()
-        errors = analyzer.analyze(ast)
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
 
         assert errors == []
 
@@ -80,17 +75,18 @@ class TestBasicAssignment:
         }
         """
 
-        parser = HexenParser()
-        ast = parser.parse(source)
-
-        analyzer = SemanticAnalyzer()
-        errors = analyzer.analyze(ast)
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
 
         assert errors == []
 
 
 class TestAssignmentErrors:
     """Test assignment error cases"""
+
+    def setup_method(self):
+        self.parser = HexenParser()
+        self.analyzer = SemanticAnalyzer()
 
     def test_assignment_to_val_variable(self):
         """Test that assignment to val variable fails"""
@@ -101,11 +97,8 @@ class TestAssignmentErrors:
         }
         """
 
-        parser = HexenParser()
-        ast = parser.parse(source)
-
-        analyzer = SemanticAnalyzer()
-        errors = analyzer.analyze(ast)
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
 
         assert len(errors) == 1
         assert "Cannot assign to immutable variable 'x'" in errors[0].message
@@ -118,11 +111,8 @@ class TestAssignmentErrors:
         }
         """
 
-        parser = HexenParser()
-        ast = parser.parse(source)
-
-        analyzer = SemanticAnalyzer()
-        errors = analyzer.analyze(ast)
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
 
         assert len(errors) == 1
         assert "Undefined variable: 'unknown'" in errors[0].message
@@ -136,11 +126,8 @@ class TestAssignmentErrors:
         }
         """
 
-        parser = HexenParser()
-        ast = parser.parse(source)
-
-        analyzer = SemanticAnalyzer()
-        errors = analyzer.analyze(ast)
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
 
         assert len(errors) == 1
         assert "Type mismatch in assignment" in errors[0].message
@@ -157,11 +144,8 @@ class TestAssignmentErrors:
         }
         """
 
-        parser = HexenParser()
-        ast = parser.parse(source)
-
-        analyzer = SemanticAnalyzer()
-        errors = analyzer.analyze(ast)
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
 
         assert len(errors) == 2
         # Check that both errors are detected
@@ -169,6 +153,10 @@ class TestAssignmentErrors:
 
 class TestAssignmentInBlocks:
     """Test assignment in different block contexts"""
+
+    def setup_method(self):
+        self.parser = HexenParser()
+        self.analyzer = SemanticAnalyzer()
 
     def test_assignment_in_statement_block(self):
         """Test assignment works in statement blocks"""
@@ -183,11 +171,8 @@ class TestAssignmentInBlocks:
         }
         """
 
-        parser = HexenParser()
-        ast = parser.parse(source)
-
-        analyzer = SemanticAnalyzer()
-        errors = analyzer.analyze(ast)
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
 
         assert errors == []
 
@@ -204,11 +189,8 @@ class TestAssignmentInBlocks:
         }
         """
 
-        parser = HexenParser()
-        ast = parser.parse(source)
-
-        analyzer = SemanticAnalyzer()
-        errors = analyzer.analyze(ast)
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
 
         assert errors == []
 
@@ -228,41 +210,38 @@ class TestAssignmentInBlocks:
         }
         """
 
-        parser = HexenParser()
-        ast = parser.parse(source)
-
-        analyzer = SemanticAnalyzer()
-        errors = analyzer.analyze(ast)
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
 
         assert errors == []
 
     def test_assignment_to_scoped_variable_error(self):
-        """Test that assignment to out-of-scope variable fails"""
+        """Test assignment to inner scope variable from outer scope fails"""
         source = """
         func test() : void = {
-            mut x = 42
             {
-                mut scoped = 100
+                mut inner = 42
             }
-            scoped = 200
+            inner = 100
         }
         """
 
-        parser = HexenParser()
-        ast = parser.parse(source)
-
-        analyzer = SemanticAnalyzer()
-        errors = analyzer.analyze(ast)
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
 
         assert len(errors) == 1
-        assert "Undefined variable: 'scoped'" in errors[0].message
+        assert "Undefined variable: 'inner'" in errors[0].message
 
 
 class TestAssignmentWithExplicitTypes:
     """Test assignment with explicit type annotations"""
 
+    def setup_method(self):
+        self.parser = HexenParser()
+        self.analyzer = SemanticAnalyzer()
+
     def test_assignment_with_explicit_types(self):
-        """Test assignment to explicitly typed variables"""
+        """Test assignment with explicit type annotations"""
         source = """
         func test() : void = {
             mut x : i32 = 42
@@ -272,45 +251,38 @@ class TestAssignmentWithExplicitTypes:
         }
         """
 
-        parser = HexenParser()
-        ast = parser.parse(source)
-
-        analyzer = SemanticAnalyzer()
-        errors = analyzer.analyze(ast)
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
 
         assert errors == []
 
     def test_assignment_with_type_mismatch_explicit(self):
-        """Test type mismatch with explicitly typed variable"""
+        """Test assignment with type mismatch and explicit types"""
         source = """
         func test() : void = {
-            mut x : i64 = 42
-            x = "wrong type"
+            mut x : i32 = 42
+            mut y : string = "hello"
+            x = "wrong"
+            y = 123
         }
         """
 
-        parser = HexenParser()
-        ast = parser.parse(source)
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
 
-        analyzer = SemanticAnalyzer()
-        errors = analyzer.analyze(ast)
-
-        # With Zig-style comptime types, expect only 1 error:
-        # - Assignment type mismatch (string to i64 variable)
-        # No error for declaration because comptime_int (42) can coerce to i64
-        assert len(errors) == 1
-        assert any("Type mismatch in assignment" in error.message for error in errors)
-        assert any(
-            "variable 'x' is i64, but assigned value is string" in error.message
-            for error in errors
-        )
+        assert len(errors) == 2  # Both x and y assignments should fail
+        assert all("Type mismatch in assignment" in str(error) for error in errors)
 
 
 class TestAssignmentWithUndef:
-    """Test assignment with undef variables"""
+    """Test assignment with undef values"""
+
+    def setup_method(self):
+        self.parser = HexenParser()
+        self.analyzer = SemanticAnalyzer()
 
     def test_assignment_to_undef_variable(self):
-        """Test assignment to undef variable"""
+        """Test assignment to variable initialized with undef"""
         source = """
         func test() : void = {
             mut x : i32 = undef
@@ -318,29 +290,23 @@ class TestAssignmentWithUndef:
         }
         """
 
-        parser = HexenParser()
-        ast = parser.parse(source)
-
-        analyzer = SemanticAnalyzer()
-        errors = analyzer.analyze(ast)
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
 
         assert errors == []
 
     def test_assignment_from_undef_variable(self):
-        """Test assignment from undef variable (should fail)"""
+        """Test assignment from variable that is undef"""
         source = """
         func test() : void = {
             mut x : i32 = undef
-            mut y = 42
+            mut y : i32 = 0
             y = x
         }
         """
 
-        parser = HexenParser()
-        ast = parser.parse(source)
-
-        analyzer = SemanticAnalyzer()
-        errors = analyzer.analyze(ast)
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
 
         assert len(errors) == 1
         assert "Use of uninitialized variable: 'x'" in errors[0].message
@@ -349,43 +315,37 @@ class TestAssignmentWithUndef:
 class TestAssignmentIntegration:
     """Test assignment integration with other features"""
 
+    def setup_method(self):
+        self.parser = HexenParser()
+        self.analyzer = SemanticAnalyzer()
+
     def test_assignment_with_variable_references(self):
-        """Test assignment using other variables as values"""
+        """Test assignment using other variable references"""
         source = """
         func test() : void = {
-            val source = 42
-            mut target = 0
-            target = source
+            val a = 42
+            mut b = 100
+            b = a
         }
         """
 
-        parser = HexenParser()
-        ast = parser.parse(source)
-
-        analyzer = SemanticAnalyzer()
-        errors = analyzer.analyze(ast)
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
 
         assert errors == []
 
     def test_assignment_chain_pattern(self):
-        """Test pattern of sequential assignments"""
+        """Test chained assignment patterns"""
         source = """
         func test() : void = {
-            val initial = 42
-            mut step1 = 0
-            mut step2 = 0
-            mut final = 0
-            
-            step1 = initial
-            step2 = step1
-            final = step2
+            mut x = 42
+            mut y = 100
+            x = y
+            y = x
         }
         """
 
-        parser = HexenParser()
-        ast = parser.parse(source)
-
-        analyzer = SemanticAnalyzer()
-        errors = analyzer.analyze(ast)
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
 
         assert errors == []

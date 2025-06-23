@@ -8,8 +8,8 @@ Tests semantic analysis of:
 - Error cases and edge cases
 """
 
-from hexen.parser import HexenParser
-from hexen.semantic.analyzer import SemanticAnalyzer
+from src.hexen.parser import HexenParser
+from src.hexen.semantic import SemanticAnalyzer
 
 
 class TestUnaryMinusSemantics:
