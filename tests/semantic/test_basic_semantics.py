@@ -120,23 +120,6 @@ class TestCrossFeatureIntegration:
 
         assert len(errors) == 0
 
-    def test_comptime_types_across_contexts(self):
-        """Test comptime type coercion works across different contexts"""
-        source = """
-        func test() : void = {
-            val default_int = 42        // comptime_int -> i32
-            val explicit_i64 : i64 = 42 // comptime_int -> i64
-            val as_float : f32 = 42     // comptime_int -> f32
-            mut number : f64 = 3.14     // comptime_float -> f64
-            number = 42                 // comptime_int -> f64 (assignment)
-        }
-        """
-
-        ast = self.parser.parse(source)
-        errors = self.analyzer.analyze(ast)
-
-        assert len(errors) == 0
-
 
 class TestErrorIntegration:
     """Test error detection across multiple language features"""

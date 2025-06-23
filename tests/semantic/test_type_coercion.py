@@ -1,12 +1,15 @@
 """
-Test suite for regular type coercion in Hexen
+Concrete Type Coercion Tests for Hexen
 
-Tests the regular type coercion rules beyond comptime types as described in TYPE_SYSTEM.md:
+Tests ONLY the concrete type coercion rules (non-comptime types) as described in TYPE_SYSTEM.md:
 - Integer widening: i32 → {i64, f32, f64}, i64 → {f32, f64}
 - Float widening: f32 → f64
 - Safe conversions vs precision loss scenarios
 - Context-guided coercion in assignments and expressions
 - Integration with the "Explicit Danger, Implicit Safety" principle
+
+NOTE: Comptime type testing is now consolidated in test_comptime_types.py
+This file focuses exclusively on concrete type coercion (i32, i64, f32, f64, etc.)
 """
 
 from src.hexen.parser import HexenParser
@@ -451,74 +454,6 @@ class TestComplexCoercionScenarios:
             // ✅ Explicit acknowledgment at each step
             intermediate = start : f32       // Acknowledge f64 → f32 precision loss
             final = intermediate : i32       // Acknowledge f32 → i32 truncation
-        }
-        """
-        ast = self.parser.parse(source)
-        errors = self.analyzer.analyze(ast)
-        assert errors == []
-
-
-class TestCoercionWithComptime:
-    """Test interaction between regular type coercion and comptime types"""
-
-    def setup_method(self):
-        self.parser = HexenParser()
-        self.analyzer = SemanticAnalyzer()
-
-    def test_comptime_and_concrete_type_mixing(self):
-        """Test mixing comptime types with concrete types"""
-        source = """
-        func test() : void = {
-            val concrete : i32 = 10
-            
-            // ✅ Comptime types adapt to context when mixed with concrete types
-            val result1 : i64 = concrete + 42       // i32 + comptime_int → i64 context
-            val result2 : f64 = concrete + 3.14     // i32 + comptime_float → f64 context
-            
-            // ✅ In assignments
-            mut target : f64 = 0.0
-            target = concrete + 42      // i32 + comptime_int → f64 assignment context
-        }
-        """
-        ast = self.parser.parse(source)
-        errors = self.analyzer.analyze(ast)
-        assert errors == []
-
-    def test_multiple_concrete_types_require_context(self):
-        """Test that multiple concrete types require explicit context"""
-        source = """
-        func test() : void = {
-            val int32_val : i32 = 10
-            val int64_val : i64 = 20
-            val float_val : f32 = 3.14
-            
-            // ❌ Mixed concrete types require explicit result type
-            val mixed1 = int32_val + int64_val      // i32 + i64 needs context
-            val mixed2 = int32_val + float_val      // i32 + f32 needs context
-        }
-        """
-        ast = self.parser.parse(source)
-        errors = self.analyzer.analyze(ast)
-        assert len(errors) >= 2
-
-        for error in errors:
-            assert (
-                "Mixed-type operation" in error.message
-                or "explicit" in error.message.lower()
-            )
-
-    def test_concrete_types_with_explicit_context(self):
-        """Test mixed concrete types with explicit context"""
-        source = """
-        func test() : void = {
-            val int32_val : i32 = 10
-            val int64_val : i64 = 20
-            val float_val : f32 = 3.14
-            
-            // ✅ Explicit context resolves mixed concrete types
-            val mixed1 : i64 = int32_val + int64_val    // i32 + i64 → i64
-            val mixed2 : f64 = int32_val + float_val    // i32 + f32 → f64
-            val mixed3 : f32 = int32_val + float_val    // i32 + f32 → f32 (precision choice)
         }
         """
         ast = self.parser.parse(source)
