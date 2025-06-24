@@ -9,11 +9,12 @@ Tests parsing of:
 """
 
 from src.hexen.parser import HexenParser
+from src.hexen.ast_nodes import NodeType
 
 
 def verify_unary_operation_ast(node, expected_operator, expected_operand):
     """Helper function to verify unary operation AST structure."""
-    assert node["type"] == "unary_operation"
+    assert node["type"] == NodeType.UNARY_OPERATION.value
     assert node["operator"] == expected_operator
     assert node["operand"] == expected_operand
 
@@ -39,19 +40,19 @@ class TestUnaryMinus:
 
         # Test single negation
         verify_unary_operation_ast(
-            statements[0]["value"], "-", {"type": "literal", "value": 42}
+            statements[0]["value"], "-", {"type": NodeType.LITERAL.value, "value": 42}
         )
 
         # Test negation of zero
         verify_unary_operation_ast(
-            statements[1]["value"], "-", {"type": "literal", "value": 0}
+            statements[1]["value"], "-", {"type": NodeType.LITERAL.value, "value": 0}
         )
 
         # Test double negation
         inner_neg = {
-            "type": "unary_operation",
+            "type": NodeType.UNARY_OPERATION.value,
             "operator": "-",
-            "operand": {"type": "literal", "value": 42},
+            "operand": {"type": NodeType.LITERAL.value, "value": 42},
         }
         verify_unary_operation_ast(statements[2]["value"], "-", inner_neg)
 
@@ -70,19 +71,19 @@ class TestUnaryMinus:
 
         # Test single negation
         verify_unary_operation_ast(
-            statements[0]["value"], "-", {"type": "literal", "value": 3.14}
+            statements[0]["value"], "-", {"type": NodeType.LITERAL.value, "value": 3.14}
         )
 
         # Test negation of zero
         verify_unary_operation_ast(
-            statements[1]["value"], "-", {"type": "literal", "value": 0.0}
+            statements[1]["value"], "-", {"type": NodeType.LITERAL.value, "value": 0.0}
         )
 
         # Test double negation
         inner_neg = {
-            "type": "unary_operation",
+            "type": NodeType.UNARY_OPERATION.value,
             "operator": "-",
-            "operand": {"type": "literal", "value": 3.14},
+            "operand": {"type": NodeType.LITERAL.value, "value": 3.14},
         }
         verify_unary_operation_ast(statements[2]["value"], "-", inner_neg)
 
@@ -96,7 +97,7 @@ class TestUnaryOperatorPrecedence:
 
 def verify_binary_operation_ast(node, expected_operator, expected_left, expected_right):
     """Helper function to verify binary operation AST structure."""
-    assert node["type"] == "binary_operation"
+    assert node["type"] == NodeType.BINARY_OPERATION.value
     assert node["operator"] == expected_operator
     assert node["left"] == expected_left
     assert node["right"] == expected_right
