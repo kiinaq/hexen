@@ -102,7 +102,7 @@ class HexenTransformer(Transformer):
             }
 
     def logical_or(self, children):
-        print("[DEBUG] logical_or children:", children)
+        # print("[DEBUG] logical_or children:", children)
         if len(children) == 1:
             return children[0]
         left = children[0]
@@ -120,7 +120,7 @@ class HexenTransformer(Transformer):
         return left
 
     def logical_and(self, children):
-        print("[DEBUG] logical_and children:", children)
+        # print("[DEBUG] logical_and children:", children)
         if len(children) == 1:
             return children[0]
         left = children[0]
@@ -138,7 +138,7 @@ class HexenTransformer(Transformer):
         return left
 
     def equality(self, children):
-        print("[DEBUG] equality children:", children)
+        # print("[DEBUG] equality children:", children)
         if len(children) == 1:
             return children[0]
         left = children[0]
@@ -156,7 +156,7 @@ class HexenTransformer(Transformer):
         return left
 
     def relational(self, children):
-        print("[DEBUG] relational children:", children)
+        # print("[DEBUG] relational children:", children)
         if len(children) == 1:
             return children[0]
         left = children[0]
@@ -174,7 +174,7 @@ class HexenTransformer(Transformer):
         return left
 
     def additive(self, children):
-        print("[DEBUG] additive children:", children)
+        # print("[DEBUG] additive children:", children)
         if len(children) == 1:
             return children[0]
         left = children[0]
@@ -192,7 +192,7 @@ class HexenTransformer(Transformer):
         return left
 
     def multiplicative(self, children):
-        print("[DEBUG] multiplicative children:", children)
+        # print("[DEBUG] multiplicative children:", children)
         if len(children) == 1:
             return children[0]
         left = children[0]
@@ -227,16 +227,16 @@ class HexenTransformer(Transformer):
             return children[1]
 
     def _build_binary_operation_tree(self, children):
-        print("[DEBUG] _build_binary_operation_tree children:", children)
+        # print("[DEBUG] _build_binary_operation_tree children:", children)
         if len(children) == 1:
             return children[0]  # Single operand
         result = children[0]
         for i in range(1, len(children) - 1, 2):
             operator = str(children[i])
             right_operand = children[i + 1]
-            print(
-                f"[DEBUG] Building node: left={result}, op={operator}, right={right_operand}"
-            )
+            # print(
+            #     f"[DEBUG] Building node: left={result}, op={operator}, right={right_operand}"
+            # )
             result = {
                 "type": "binary_operation",
                 "operator": operator,
