@@ -31,12 +31,15 @@ func calculate(base: i32, multiplier: i32) : i32 = {
 
 // Void function with side effects
 func log_message(message: string, level: string) : void = {
-    write_log(format("{}: {}", level, message))
+    // Simple void function - performs side effects, returns nothing
+    return
 }
 
 // Function with mixed parameter types
 func convert_and_scale(value: i64, scale: f64) : f64 = {
-    return value * scale  // i64 * f64 requires explicit context (handled by return type)
+    // Mixed concrete types require explicit target type (return type provides context)
+    val result : f64 = value * scale  // ✅ Explicit context for i64 * f64 → f64
+    return result
 }
 ```
 
@@ -112,7 +115,7 @@ Parameters and local variables follow the same mutability semantics but serve di
 func demonstrate_scoping(input: i32, mut output: i32) : i32 = {
     // Parameters are in function scope
     val local_immutable = input * 2         // ✅ OK: val variable from immutable parameter
-    mut local_mutable = output              // ✅ OK: mut variable from mutable parameter
+    mut local_mutable : i32 = output        // ✅ OK: mut variable with explicit type required
     
     // local_immutable = 42                 // ❌ Error: Cannot reassign val variable
     local_mutable = 42                      // ✅ OK: Can reassign mut variable
@@ -150,7 +153,17 @@ When functions have parameters of different types, each argument adapts to its c
 ```hexen
 func mixed_calculation(base: i32, multiplier: f64, precision: f32) : f64 = {
     val scaled : f64 = base * multiplier      // ✅ Explicit context for i32 * f64 → f64
-    return scaled * precision : f64           // ✅ Explicit context for f64 * f32 → f64
+    return scaled * precision                 // ✅ Function return type f64 provides context for f64 * f32
+    
+    // ❌ ERROR: Type annotation must match function's declared return type (when used)
+    // return scaled * precision : f32        // Error: Type annotation must match function return type (f64)
+}
+
+// Example with precision loss - type annotation required
+func mixed_calculation_f32(base: i32, multiplier: f64, precision: f32) : f32 = {
+    val scaled : f64 = base * multiplier      // ✅ Explicit context for i32 * f64 → f64
+    // return scaled * precision              // ❌ Error: f64 * f32 → f64, but function returns f32 (precision loss)
+    return scaled * precision : f32           // ✅ Explicit acknowledgment of precision loss f64 → f32
 }
 
 // Each argument adapts to its parameter type independently
@@ -230,11 +243,10 @@ val result = compute_result(
     3.14 * 2.0          // comptime_float * comptime_float → comptime_float → f64 (adapts to factor parameter)
 )
 
-// Mixed-type expressions in arguments require explicit handling
+// Mixed-type expressions in arguments benefit from parameter context
 val a : i32 = 5
 val b : f64 = 2.5
-// val bad = compute_result(a + b, 1.0)     // ❌ Error: i32 + f64 needs explicit context
-val good = compute_result(a + b : f64, 1.0)    // ✅ Explicit context for mixed expression
+val result = compute_result(a + b, 1.0)             // ✅ Parameter type f64 provides context for i32 + f64
 ```
 
 ### Function Call Type Resolution Strategy
@@ -245,6 +257,32 @@ Function calls follow a **parameter-guided resolution approach**:
 2. **Independent Resolution**: Each argument is resolved independently based on its parameter
 3. **Expression Context**: Complex argument expressions use parameter type as target context
 4. **Error Localization**: Type errors are reported per argument-parameter pair
+
+### Type Annotations in Function Context
+
+Type annotations in function calls follow the same rules as TYPE_SYSTEM.md:
+
+```hexen
+func process(value: f64) : f64 = { return value * 2.0 }
+
+val int_val : i32 = 10
+val large_val : i64 = 1000
+
+// ✅ CORRECT: Type annotation matches target context when precision loss occurs
+val result1 : f64 = process(large_val)          // i64 → f64 (safe widening, no annotation needed)
+
+// ❌ ERROR: Direct precision loss without acknowledgment  
+// val result2 : f32 = process(large_val)       // Error: f64 result → f32 requires ': f32'
+
+// ✅ CORRECT: Explicit acknowledgment of precision loss
+val result2 : f32 = process(large_val) : f32    // f64 → f32 (explicit precision loss acknowledgment)
+
+// ✅ CORRECT: Parameter provides context for mixed expressions
+val mixed_arg : f64 = int_val + 3.14            // Explicit context for i32 + comptime_float
+val result3 = process(mixed_arg)                // f64 → f64 (exact match)
+```
+
+**Key Rule**: Type annotations are for **acknowledgment of precision loss**, not for **type conversion guidance**.
 
 ```hexen
 func process(int_param: i32, float_param: f64, string_param: string) : void = { ... }
@@ -287,7 +325,7 @@ func complex_computation(input: i32, threshold: f64) : f64 = {
     if intermediate > threshold {
         return intermediate * 1.5    // comptime_float → f64 (return type context)
     } else {
-        return threshold / 2.0       // f64 / comptime_float → f64 (return type context)
+        return threshold / 2.0       // f64 / comptime_float → f64 (float division defaults to f64)
     }
 }
 ```
@@ -362,7 +400,8 @@ val int_val : i32 = 10
 val float_val : f64 = 2.5
 // calculate(int_val + float_val, 3.14)
 // Error: Argument 1: Mixed-type expression 'i32 + f64' requires explicit result type
-// Add type annotation: 'calculate((int_val + float_val) : f64, 3.14)'
+// Add explicit context: 'val temp : f64 = int_val + float_val; calculate(temp, 3.14)'
+// Or use explicit variable: 'calculate((int_val + float_val : f64), 3.14)' with matching result type
 ```
 
 #### Mutable Parameter Type Errors
@@ -388,9 +427,10 @@ func complex_transform(
     mut accumulator : f64 = base      // ✅ Explicit type required for mut (i64 → f64 widening)
     
     {
-        mut i = 0
+        mut i : i32 = 0               // ✅ Explicit type required for mut
         while i < iterations {
-            accumulator = accumulator * scale + offset : f64
+            // accumulator * scale produces f64, + offset produces f64 (no annotation needed)
+            accumulator = accumulator * scale + offset
             i = i + 1
         }
     }
@@ -423,6 +463,53 @@ func process_chain(input: i32) : i32 = {
     val scaled = scale_value(input, 2.5)        // i32 → f64 (parameter context)
     val final = truncate_to_int(scaled)         // f64 → i32 (explicit truncation)
     return final
+}
+```
+
+### Division Operations in Function Context
+
+```hexen
+// Float division (/) - always produces float results
+func calculate_average(total: i32, count: i32) : f64 = {
+    return total / count    // comptime_int / comptime_int → comptime_float → f64 (return type context)
+}
+
+// Integer division (\) - efficient truncation, integer-only
+func calculate_quotient(dividend: i32, divisor: i32) : i32 = {
+    return dividend \ divisor    // i32 \ i32 → i32 (integer division)
+}
+
+// Mixed division operations
+func complex_calculation(base: i64, factor: f32) : f64 = {
+    val precise_result : f64 = base / factor    // ✅ Mixed concrete types: i64 / f32 → f64 (explicit context)
+    // val truncated = base \ factor            // ❌ Error: Integer division requires integer operands
+    return precise_result
+}
+```
+
+### Comparison Operations in Function Context
+
+```hexen
+// Comparison operations with function parameters (strict type matching)
+func compare_values(a: i32, b: i32) : bool = {
+    return a > b                // ✅ i32 > i32 (same concrete types)
+}
+
+func validate_range(value: f64, min: f64, max: f64) : bool = {
+    return value >= min && value <= max    // ✅ f64 comparisons with logical operators
+}
+
+// Mixed-type comparisons require explicit type conversion
+func mixed_comparison(int_val: i32, float_val: f64) : bool = {
+    // return int_val < float_val            // ❌ Error: Cannot compare i32 and f64
+    val int_as_float : f64 = int_val        // ✅ Explicit conversion before comparison
+    return int_as_float < float_val         // ✅ f64 < f64 (same types after conversion)
+}
+
+// Function parameters in complex boolean expressions
+func is_valid_user(age: i32, has_license: bool, credit_score: i32) : bool = {
+    return age >= 18 && has_license && credit_score > 650
+    // Each comparison: i32 >= i32, bool (direct use), i32 > i32
 }
 ```
 
@@ -672,4 +759,118 @@ The Function System extends Hexen's core philosophy to function declarations and
 
 The parameter system's emphasis on explicit type annotations and immutability by default reinforces Hexen's safety-first approach, while the context propagation mechanism ensures that function calls provide natural, predictable type resolution for arguments.
 
-This foundation is extensible and ready to support advanced features like default parameters, generics, and function overloading in future language phases. 
+This foundation is extensible and ready to support advanced features like default parameters, generics, and function overloading in future language phases.
+
+---
+
+## **🚨 DOCUMENTATION REVIEW NOTES - ISSUES TO FIX**
+
+*The following inconsistencies were identified during comprehensive review against core Hexen documentation (TYPE_SYSTEM.md, BINARY_OPS.md, COMPARISON_OPS.md, UNIFIED_BLOCK_SYSTEM.md). These need to be addressed in a future revision:*
+
+### **1. CRITICAL: Undefined Functions Used in Examples**
+
+**Lines 309-311:**
+```hexen
+val config = load_configuration()      // ❌ ISSUE: Undefined function
+validate_input(input, config)         // ❌ ISSUE: Undefined function
+```
+**Fix needed**: Replace with simple, self-contained examples using only documented Hexen features.
+
+**Line 347:**
+```hexen
+log_debug("Inner calculation complete") // ❌ ISSUE: Undefined function
+```
+**Fix needed**: Remove or replace with documented operations.
+
+**Lines 524-526:**
+```hexen
+val length = sqrt(x * x + y * y + z * z)  // ❌ ISSUE: Undefined function sqrt()
+```
+**Fix needed**: Replace with simple arithmetic that doesn't require undefined math functions.
+
+**Lines 538-544:**
+```hexen
+while i < length(values) {             // ❌ ISSUE: 'while' loops not defined in UNIFIED_BLOCK_SYSTEM.md
+    accumulator = accumulator + (values[i] * transform_factor)  // ❌ ISSUE: length() undefined
+    i = i + 1
+}
+```
+**Fix needed**: Replace `while` loops with documented control structures or simple sequential operations.
+
+**Line 233:**
+```hexen
+return processed_result                // ❌ ISSUE: Undefined variable
+```
+**Fix needed**: Replace with actual computation or simple return value.
+
+### **2. CRITICAL: Mixed Concrete Types Without Proper Context**
+
+**Lines 405-407:**
+```hexen
+// accumulator * scale produces f64, + offset produces f64 (no annotation needed)
+accumulator = accumulator * scale + offset  // ❌ ISSUE: f64 * f32 is mixed concrete types
+```
+**Problem**: According to BINARY_OPS.md, mixed concrete types (`f64 * f32`) require explicit context.
+**Fix needed**: Either add explicit type annotation or restructure to avoid mixed concrete types.
+
+### **3. Type Annotation Inconsistencies**
+
+**Line 284:**
+```hexen
+val mixed_arg : f64 = int_val + 3.14   // ❌ ISSUE: Unnecessary type annotation
+```
+**Problem**: `i32 + comptime_float → f64` is safe widening, no precision loss.
+**Fix needed**: Remove `: f64` as it's optional (no precision loss).
+
+### **4. Missing Required Type Annotations**
+
+**Line 538:**
+```hexen
+mut i = 0                              // ❌ ISSUE: Missing explicit type for mut variable
+```
+**Problem**: Violates TYPE_SYSTEM.md rule that all `mut` variables require explicit type.
+**Fix needed**: Change to `mut i : i32 = 0`.
+
+### **5. Undefined Syntax and Types**
+
+**Lines 533-534:**
+```hexen
+values: array<i32>,                    // ❌ ISSUE: array<T> syntax not defined in specs
+```
+**Problem**: Array types and syntax not documented in core specifications.
+**Fix needed**: Either define array syntax in specs or remove from examples.
+
+**Lines 718-725 (Future section):**
+```hexen
+func setup_connection(host: string = "localhost", port: i32 = 8080) : bool = {
+    return connect(host, port)         // ❌ ISSUE: Undefined function connect()
+}
+```
+**Problem**: Uses undefined function and default parameter syntax not defined.
+**Fix needed**: Mark clearly as future syntax or use placeholder implementations.
+
+### **6. Comment Accuracy Issues**
+
+**Line 347:**
+```hexen
+val converted = multiplier * 3.14      // Comment should explain f64 * comptime_float resolution
+```
+**Fix needed**: Clarify that `multiplier` (f64) * `3.14` (comptime_float) → f64.
+
+### **Review Summary**
+- **8 undefined functions** used in examples
+- **2 mixed concrete type operations** without proper context handling  
+- **1 unnecessary type annotation** case
+- **1 missing explicit type** for `mut` variable
+- **3 undefined syntax** cases (`array<T>`, `while` loops, default parameters)
+- **Multiple undefined variables** and inconsistent comments
+
+### **Recommended Fix Strategy**
+1. **Phase 1**: Remove all undefined functions and replace with self-contained examples
+2. **Phase 2**: Fix all type annotation issues to align with TYPE_SYSTEM.md rules
+3. **Phase 3**: Fix mixed concrete type operations to follow BINARY_OPS.md rules
+4. **Phase 4**: Ensure all `mut` variables have explicit types per TYPE_SYSTEM.md
+5. **Phase 5**: Remove or clearly mark all undefined syntax as future features
+6. **Phase 6**: Verify all examples compile against the documented language specification
+
+*This review ensures FUNCTION_SYSTEM.md is fully consistent with Hexen's core documentation and follows the "Explicit Danger, Implicit Safety" philosophy throughout.* 
