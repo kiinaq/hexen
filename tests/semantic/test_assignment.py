@@ -31,9 +31,9 @@ class TestBasicAssignmentStatement(StandardTestBase):
         """Test that valid assignment statements are accepted"""
         source = """
         func test() : void = {
-            mut counter = 42
-            mut message = "hello"
-            mut flag = true
+            mut counter : i32 = 42
+            mut message : string = "hello"
+            mut flag : bool = true
             
             // ✅ Valid assignment statements
             counter = 100
@@ -49,7 +49,7 @@ class TestBasicAssignmentStatement(StandardTestBase):
         """Test multiple assignment statements to same variable"""
         source = """
         func test() : void = {
-            mut value = 0
+            mut value : i32 = 0
             
             // ✅ Multiple sequential assignments allowed
             value = 10
@@ -67,10 +67,10 @@ class TestBasicAssignmentStatement(StandardTestBase):
         """Test assignment with various compatible types"""
         source = """
         func test() : void = {
-            mut number = 42
-            mut text = "hello"
-            mut boolean = false  
-            mut decimal = 3.14
+            mut number : i32 = 42
+            mut text : string = "hello"
+            mut boolean : bool = false  
+            mut decimal : f64 = 3.14
             
             // ✅ Compatible type assignments
             number = 100
@@ -87,8 +87,8 @@ class TestBasicAssignmentStatement(StandardTestBase):
         """Test self-assignment (variable = variable)"""
         source = """
         func test() : void = {
-            mut x = 42
-            mut y = "hello"
+            mut x : i32 = 42
+            mut y : string = "hello"
             
             // ✅ Self-assignment is valid (no-op operation)
             x = x
@@ -149,7 +149,7 @@ class TestAssignmentTargetValidation(StandardTestBase):
         # The parser may catch some invalid targets before semantic analysis
         source = """
         func test() : void = {
-            mut x = 42
+            mut x : i32 = 42
             
             // Valid assignment
             x = 100
@@ -187,9 +187,9 @@ class TestAssignmentTypeCompatibility(StandardTestBase):
         """Test assignments with type-incompatible values"""
         source = """
         func test() : void = {
-            mut int_var = 42
-            mut str_var = "hello"
-            mut bool_var = true
+            mut int_var : i32 = 42
+            mut str_var : string = "hello"
+            mut bool_var : bool = true
             
             // ❌ Type-incompatible assignments
             int_var = "wrong_type"    // string → i32 (incompatible)
@@ -221,7 +221,7 @@ class TestAssignmentTypeCompatibility(StandardTestBase):
         func test() : void = {
             val source1 = 10
             val source2 = 20
-            mut target = 0
+            mut target : i32 = 0
             
             // ✅ Assignment with expression values
             target = source1           // Variable expression
@@ -241,13 +241,13 @@ class TestAssignmentInBlockContexts(StandardTestBase):
         """Test assignment statements work in statement blocks"""
         source = """
         func test() : void = {
-            mut outer_var = 42
+            mut outer_var : i32 = 42
             
             {
                 // ✅ Assignment in statement block
                 outer_var = 100
                 
-                mut inner_var = "hello"
+                mut inner_var : string = "hello"
                 inner_var = "world"
             }
         }
@@ -260,7 +260,7 @@ class TestAssignmentInBlockContexts(StandardTestBase):
         """Test assignment statements work in expression blocks"""
         source = """
         func test() : i32 = {
-            mut accumulator = 0
+            mut accumulator : i32 = 0
             
             val result = {
                 // ✅ Assignment in expression block (side effect)
@@ -279,7 +279,7 @@ class TestAssignmentInBlockContexts(StandardTestBase):
         """Test assignment to variables from outer scopes"""
         source = """
         func test() : void = {
-            mut outer = 42
+            mut outer : i32 = 42
             
             {
                 // ✅ Can assign to outer scope variable
@@ -300,10 +300,10 @@ class TestAssignmentInBlockContexts(StandardTestBase):
         """Test assignment to variable that's out of scope"""
         source = """
         func test() : void = {
-            mut outer = 42
+            mut outer : i32 = 42
             
             {
-                mut inner = 100
+                mut inner : i32 = 100
             }
             
             // ❌ Cannot assign to inner scope variable (out of scope)
@@ -313,6 +313,7 @@ class TestAssignmentInBlockContexts(StandardTestBase):
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         assert len(errors) == 1
+
         assert "Undefined variable: 'inner'" in errors[0].message
 
 
@@ -405,7 +406,7 @@ class TestAssignmentErrorMessages(StandardTestBase):
         source = """
         func test() : void = {
             val immutable = 42
-            mut mutable = 0
+            mut mutable : i32 = 0
             
             // Assignment errors
             immutable = 100        // Immutable variable error
@@ -419,11 +420,18 @@ class TestAssignmentErrorMessages(StandardTestBase):
 
         error_messages = [e.message for e in errors]
 
-        # Check specific error message patterns
+        # Check for immutable variable error
         assert any(
-            "Cannot assign to immutable variable" in msg for msg in error_messages
+            "Cannot assign to immutable variable 'immutable'" in msg
+            for msg in error_messages
         )
-        assert any("Type mismatch in assignment" in msg for msg in error_messages)
+
+        # Check for type mismatch error
+        assert any(
+            "Type mismatch" in msg and "mutable" in msg for msg in error_messages
+        )
+
+        # Check for undefined variable error
         assert any("Undefined variable: 'undefined'" in msg for msg in error_messages)
 
     def test_assignment_error_context_information(self):
@@ -463,8 +471,8 @@ class TestAssignmentIntegration(StandardTestBase):
         func test() : void = {
             val source1 = 10
             val source2 = 20
-            mut target1 = 0
-            mut target2 = 0
+            mut target1 : i32 = 0
+            mut target2 : i32 = 0
             
             // ✅ Assignments using variable references
             target1 = source1
@@ -481,9 +489,9 @@ class TestAssignmentIntegration(StandardTestBase):
         """Test patterns involving multiple related assignments"""
         source = """
         func test() : void = {
-            mut a = 1
-            mut b = 2
-            mut c = 3
+            mut a : i32 = 1
+            mut b : i32 = 2
+            mut c : i32 = 3
             
             // ✅ Assignment chain patterns (not chained assignment syntax)
             val temp = a
@@ -507,8 +515,8 @@ class TestAssignmentStatementSemantics(StandardTestBase):
         """Test that assignment evaluates right-hand side before assigning"""
         source = """
         func test() : void = {
-            mut x = 1
-            mut y = 2
+            mut x : i32 = 1
+            mut y : i32 = 2
             
             // Assignment evaluates RHS before LHS assignment
             x = y           // x gets value of y (2)
@@ -524,7 +532,7 @@ class TestAssignmentStatementSemantics(StandardTestBase):
         source = """
         func test() : void = {
             // This is declaration (creates new variable)
-            mut new_var = 42
+            mut new_var : i32 = 42
             
             // This is assignment (updates existing variable)
             new_var = 100
@@ -544,7 +552,7 @@ class TestAssignmentStatementSemantics(StandardTestBase):
             val a = 10
             val b = 20
             val c = 30
-            mut result = 0
+            mut result : i32 = 0
             
             // ✅ Complex expressions as assignment values
             result = a + b

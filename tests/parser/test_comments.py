@@ -37,7 +37,7 @@ class TestBasicComments:
         """Test inline comments at end of lines"""
         source = """
         func test() : void = {  // Function comment
-            mut x = 42          // Variable comment
+            mut x : i32 = 42    // Variable comment
             x = 100             // Assignment comment
             return              // Return comment
         }
@@ -56,7 +56,7 @@ class TestBasicComments:
         source = """
         func test() : void = {
             // First comment
-            mut x = 42
+            mut x : i32 = 42
             // Second comment
             x = 100
             // Third comment
@@ -78,7 +78,7 @@ class TestBasicComments:
         source = """
         // First function
         func first() : void = {
-            mut x = 42  // Local variable
+            mut x : i32 = 42  // Local variable
             return
         }
         
@@ -105,11 +105,11 @@ class TestCommentsInBlocks:
         """Test comments in statement blocks"""
         source = """
         func test() : void = {
-            mut x = 42
+            mut x : i32 = 42
             {
                 // Inside statement block
-                mut y = 100  // Local variable
-                x = y        // Assignment
+                mut y : i32 = 100  // Local variable
+                x = y              // Assignment
             }
             return
         }
@@ -128,10 +128,10 @@ class TestCommentsInBlocks:
         source = """
         func test() : void = {
             // Outer level
-            mut x = 42
+            mut x : i32 = 42
             {
                 // First nesting level
-                mut y = 100
+                mut y : i32 = 100
                 {
                     // Second nesting level
                     x = y  // Assignment across scopes
@@ -158,8 +158,8 @@ class TestCommentsWithAllFeatures:
         source = """
         func test() : void = {
             // Variable declarations
-            mut counter = 0      // Initial value
-            mut message = "hi"   // String variable
+            mut counter : i32 = 0        // Initial value
+            mut message : string = "hi"  // String variable
             
             // Assignments
             counter = 10         // First assignment
@@ -207,13 +207,13 @@ class TestCommentsWithAllFeatures:
         """Test comments with return statements"""
         source = """
         func test_void() : void = {
-            mut x = 42  // Setup
-            return      // Bare return
+            mut x : i32 = 42  // Setup
+            return            // Bare return
         }
         
         func test_value() : i32 = {
-            mut result = 100  // Calculate result
-            return result     // Return the value
+            mut result : i32 = 100  // Calculate result
+            return result           // Return the value
         }
         """
 
@@ -234,7 +234,7 @@ class TestCommentEdgeCases:
         source = """
         func test() : void = {
             //
-            mut x = 42  //
+            mut x : i32 = 42  //
             //
             return
         }
@@ -253,7 +253,7 @@ class TestCommentEdgeCases:
         source = """
         func test() : void = {
             // Comment with symbols: !@#$%^&*()
-            mut x = 42  // Numbers: 123456789
+            mut x : i32 = 42  // Numbers: 123456789
             // Unicode: café naïve résumé
             return
         }
@@ -274,16 +274,16 @@ class TestCommentEdgeCases:
         // Function with comments
         func test() : void = {
             // Declare variable
-            mut x = 42  // Initial value
+            mut x : i32 = 42  // Initial value
             // Assign new value  
-            x = 100     // Updated value
-            return      // Exit
+            x = 100           // Updated value
+            return            // Exit
         }
         """
 
         source_without_comments = """
         func test() : void = {
-            mut x = 42
+            mut x : i32 = 42
             x = 100
             return
         }

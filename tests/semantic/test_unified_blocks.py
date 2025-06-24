@@ -606,7 +606,7 @@ class TestBlockContextDetermination(StandardTestBase):
             }
             
             // Assignment context - expression block
-            mut mutable_result = {
+            mut mutable_result : i32 = {
                 val value = 100
                 return value
             }
@@ -762,7 +762,7 @@ class TestComplexBlockScenarios(StandardTestBase):
             }
             
             // Expression block assigned to mut  
-            mut mutable_result = {
+            mut mutable_result : i32 = {
                 return computed + 5
             }
             

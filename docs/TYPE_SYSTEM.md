@@ -117,12 +117,15 @@ func get_count() : i32 = 42      // comptime_int sees i32 return → becomes i32
 When there's **no context**, comptime types use sensible defaults:
 
 ```hexen
-// Same defaults for both val and mut
+// val allows type inference (single assignment)
 val counter = 42      // No explicit type → comptime_int becomes i32 (system default)
 val pi = 3.14         // No explicit type → comptime_float becomes f64 (precision default)
 
-mut counter = 42      // No explicit type → comptime_int becomes i32 (system default)
-mut pi = 3.14         // No explicit type → comptime_float becomes f64 (precision default)
+// mut requires explicit type (prevents action-at-a-distance)
+mut counter : i32 = 42      // ✅ Explicit type required
+mut pi : f64 = 3.14         // ✅ Explicit type required
+// mut bad_counter = 42     // ❌ Error: mut requires explicit type
+// mut bad_pi = 3.14        // ❌ Error: mut requires explicit type
 ```
 
 
@@ -302,27 +305,26 @@ val derived : f64 = result * 2.5       // ✅ OK: initialization with expression
 
 #### **`mut` - Mutable Variables**
 - **Multiple Assignment**: Can be reassigned after declaration
+- **Explicit Type Required**: Must have explicit type annotation to prevent action-at-a-distance issues
 - **Type Preservation**: Must maintain the same declared type across reassignments
-- **Type Context**: Target type provides context for all reassignments
+- **Type Context**: Explicit type provides context for all reassignments
 - **Use Case**: Counters, accumulators, state variables that need to change
 
 ```hexen
-mut counter : i32 = 0                  // ✅ OK: initialization
-counter = 42                           // ✅ OK: reassignment with same type
-counter = compute_value()              // ✅ OK: reassignment with expression
+mut counter : i32 = 0                  // ✅ OK: explicit type required
+counter = 42                           // ✅ OK: reassignment uses i32 context
+counter = compute_value()              // ✅ OK: reassignment uses i32 context
 counter = large_value : i32            // ✅ OK: reassignment with explicit acknowledgment
 
+// mut bad_counter = 0                 // ❌ Error: mut requires explicit type
 // counter = "text"                    // ❌ Error: Cannot change type (i32 → string)
 ```
 
-#### **Key Principle: Same Type System, Different Mutability**
-Both `val` and `mut` follow identical rules for:
-- **Comptime type adaptation**: Literals adapt to declared types
-- **Type coercion**: Same safety rules for safe/unsafe conversions  
-- **Type annotations**: Same explicit acknowledgment patterns
-- **Context propagation**: Same context-guided expression resolution
+#### **Key Principle: Different Safety Models for Different Use Cases**
+- **`val` variables**: Type inference allowed since declaration = only use
+- **`mut` variables**: Explicit type required since type affects all future reassignments
 
-The **only** difference is reassignment capability after initialization.
+**Design rationale**: `mut` variables require explicit types to prevent "action at a distance" where changing the initial assignment value could silently change the meaning of all subsequent reassignments.
 
 ### Variable Declaration with Context
 

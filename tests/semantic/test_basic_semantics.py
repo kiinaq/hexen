@@ -52,7 +52,7 @@ class TestBasicLanguageIntegration:
         source = """
         func compute_int() : i32 = {
             val base = 10
-            mut counter = 0
+            mut counter : i32 = 0
             counter = base * 2
             return counter
         }
@@ -111,8 +111,8 @@ class TestTypeSystemIntegration:
             val immutable_int = 42        // comptime_int → i32
             val immutable_float = 3.14    // comptime_float → f64
             
-            mut mutable_int = 100         // comptime_int → i32
-            mut mutable_float = 2.5       // comptime_float → f64
+            mut mutable_int : i32 = 100         // comptime_int → i32 (explicit type required)
+            mut mutable_float : f64 = 2.5       // comptime_float → f64 (explicit type required)
             
             mutable_int = 200             // comptime_int → i32 (reassignment)
             mutable_float = 7.5           // comptime_float → f64 (reassignment)
@@ -213,7 +213,7 @@ class TestBlockSystemIntegration:
         source = """
         func test() : void = {
             val immutable = 42
-            mut mutable = 100
+            mut mutable : i32 = 100
             
             {
                 val scoped = immutable + mutable
@@ -320,7 +320,7 @@ class TestErrorIntegrationScenarios:
             val outer = 42
             {
                 val inner : i64 = outer    // OK: i32 → i64 widening
-                mut temp = inner
+                mut temp : i64 = inner     // OK: explicit type for mut
             }
             return inner                   // Error: inner is out of scope
         }

@@ -190,7 +190,7 @@ class TestTypeAnnotationWithoutExplicitLeftType(StandardTestBase):
             // ❌ FORBIDDEN: Type annotation without explicit left side type
             val result1 = a + b : i64        // Error: No explicit left side type to match
             val result2 = a + c : f64        // Error: No explicit left side type to match
-            mut counter = 42 : i32           // Error: No explicit left side type to match
+            val result3 = 42 : i32           // Error: No explicit left side type to match
         }
         """
         ast = self.parser.parse(source)

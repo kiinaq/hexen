@@ -399,7 +399,7 @@ class TestComptimeDefaults(StandardTestBase):
         source = """
         func test() : void = {
             val default_int = 42          // comptime_int → i32 (default)
-            mut mutable_int = 123         // comptime_int → i32 (default)
+            mut mutable_int : i32 = 123   // comptime_int → i32 (explicit type required for mut)
             mutable_int = 456            // comptime_int → i32 (assignment context)
         }
         """
@@ -412,7 +412,7 @@ class TestComptimeDefaults(StandardTestBase):
         source = """
         func test() : void = {
             val default_float = 3.14      // comptime_float → f64 (default)
-            mut mutable_float = 2.718     // comptime_float → f64 (default)
+            mut mutable_float : f64 = 2.718     // comptime_float → f64 (explicit type required for mut)
             mutable_float = 1.414        // comptime_float → f64 (assignment context)
         }
         """
@@ -447,7 +447,7 @@ class TestComptimeWithConcreteTypes(StandardTestBase):
             val result1 : i64 = concrete + 42       // i32 + comptime_int → i64 context
             val result2 : f64 = concrete + 3.14     // i32 + comptime_float → f64 context
             
-            // ✅ In assignments
+            // ✅ In assignments  
             mut target : f64 = 0.0
             target = concrete + 42      // i32 + comptime_int → f64 assignment context
         }

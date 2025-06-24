@@ -190,7 +190,7 @@ class TestNegativeNumberLiterals:
         """Test assignments with negative values"""
         source = """
         func test() : i32 = {
-            mut counter = 10
+            mut counter : i32 = 10
             counter = -5
             counter = 0
             counter = -0

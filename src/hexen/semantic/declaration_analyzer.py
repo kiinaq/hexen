@@ -305,6 +305,15 @@ class DeclarationAnalyzer:
                 )
                 return
 
+            # NEW RULE: mut variables require explicit type annotation
+            if mutability == Mutability.MUTABLE:
+                self._error(
+                    f"Mutable variable '{name}' requires explicit type annotation to prevent action-at-a-distance issues. "
+                    f"Use 'mut {name} : type = value' instead of 'mut {name} = value'",
+                    node,
+                )
+                return
+
             # PHASE 3: Special handling for undef without explicit type
             if (
                 value.get("type") == NodeType.IDENTIFIER.value
