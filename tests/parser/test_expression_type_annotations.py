@@ -6,6 +6,7 @@ This is critical for the Hexen type system's "explicit acknowledgment" pattern.
 """
 
 from src.hexen.parser import HexenParser
+from src.hexen.ast_nodes import NodeType
 
 
 class TestExpressionTypeAnnotations:
@@ -28,14 +29,14 @@ class TestExpressionTypeAnnotations:
 
         # Check variable declaration
         val_decl = statements[0]
-        assert val_decl["type"] == "val_declaration"
+        assert val_decl["type"] == NodeType.VAL_DECLARATION.value
         assert val_decl["name"] == "result"
         assert val_decl["type_annotation"] == "i32"
 
         # Check the expression has type annotation
         expr = val_decl["value"]
-        assert expr["type"] == "type_annotated_expression"
-        assert expr["expression"]["type"] == "literal"
+        assert expr["type"] == NodeType.TYPE_ANNOTATED_EXPRESSION.value
+        assert expr["expression"]["type"] == NodeType.LITERAL.value
         assert expr["expression"]["value"] == 42
         assert expr["type_annotation"] == "i32"
 
@@ -53,7 +54,7 @@ class TestExpressionTypeAnnotations:
 
         val_decl = statements[0]
         expr = val_decl["value"]
-        assert expr["type"] == "type_annotated_expression"
+        assert expr["type"] == NodeType.TYPE_ANNOTATED_EXPRESSION.value
         assert expr["expression"]["value"] == 3.14
         assert expr["type_annotation"] == "f32"
 
@@ -71,12 +72,12 @@ class TestExpressionTypeAnnotations:
 
         val_decl = statements[0]
         expr = val_decl["value"]
-        assert expr["type"] == "type_annotated_expression"
+        assert expr["type"] == NodeType.TYPE_ANNOTATED_EXPRESSION.value
         assert expr["type_annotation"] == "f64"
 
         # Check the inner binary operation
         binary_op = expr["expression"]
-        assert binary_op["type"] == "binary_operation"
+        assert binary_op["type"] == NodeType.BINARY_OPERATION.value
         assert binary_op["operator"] == "+"
         assert binary_op["left"]["value"] == 42
         assert binary_op["right"]["value"] == 3.14
@@ -95,12 +96,12 @@ class TestExpressionTypeAnnotations:
 
         val_decl = statements[0]
         expr = val_decl["value"]
-        assert expr["type"] == "type_annotated_expression"
+        assert expr["type"] == NodeType.TYPE_ANNOTATED_EXPRESSION.value
         assert expr["type_annotation"] == "i32"
 
         # Check the inner complex expression
         binary_op = expr["expression"]
-        assert binary_op["type"] == "binary_operation"
+        assert binary_op["type"] == NodeType.BINARY_OPERATION.value
         assert binary_op["operator"] == "+"
 
     def test_identifier_type_annotation(self):
@@ -118,12 +119,12 @@ class TestExpressionTypeAnnotations:
 
         val_decl = statements[1]
         expr = val_decl["value"]
-        assert expr["type"] == "type_annotated_expression"
+        assert expr["type"] == NodeType.TYPE_ANNOTATED_EXPRESSION.value
         assert expr["type_annotation"] == "i32"
 
         # Check the identifier
         identifier = expr["expression"]
-        assert identifier["type"] == "identifier"
+        assert identifier["type"] == NodeType.IDENTIFIER.value
         assert identifier["name"] == "x"
 
     def test_all_types_in_annotations(self):
@@ -151,7 +152,7 @@ class TestExpressionTypeAnnotations:
         ):
             val_decl = statements[i]
             expr = val_decl["value"]
-            assert expr["type"] == "type_annotated_expression"
+            assert expr["type"] == NodeType.TYPE_ANNOTATED_EXPRESSION.value
             assert expr["type_annotation"] == expected_type
             assert expr["expression"]["value"] == expected_value
 
@@ -168,11 +169,11 @@ class TestExpressionTypeAnnotations:
         statements = ast["functions"][0]["body"]["statements"]
 
         mut_decl = statements[0]
-        assert mut_decl["type"] == "mut_declaration"
+        assert mut_decl["type"] == NodeType.MUT_DECLARATION.value
         assert mut_decl["type_annotation"] == "f64"
 
         expr = mut_decl["value"]
-        assert expr["type"] == "type_annotated_expression"
+        assert expr["type"] == NodeType.TYPE_ANNOTATED_EXPRESSION.value
         assert expr["type_annotation"] == "f64"
 
     def test_parenthesized_expression_type_annotation(self):
@@ -189,12 +190,12 @@ class TestExpressionTypeAnnotations:
 
         val_decl = statements[0]
         expr = val_decl["value"]
-        assert expr["type"] == "type_annotated_expression"
+        assert expr["type"] == NodeType.TYPE_ANNOTATED_EXPRESSION.value
         assert expr["type_annotation"] == "i32"
 
         # The expression should be the parenthesized content
         inner_expr = expr["expression"]
-        assert inner_expr["type"] == "binary_operation"
+        assert inner_expr["type"] == NodeType.BINARY_OPERATION.value
         assert inner_expr["operator"] == "*"
 
     def test_nested_binary_operations_type_annotation(self):
@@ -211,9 +212,9 @@ class TestExpressionTypeAnnotations:
 
         val_decl = statements[0]
         expr = val_decl["value"]
-        assert expr["type"] == "type_annotated_expression"
+        assert expr["type"] == NodeType.TYPE_ANNOTATED_EXPRESSION.value
         assert expr["type_annotation"] == "f64"
 
         # Check that the inner expression is properly parsed
         inner_expr = expr["expression"]
-        assert inner_expr["type"] == "binary_operation"
+        assert inner_expr["type"] == NodeType.BINARY_OPERATION.value
