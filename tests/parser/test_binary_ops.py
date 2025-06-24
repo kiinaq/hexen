@@ -12,11 +12,12 @@ Focuses on:
 
 import pytest
 from src.hexen.parser import HexenParser
+from src.hexen.ast_nodes import NodeType
 
 
 def verify_binary_operation_ast(ast, expected_operator, expected_left, expected_right):
     """Helper to verify binary operation AST structure."""
-    assert ast["type"] == "binary_operation"
+    assert ast["type"] == NodeType.BINARY_OPERATION.value
     assert ast["operator"] == expected_operator
     assert ast["left"] == expected_left
     assert ast["right"] == expected_right
@@ -44,36 +45,36 @@ def test_basic_arithmetic_operators():
     verify_binary_operation_ast(
         statements[0]["value"],
         "+",
-        {"type": "literal", "value": 10},
-        {"type": "literal", "value": 20},
+        {"type": NodeType.LITERAL.value, "value": 10},
+        {"type": NodeType.LITERAL.value, "value": 20},
     )
 
     verify_binary_operation_ast(
         statements[1]["value"],
         "-",
-        {"type": "literal", "value": 10},
-        {"type": "literal", "value": 20},
+        {"type": NodeType.LITERAL.value, "value": 10},
+        {"type": NodeType.LITERAL.value, "value": 20},
     )
 
     verify_binary_operation_ast(
         statements[2]["value"],
         "*",
-        {"type": "literal", "value": 10},
-        {"type": "literal", "value": 20},
+        {"type": NodeType.LITERAL.value, "value": 10},
+        {"type": NodeType.LITERAL.value, "value": 20},
     )
 
     verify_binary_operation_ast(
         statements[3]["value"],
         "/",
-        {"type": "literal", "value": 10},
-        {"type": "literal", "value": 20},
+        {"type": NodeType.LITERAL.value, "value": 10},
+        {"type": NodeType.LITERAL.value, "value": 20},
     )
 
     verify_binary_operation_ast(
         statements[4]["value"],
         "\\",
-        {"type": "literal", "value": 10},
-        {"type": "literal", "value": 20},
+        {"type": NodeType.LITERAL.value, "value": 10},
+        {"type": NodeType.LITERAL.value, "value": 20},
     )
 
 
@@ -122,8 +123,8 @@ def test_binary_operations_with_type_annotations():
 
     # Check that type annotations are properly parsed with binary operations
     for i, stmt in enumerate(statements[:3]):  # Skip return statement
-        assert stmt["type"] in ["val_declaration"]
+        assert stmt["type"] in [NodeType.VAL_DECLARATION.value]
         expr = stmt["value"]
-        assert expr["type"] == "type_annotated_expression"
+        assert expr["type"] == NodeType.TYPE_ANNOTATED_EXPRESSION.value
         # The expression inside should be a binary operation
-        assert expr["expression"]["type"] == "binary_operation"
+        assert expr["expression"]["type"] == NodeType.BINARY_OPERATION.value
