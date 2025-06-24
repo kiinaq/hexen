@@ -7,6 +7,7 @@ These are syntax validation tests - semantic type checking is handled elsewhere.
 
 import pytest
 from src.hexen.parser import HexenParser
+from src.hexen.ast_nodes import NodeType
 
 
 class TestTypeAnnotationErrors:
@@ -138,10 +139,10 @@ class TestTypeAnnotationErrors:
         func = ast["functions"][0]
         return_stmt = func["body"]["statements"][0]
 
-        assert return_stmt["type"] == "return_statement"
+        assert return_stmt["type"] == NodeType.RETURN_STATEMENT.value
         # The return value should have a type annotation
         return_value = return_stmt["value"]
-        assert return_value["type"] == "type_annotated_expression"
+        assert return_value["type"] == NodeType.TYPE_ANNOTATED_EXPRESSION.value
         assert return_value["type_annotation"] == "i32"
         assert return_value["expression"]["value"] == 42
 
@@ -199,12 +200,12 @@ class TestTypeAnnotationErrors:
 
         # The type annotation should wrap the entire binary operation
         # (This confirms type annotations have LOW precedence - they apply to whole expressions)
-        assert expr["type"] == "type_annotated_expression"
+        assert expr["type"] == NodeType.TYPE_ANNOTATED_EXPRESSION.value
         assert expr["type_annotation"] == "i32"
 
         # The inner expression should be the binary operation
         inner_expr = expr["expression"]
-        assert inner_expr["type"] == "binary_operation"
+        assert inner_expr["type"] == NodeType.BINARY_OPERATION.value
         assert inner_expr["operator"] == "+"
 
     def test_multiple_type_annotations_error(self):
