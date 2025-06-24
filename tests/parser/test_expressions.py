@@ -16,11 +16,12 @@ Moved from:
 
 import pytest
 from src.hexen.parser import HexenParser
+from src.hexen.ast_nodes import NodeType
 
 
 def verify_binary_operation_ast(ast, expected_operator, expected_left, expected_right):
     """Helper to verify binary operation AST structure."""
-    assert ast["type"] == "binary_operation"
+    assert ast["type"] == NodeType.BINARY_OPERATION.value
     assert ast["operator"] == expected_operator
     assert ast["left"] == expected_left
     assert ast["right"] == expected_right
@@ -28,7 +29,7 @@ def verify_binary_operation_ast(ast, expected_operator, expected_left, expected_
 
 def verify_unary_operation_ast(node, expected_operator, expected_operand):
     """Helper function to verify unary operation AST structure."""
-    assert node["type"] == "unary_operation"
+    assert node["type"] == NodeType.UNARY_OPERATION.value
     assert node["operator"] == expected_operator
     assert node["operand"] == expected_operand
 
@@ -51,7 +52,7 @@ class TestBasicParentheses:
 
         # Verify the parentheses are correctly parsed and removed
         expr = ast["functions"][0]["body"]["statements"][0]["value"]
-        assert expr["type"] == "literal"
+        assert expr["type"] == NodeType.LITERAL.value
         assert expr["value"] == 42
 
     def test_parenthesized_string(self):
@@ -65,7 +66,7 @@ class TestBasicParentheses:
         ast = self.parser.parse(source)
 
         expr = ast["functions"][0]["body"]["statements"][0]["value"]
-        assert expr["type"] == "literal"
+        assert expr["type"] == NodeType.LITERAL.value
         assert expr["value"] == "hello"
 
     def test_parenthesized_boolean(self):
@@ -79,7 +80,7 @@ class TestBasicParentheses:
         ast = self.parser.parse(source)
 
         expr = ast["functions"][0]["body"]["statements"][0]["value"]
-        assert expr["type"] == "literal"
+        assert expr["type"] == NodeType.LITERAL.value
         assert expr["value"]
 
     def test_parenthesized_identifier(self):
@@ -94,7 +95,7 @@ class TestBasicParentheses:
         ast = self.parser.parse(source)
 
         expr = ast["functions"][0]["body"]["statements"][1]["value"]
-        assert expr["type"] == "identifier"
+        assert expr["type"] == NodeType.IDENTIFIER.value
         assert expr["name"] == "x"
 
     def test_parenthesized_in_return(self):
@@ -107,8 +108,8 @@ class TestBasicParentheses:
         ast = self.parser.parse(source)
 
         return_stmt = ast["functions"][0]["body"]["statements"][0]
-        assert return_stmt["type"] == "return_statement"
-        assert return_stmt["value"]["type"] == "literal"
+        assert return_stmt["type"] == NodeType.RETURN_STATEMENT.value
+        assert return_stmt["value"]["type"] == NodeType.LITERAL.value
         assert return_stmt["value"]["value"] == 42
 
 
@@ -129,7 +130,7 @@ class TestNestedParentheses:
         ast = self.parser.parse(source)
 
         expr = ast["functions"][0]["body"]["statements"][0]["value"]
-        assert expr["type"] == "literal"
+        assert expr["type"] == NodeType.LITERAL.value
         assert expr["value"] == 42
 
     def test_triple_parentheses(self):
@@ -143,7 +144,7 @@ class TestNestedParentheses:
         ast = self.parser.parse(source)
 
         expr = ast["functions"][0]["body"]["statements"][0]["value"]
-        assert expr["type"] == "literal"
+        assert expr["type"] == NodeType.LITERAL.value
         assert expr["value"] == "nested"
 
     def test_nested_parentheses_with_identifiers(self):
@@ -159,7 +160,7 @@ class TestNestedParentheses:
         ast = self.parser.parse(source)
 
         expr = ast["functions"][0]["body"]["statements"][2]["value"]
-        assert expr["type"] == "identifier"
+        assert expr["type"] == NodeType.IDENTIFIER.value
         assert expr["name"] == "x"
 
 
@@ -183,10 +184,10 @@ class TestParenthesesInBlocks:
         ast = self.parser.parse(source)
 
         block = ast["functions"][0]["body"]["statements"][0]["value"]
-        assert block["type"] == "block"
+        assert block["type"] == NodeType.BLOCK.value
 
         temp_expr = block["statements"][0]["value"]
-        assert temp_expr["type"] == "literal"
+        assert temp_expr["type"] == NodeType.LITERAL.value
         assert temp_expr["value"] == 100
 
     def test_parentheses_in_statement_block(self):
@@ -202,16 +203,16 @@ class TestParenthesesInBlocks:
         ast = self.parser.parse(source)
 
         block = ast["functions"][0]["body"]["statements"][0]
-        assert block["type"] == "block"
+        assert block["type"] == NodeType.BLOCK.value
 
         # Check first variable
         first_expr = block["statements"][0]["value"]
-        assert first_expr["type"] == "literal"
+        assert first_expr["type"] == NodeType.LITERAL.value
         assert first_expr["value"] == 3.14
 
         # Check second variable
         second_expr = block["statements"][1]["value"]
-        assert second_expr["type"] == "literal"
+        assert second_expr["type"] == NodeType.LITERAL.value
         assert second_expr["value"] == "test"
 
     def test_parenthesized_block_expression(self):
@@ -229,11 +230,11 @@ class TestParenthesesInBlocks:
 
         # The parentheses around the block should be parsed correctly
         expr = ast["functions"][0]["body"]["statements"][0]["value"]
-        assert expr["type"] == "block"
+        assert expr["type"] == NodeType.BLOCK.value
 
         # Check the inner computation
         inner_expr = expr["statements"][0]["value"]
-        assert inner_expr["type"] == "literal"
+        assert inner_expr["type"] == NodeType.LITERAL.value
         assert inner_expr["value"] == 50
 
 
@@ -258,17 +259,17 @@ class TestParenthesesWithTypes:
         statements = ast["functions"][0]["body"]["statements"]
 
         # Check integer
-        assert statements[0]["value"]["type"] == "literal"
+        assert statements[0]["value"]["type"] == NodeType.LITERAL.value
         assert statements[0]["value"]["value"] == 42
 
         # Check float values
-        assert statements[1]["value"]["type"] == "literal"
+        assert statements[1]["value"]["type"] == NodeType.LITERAL.value
         assert statements[1]["value"]["value"] == 3.14
 
-        assert statements[2]["value"]["type"] == "literal"
+        assert statements[2]["value"]["type"] == NodeType.LITERAL.value
         assert statements[2]["value"]["value"] == 2.718
 
-        assert statements[3]["value"]["type"] == "literal"
+        assert statements[3]["value"]["type"] == NodeType.LITERAL.value
         assert statements[3]["value"]["value"] == 1.5
 
     def test_parentheses_preserve_type_annotations(self):
@@ -318,25 +319,31 @@ class TestOperatorPrecedence:
         # x = 10 + 20 * 2
         # Should be: 10 + (20 * 2)
         mul_op = {
-            "type": "binary_operation",
+            "type": NodeType.BINARY_OPERATION.value,
             "operator": "*",
-            "left": {"type": "literal", "value": 20},
-            "right": {"type": "literal", "value": 2},
+            "left": {"type": NodeType.LITERAL.value, "value": 20},
+            "right": {"type": NodeType.LITERAL.value, "value": 2},
         }
         verify_binary_operation_ast(
-            statements[0]["value"], "+", {"type": "literal", "value": 10}, mul_op
+            statements[0]["value"],
+            "+",
+            {"type": NodeType.LITERAL.value, "value": 10},
+            mul_op,
         )
 
         # y = (10 + 20) * 2
         # Should be: (10 + 20) * 2
         add_op = {
-            "type": "binary_operation",
+            "type": NodeType.BINARY_OPERATION.value,
             "operator": "+",
-            "left": {"type": "literal", "value": 10},
-            "right": {"type": "literal", "value": 20},
+            "left": {"type": NodeType.LITERAL.value, "value": 10},
+            "right": {"type": NodeType.LITERAL.value, "value": 20},
         }
         verify_binary_operation_ast(
-            statements[1]["value"], "*", add_op, {"type": "literal", "value": 2}
+            statements[1]["value"],
+            "*",
+            add_op,
+            {"type": NodeType.LITERAL.value, "value": 2},
         )
 
     def test_unary_minus_precedence(self):
@@ -354,34 +361,40 @@ class TestOperatorPrecedence:
 
         # Test -2 * 3
         neg_two = {
-            "type": "unary_operation",
+            "type": NodeType.UNARY_OPERATION.value,
             "operator": "-",
-            "operand": {"type": "literal", "value": 2},
+            "operand": {"type": NodeType.LITERAL.value, "value": 2},
         }
         verify_binary_operation_ast(
-            statements[0]["value"], "*", neg_two, {"type": "literal", "value": 3}
+            statements[0]["value"],
+            "*",
+            neg_two,
+            {"type": NodeType.LITERAL.value, "value": 3},
         )
 
         # Test 2 * -3
         neg_three = {
-            "type": "unary_operation",
+            "type": NodeType.UNARY_OPERATION.value,
             "operator": "-",
-            "operand": {"type": "literal", "value": 3},
+            "operand": {"type": NodeType.LITERAL.value, "value": 3},
         }
         verify_binary_operation_ast(
-            statements[1]["value"], "*", {"type": "literal", "value": 2}, neg_three
+            statements[1]["value"],
+            "*",
+            {"type": NodeType.LITERAL.value, "value": 2},
+            neg_three,
         )
 
         # Test -2 + -3
         neg_two = {
-            "type": "unary_operation",
+            "type": NodeType.UNARY_OPERATION.value,
             "operator": "-",
-            "operand": {"type": "literal", "value": 2},
+            "operand": {"type": NodeType.LITERAL.value, "value": 2},
         }
         neg_three = {
-            "type": "unary_operation",
+            "type": NodeType.UNARY_OPERATION.value,
             "operator": "-",
-            "operand": {"type": "literal", "value": 3},
+            "operand": {"type": NodeType.LITERAL.value, "value": 3},
         }
         verify_binary_operation_ast(statements[2]["value"], "+", neg_two, neg_three)
 
@@ -407,16 +420,16 @@ class TestComplexExpressions:
 
         # x = (10 + 20) * (30 - 40)
         add_op = {
-            "type": "binary_operation",
+            "type": NodeType.BINARY_OPERATION.value,
             "operator": "+",
-            "left": {"type": "literal", "value": 10},
-            "right": {"type": "literal", "value": 20},
+            "left": {"type": NodeType.LITERAL.value, "value": 10},
+            "right": {"type": NodeType.LITERAL.value, "value": 20},
         }
         sub_op = {
-            "type": "binary_operation",
+            "type": NodeType.BINARY_OPERATION.value,
             "operator": "-",
-            "left": {"type": "literal", "value": 30},
-            "right": {"type": "literal", "value": 40},
+            "left": {"type": NodeType.LITERAL.value, "value": 30},
+            "right": {"type": NodeType.LITERAL.value, "value": 40},
         }
         verify_binary_operation_ast(statements[0]["value"], "*", add_op, sub_op)
 
@@ -437,22 +450,22 @@ class TestComplexExpressions:
         # x = 10 + 20 * 30 - 40 / 50
         # Should be: (10 + (20 * 30)) - (40 / 50)
         mul_op = {
-            "type": "binary_operation",
+            "type": NodeType.BINARY_OPERATION.value,
             "operator": "*",
-            "left": {"type": "literal", "value": 20},
-            "right": {"type": "literal", "value": 30},
+            "left": {"type": NodeType.LITERAL.value, "value": 20},
+            "right": {"type": NodeType.LITERAL.value, "value": 30},
         }
         first_add = {
-            "type": "binary_operation",
+            "type": NodeType.BINARY_OPERATION.value,
             "operator": "+",
-            "left": {"type": "literal", "value": 10},
+            "left": {"type": NodeType.LITERAL.value, "value": 10},
             "right": mul_op,
         }
         div_op = {
-            "type": "binary_operation",
+            "type": NodeType.BINARY_OPERATION.value,
             "operator": "/",
-            "left": {"type": "literal", "value": 40},
-            "right": {"type": "literal", "value": 50},
+            "left": {"type": NodeType.LITERAL.value, "value": 40},
+            "right": {"type": NodeType.LITERAL.value, "value": 50},
         }
         verify_binary_operation_ast(statements[0]["value"], "-", first_add, div_op)
 
@@ -523,5 +536,5 @@ class TestExpressionErrors:
         ast = self.parser.parse(source)
 
         expr = ast["functions"][0]["body"]["statements"][0]["value"]
-        assert expr["type"] == "literal"
+        assert expr["type"] == NodeType.LITERAL.value
         assert expr["value"] == "test"

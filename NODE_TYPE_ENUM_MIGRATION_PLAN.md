@@ -193,21 +193,21 @@ def create_node(node_type: NodeType, **kwargs):
 - [x] Run test suite to ensure no breakage (415 tests pass)
 - [x] Commit foundation changes (commit: fd46434)
 
-#### Phase 2: Core Implementation ✅/❌  
-- [ ] Migrate `parser.py` (15 changes)
-- [ ] Migrate `analyzer.py` (3 changes)
-- [ ] Migrate `declaration_analyzer.py` (1 change)
-- [ ] Add necessary imports
-- [ ] Full test suite passes
-- [ ] Commit core changes
+#### Phase 2: Core Implementation ✅
+- [x] Migrate `parser.py` (15 changes)
+- [x] Migrate `analyzer.py` (7 changes)
+- [x] Migrate `declaration_analyzer.py` (5 changes)
+- [x] Add necessary imports
+- [x] Full test suite passes (415 tests)
+- [x] Commit core changes (commit: 2a62364)
 
 #### Phase 3: High Impact Tests ✅/❌
-- [ ] `test_context_framework.py` (109 changes)
+- [x] `test_context_framework.py` (109 changes) ✅
 - [ ] `test_expressions.py` (55 changes)  
 - [ ] `test_bool.py` (45 changes)
-- [ ] Each file tested individually
-- [ ] Full test suite passes after each
-- [ ] Commit after each file
+- [x] Each file tested individually
+- [x] Full test suite passes after each
+- [x] Commit after each file
 
 #### Phase 4: Medium Impact Tests ✅/❌
 - [ ] `test_expression_type_annotations.py` (17 changes)
@@ -274,9 +274,10 @@ git reset --hard <phase-commit>
 5. Continue from next unchecked item in Progress Tracking
 
 ### Current State Markers
-**Phase Status**: ⭐ **Phase 2 - Core Implementation Migration**
+**Phase Status**: ⭐ **Phase 3 - High Impact Test Migration** 
 **Last Updated**: [Current session]
-**Next Action**: Migrate `src/hexen/parser.py` to use NodeType enum (15 changes)
+**Completed**: ✅ `test_context_framework.py` (109 changes) - Commit: b5b485f
+**Next Action**: Migrate `test_expressions.py` to use NodeType enum (55 changes)
 
 ---
 
