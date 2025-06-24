@@ -6,6 +6,7 @@ Tests basic function parsing, return statements, and core syntax.
 
 import pytest
 from src.hexen.parser import HexenParser
+from src.hexen.ast_nodes import NodeType
 
 
 class TestMinimalHexen:
@@ -25,23 +26,23 @@ class TestMinimalHexen:
         ast = self.parser.parse(source)
 
         # Test top-level structure
-        assert ast["type"] == "program"
+        assert ast["type"] == NodeType.PROGRAM.value
         assert len(ast["functions"]) == 1
 
         # Test function structure
         func = ast["functions"][0]
-        assert func["type"] == "function"
+        assert func["type"] == NodeType.FUNCTION.value
         assert func["name"] == "main"
         assert func["return_type"] == "i32"
 
         # Test function body (now consistent block structure)
-        assert func["body"]["type"] == "block"
+        assert func["body"]["type"] == NodeType.BLOCK.value
         assert len(func["body"]["statements"]) == 1
 
         # Test the return statement within the block
         return_stmt = func["body"]["statements"][0]
-        assert return_stmt["type"] == "return_statement"
-        assert return_stmt["value"]["type"] == "literal"
+        assert return_stmt["type"] == NodeType.RETURN_STATEMENT.value
+        assert return_stmt["value"]["type"] == NodeType.LITERAL.value
         assert return_stmt["value"]["value"] == 0
 
     def test_different_function_names(self):
@@ -201,14 +202,14 @@ class TestMinimalHexen:
         ast = self.parser.parse(source)
 
         # Verify the function parsed correctly
-        assert ast["type"] == "program"
+        assert ast["type"] == NodeType.PROGRAM.value
         assert len(ast["functions"]) == 1
         func = ast["functions"][0]
         assert func["name"] == "main"
 
         # Verify multiple statements in block
         body = func["body"]
-        assert body["type"] == "block"
+        assert body["type"] == NodeType.BLOCK.value
         assert "statements" in body
         assert len(body["statements"]) == 2
 
@@ -234,26 +235,26 @@ class TestMinimalHexen:
         ast = self.parser.parse(source)
 
         # Test top-level structure
-        assert ast["type"] == "program"
+        assert ast["type"] == NodeType.PROGRAM.value
         assert len(ast["functions"]) == 3
 
         # Test first function (helper)
         helper_func = ast["functions"][0]
-        assert helper_func["type"] == "function"
+        assert helper_func["type"] == NodeType.FUNCTION.value
         assert helper_func["name"] == "helper"
         assert helper_func["return_type"] == "i32"
         assert len(helper_func["body"]["statements"]) == 2
 
         # Test second function (main)
         main_func = ast["functions"][1]
-        assert main_func["type"] == "function"
+        assert main_func["type"] == NodeType.FUNCTION.value
         assert main_func["name"] == "main"
         assert main_func["return_type"] == "i32"
         assert len(main_func["body"]["statements"]) == 2
 
         # Test third function (utility)
         utility_func = ast["functions"][2]
-        assert utility_func["type"] == "function"
+        assert utility_func["type"] == NodeType.FUNCTION.value
         assert utility_func["name"] == "utility"
         assert utility_func["return_type"] == "string"
         assert len(utility_func["body"]["statements"]) == 2
@@ -261,8 +262,11 @@ class TestMinimalHexen:
         # Verify each function has proper variable declarations and returns
         for func in ast["functions"]:
             statements = func["body"]["statements"]
-            assert statements[0]["type"] in ["val_declaration", "mut_declaration"]
-            assert statements[1]["type"] == "return_statement"
+            assert statements[0]["type"] in [
+                NodeType.VAL_DECLARATION.value,
+                NodeType.MUT_DECLARATION.value,
+            ]
+            assert statements[1]["type"] == NodeType.RETURN_STATEMENT.value
 
     def test_function_return_type_i32(self):
         """Test i32 return type annotation"""

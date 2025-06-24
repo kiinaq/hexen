@@ -201,10 +201,10 @@ def create_node(node_type: NodeType, **kwargs):
 - [x] Full test suite passes (415 tests)
 - [x] Commit core changes (commit: 2a62364)
 
-#### Phase 3: High Impact Tests ✅/❌
+#### Phase 3: High Impact Tests ✅
 - [x] `test_context_framework.py` (109 changes) ✅
-- [ ] `test_expressions.py` (55 changes)  
-- [ ] `test_bool.py` (45 changes)
+- [x] `test_expressions.py` (55 changes) ✅  
+- [x] `test_bool.py` (45 changes) ✅
 - [x] Each file tested individually
 - [x] Full test suite passes after each
 - [x] Commit after each file
@@ -274,10 +274,13 @@ git reset --hard <phase-commit>
 5. Continue from next unchecked item in Progress Tracking
 
 ### Current State Markers
-**Phase Status**: ⭐ **Phase 3 - High Impact Test Migration** 
+**Phase Status**: ⭐ **Phase 4 - Medium Impact Test Migration** 
 **Last Updated**: [Current session]
-**Completed**: ✅ `test_context_framework.py` (109 changes) - Commit: b5b485f
-**Next Action**: Migrate `test_expressions.py` to use NodeType enum (55 changes)
+**Completed**: ✅ Phase 3 Complete! All high-impact files migrated:
+- `test_context_framework.py` (109 changes) - Commit: b5b485f
+- `test_expressions.py` (55 changes) - Commit: 43f231c  
+- `test_bool.py` (45 changes) - Commit: f676e37
+**Next Action**: Migrate `test_expression_type_annotations.py` to use NodeType enum (17 changes)
 
 ---
 
