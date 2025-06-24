@@ -25,6 +25,7 @@ This file focuses on the context propagation mechanisms themselves.
 """
 
 from src.hexen.semantic import SemanticAnalyzer, HexenType
+from src.hexen.ast_nodes import NodeType
 
 
 class TestContextPropagationMechanisms:
@@ -36,7 +37,7 @@ class TestContextPropagationMechanisms:
     def test_context_parameter_exists(self):
         """Test that _analyze_expression accepts target_type parameter"""
         # Create a simple literal node
-        node = {"type": "literal", "value": 42}
+        node = {"type": NodeType.LITERAL.value, "value": 42}
 
         # Test without context (should work)
         result1 = self.analyzer._analyze_expression(node)
@@ -49,21 +50,21 @@ class TestContextPropagationMechanisms:
     def test_variable_declaration_context_propagation(self):
         """Test context propagation to variable declaration expressions"""
         ast = {
-            "type": "program",
+            "type": NodeType.PROGRAM.value,
             "functions": [
                 {
-                    "type": "function",
+                    "type": NodeType.FUNCTION.value,
                     "name": "test",
                     "return_type": "void",
                     "body": {
-                        "type": "block",
+                        "type": NodeType.BLOCK.value,
                         "statements": [
                             # Context: i64 type guides comptime_int resolution
                             {
-                                "type": "val_declaration",
+                                "type": NodeType.VAL_DECLARATION.value,
                                 "name": "explicit",
                                 "type_annotation": "i64",
-                                "value": {"type": "literal", "value": 42},
+                                "value": {"type": NodeType.LITERAL.value, "value": 42},
                             }
                         ],
                     },
@@ -77,26 +78,26 @@ class TestContextPropagationMechanisms:
     def test_assignment_context_propagation(self):
         """Test context propagation to assignment statement expressions"""
         ast = {
-            "type": "program",
+            "type": NodeType.PROGRAM.value,
             "functions": [
                 {
-                    "type": "function",
+                    "type": NodeType.FUNCTION.value,
                     "name": "test",
                     "return_type": "void",
                     "body": {
-                        "type": "block",
+                        "type": NodeType.BLOCK.value,
                         "statements": [
                             {
-                                "type": "mut_declaration",
+                                "type": NodeType.MUT_DECLARATION.value,
                                 "name": "flexible",
                                 "type_annotation": "f64",
-                                "value": {"type": "literal", "value": 0.0},
+                                "value": {"type": NodeType.LITERAL.value, "value": 0.0},
                             },
                             # Context: f64 type guides comptime_int resolution
                             {
-                                "type": "assignment_statement",
+                                "type": NodeType.ASSIGNMENT_STATEMENT.value,
                                 "target": "flexible",
-                                "value": {"type": "literal", "value": 42},
+                                "value": {"type": NodeType.LITERAL.value, "value": 42},
                             },
                         ],
                     },
@@ -110,19 +111,19 @@ class TestContextPropagationMechanisms:
     def test_return_statement_context_propagation(self):
         """Test context propagation to return statement expressions"""
         ast = {
-            "type": "program",
+            "type": NodeType.PROGRAM.value,
             "functions": [
                 {
-                    "type": "function",
+                    "type": NodeType.FUNCTION.value,
                     "name": "test",
                     "return_type": "f32",  # Context: f32 return type
                     "body": {
-                        "type": "block",
+                        "type": NodeType.BLOCK.value,
                         "statements": [
                             # Context guides comptime_int → f32
                             {
-                                "type": "return_statement",
-                                "value": {"type": "literal", "value": 42},
+                                "type": NodeType.RETURN_STATEMENT.value,
+                                "value": {"type": NodeType.LITERAL.value, "value": 42},
                             }
                         ],
                     },
@@ -143,22 +144,22 @@ class TestContextPropagationDepth:
     def test_nested_expression_context_propagation(self):
         """Test context propagates through nested expressions"""
         ast = {
-            "type": "program",
+            "type": NodeType.PROGRAM.value,
             "functions": [
                 {
-                    "type": "function",
+                    "type": NodeType.FUNCTION.value,
                     "name": "test",
                     "return_type": "void",
                     "body": {
-                        "type": "block",
+                        "type": NodeType.BLOCK.value,
                         "statements": [
                             # Context: i64 propagates through parentheses
                             {
-                                "type": "val_declaration",
+                                "type": NodeType.VAL_DECLARATION.value,
                                 "name": "result",
                                 "type_annotation": "i64",
                                 "value": {
-                                    "type": "literal",  # Represents (42) after parsing
+                                    "type": NodeType.LITERAL.value,  # Represents (42) after parsing
                                     "value": 42,
                                 },
                             }
@@ -174,22 +175,22 @@ class TestContextPropagationDepth:
     def test_deep_nesting_context_propagation(self):
         """Test context propagation through deeply nested structures"""
         ast = {
-            "type": "program",
+            "type": NodeType.PROGRAM.value,
             "functions": [
                 {
-                    "type": "function",
+                    "type": NodeType.FUNCTION.value,
                     "name": "test",
                     "return_type": "void",
                     "body": {
-                        "type": "block",
+                        "type": NodeType.BLOCK.value,
                         "statements": [
                             # Context: f32 propagates through multiple levels
                             {
-                                "type": "val_declaration",
+                                "type": NodeType.VAL_DECLARATION.value,
                                 "name": "nested",
                                 "type_annotation": "f32",
                                 "value": {
-                                    "type": "literal",  # Represents (((3.14))) after parsing
+                                    "type": NodeType.LITERAL.value,  # Represents (((3.14))) after parsing
                                     "value": 3.14,
                                 },
                             }
@@ -205,27 +206,30 @@ class TestContextPropagationDepth:
     def test_context_through_variable_references(self):
         """Test context propagation works with variable references"""
         ast = {
-            "type": "program",
+            "type": NodeType.PROGRAM.value,
             "functions": [
                 {
-                    "type": "function",
+                    "type": NodeType.FUNCTION.value,
                     "name": "test",
                     "return_type": "void",
                     "body": {
-                        "type": "block",
+                        "type": NodeType.BLOCK.value,
                         "statements": [
                             {
-                                "type": "val_declaration",
+                                "type": NodeType.VAL_DECLARATION.value,
                                 "name": "source",
                                 "type_annotation": "i32",
-                                "value": {"type": "literal", "value": 42},
+                                "value": {"type": NodeType.LITERAL.value, "value": 42},
                             },
                             # Context: i64 type should accept i32 variable (widening)
                             {
-                                "type": "val_declaration",
+                                "type": NodeType.VAL_DECLARATION.value,
                                 "name": "target",
                                 "type_annotation": "i64",
-                                "value": {"type": "identifier", "name": "source"},
+                                "value": {
+                                    "type": NodeType.IDENTIFIER.value,
+                                    "name": "source",
+                                },
                             },
                         ],
                     },
@@ -247,21 +251,21 @@ class TestBlockContextPropagation:
         """Test context propagates through expression blocks"""
         # This test focuses on basic context propagation rather than complex AST structures
         ast = {
-            "type": "program",
+            "type": NodeType.PROGRAM.value,
             "functions": [
                 {
-                    "type": "function",
+                    "type": NodeType.FUNCTION.value,
                     "name": "test",
                     "return_type": "void",
                     "body": {
-                        "type": "block",
+                        "type": NodeType.BLOCK.value,
                         "statements": [
                             {
-                                "type": "val_declaration",
+                                "type": NodeType.VAL_DECLARATION.value,
                                 "name": "result",
                                 "type_annotation": "f64",  # Context: f64
                                 "value": {
-                                    "type": "literal",
+                                    "type": NodeType.LITERAL.value,
                                     "value": 42.0,
                                 },  # Direct value instead of complex block
                             }
@@ -278,21 +282,21 @@ class TestBlockContextPropagation:
         """Test context propagation through nested structures"""
         # Simplified test using direct value assignment
         ast = {
-            "type": "program",
+            "type": NodeType.PROGRAM.value,
             "functions": [
                 {
-                    "type": "function",
+                    "type": NodeType.FUNCTION.value,
                     "name": "test",
                     "return_type": "void",
                     "body": {
-                        "type": "block",
+                        "type": NodeType.BLOCK.value,
                         "statements": [
                             {
-                                "type": "val_declaration",
+                                "type": NodeType.VAL_DECLARATION.value,
                                 "name": "outer_result",
                                 "type_annotation": "i64",  # Context: i64
                                 "value": {
-                                    "type": "literal",
+                                    "type": NodeType.LITERAL.value,
                                     "value": 42,
                                 },  # comptime_int should become i64 via context
                             }
@@ -315,39 +319,39 @@ class TestContextGuidedResolution:
     def test_comptime_type_context_resolution(self):
         """Test context-guided resolution of comptime types"""
         ast = {
-            "type": "program",
+            "type": NodeType.PROGRAM.value,
             "functions": [
                 {
-                    "type": "function",
+                    "type": NodeType.FUNCTION.value,
                     "name": "test",
                     "return_type": "void",
                     "body": {
-                        "type": "block",
+                        "type": NodeType.BLOCK.value,
                         "statements": [
                             # Each should resolve based on target type context
                             {
-                                "type": "val_declaration",
+                                "type": NodeType.VAL_DECLARATION.value,
                                 "name": "as_i32",
                                 "type_annotation": "i32",
-                                "value": {"type": "literal", "value": 42},
+                                "value": {"type": NodeType.LITERAL.value, "value": 42},
                             },
                             {
-                                "type": "val_declaration",
+                                "type": NodeType.VAL_DECLARATION.value,
                                 "name": "as_i64",
                                 "type_annotation": "i64",
-                                "value": {"type": "literal", "value": 42},
+                                "value": {"type": NodeType.LITERAL.value, "value": 42},
                             },
                             {
-                                "type": "val_declaration",
+                                "type": NodeType.VAL_DECLARATION.value,
                                 "name": "as_f32",
                                 "type_annotation": "f32",
-                                "value": {"type": "literal", "value": 42},
+                                "value": {"type": NodeType.LITERAL.value, "value": 42},
                             },
                             {
-                                "type": "val_declaration",
+                                "type": NodeType.VAL_DECLARATION.value,
                                 "name": "as_f64",
                                 "type_annotation": "f64",
-                                "value": {"type": "literal", "value": 42},
+                                "value": {"type": NodeType.LITERAL.value, "value": 42},
                             },
                         ],
                     },
@@ -361,34 +365,40 @@ class TestContextGuidedResolution:
     def test_regular_type_coercion_context_resolution(self):
         """Test context-guided resolution for regular type coercion"""
         ast = {
-            "type": "program",
+            "type": NodeType.PROGRAM.value,
             "functions": [
                 {
-                    "type": "function",
+                    "type": NodeType.FUNCTION.value,
                     "name": "test",
                     "return_type": "void",
                     "body": {
-                        "type": "block",
+                        "type": NodeType.BLOCK.value,
                         "statements": [
                             {
-                                "type": "val_declaration",
+                                "type": NodeType.VAL_DECLARATION.value,
                                 "name": "source",
                                 "type_annotation": "i32",
-                                "value": {"type": "literal", "value": 42},
+                                "value": {"type": NodeType.LITERAL.value, "value": 42},
                             },
                             # Context enables widening coercion
                             {
-                                "type": "val_declaration",
+                                "type": NodeType.VAL_DECLARATION.value,
                                 "name": "widened",
                                 "type_annotation": "i64",
-                                "value": {"type": "identifier", "name": "source"},
+                                "value": {
+                                    "type": NodeType.IDENTIFIER.value,
+                                    "name": "source",
+                                },
                             },
                             # Context enables int-to-float conversion
                             {
-                                "type": "val_declaration",
+                                "type": NodeType.VAL_DECLARATION.value,
                                 "name": "converted",
                                 "type_annotation": "f64",
-                                "value": {"type": "identifier", "name": "source"},
+                                "value": {
+                                    "type": NodeType.IDENTIFIER.value,
+                                    "name": "source",
+                                },
                             },
                         ],
                     },
@@ -409,27 +419,33 @@ class TestContextPropagationLimits:
     def test_context_cannot_fix_invalid_coercion(self):
         """Test that context cannot enable invalid type coercion"""
         ast = {
-            "type": "program",
+            "type": NodeType.PROGRAM.value,
             "functions": [
                 {
-                    "type": "function",
+                    "type": NodeType.FUNCTION.value,
                     "name": "test",
                     "return_type": "void",
                     "body": {
-                        "type": "block",
+                        "type": NodeType.BLOCK.value,
                         "statements": [
                             {
-                                "type": "val_declaration",
+                                "type": NodeType.VAL_DECLARATION.value,
                                 "name": "string_val",
                                 "type_annotation": "string",
-                                "value": {"type": "literal", "value": "hello"},
+                                "value": {
+                                    "type": NodeType.LITERAL.value,
+                                    "value": "hello",
+                                },
                             },
                             # Context cannot make string → i32 valid
                             {
-                                "type": "val_declaration",
+                                "type": NodeType.VAL_DECLARATION.value,
                                 "name": "invalid",
                                 "type_annotation": "i32",
-                                "value": {"type": "identifier", "name": "string_val"},
+                                "value": {
+                                    "type": NodeType.IDENTIFIER.value,
+                                    "name": "string_val",
+                                },
                             },
                         ],
                     },
@@ -443,22 +459,22 @@ class TestContextPropagationLimits:
     def test_context_preserves_existing_error_detection(self):
         """Test that context framework doesn't mask existing errors"""
         ast = {
-            "type": "program",
+            "type": NodeType.PROGRAM.value,
             "functions": [
                 {
-                    "type": "function",
+                    "type": NodeType.FUNCTION.value,
                     "name": "test",
                     "return_type": "void",
                     "body": {
-                        "type": "block",
+                        "type": NodeType.BLOCK.value,
                         "statements": [
                             # Undefined variable should still be detected
                             {
-                                "type": "val_declaration",
+                                "type": NodeType.VAL_DECLARATION.value,
                                 "name": "invalid",
                                 "type_annotation": "i32",
                                 "value": {
-                                    "type": "identifier",
+                                    "type": NodeType.IDENTIFIER.value,
                                     "name": "undefined_var",
                                 },
                             }
@@ -476,29 +492,29 @@ class TestContextPropagationLimits:
         """Test context propagation with undef variables"""
         # Use a simpler test that doesn't depend on specific undef AST handling
         ast = {
-            "type": "program",
+            "type": NodeType.PROGRAM.value,
             "functions": [
                 {
-                    "type": "function",
+                    "type": NodeType.FUNCTION.value,
                     "name": "test",
                     "return_type": "void",
                     "body": {
-                        "type": "block",
+                        "type": NodeType.BLOCK.value,
                         "statements": [
                             # Test basic context propagation
                             {
-                                "type": "mut_declaration",
+                                "type": NodeType.MUT_DECLARATION.value,
                                 "name": "pending",
                                 "type_annotation": "i32",
                                 "value": {
-                                    "type": "literal",
+                                    "type": NodeType.LITERAL.value,
                                     "value": 0,
                                 },  # Use valid literal instead of undef
                             },
                             {
-                                "type": "assignment_statement",
+                                "type": NodeType.ASSIGNMENT_STATEMENT.value,
                                 "target": "pending",
-                                "value": {"type": "literal", "value": 42},
+                                "value": {"type": NodeType.LITERAL.value, "value": 42},
                             },
                         ],
                     },
@@ -513,19 +529,19 @@ class TestContextPropagationLimits:
         """Test context propagation in function context"""
         # Since function parameters aren't supported, test basic function declaration context
         ast = {
-            "type": "program",
+            "type": NodeType.PROGRAM.value,
             "functions": [
                 {
-                    "type": "function",
+                    "type": NodeType.FUNCTION.value,
                     "name": "test",
                     "return_type": "i64",  # Function return type provides context
                     "body": {
-                        "type": "block",
+                        "type": NodeType.BLOCK.value,
                         "statements": [
                             {
-                                "type": "return_statement",
+                                "type": NodeType.RETURN_STATEMENT.value,
                                 "value": {
-                                    "type": "literal",
+                                    "type": NodeType.LITERAL.value,
                                     "value": 42,
                                 },  # comptime_int → i64 via return context
                             }
@@ -549,27 +565,30 @@ class TestContextFrameworkIntegration:
         """Test context propagation in basic function scenarios"""
         # Since function parameters and calls aren't supported, test basic context propagation
         ast = {
-            "type": "program",
+            "type": NodeType.PROGRAM.value,
             "functions": [
                 {
-                    "type": "function",
+                    "type": NodeType.FUNCTION.value,
                     "name": "test",
                     "return_type": "i64",  # Function return type provides context
                     "body": {
-                        "type": "block",
+                        "type": NodeType.BLOCK.value,
                         "statements": [
                             {
-                                "type": "val_declaration",
+                                "type": NodeType.VAL_DECLARATION.value,
                                 "name": "value",
                                 "type_annotation": "i64",
                                 "value": {
-                                    "type": "literal",
+                                    "type": NodeType.LITERAL.value,
                                     "value": 42,
                                 },  # comptime_int → i64 via context
                             },
                             {
-                                "type": "return_statement",
-                                "value": {"type": "identifier", "name": "value"},
+                                "type": NodeType.RETURN_STATEMENT.value,
+                                "value": {
+                                    "type": NodeType.IDENTIFIER.value,
+                                    "name": "value",
+                                },
                             },
                         ],
                     },
@@ -583,48 +602,48 @@ class TestContextFrameworkIntegration:
     def test_context_propagation_consistency(self):
         """Test context propagation is consistent across all usage patterns"""
         ast = {
-            "type": "program",
+            "type": NodeType.PROGRAM.value,
             "functions": [
                 {
-                    "type": "function",
+                    "type": NodeType.FUNCTION.value,
                     "name": "test",
                     "return_type": "void",
                     "body": {
-                        "type": "block",
+                        "type": NodeType.BLOCK.value,
                         "statements": [
                             # Variable declaration context
                             {
-                                "type": "val_declaration",
+                                "type": NodeType.VAL_DECLARATION.value,
                                 "name": "var_context",
                                 "type_annotation": "f32",
-                                "value": {"type": "literal", "value": 42},
+                                "value": {"type": NodeType.LITERAL.value, "value": 42},
                             },
                             {
-                                "type": "mut_declaration",
+                                "type": NodeType.MUT_DECLARATION.value,
                                 "name": "mut_var",
                                 "type_annotation": "f32",
-                                "value": {"type": "literal", "value": 0.0},
+                                "value": {"type": NodeType.LITERAL.value, "value": 0.0},
                             },
                             # Assignment context
                             {
-                                "type": "assignment_statement",
+                                "type": NodeType.ASSIGNMENT_STATEMENT.value,
                                 "target": "mut_var",
-                                "value": {"type": "literal", "value": 42},
+                                "value": {"type": NodeType.LITERAL.value, "value": 42},
                             },
                         ],
                     },
                 },
                 {
-                    "type": "function",
+                    "type": NodeType.FUNCTION.value,
                     "name": "return_context",
                     "return_type": "f32",
                     "body": {
-                        "type": "block",
+                        "type": NodeType.BLOCK.value,
                         "statements": [
                             # Return context
                             {
-                                "type": "return_statement",
-                                "value": {"type": "literal", "value": 42},
+                                "type": NodeType.RETURN_STATEMENT.value,
+                                "value": {"type": NodeType.LITERAL.value, "value": 42},
                             }
                         ],
                     },
