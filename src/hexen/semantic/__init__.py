@@ -17,6 +17,9 @@ from .symbol_table import Symbol, SymbolTable
 # Error handling
 from .errors import SemanticError
 
+# Specialized analyzers (for advanced use cases)
+from .block_analyzer import BlockAnalyzer
+
 # Public API
 __all__ = [
     "SemanticAnalyzer",
@@ -25,4 +28,5 @@ __all__ = [
     "Symbol",
     "SymbolTable",
     "SemanticError",
+    "BlockAnalyzer",
 ]

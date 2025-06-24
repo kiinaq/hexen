@@ -17,6 +17,7 @@ from .unary_ops_analyzer import UnaryOpsAnalyzer
 from .declaration_analyzer import DeclarationAnalyzer
 from .assignment_analyzer import AssignmentAnalyzer
 from .return_analyzer import ReturnAnalyzer
+from .block_analyzer import BlockAnalyzer
 from .type_util import (
     parse_type,
     infer_type_from_value,
@@ -51,6 +52,11 @@ class SemanticAnalyzer:
         # Context tracking for unified block concept
         self.block_context: List[str] = []  # Track: "function", "expression", etc.
 
+        # Initialize all specialized analyzers
+        self._initialize_analyzers()
+
+    def _initialize_analyzers(self):
+        """Initialize all specialized analyzers with callbacks."""
         # Initialize binary operations analyzer with callbacks
         self.binary_ops = BinaryOpsAnalyzer(
             error_callback=self._error,
@@ -61,6 +67,16 @@ class SemanticAnalyzer:
         self.unary_ops = UnaryOpsAnalyzer(
             error_callback=self._error,
             analyze_expression_callback=self._analyze_expression,
+        )
+
+        # Initialize block analyzer with callbacks
+        self.block_analyzer = BlockAnalyzer(
+            error_callback=self._error,
+            analyze_statement_callback=self._analyze_statement,
+            analyze_expression_callback=self._analyze_expression,
+            symbol_table=self.symbol_table,
+            get_current_function_return_type_callback=lambda: self.current_function_return_type,
+            block_context_stack=self.block_context,
         )
 
         # Initialize declaration analyzer with callbacks
@@ -156,88 +172,14 @@ class SemanticAnalyzer:
         self, body: Dict, node: Dict, context: str = None
     ) -> Optional[HexenType]:
         """
-        Smart unified block analysis - ALL blocks manage scope, context determines return rules.
+        Unified block analysis - delegates to BlockAnalyzer.
 
-        ALL blocks:
-        - Manage their own scope (complete unification)
-        - Validate return types
-
-        Context determines return statement rules:
-        - "expression": Requires return as final statement (value computation)
-        - "statement": No return statements required (statement execution)
-        - Default + non-void function: Allows returns anywhere, expects some return
-        - Default + void function: No return statements required (statement execution)
-
-        This balances unification (scope) with context-specific needs (return rules).
+        Implements the unified block system (UNIFIED_BLOCK_SYSTEM.md):
+        - ALL blocks manage scope uniformly
+        - Context determines return statement rules
+        - Expression blocks produce values, statement blocks execute code
         """
-        if body.get("type") != NodeType.BLOCK.value:
-            self._error(f"Expected block node, got {body.get('type')}")
-            return HexenType.UNKNOWN if context == "expression" else None
-
-        # ALL blocks manage their own scope (unified)
-        self.symbol_table.enter_scope()
-
-        # Track context for return handling
-        is_expression_block = context == "expression"
-        is_statement_block = context == "statement"
-        is_void_function = self.current_function_return_type == HexenType.VOID
-
-        if is_expression_block:
-            self.block_context.append("expression")
-
-        # Analyze all statements with context-specific return rules
-        statements = body.get("statements", [])
-        last_return_stmt = None
-        block_return_type = None
-
-        for i, stmt in enumerate(statements):
-            if stmt.get("type") == "return_statement":
-                if is_void_function:
-                    # Let _analyze_return_statement handle void function validation
-                    # to avoid duplicate error reporting
-                    pass
-                elif is_statement_block:
-                    # Statement blocks can have returns that match function signature
-                    # This allows returning from the function within a statement block
-                    pass  # Will be validated by _analyze_return_statement
-                elif is_expression_block:
-                    # Expression blocks: return must be last
-                    if i == len(statements) - 1:
-                        last_return_stmt = stmt
-                    else:
-                        self._error(
-                            "Return statement must be the last statement in expression block",
-                            stmt,
-                        )
-                # Non-void function blocks: returns allowed anywhere (no restriction)
-
-            self._analyze_statement(stmt)
-
-        # Context-specific return validation
-        if is_expression_block:
-            # Expression blocks must end with return statement
-            if not last_return_stmt:
-                self._error("Expression block must end with a return statement", node)
-                block_return_type = HexenType.UNKNOWN
-            else:
-                # Get the type from the return statement's value
-                return_value = last_return_stmt.get("value")
-                if return_value:
-                    block_return_type = self._analyze_expression(
-                        return_value, self.current_function_return_type
-                    )
-                else:
-                    block_return_type = HexenType.UNKNOWN
-
-        # ALL blocks clean up their own scope (unified)
-        self.symbol_table.exit_scope()
-
-        # Expression context cleanup
-        if is_expression_block:
-            self.block_context.pop()
-
-        # Context determines what to do with computed type
-        return block_return_type if is_expression_block else None
+        return self.block_analyzer.analyze_block(body, node, context)
 
     def _analyze_statement(self, node: Dict):
         """
@@ -285,7 +227,12 @@ class SemanticAnalyzer:
         Returns HexenType.UNKNOWN for invalid expressions.
         """
         expr_type = node.get("type")
+        return self._dispatch_expression_analysis(expr_type, node, target_type)
 
+    def _dispatch_expression_analysis(
+        self, expr_type: str, node: Dict, target_type: Optional[HexenType]
+    ) -> HexenType:
+        """Simple expression type dispatcher."""
         if expr_type == NodeType.TYPE_ANNOTATED_EXPRESSION.value:
             # Handle type annotated expressions - Phase 1 implementation
             return self._analyze_type_annotated_expression(node, target_type)
