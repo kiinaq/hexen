@@ -8,6 +8,8 @@ from pathlib import Path
 from lark import Lark, Transformer, v_args
 from typing import Dict, Any
 
+from .ast_nodes import NodeType
+
 
 class HexenTransformer(Transformer):
     """Transform parse tree into meaningful AST nodes"""
@@ -15,7 +17,7 @@ class HexenTransformer(Transformer):
     @v_args(inline=True)
     def function(self, name, return_type, body):
         return {
-            "type": "function",
+            "type": NodeType.FUNCTION.value,
             "name": name["name"],  # Extract name from identifier dict
             "return_type": return_type,
             "body": body,
@@ -28,7 +30,7 @@ class HexenTransformer(Transformer):
             # No type annotation: val name = value
             val_token, name, value = args
             return {
-                "type": "val_declaration",
+                "type": NodeType.VAL_DECLARATION.value,
                 "name": name["name"],
                 "type_annotation": None,
                 "value": value,
@@ -37,7 +39,7 @@ class HexenTransformer(Transformer):
             # With type annotation: val name : type = value
             val_token, name, type_annotation, value = args
             return {
-                "type": "val_declaration",
+                "type": NodeType.VAL_DECLARATION.value,
                 "name": name["name"],
                 "type_annotation": type_annotation,
                 "value": value,
@@ -50,7 +52,7 @@ class HexenTransformer(Transformer):
             # No type annotation: mut name = value
             mut_token, name, value = args
             return {
-                "type": "mut_declaration",
+                "type": NodeType.MUT_DECLARATION.value,
                 "name": name["name"],
                 "type_annotation": None,
                 "value": value,
@@ -59,7 +61,7 @@ class HexenTransformer(Transformer):
             # With type annotation: mut name : type = value
             mut_token, name, type_annotation, value = args
             return {
-                "type": "mut_declaration",
+                "type": NodeType.MUT_DECLARATION.value,
                 "name": name["name"],
                 "type_annotation": type_annotation,
                 "value": value,
@@ -74,16 +76,16 @@ class HexenTransformer(Transformer):
         # args can be empty (bare return) or [expression]
         if len(args) == 0:
             # Bare return statement
-            return {"type": "return_statement", "value": None}
+            return {"type": NodeType.RETURN_STATEMENT.value, "value": None}
         else:
             # Return with expression
-            return {"type": "return_statement", "value": args[0]}
+            return {"type": NodeType.RETURN_STATEMENT.value, "value": args[0]}
 
     @v_args(inline=True)
     def assignment_stmt(self, target, value):
         # Handle: IDENTIFIER "=" expression
         return {
-            "type": "assignment_statement",
+            "type": NodeType.ASSIGNMENT_STATEMENT.value,
             "target": target["name"],  # Extract name from identifier dict
             "value": value,
         }
@@ -96,7 +98,7 @@ class HexenTransformer(Transformer):
             # Expression with type annotation
             expr, type_annotation = children
             return {
-                "type": "type_annotated_expression",
+                "type": NodeType.TYPE_ANNOTATED_EXPRESSION.value,
                 "expression": expr,
                 "type_annotation": type_annotation,
             }
@@ -111,7 +113,7 @@ class HexenTransformer(Transformer):
             op = children[i]
             right = children[i + 1]
             left = {
-                "type": "binary_operation",
+                "type": NodeType.BINARY_OPERATION.value,
                 "operator": str(op),
                 "left": left,
                 "right": right,
@@ -129,7 +131,7 @@ class HexenTransformer(Transformer):
             op = children[i]
             right = children[i + 1]
             left = {
-                "type": "binary_operation",
+                "type": NodeType.BINARY_OPERATION.value,
                 "operator": str(op),
                 "left": left,
                 "right": right,
@@ -147,7 +149,7 @@ class HexenTransformer(Transformer):
             op = children[i]
             right = children[i + 1]
             left = {
-                "type": "binary_operation",
+                "type": NodeType.BINARY_OPERATION.value,
                 "operator": str(op),
                 "left": left,
                 "right": right,
@@ -165,7 +167,7 @@ class HexenTransformer(Transformer):
             op = children[i]
             right = children[i + 1]
             left = {
-                "type": "binary_operation",
+                "type": NodeType.BINARY_OPERATION.value,
                 "operator": str(op),
                 "left": left,
                 "right": right,
@@ -183,7 +185,7 @@ class HexenTransformer(Transformer):
             op = children[i]
             right = children[i + 1]
             left = {
-                "type": "binary_operation",
+                "type": NodeType.BINARY_OPERATION.value,
                 "operator": str(op),
                 "left": left,
                 "right": right,
@@ -201,7 +203,7 @@ class HexenTransformer(Transformer):
             op = children[i]
             right = children[i + 1]
             left = {
-                "type": "binary_operation",
+                "type": NodeType.BINARY_OPERATION.value,
                 "operator": str(op),
                 "left": left,
                 "right": right,
@@ -216,7 +218,11 @@ class HexenTransformer(Transformer):
         # Handle unary operators
         op = str(children[0])
         operand = children[1]
-        return {"type": "unary_operation", "operator": op, "operand": operand}
+        return {
+            "type": NodeType.UNARY_OPERATION.value,
+            "operator": op,
+            "operand": operand,
+        }
 
     def primary(self, children):
         # primary: NUMBER | STRING | BOOLEAN | IDENTIFIER | block | "(" expression ")"
@@ -238,7 +244,7 @@ class HexenTransformer(Transformer):
             #     f"[DEBUG] Building node: left={result}, op={operator}, right={right_operand}"
             # )
             result = {
-                "type": "binary_operation",
+                "type": NodeType.BINARY_OPERATION.value,
                 "operator": operator,
                 "left": result,
                 "right": right_operand,
@@ -283,21 +289,21 @@ class HexenTransformer(Transformer):
 
     def block(self, statements):
         # Always return consistent block structure with statements array
-        return {"type": "block", "statements": list(statements)}
+        return {"type": NodeType.BLOCK.value, "statements": list(statements)}
 
     def program(self, functions):
-        return {"type": "program", "functions": list(functions)}
+        return {"type": NodeType.PROGRAM.value, "functions": list(functions)}
 
     # Terminal handlers for new grammar elements (Phase 1 additions)
     def STRING(self, token):
         # Parse string literals: "hello" -> {type: "literal", value: "hello"}
         # Remove surrounding quotes from the token
-        return {"type": "literal", "value": str(token)[1:-1]}
+        return {"type": NodeType.LITERAL.value, "value": str(token)[1:-1]}
 
     def IDENTIFIER(self, token):
         # Parse identifiers: myVar -> {type: "identifier", name: "myVar"}
         # Used for variable names and references
-        return {"type": "identifier", "name": str(token)}
+        return {"type": NodeType.IDENTIFIER.value, "name": str(token)}
 
     def NUMBER(self, token):
         # Parse number literals with support for both integers and floats
@@ -306,14 +312,14 @@ class HexenTransformer(Transformer):
         token_str = str(token)
         if "." in token_str:
             # Float literal
-            return {"type": "literal", "value": float(token_str)}
+            return {"type": NodeType.LITERAL.value, "value": float(token_str)}
         else:
             # Integer literal
-            return {"type": "literal", "value": int(token_str)}
+            return {"type": NodeType.LITERAL.value, "value": int(token_str)}
 
     def BOOLEAN(self, token):
         # Parse boolean literals: true -> {type: "literal", value: true}
-        return {"type": "literal", "value": str(token) == "true"}
+        return {"type": NodeType.LITERAL.value, "value": str(token) == "true"}
 
 
 class HexenParser:

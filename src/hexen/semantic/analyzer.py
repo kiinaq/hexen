@@ -8,6 +8,7 @@ symbol table management, and validation.
 
 from typing import Dict, List, Optional
 
+from ..ast_nodes import NodeType
 from .types import HexenType
 from .symbol_table import SymbolTable
 from .errors import SemanticError
@@ -132,7 +133,7 @@ class SemanticAnalyzer:
         - Node type is correct
         - All declarations are valid (unified analysis)
         """
-        if node.get("type") != "program":
+        if node.get("type") != NodeType.PROGRAM.value:
             self._error(f"Expected program node, got {node.get('type')}")
             return
 
@@ -169,7 +170,7 @@ class SemanticAnalyzer:
 
         This balances unification (scope) with context-specific needs (return rules).
         """
-        if body.get("type") != "block":
+        if body.get("type") != NodeType.BLOCK.value:
             self._error(f"Expected block node, got {body.get('type')}")
             return HexenType.UNKNOWN if context == "expression" else None
 
@@ -256,13 +257,16 @@ class SemanticAnalyzer:
         """
         stmt_type = node.get("type")
 
-        if stmt_type in ["val_declaration", "mut_declaration"]:
+        if stmt_type in [
+            NodeType.VAL_DECLARATION.value,
+            NodeType.MUT_DECLARATION.value,
+        ]:
             self.declaration_analyzer.analyze_declaration(node)
-        elif stmt_type == "return_statement":
+        elif stmt_type == NodeType.RETURN_STATEMENT.value:
             self.return_analyzer.analyze_return_statement(node)
-        elif stmt_type == "assignment_statement":
+        elif stmt_type == NodeType.ASSIGNMENT_STATEMENT.value:
             self.assignment_analyzer.analyze_assignment_statement(node)
-        elif stmt_type == "block":
+        elif stmt_type == NodeType.BLOCK.value:
             # Statement block - standalone execution (like void functions)
             self._analyze_block(node, node, context="statement")
         else:
@@ -282,18 +286,18 @@ class SemanticAnalyzer:
         """
         expr_type = node.get("type")
 
-        if expr_type == "type_annotated_expression":
+        if expr_type == NodeType.TYPE_ANNOTATED_EXPRESSION.value:
             # Handle type annotated expressions - Phase 1 implementation
             return self._analyze_type_annotated_expression(node, target_type)
-        elif expr_type == "literal":
+        elif expr_type == NodeType.LITERAL.value:
             return infer_type_from_value(node)
-        elif expr_type == "identifier":
+        elif expr_type == NodeType.IDENTIFIER.value:
             return self._analyze_identifier(node)
-        elif expr_type == "block":
+        elif expr_type == NodeType.BLOCK.value:
             return self._analyze_block(node, node, context="expression")
-        elif expr_type == "binary_operation":
+        elif expr_type == NodeType.BINARY_OPERATION.value:
             return self._analyze_binary_operation(node, target_type)
-        elif expr_type == "unary_operation":
+        elif expr_type == NodeType.UNARY_OPERATION.value:
             return self._analyze_unary_operation(node, target_type)
         else:
             self._error(f"Unknown expression type: {expr_type}", node)

@@ -11,6 +11,7 @@ Handles analysis of declarations including:
 
 from typing import Dict, Optional, Callable, Tuple
 
+from ..ast_nodes import NodeType
 from .types import HexenType, Mutability
 from .symbol_table import Symbol
 from .type_util import (
@@ -91,13 +92,13 @@ class DeclarationAnalyzer:
             return  # Skip analysis if redeclaration detected
 
         # 4. Type-specific analysis
-        if decl_type == "function":
+        if decl_type == NodeType.FUNCTION.value:
             self._analyze_function_declaration(name, type_annotation, value, node)
-        elif decl_type == "val_declaration":
+        elif decl_type == NodeType.VAL_DECLARATION.value:
             self._analyze_variable_declaration_unified(
                 name, type_annotation, value, Mutability.IMMUTABLE, node
             )
-        elif decl_type == "mut_declaration":
+        elif decl_type == NodeType.MUT_DECLARATION.value:
             self._analyze_variable_declaration_unified(
                 name, type_annotation, value, Mutability.MUTABLE, node
             )
@@ -118,12 +119,15 @@ class DeclarationAnalyzer:
         """
         decl_type = node.get("type")
 
-        if decl_type == "function":
+        if decl_type == NodeType.FUNCTION.value:
             # Function: func name() : return_type = body
             name = node.get("name")
             type_annotation = node.get("return_type")
             value = node.get("body")
-        elif decl_type in ["val_declaration", "mut_declaration"]:
+        elif decl_type in [
+            NodeType.VAL_DECLARATION.value,
+            NodeType.MUT_DECLARATION.value,
+        ]:
             # Variable: val/mut name : type_annotation = value
             name = node.get("name")
             type_annotation = node.get("type_annotation")
@@ -205,7 +209,7 @@ class DeclarationAnalyzer:
             # Check for explicit undef initialization
             if (
                 value
-                and value.get("type") == "identifier"
+                and value.get("type") == NodeType.IDENTIFIER.value
                 and value.get("name") == "undef"
             ):
                 is_initialized = False
@@ -232,7 +236,10 @@ class DeclarationAnalyzer:
                     # Check for precision loss operations that require acknowledgment
                     if is_precision_loss_operation(value_type, var_type):
                         # For non-type-annotated expressions, require acknowledgment
-                        if value.get("type") != "type_annotated_expression":
+                        if (
+                            value.get("type")
+                            != NodeType.TYPE_ANNOTATED_EXPRESSION.value
+                        ):
                             # Generate appropriate error message based on operation type
                             if (
                                 value_type == HexenType.I64
@@ -280,7 +287,10 @@ class DeclarationAnalyzer:
                     if not can_coerce(value_type, var_type):
                         # Only report error if not a type_annotated_expression
                         # (type annotations handle their own validation)
-                        if value.get("type") != "type_annotated_expression":
+                        if (
+                            value.get("type")
+                            != NodeType.TYPE_ANNOTATED_EXPRESSION.value
+                        ):
                             self._error(
                                 f"Type mismatch: variable '{name}' declared as {var_type.value} "
                                 f"but assigned value of type {value_type.value}",
@@ -296,7 +306,10 @@ class DeclarationAnalyzer:
                 return
 
             # PHASE 3: Special handling for undef without explicit type
-            if value.get("type") == "identifier" and value.get("name") == "undef":
+            if (
+                value.get("type") == NodeType.IDENTIFIER.value
+                and value.get("name") == "undef"
+            ):
                 self._error(
                     f"Cannot infer type for variable '{name}': undef requires explicit type annotation. "
                     f"Use 'mut {name} : type = undef' or 'val {name} : type = value'",
