@@ -6,12 +6,13 @@ Tests: Boolean literals, logical operators, precedence, and error cases.
 """
 
 from src.hexen.parser import HexenParser
+from src.hexen.ast_nodes import NodeType
 import pytest
 
 
 def verify_binary_operation_ast(ast, expected_operator, expected_left, expected_right):
     """Helper to verify binary operation AST structure."""
-    assert ast["type"] == "binary_operation"
+    assert ast["type"] == NodeType.BINARY_OPERATION.value
     assert ast["operator"] == expected_operator
     assert ast["left"] == expected_left
     assert ast["right"] == expected_right
@@ -19,7 +20,7 @@ def verify_binary_operation_ast(ast, expected_operator, expected_left, expected_
 
 def verify_unary_operation_ast(node, expected_operator, expected_operand):
     """Helper function to verify unary operation AST structure."""
-    assert node["type"] == "unary_operation"
+    assert node["type"] == NodeType.UNARY_OPERATION.value
     assert node["operator"] == expected_operator
     assert node["operand"] == expected_operand
 
@@ -38,7 +39,7 @@ class TestBoolTypeParsing:
         }
         """
         ast = self.parser.parse(source)
-        assert ast["type"] == "program"
+        assert ast["type"] == NodeType.PROGRAM.value
         assert len(ast["functions"]) == 1
 
         func = ast["functions"][0]
@@ -55,8 +56,8 @@ class TestBoolTypeParsing:
         func = ast["functions"][0]
         return_stmt = func["body"]["statements"][0]
 
-        assert return_stmt["type"] == "return_statement"
-        assert return_stmt["value"]["type"] == "literal"
+        assert return_stmt["type"] == NodeType.RETURN_STATEMENT.value
+        assert return_stmt["value"]["type"] == NodeType.LITERAL.value
         assert return_stmt["value"]["value"] is True
 
     def test_boolean_literal_false(self):
@@ -70,8 +71,8 @@ class TestBoolTypeParsing:
         func = ast["functions"][0]
         return_stmt = func["body"]["statements"][0]
 
-        assert return_stmt["type"] == "return_statement"
-        assert return_stmt["value"]["type"] == "literal"
+        assert return_stmt["type"] == NodeType.RETURN_STATEMENT.value
+        assert return_stmt["value"]["type"] == NodeType.LITERAL.value
         assert return_stmt["value"]["value"] is False
 
     def test_bool_variable_declaration_with_type(self):
@@ -86,10 +87,10 @@ class TestBoolTypeParsing:
         func = ast["functions"][0]
         val_decl = func["body"]["statements"][0]
 
-        assert val_decl["type"] == "val_declaration"
+        assert val_decl["type"] == NodeType.VAL_DECLARATION.value
         assert val_decl["name"] == "flag"
         assert val_decl["type_annotation"] == "bool"
-        assert val_decl["value"]["type"] == "literal"
+        assert val_decl["value"]["type"] == NodeType.LITERAL.value
         assert val_decl["value"]["value"] is True
 
     def test_bool_variable_declaration_without_type(self):
@@ -104,10 +105,10 @@ class TestBoolTypeParsing:
         func = ast["functions"][0]
         val_decl = func["body"]["statements"][0]
 
-        assert val_decl["type"] == "val_declaration"
+        assert val_decl["type"] == NodeType.VAL_DECLARATION.value
         assert val_decl["name"] == "flag"
         assert val_decl["type_annotation"] is None
-        assert val_decl["value"]["type"] == "literal"
+        assert val_decl["value"]["type"] == NodeType.LITERAL.value
         assert val_decl["value"]["value"] is True
 
     def test_mut_bool_variable(self):
@@ -125,14 +126,14 @@ class TestBoolTypeParsing:
 
         # Check mut declaration
         mut_decl = statements[0]
-        assert mut_decl["type"] == "mut_declaration"
+        assert mut_decl["type"] == NodeType.MUT_DECLARATION.value
         assert mut_decl["name"] == "flag"
         assert mut_decl["type_annotation"] == "bool"
         assert mut_decl["value"]["value"] is False
 
         # Check assignment
         assignment = statements[1]
-        assert assignment["type"] == "assignment_statement"
+        assert assignment["type"] == NodeType.ASSIGNMENT_STATEMENT.value
         assert assignment["target"] == "flag"
         assert assignment["value"]["value"] is True
 
@@ -169,9 +170,9 @@ class TestBoolTypeParsing:
         func = ast["functions"][0]
         val_decl = func["body"]["statements"][0]
 
-        assert val_decl["type"] == "val_declaration"
+        assert val_decl["type"] == NodeType.VAL_DECLARATION.value
         assert val_decl["type_annotation"] == "bool"
-        assert val_decl["value"]["type"] == "identifier"
+        assert val_decl["value"]["type"] == NodeType.IDENTIFIER.value
         assert val_decl["value"]["name"] == "undef"
 
 
@@ -228,7 +229,7 @@ class TestBoolTypeEdgeCases:
 
         # Check the expression block
         expr_block = val_decl["value"]
-        assert expr_block["type"] == "block"
+        assert expr_block["type"] == NodeType.BLOCK.value
         inner_decl = expr_block["statements"][0]
         assert inner_decl["value"]["value"] is True
 
@@ -257,51 +258,51 @@ class TestBooleanOperators:
         verify_binary_operation_ast(
             statements[0]["value"],
             "&&",
-            {"type": "literal", "value": True},
-            {"type": "literal", "value": False},
+            {"type": NodeType.LITERAL.value, "value": True},
+            {"type": NodeType.LITERAL.value, "value": False},
         )
 
         # Test basic OR operation
         verify_binary_operation_ast(
             statements[1]["value"],
             "||",
-            {"type": "literal", "value": True},
-            {"type": "literal", "value": False},
+            {"type": NodeType.LITERAL.value, "value": True},
+            {"type": NodeType.LITERAL.value, "value": False},
         )
 
         # Test complex logical expression: (true && false) || (false && true)
         and_op1 = {
-            "type": "binary_operation",
+            "type": NodeType.BINARY_OPERATION.value,
             "operator": "&&",
-            "left": {"type": "literal", "value": True},
-            "right": {"type": "literal", "value": False},
+            "left": {"type": NodeType.LITERAL.value, "value": True},
+            "right": {"type": NodeType.LITERAL.value, "value": False},
         }
         and_op2 = {
-            "type": "binary_operation",
+            "type": NodeType.BINARY_OPERATION.value,
             "operator": "&&",
-            "left": {"type": "literal", "value": False},
-            "right": {"type": "literal", "value": True},
+            "left": {"type": NodeType.LITERAL.value, "value": False},
+            "right": {"type": NodeType.LITERAL.value, "value": True},
         }
         verify_binary_operation_ast(statements[2]["value"], "||", and_op1, and_op2)
 
         # Test nested logical expression: true && (false || true) && false
         or_op = {
-            "type": "binary_operation",
+            "type": NodeType.BINARY_OPERATION.value,
             "operator": "||",
-            "left": {"type": "literal", "value": False},
-            "right": {"type": "literal", "value": True},
+            "left": {"type": NodeType.LITERAL.value, "value": False},
+            "right": {"type": NodeType.LITERAL.value, "value": True},
         }
         and_op1 = {
-            "type": "binary_operation",
+            "type": NodeType.BINARY_OPERATION.value,
             "operator": "&&",
-            "left": {"type": "literal", "value": True},
+            "left": {"type": NodeType.LITERAL.value, "value": True},
             "right": or_op,
         }
         verify_binary_operation_ast(
             statements[3]["value"],
             "&&",
             and_op1,
-            {"type": "literal", "value": False},
+            {"type": NodeType.LITERAL.value, "value": False},
         )
 
     def test_logical_not_with_booleans(self):
@@ -321,20 +322,24 @@ class TestBooleanOperators:
 
         # Test single negation of variable
         verify_unary_operation_ast(
-            statements[2]["value"], "!", {"type": "identifier", "name": "a"}
+            statements[2]["value"],
+            "!",
+            {"type": NodeType.IDENTIFIER.value, "name": "a"},
         )
 
         # Test negation of false variable
         verify_unary_operation_ast(
-            statements[3]["value"], "!", {"type": "identifier", "name": "b"}
+            statements[3]["value"],
+            "!",
+            {"type": NodeType.IDENTIFIER.value, "name": "b"},
         )
 
         # Test negation of expression
         inner_expr = {
-            "type": "binary_operation",
+            "type": NodeType.BINARY_OPERATION.value,
             "operator": "&&",
-            "left": {"type": "identifier", "name": "a"},
-            "right": {"type": "identifier", "name": "b"},
+            "left": {"type": NodeType.IDENTIFIER.value, "name": "a"},
+            "right": {"type": NodeType.IDENTIFIER.value, "name": "b"},
         }
         verify_unary_operation_ast(statements[4]["value"], "!", inner_expr)
 
@@ -362,28 +367,31 @@ class TestBooleanPrecedence:
 
         # Test !a && b
         not_a = {
-            "type": "unary_operation",
+            "type": NodeType.UNARY_OPERATION.value,
             "operator": "!",
-            "operand": {"type": "identifier", "name": "a"},
+            "operand": {"type": NodeType.IDENTIFIER.value, "name": "a"},
         }
         verify_binary_operation_ast(
-            statements[2]["value"], "&&", not_a, {"type": "identifier", "name": "b"}
+            statements[2]["value"],
+            "&&",
+            not_a,
+            {"type": NodeType.IDENTIFIER.value, "name": "b"},
         )
 
         # Test !(a && b)
         inner_and = {
-            "type": "binary_operation",
+            "type": NodeType.BINARY_OPERATION.value,
             "operator": "&&",
-            "left": {"type": "identifier", "name": "a"},
-            "right": {"type": "identifier", "name": "b"},
+            "left": {"type": NodeType.IDENTIFIER.value, "name": "a"},
+            "right": {"type": NodeType.IDENTIFIER.value, "name": "b"},
         }
         verify_unary_operation_ast(statements[3]["value"], "!", inner_and)
 
         # Test !!a
         inner_not = {
-            "type": "unary_operation",
+            "type": NodeType.UNARY_OPERATION.value,
             "operator": "!",
-            "operand": {"type": "identifier", "name": "a"},
+            "operand": {"type": NodeType.IDENTIFIER.value, "name": "a"},
         }
         verify_unary_operation_ast(statements[4]["value"], "!", inner_not)
 
