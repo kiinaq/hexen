@@ -330,3 +330,42 @@ def is_string_type(type_: HexenType) -> bool:
 def is_boolean_type(type_: HexenType) -> bool:
     """Check if a type is a boolean type."""
     return type_ == HexenType.BOOL
+
+
+def is_precision_loss_operation(from_type: HexenType, to_type: HexenType) -> bool:
+    """
+    Check if an operation represents precision loss that requires acknowledgment.
+
+    These are the "dangerous" operations that require explicit acknowledgment:
+    - i64 → i32 (truncation)
+    - f64 → f32 (precision loss)
+    - float → integer (truncation + precision loss)
+    - comptime_float → integer (truncation)
+
+    This function implements the "Explicit Danger, Implicit Safety" principle
+    by identifying operations that could lose data or precision.
+
+    Args:
+        from_type: The source type
+        to_type: The target type
+
+    Returns:
+        True if the operation could lose precision and requires explicit acknowledgment
+    """
+    return (
+        # Integer truncation
+        (from_type == HexenType.I64 and to_type == HexenType.I32)
+        or
+        # Float precision loss
+        (from_type == HexenType.F64 and to_type == HexenType.F32)
+        or
+        # Float to integer conversion (any combination)
+        (
+            from_type in {HexenType.F32, HexenType.F64, HexenType.COMPTIME_FLOAT}
+            and to_type in {HexenType.I32, HexenType.I64}
+        )
+        or
+        # Mixed precision loss (i64 → f32, f64 → i32)
+        (from_type == HexenType.I64 and to_type == HexenType.F32)
+        or (from_type == HexenType.F64 and to_type == HexenType.I32)
+    )
