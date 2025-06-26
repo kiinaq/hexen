@@ -4,37 +4,40 @@
 
 ## Overview
 
-Hexen's binary operations system follows the **"Pedantic to write, but really easy to read"** philosophy with clear, predictable operators that eliminate ambiguity and make computational cost transparent. The system is built on top of our comptime type system, ensuring consistent type resolution across all operations.
+Hexen's binary operations system follows the **"Ergonomic Literals + Transparent Costs"** philosophy - making common operations seamless while keeping all computational costs visible. The system is built on top of our comptime type system, ensuring consistent type resolution across all operations with natural adaptation for literals and explicit syntax for concrete type mixing.
 
 ### Key Design Principles
 
-1. **Two Division Operators for Clarity**:
-   - **`/`** = Float division (mathematical, always produces float results)
-   - **`\`** = Integer division (efficient, integer-only computation)
+1. **Ergonomic Comptime Literals**: 
+   - All numeric literals start as adaptive comptime types
+   - Operations preserve comptime types for maximum flexibility
+   - Context guides resolution to concrete types seamlessly
+   - Common patterns work without type ceremony
 
-2. **Comptime Type Foundation**: 
-   - All literals start as comptime types
-   - Operations preserve comptime types when possible
-   - Context guides resolution to concrete types
-   - Clear, predictable semantics
-
-3. **Transparent Cost Model**:
+2. **Transparent Computational Costs**:
+   - Two division operators for clear intent: `/` (mathematical) and `\` (efficient integer)
    - Float result types reveal floating-point computation
    - Integer result types guarantee efficient integer math
-   - User always knows what computation is happening
+   - Mixed concrete types require explicit context for cost visibility
+
+3. **Predictable Type Resolution**:
+   - Same comptime types stay comptime (maximum flexibility)
+   - Mixed comptime types adapt to context or use sensible defaults
+   - Concrete type mixing requires explicit target types
+   - Operator choice determines computation type (`/` vs `\`)
 
 ## Core Philosophy
 
-### Context-Guided Resolution Strategy
+### Ergonomic Literals with Transparent Costs
 
-Binary operations in Hexen follow a unified pattern that leverages our comptime type system:
+Binary operations in Hexen follow a unified pattern that prioritizes developer experience while maintaining cost transparency:
 
-1. **Comptime Types First**: All numeric operations start with comptime types
-2. **Context Guides Resolution**: Target type or operation context determines final type
-3. **No Hidden Promotions**: Mixed types or operations requiring promotion need explicit context
-4. **Operator Determines Behavior**: Division operators (`/` and `\`) determine computation type, not operand types
+1. **Ergonomic Comptime Adaptation**: All numeric literals adapt seamlessly to their usage context
+2. **Natural Common Cases**: Typical arithmetic expressions work without type ceremony  
+3. **Transparent Mixed Types**: Concrete type mixing requires explicit context for cost visibility
+4. **Predictable Operator Behavior**: Division operators (`/` and `\`) determine computation type, not operand types
 
-This pattern is consistent with Hexen's broader design: **"Explicit Danger, Implicit Safety"** and **"Pedantic to write, but really easy to read"**.
+This pattern is consistent with Hexen's **"Ergonomic Literals + Transparent Costs"** philosophy - comptime literals adapt seamlessly while concrete type mixing requires explicit syntax for cost transparency.
 
 ## Operator Precedence
 
@@ -75,19 +78,33 @@ val complex_int : i32 = (a + b) * (c - d) \ (e + f)     // Integer division
 
 ## How Comptime Types Work in Binary Operations
 
-### The Foundation: Smart Literal Adaptation
+### ✨ The Ergonomic Foundation: Smart Literal Adaptation
 
-Before diving into complex rules, understand that **all binary operations in Hexen start with comptime types**. These "smart literals" adapt to their usage context, creating a consistent and predictable system.
+Hexen's binary operations start with a simple, powerful concept: **all numeric literals are "smart" and adapt to their context**. This creates natural, seamless usage for common cases while maintaining complete type safety.
 
 ```hexen
-// Every numeric literal starts as a comptime type
-42        // comptime_int
-3.14      // comptime_float
--100      // comptime_int
-2.5       // comptime_float
+// Every numeric literal starts as a comptime type that can adapt
+42        // comptime_int - can become i32, i64, f32, f64 as needed
+3.14      // comptime_float - can become f32, f64 as needed
+-100      // comptime_int - adapts to context seamlessly
+2.5       // comptime_float - adapts to context seamlessly
 ```
 
-When these comptime types meet in binary operations, they follow simple, logical rules.
+**The Magic:** These smart literals make common operations feel natural:
+
+```hexen
+// ✨ Same literals, different contexts - no ceremony needed
+val counter : i32 = 42 + 100        // comptime adapts to i32
+val big_counter : i64 = 42 + 100     // comptime adapts to i64
+val percentage : f32 = 42 + 100      // comptime adapts to f32
+val precise : f64 = 42 + 100         // comptime adapts to f64
+
+// ✨ Mixed comptime types adapt naturally with context
+val mixed : f64 = 42 + 3.14          // comptime_int + comptime_float → f64
+val calculation : f32 = 22 / 7       // comptime division → f32 (mathematical precision)
+```
+
+When these comptime types meet in binary operations, they follow simple, logical rules designed for maximum ergonomics.
 
 ### Rule 1: Comptime + Comptime = Stay Comptime (When Safe)
 
@@ -362,10 +379,10 @@ val explicit_div : f64 = a / c  // ✅ Mixed concrete types → explicit target 
 
 ## Division Operations: Float vs Integer
 
-Hexen provides **two distinct division operators** to eliminate ambiguity and make computational cost transparent. The operators determine the computation type, not the operand types:
+Hexen provides **two distinct division operators** that make computational intent clear and costs transparent. The beauty is that comptime types adapt naturally to both operators:
 
 ### Float Division (`/`) - Mathematical Division
-**Always produces floating-point results**, preserving mathematical precision:
+**Produces floating-point results** for mathematical precision, with comptime literals adapting seamlessly:
 
 ```hexen
 // Float division produces comptime_float, which defaults to f64 (consistent with TYPE_SYSTEM.md)
@@ -390,7 +407,7 @@ result = (10 / 3) : i32         // ✅ Explicit truncation from f64 division res
 ```
 
 ### Integer Division (`\`) - Efficient Truncation
-**Only works with integer types**, produces integer results with truncation:
+**Works naturally with integer types**, producing efficient integer results with comptime adaptation:
 
 ```hexen
 // Integer division (efficient, no floating-point computation)
@@ -541,7 +558,7 @@ val result : f64 = a + b // comptime_int adapts to f64 context
 
 ## Assignment Context Propagation
 
-Assignment context in Hexen follows the **"Pedantic to write, but really easy to read"** philosophy, where the target type explicitly guides expression resolution while maintaining clear, predictable behavior.
+Assignment context in Hexen follows the **"Ergonomic Literals + Transparent Costs"** philosophy, where comptime literals adapt naturally to the target type context while concrete type mixing requires explicit acknowledgment for cost transparency.
 
 ### Assignment Statement Context
 
