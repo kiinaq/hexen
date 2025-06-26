@@ -52,7 +52,7 @@ Binary operations apply the TYPE_SYSTEM.md conversion rules to their results:
 | `comptime_float` | ✅ Implicit | `val x : f32 = 3.14 + 2.71` | No cost, ergonomic adaptation |
 | **🔧 Explicit (Concrete Results)** |
 | Mixed concrete | 🔧 Explicit | `val x : f64 = i32_val + f64_val` | Conversion cost visible |
-| Precision loss | 🔧 Explicit | `val x : i32 = (f64_val + f32_val) : i32` | Data loss visible |
+| Precision loss | 🔧 Explicit | `val x : i32 = (f64_val + f32_val):i32` | Data loss visible |
 | **❌ Forbidden** |
 | No target type | ❌ Forbidden | `val x = i32_val + f64_val` | Use explicit type annotation |
 
@@ -82,7 +82,7 @@ val result1 : i32 = 2 + 3 * 4           // 2 + (3 * 4) = 14
 val result2 : i32 = (2 + 3) * 4         // (2 + 3) * 4 = 20
 
 // Division operators have same precedence level - but different precision!
-val float_precise : i32 = ((10 / 3) * 9) : i32  // (10 / 3) * 9 = (3.333... * 9) = 30.0 → 30 (explicit truncation)
+val float_precise : i32 = ((10 / 3) * 9):i32  // (10 / 3) * 9 = (3.333... * 9) = 30.0 → 30 (explicit truncation)
 val int_truncated : i32 = (10 \ 3) * 9          // (10 \ 3) * 9 = (3 * 9) = 27 (no truncation needed)
 val mixed : f64 = 20 * (3 / 2)          // 20 * (1.5) = 30.0
 
@@ -177,7 +177,7 @@ val result3 = count \ 10        // i32 \ comptime_int → i32 (comptime adapts f
 // 🔧 Explicit conversions when result differs from target (TYPE_SYSTEM.md rule)
 val result4 : f64 = ratio + 42  // f64 + comptime_int → f64 (comptime adapts, no conversion needed)
 // val narrow : i32 = ratio + 42 // ❌ Error: f64 → i32 requires explicit conversion (TYPE_SYSTEM.md rule)
-val narrow : i32 = (ratio + 42) : i32  // ✅ Explicit: f64 → i32 (conversion cost visible)
+val narrow : i32 = (ratio + 42):i32  // ✅ Explicit: f64 → i32 (conversion cost visible)
 ```
 
 #### Pattern 3: 🔧 Mixed Concrete → Requires Explicit Syntax (Cost Visibility)
@@ -198,8 +198,8 @@ val as_i64 : i64 = small + large           // 🔧 Explicit: i32 → i64 (conver
 val as_f64 : f64 = small + precise         // 🔧 Explicit: i32 → f64 (conversion cost visible)
 
 // 🔧 Data loss requires explicit acknowledgment (TYPE_SYSTEM.md rule)
-// val lose_precision : i32 = large + small  // Error: i64 → i32 needs ': i32' (data loss)
-val with_truncation : i32 = (large + small) : i32  // ✅ Explicit: i64 → i32 (data loss visible)
+// val lose_precision : i32 = large + small  // Error: i64 → i32 needs ':i32' (data loss)
+val with_truncation : i32 = (large + small):i32  // ✅ Explicit: i64 → i32 (data loss visible)
 ```
 
 #### Pattern 4: ⚡ Same Concrete → Same Concrete (Identity)
@@ -219,8 +219,8 @@ val result3 = a \ b             // i32 \ i32 → i32 (identity, no conversion ne
 val c : f64 = 3.14
 val d : f64 = 2.71
 val result4 = c + d             // f64 + f64 → f64 (identity, no conversion needed)
-// val narrow : f32 = c + d     // ❌ Error: f64 → f32 requires ': f32' (TYPE_SYSTEM.md rule)
-val narrow : f32 = (c + d) : f32 // ✅ Explicit: f64 → f32 (conversion cost visible)
+// val narrow : f32 = c + d     // ❌ Error: f64 → f32 requires ':f32' (TYPE_SYSTEM.md rule)
+val narrow : f32 = (c + d):f32 // ✅ Explicit: f64 → f32 (conversion cost visible)
 ```
 
 ### 🎯 Pattern Summary: Complete TYPE_SYSTEM.md Alignment
@@ -286,28 +286,28 @@ counter = 10 + 20                     // comptime_int + comptime_int → comptim
 precise = 3.14                        // comptime_float (adapts to f32 context)
 
 // ❌ Error: Type annotation must match mutable variable's type
-// counter = some_i64 : i64              // Error: Type annotation must match mutable variable's type (i32)
-// counter = some_i64 + some_f64 : f64   // Error: Type annotation must match mutable variable's type (i32)
-// precise = 3.14159265359 : f64         // Error: Type annotation must match mutable variable's type (f32)
+// counter = some_i64:i64               // Error: Type annotation must match mutable variable's type (i32)
+// counter = (some_i64 + some_f64):f64  // Error: Type annotation must match mutable variable's type (i32)
+// precise = 3.14159265359:f64          // Error: Type annotation must match mutable variable's type (f32)
 
 // ❌ Error: Potential precision loss/truncation - requires explicit type annotation
-// counter = some_i64                     // Error: Potential truncation, add ': i32' to acknowledge
-// counter = some_i64 + some_f64          // Error: Mixed types with potential truncation, add ': i32'
-// precise = 3.14159265359                // Error: Potential precision loss, add ': f32'
+// counter = some_i64                     // Error: Potential truncation, add ':i32' to acknowledge
+// counter = some_i64 + some_f64          // Error: Mixed types with potential truncation, add ':i32'
+// precise = 3.14159265359                // Error: Potential precision loss, add ':f32'
 
 // ✅ Explicit acknowledgment of precision loss/truncation (type matches mutable variable)
-counter = some_i64 : i32              // Explicit: "I know this might truncate to i32"
-counter = some_i64 + some_f64 : i32   // Explicit: "I know this might truncate to i32"
-precise = 3.14159265359 : f32         // Explicit: "I know this will lose precision to f32"
+counter = some_i64:i32               // Explicit: "I know this might truncate to i32"
+counter = (some_i64 + some_f64):i32  // Explicit: "I know this might truncate to i32"
+precise = 3.14159265359:f32          // Explicit: "I know this will lose precision to f32"
 
 // 🎯 Critical Rule: Type annotation ONLY allowed with explicit left side type
 // ❌ FORBIDDEN: Type annotation without explicit left side type
-// val result = mixed_expr : i32        // Error: No explicit left side type to match
-// mut temp = large_value : i64         // Error: No explicit left side type to match
+// val result = mixed_expr:i32         // Error: No explicit left side type to match
+// mut temp = large_value:i64          // Error: No explicit left side type to match
 
 // ✅ CORRECT: Must have explicit type on left side
-// val result : i32 = mixed_expr : i32  // Both sides have i32 - explicit acknowledgment
-// mut temp : i64 = large_value : i64   // Both sides have i64 - explicit acknowledgment
+// val result : i32 = mixed_expr:i32   // Both sides have i32 - explicit acknowledgment
+// mut temp : i64 = large_value:i64    // Both sides have i64 - explicit acknowledgment
 ```
 
 ### 4. Comptime Type Resolution Rules
@@ -437,8 +437,8 @@ val explicit_mixed : f64 = int_val / float_val  // ✅ Explicit: i32 → f64 (co
 
 // 🔧 Assignment to different types requires explicit conversion (TYPE_SYSTEM.md explicit rule)
 mut result : i32 = 0
-// result = 10 / 3               // ❌ Error: f64 → i32 requires ': i32' (TYPE_SYSTEM.md rule)
-result = (10 / 3) : i32         // ✅ Explicit: f64 → i32 (conversion cost visible)
+// result = 10 / 3               // ❌ Error: f64 → i32 requires ':i32' (TYPE_SYSTEM.md rule)
+result = (10 / 3):i32           // ✅ Explicit: f64 → i32 (conversion cost visible)
 ```
 
 ### Integer Division (`\`) - Efficient Truncation
@@ -468,7 +468,7 @@ val explicit_mixed : i64 = a \ c  // ✅ Mixed concrete types → explicit targe
 mut result : i32 = 0
 result = a \ b                  // ✅ Safe: comptime_int adapts to i32 context
 // result = c \ b               // ❌ Error: Mixed concrete types need explicit handling
-result = c \ b : i32            // ✅ Explicit truncation from i64
+result = (c \ b):i32            // ✅ Explicit truncation from i64
 ```
 
 ### Design Philosophy
@@ -493,11 +493,11 @@ Float-to-integer conversion follows standard truncation rules:
 ```hexen
 // Truncation towards zero
 mut result : i32 = 0
-result = (10.9 / 2.0) : i32    // 5.45 → 5 
-result = (-10.9 / 2.0) : i32   // -5.45 → -5
+result = (10.9 / 2.0):i32     // 5.45 → 5 
+result = (-10.9 / 2.0):i32    // -5.45 → -5
 
 // Exact conversions when possible
-result = (20.0 / 4.0) : i32    // 5.0 → 5 (exact)
+result = (20.0 / 4.0):i32     // 5.0 → 5 (exact)
 ```
 
 ## Complex Expression Resolution
@@ -611,19 +611,19 @@ counter = 10 + 20                     // comptime_int + comptime_int → comptim
 precise = 3.14                        // comptime_float adapts to f32 context
 
 // Mixed concrete types produce concrete results - may need explicit acknowledgment
-// precise = some_i32 + some_f64      // ❌ Error: i32 + f64 → f64, needs ': f32' for precision loss
-precise = (some_i32 + some_f64) : f32  // ✅ Explicit: i32 + f64 → f64, then f64 → f32 (precision loss acknowledged)
+// precise = some_i32 + some_f64      // ❌ Error: i32 + f64 → f64, needs ':f32' for precision loss
+precise = (some_i32 + some_f64):f32  // ✅ Explicit: i32 + f64 → f64, then f64 → f32 (precision loss acknowledged)
 counter = some_i32 + 42               // ✅ OK: i32 + comptime_int → i32 (comptime adapts, result is concrete)
 
 // ❌ Error: Type annotation must match mutable variable's type
-// counter = some_i64 : i64              // Error: Type annotation must match mutable variable's type (i32)
-// counter = some_i64 + some_f64 : f64   // Error: Type annotation must match mutable variable's type (i32)
-// precise = 3.14159265359 : f64         // Error: Type annotation must match mutable variable's type (f32)
+// counter = some_i64:i64               // Error: Type annotation must match mutable variable's type (i32)
+// counter = (some_i64 + some_f64):f64  // Error: Type annotation must match mutable variable's type (i32)
+// precise = 3.14159265359:f64          // Error: Type annotation must match mutable variable's type (f32)
 
 // ✅ Explicit acknowledgment of precision loss/truncation (type matches mutable variable)
-counter = some_i64 : i32              // Explicit: "I know this might truncate to i32"
-counter = some_i64 + some_f64 : i32   // Explicit: "I know this might truncate to i32"
-precise = 3.14159265359 : f32         // Explicit: "I know this will lose precision to f32"
+counter = some_i64:i32               // Explicit: "I know this might truncate to i32"
+counter = (some_i64 + some_f64):i32  // Explicit: "I know this might truncate to i32"
+precise = 3.14159265359:f32          // Explicit: "I know this will lose precision to f32"
 ```
 
 #### Type Annotation Precedence
@@ -634,13 +634,13 @@ When required, the type annotation has highest precedence and applies to the ent
 mut result : i32 = 0
 
 // These are equivalent - type annotation applies to whole expression
-result = a + b : i32                  // (a + b) : i32
-result = a + b * c : i32              // (a + b * c) : i32
-result = (a + b) * c : i32            // ((a + b) * c) : i32
+result = (a + b):i32                  // (a + b):i32
+result = (a + b * c):i32              // (a + b * c):i32
+result = ((a + b) * c):i32            // ((a + b) * c):i32
 
 // Complex expressions with potential precision loss
-result = some_i64 * some_f64 : i32    // (some_i64 * some_f64) : i32
-result = (a + b) * (c + d) : i32      // ((a + b) * (c + d)) : i32
+result = (some_i64 * some_f64):i32    // (some_i64 * some_f64):i32
+result = ((a + b) * (c + d)):i32      // ((a + b) * (c + d)):i32
 ```
 
 #### When Type Annotations Are Required
@@ -651,21 +651,21 @@ The compiler requires explicit type annotations in these cases, and the type ann
 ```hexen
 mut counter : i32 = 0
 // ❌ Error: Type annotation must match mutable variable's type
-// counter = some_i64 : i64              // Error: Type annotation must match mutable variable's type (i32)
+// counter = some_i64:i64               // Error: Type annotation must match mutable variable's type (i32)
 
 // ❌ Error: Potential truncation without type annotation
 // counter = some_i64                     // Error: Add ': i32' to acknowledge truncation
 
 // ✅ Explicit acknowledgment (type matches mutable variable)
-counter = some_i64 : i32              // Explicit truncation to i32
+counter = some_i64:i32               // Explicit truncation to i32
 ```
 
 2. **Float Precision Loss**:
 ```hexen
 mut precise : f32 = 0.0
 // ❌ Error: Type annotation must match mutable variable's type
-// precise = 3.14159265359 : f64         // Error: Type annotation must match mutable variable's type (f32)
-// precise = some_f64 * 2.0 : f64        // Error: Type annotation must match mutable variable's type (f32)
+// precise = 3.14159265359:f64          // Error: Type annotation must match mutable variable's type (f32)
+// precise = (some_f64 * 2.0):f64       // Error: Type annotation must match mutable variable's type (f32)
 
 // ❌ Error: Concrete f64 types need explicit acknowledgment for precision loss  
 // precise = some_f64                     // Error: f64 → f32 needs ': f32' to acknowledge precision loss
@@ -674,24 +674,24 @@ mut precise : f32 = 0.0
 // ✅ comptime_float adapts implicitly to f32 (TYPE_SYSTEM.md rule)
 precise = 3.14159265359               // ✅ OK: comptime_float adapts to f32 context (implicit, safe)
 // ✅ Concrete f64 needs explicit acknowledgment (TYPE_SYSTEM.md rule) 
-precise = some_f64 : f32              // Explicit: f64 → f32 (precision loss acknowledged)
-precise = (some_f64 * 2.0) : f32      // Explicit: f64 → f32 (precision loss acknowledged)
+precise = some_f64:f32               // Explicit: f64 → f32 (precision loss acknowledged)
+precise = (some_f64 * 2.0):f32       // Explicit: f64 → f32 (precision loss acknowledged)
 ```
 
 3. **Mixed Types with Potential Issues**:
 ```hexen
 mut result : i32 = 0
 // ❌ Error: Type annotation must match mutable variable's type
-// result = some_i64 + some_f64 : f64    // Error: Type annotation must match mutable variable's type (i32)
-// result = some_f64 * some_i32 : f64    // Error: Type annotation must match mutable variable's type (i32)
+// result = (some_i64 + some_f64):f64   // Error: Type annotation must match mutable variable's type (i32)
+// result = (some_f64 * some_i32):f64   // Error: Type annotation must match mutable variable's type (i32)
 
 // ❌ Error: Mixed types with potential truncation without type annotation
 // result = some_i64 + some_f64           // Error: Add ': i32' to acknowledge truncation
 // result = some_f64 * some_i32           // Error: Add ': i32' to acknowledge truncation
 
 // ✅ Explicit acknowledgment (type matches mutable variable)
-result = some_i64 + some_f64 : i32    // Explicit truncation to i32
-result = some_f64 * some_i32 : i32    // Explicit truncation to i32
+result = (some_i64 + some_f64):i32    // Explicit truncation to i32
+result = (some_f64 * some_i32):i32    // Explicit truncation to i32
 ```
 
 #### Mutable Assignment Rules
