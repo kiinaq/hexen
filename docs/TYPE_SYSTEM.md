@@ -1,6 +1,6 @@
 # Hexen Type System 🦉
 
-*Design and Implementation Specification*
+*Design Specification*
 
 ## Overview
 
@@ -114,7 +114,9 @@ func process_data(count: i64) { ... }
 process_data(1000)               // comptime_int sees i64 parameter → becomes i64
 
 // Context comes from return types
-func get_count() : i32 = 42      // comptime_int sees i32 return → becomes i32
+func get_count() : i32 = {       // return type provides context
+    return 42                    // comptime_int sees i32 return → becomes i32
+}
 ```
 
 #### Step 3: Default Resolution
@@ -161,22 +163,22 @@ val e : f32 = 3.14  // ✅ Safe: comptime_float → f32 (implicit)
 val f : f64 = 3.14  // ✅ Safe: comptime_float → f64 (implicit)
 ```
 
-**Outside the Table = Explicit Annotation Required**
+**Outside the Table = Explicit Conversion Required**
 ```hexen
-// ❌ Unsafe conversions require explicit acknowledgment
-// val g : i32 = 3.14      // Error: comptime_float → i32 requires ': i32'
-// val h : i64 = 3.14      // Error: comptime_float → i64 requires ': i64'
+// ❌ Unsafe conversions require explicit conversion
+// val g : i32 = 3.14      // Error: comptime_float → i32 requires ':i32'
+// val h : i64 = 3.14      // Error: comptime_float → i64 requires ':i64'
 
-// ✅ Explicit acknowledgment of unsafe conversion
-val g : i32 = 3.14 : i32   // comptime_float → i32 (explicit truncation)
-val h : i64 = 3.14 : i64   // comptime_float → i64 (explicit truncation)
+// ✅ Explicit conversion of unsafe operations
+val g : i32 = 3.14:i32   // comptime_float → i32 (explicit truncation)
+val h : i64 = 3.14:i64   // comptime_float → i64 (explicit truncation)
 ```
 
 **Why this rule matters:**
 - **Clear Safety Boundary**: Everything in the table is guaranteed safe
-- **Explicit Danger**: Conversions that lose data require acknowledgment
+- **Explicit Danger**: Conversions that lose data require explicit conversion
 - **No Arbitrary Restrictions**: All safe conversions work seamlessly
-- **Consistent Pattern**: Same explicit acknowledgment pattern for all unsafe operations
+- **Consistent Pattern**: Same explicit conversion pattern for all unsafe operations
 
 ### Implementation Mental Model
 
@@ -194,16 +196,25 @@ This creates a clean, consistent system where the same literal works everywhere 
 Comptime types work seamlessly in function calls and complex expressions:
 
 ```hexen
-// Function parameters provide context
-func calculate(base: i64, multiplier: f32) : f64 = {
-    return base * multiplier
+// Function parameters provide context for literals
+func process_data(count: i64, threshold: f32) : void = {
+    // Function body uses parameters (implementation not shown)
 }
 
 // Literals adapt to parameter types automatically
-val result = calculate(1000, 2.5)       // 1000→i64, 2.5→f32, result is f64
+process_data(1000, 2.5)       // 1000→i64, 2.5→f32 (comptime adaptation)
 
-// Mixed operations with explicit target context
-val mixed : f64 = (42 + 3.14) : f64     // Explicit: result type f64
+// Return type provides context too
+func get_count() : i32 = {             // return type provides context
+    return 42                          // comptime_int adapts to i32 return type
+}
+func get_ratio() : f64 = {             // return type provides context
+    return 3.14                        // comptime_float adapts to f64 return type
+}
+
+// Variable declarations provide context
+val precise : f64 = 42 + 100           // comptime_int + comptime_int → comptime_int → f64
+val integer : i32 = 42 + 100           // comptime_int + comptime_int → comptime_int → i32
 ```
 
 ## Type Conversion Rules
@@ -336,7 +347,7 @@ Hexen provides two variable declaration keywords with distinct mutability charac
 #### **`val` - Immutable Variables**
 - **Single Assignment**: Can only be assigned once at declaration
 - **Compile-time Enforcement**: Reassignment attempts cause compilation errors
-- **Type Context**: Same type coercion and context rules as `mut`
+- **Type Context**: Target type provides context for comptime literal adaptation
 - **Use Case**: Constants, configuration values, computed results that shouldn't change
 
 ```hexen
@@ -523,7 +534,7 @@ val narrowed : i32 = i64_val:i32        // i64 → i32 conversion (visible data 
 3. **Explicit Choice**: Developer must consciously choose all conversions
 4. **Uniform Syntax**: Same `value:type` pattern everywhere
 5. **Performance Clarity**: Conversion costs are obvious
-6. **Safety**: Prevents accidental data loss through explicit acknowledgment
+6. **Safety**: Prevents accidental data loss through explicit conversion
 7. **Simplicity**: One rule, no exceptions
 
 #### **The Universal Pattern**
@@ -713,53 +724,6 @@ Consider using 'mut result : i32 = undef' for deferred initialization
 ```
 
 All errors suggest appropriate solutions: **add explicit type annotation** or **choose correct mutability keyword**.
-
-## Implementation Guidelines
-
-### Expression Analysis with Context
-
-The semantic analyzer should pass target type context through expression analysis:
-
-```python
-def _analyze_expression(self, node: Dict, target_type: Optional[HexenType] = None) -> HexenType:
-    """Analyze expression with optional target type context for mixed operations."""
-    
-def _analyze_binary_operation(self, node: Dict, target_type: Optional[HexenType] = None) -> HexenType:
-    """Analyze binary operation with context-guided type resolution."""
-```
-
-### Variable Declaration Enhancement
-
-Variable declarations should pass their target type as context:
-
-```python
-def _analyze_variable_declaration_unified(self, name: str, type_annotation: str, value: Dict, ...):
-    if type_annotation:
-        var_type = self._parse_type(type_annotation)
-        if value:
-            # Pass target type as context for expression analysis
-            value_type = self._analyze_expression(value, var_type)
-```
-
-### Context-Guided Resolution
-
-Binary operations should use target context to resolve ambiguous type combinations:
-
-```python
-def _resolve_binary_operation_with_context(self, left: HexenType, right: HexenType, 
-                                         op: str, target_type: Optional[HexenType], node: Dict) -> HexenType:
-    # Safe cases (no context needed)
-    if self._is_safe_binary_operation(left, right, op):
-        return self._resolve_safe_binary_operation(left, right, op, node)
-    
-    # Ambiguous cases - need context
-    if target_type is None:
-        self._error(f"Mixed-type operation '{left.value} {op} {right.value}' requires explicit result type annotation", node)
-        return HexenType.UNKNOWN
-    
-    # Context provided - guide the resolution
-    return self._resolve_with_target_context(left, right, op, target_type, node)
-```
 
 ## Examples
 
