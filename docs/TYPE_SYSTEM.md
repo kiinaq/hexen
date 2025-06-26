@@ -4,20 +4,21 @@
 
 ## Overview
 
-Hexen's type system is designed around two core principles: **"Cost Transparency"** and **"Explicit Conversions"** - making all computational costs visible while keeping common literal usage ergonomic. This philosophy creates a system where users always understand what work the computer is doing, with no hidden performance costs.
+Hexen's type system is designed around two core principles: **"Ergonomic Literals"** and **"Transparent Costs"** - making common literal usage seamless while keeping all computational costs visible. This philosophy creates a system where everyday coding feels natural, but performance-critical conversions are always explicit and visible.
 
 ## Core Philosophy
 
-### Design Principle: Transparent Computational Costs
+### Design Principle: Ergonomic Literals + Transparent Costs
 
-Hexen follows a simple, unified pattern that eliminates hidden behaviors and makes all type conversions explicit:
+Hexen follows a simple, unified pattern that makes common cases ergonomic while keeping all costs visible:
 
-- **Comptime Magic**: Literals adapt seamlessly to context (ergonomic for common cases)
-- **Explicit Conversions**: All concrete type mixing requires explicit syntax (`value:type`)
-- **Cost Visibility**: Every conversion is visible in the code (no hidden performance costs)
+- **Ergonomic Literals**: Comptime types adapt seamlessly to context (no syntax burden)
+- **Transparent Costs**: All concrete type mixing requires explicit syntax (`value:type`)
+- **Natural Usage**: Common literal patterns work without ceremony (`42`, `3.14`)
+- **Visible Conversions**: Performance costs are always explicit in the code
 - **Predictable Rules**: Same simple pattern everywhere (minimal cognitive load)
 
-This philosophy ensures that **performance-critical code** has no surprises, while **everyday literal usage** remains ergonomic.
+This philosophy ensures that **everyday coding feels natural**, while **performance-critical conversions** are always explicit and visible.
 
 ## Type Hierarchy
 
