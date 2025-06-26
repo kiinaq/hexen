@@ -51,10 +51,10 @@ Binary operations apply the TYPE_SYSTEM.md conversion rules to their results:
 | `comptime_float` | ✅ Default | `val x = 3.14 + 2.71` | Precision default when no explicit type |
 | `comptime_float` | ✅ Implicit | `val x : f32 = 3.14 + 2.71` | No cost, ergonomic adaptation |
 | **🔧 Explicit (Concrete Results)** |
-| Mixed concrete | 🔧 Explicit | `val x : f64 = i32_val + f64_val` | Conversion cost visible |
-| Precision loss | 🔧 Explicit | `val x : i32 = (f64_val + f32_val):i32` | Data loss visible |
+| Mixed concrete | 🔧 Explicit | `val x : f64 = i32_val + f64_val` | Conversion cost visible via context |
+| Precision loss | 🔧 Explicit | `val x : i32 = f64_val:i32 + f32_val:i32` | Data loss visible via conversion |
 | **❌ Forbidden** |
-| No target type | ❌ Forbidden | `val x = i32_val + f64_val` | Use explicit type annotation |
+| No context | ❌ Forbidden | `val x = i32_val + f64_val` | Use context or explicit conversion |
 
 **Key Insight**: Binary operation results follow the **same conversion rules** as individual values - maintaining complete consistency.
 
@@ -81,14 +81,14 @@ Binary operators follow standard mathematical precedence with explicit grouping 
 val result1 : i32 = 2 + 3 * 4           // 2 + (3 * 4) = 14
 val result2 : i32 = (2 + 3) * 4         // (2 + 3) * 4 = 20
 
-// Division operators have same precedence level - but different precision!
-val float_precise : i32 = ((10 / 3) * 9):i32  // (10 / 3) * 9 = (3.333... * 9) = 30.0 → 30 (explicit truncation)
-val int_truncated : i32 = (10 \ 3) * 9          // (10 \ 3) * 9 = (3 * 9) = 27 (no truncation needed)
-val mixed : f64 = 20 * (3 / 2)          // 20 * (1.5) = 30.0
+// Division operators have same precedence but different semantics:
+val float_precise : i32 = ((10 / 3) * 9):i32  // Float division: (3.333... * 9) = 30.0 → 30 (explicit conversion)
+val int_truncated = (10 \ 3) * 9          // Integer division: (3 * 9) = 27 (comptime → i32 default)
+val mixed : f64 = 20 * (3 / 2)            // 20 * (1.5) = 30.0
 
 // Comparison precedence  
-val check1 : bool = 5 > 3 && 2 < 4      // (5 > 3) && (2 < 4) = true
-val check2 : bool = 5 > 3 == 2 < 4      // (5 > 3) == (2 < 4) = true
+val check1 = 5 > 3 && 2 < 4      // (5 > 3) && (2 < 4) = true
+val check2 = 5 > 3 == 2 < 4      // (5 > 3) == (2 < 4) = true
 
 // Explicit grouping for clarity
 val complex_float : f64 = (a + b) * (c - d) / (e + f)   // Float division
@@ -272,155 +272,55 @@ Following TYPE_SYSTEM.md's core rule:
 - **Concrete types** (variables, operation results) → require explicit type annotations for precision loss
 - **Binary operation results involving concrete types** → are always concrete, never comptime
 
-### 3. Mutable Assignment with Precision Loss
+### 3. Mutable Assignment Rules
 
-When reassigning to a mutable variable with potential precision loss, explicit type annotation is required. The type annotation MUST match the mutable variable's declared type - it is not a conversion but an explicit acknowledgment of the operation:
+Mutable variable assignment follows the same TYPE_SYSTEM.md conversion rules as immutable variables. The mutable variable's declared type provides context for all subsequent assignments.
 
 ```hexen
 mut counter : i32 = 0
 mut precise : f32 = 0.0
 
-// Safe assignments - no type annotation needed
-counter = 42                          // comptime_int (adapts to i32 context)
-counter = 10 + 20                     // comptime_int + comptime_int → comptime_int (adapts to i32 context)
-precise = 3.14                        // comptime_float (adapts to f32 context)
+// ✅ Safe assignments - comptime types adapt to context (TYPE_SYSTEM.md implicit rule)
+counter = 42                          // comptime_int adapts to i32 context
+counter = 10 + 20                     // comptime_int + comptime_int → comptime_int adapts to i32 context
+precise = 3.14                        // comptime_float adapts to f32 context
 
-// ❌ Error: Type annotation must match mutable variable's type
-// counter = some_i64:i64               // Error: Type annotation must match mutable variable's type (i32)
-// counter = (some_i64 + some_f64):f64  // Error: Type annotation must match mutable variable's type (i32)
-// precise = 3.14159265359:f64          // Error: Type annotation must match mutable variable's type (f32)
+// ✅ Same concrete types work seamlessly (TYPE_SYSTEM.md identity rule)
+counter = some_i32 + other_i32        // i32 + i32 → i32 (identity, no conversion)
+precise = some_f32 * other_f32        // f32 * f32 → f32 (identity, no conversion)
 
-// ❌ Error: Potential precision loss/truncation - requires explicit type annotation
-// counter = some_i64                     // Error: Potential truncation, add ':i32' to acknowledge
-// counter = some_i64 + some_f64          // Error: Mixed types with potential truncation, add ':i32'
-// precise = 3.14159265359                // Error: Potential precision loss, add ':f32'
+// 🔧 Mixed concrete types require explicit conversions (TYPE_SYSTEM.md explicit rule)
+// counter = some_i64                     // ❌ Error: i64 → i32 requires explicit conversion
+// counter = some_i64 + some_f64          // ❌ Error: Mixed types require explicit conversion
+// precise = some_f64                     // ❌ Error: f64 → f32 requires explicit conversion
 
-// ✅ Explicit acknowledgment of precision loss/truncation (type matches mutable variable)
-counter = some_i64:i32               // Explicit: "I know this might truncate to i32"
-counter = (some_i64 + some_f64):i32  // Explicit: "I know this might truncate to i32"
-precise = 3.14159265359:f32          // Explicit: "I know this will lose precision to f32"
+counter = some_i64:i32               // ✅ Explicit: i64 → i32 (conversion cost visible)
+counter = some_i64:i32 + some_f64:i32  // ✅ Explicit: convert both operands
+precise = some_f64:f32               // ✅ Explicit: f64 → f32 (conversion cost visible)
 
-// 🎯 Critical Rule: Type annotation ONLY allowed with explicit left side type
-// ❌ FORBIDDEN: Type annotation without explicit left side type
-// val result = mixed_expr:i32         // Error: No explicit left side type to match
-// mut temp = large_value:i64          // Error: No explicit left side type to match
-
-// ✅ CORRECT: Must have explicit type on left side
-// val result : i32 = mixed_expr:i32   // Both sides have i32 - explicit acknowledgment
-// mut temp : i64 = large_value:i64    // Both sides have i64 - explicit acknowledgment
+// 🔧 Or provide context via the mutable variable type
+mut result : f64 = 0.0
+result = some_i32 + some_i64         // ✅ Context guides: i32 + i64 → f64 (cost visible via context)
 ```
 
-### 4. Comptime Type Resolution Rules
+#### Key Mutable Assignment Rules
 
-Comptime types follow the **"i32 default, explicit promotion"** rule for system programming efficiency:
-
-#### Same Comptime Type Operations
-```hexen
-// comptime_int operations default to i32 (system programmer friendly)
-val add_ints = 42 + 100             // comptime_int + comptime_int = comptime_int → i32
-val mul_ints = 42 * 100             // comptime_int * comptime_int = comptime_int → i32
-val idiv_ints = 42 \ 100            // comptime_int \ comptime_int = comptime_int → i32
-
-// Float division produces comptime_float, which defaults to f64 (consistent with TYPE_SYSTEM.md)
-val div_ints = 42 / 100          // comptime_int / comptime_int → comptime_float → f64 (default)
-
-// comptime_float operations default to f64 (precision default, consistent with TYPE_SYSTEM.md)
-val add_floats = 3.14 + 2.71     // comptime_float + comptime_float → comptime_float → f64 (default)
-val mul_floats = 3.14 * 2.71     // comptime_float * comptime_float → comptime_float → f64 (default)
-val div_floats = 3.14 / 2.71     // comptime_float / comptime_float → comptime_float → f64 (default)
-
-// ✅ Explicit type annotations make intent clear
-val explicit_div : f64 = 42 / 100   // comptime_int / comptime_int → f64 (float division)
-val explicit_add : f64 = 3.14 + 2.71 // comptime_float + comptime_float → f64
-val explicit_mul : f32 = 3.14 * 2.71 // comptime_float * comptime_float → f32
-val explicit_fdiv : f64 = 3.14 / 2.71 // comptime_float / comptime_float → f64
-```
-
-#### Mixed Comptime Types (Default to f64)
-```hexen
-// ✅Mixed comptime types produce comptime_float, which defaults to f64 (consistent with TYPE_SYSTEM.md)
-val auto_promote1 = 42 + 3.14    // comptime_int + comptime_float → comptime_float → f64 (default)
-val auto_promote2 = 42 * 3.14    // comptime_int * comptime_float → comptime_float → f64 (default)
-val auto_promote3 = 42 / 3.14    // comptime_int / comptime_float → comptime_float → f64 (default)
-val auto_promote4 = 42 - 3.14    // comptime_int - comptime_float → comptime_float → f64 (default)
-
-// Complex expressions with mixed comptime types also default to f64
-val x = 10 + (10 / 2)            // comptime_int + comptime_float → comptime_float → f64 (default)
-
-// ❌ Integer division with mixed comptime types is an error
-// val invalid = 42 \ 3.14          // Error: Integer division (\) requires integer operands
-// val also_bad = 3.14 \ 42         // Error: Integer division (\) requires integer operands
-
-// ✅ Showing the precision difference between division operators
-val precise_calc : i32 = (10 / 3) * 9        // Float division: (3.333... * 9) = 30.0 → 30
-val truncated_calc : i32 = (10 \ 3) * 9      // Integer division: (3 * 9) = 27 (early truncation)
-```
-
-#### Comptime with Concrete Types
-```hexen
-val concrete_int : i32 = 10
-val concrete_float : f64 = 3.14
-
-// Comptime types adapt to concrete types when result stays i32
-val adapt1 = concrete_int + 42       // i32 + comptime_int = i32
-// val adapt2 = concrete_float * 2   // ❌ Error: f64 result requires explicit result type
-// val adapt3 = concrete_int / 2     // ❌ Error: Float division requires explicit result type
-val adapt4 = concrete_int \ 2        // i32 \ comptime_int = i32 (integer division)
-
-// ✅ Explicit type for operations that would promote beyond i32
-val explicit_f64 : f64 = concrete_float * 2  // f64 + comptime_int → f64
-
-// ✅ Explicit type for float division
-val explicit_adapt : f64 = concrete_int / 2  // i32 / comptime_int → f64 (float division)
-```
-
-### 4. Concrete Type Mixing Rules
-
-Different concrete numeric types require **explicit handling** - no automatic promotion:
-
-#### Mixed Concrete Types (Require Explicit Context)
-```hexen
-val int_val : i32 = 10
-val long_val : i64 = 20
-val float_val : f32 = 3.14
-
-// ❌ Mixed concrete types are not automatically promoted
-// val auto_promo = int_val + long_val     // Error: Mixed concrete types need explicit handling
-// val mixed_math = int_val + float_val    // Error: Mixed concrete types need explicit handling
-
-// ✅ Explicit target type guides resolution
-val as_i64 : i64 = int_val + long_val     // Mixed concrete types → explicit target type
-val as_f32 : f32 = int_val + float_val    // Mixed concrete types → explicit target type
-val as_f64 : f64 = int_val + long_val     // Mixed concrete types → explicit target type
-```
-
-#### Division with Concrete Types
-```hexen
-val a : i32 = 10
-val b : i32 = 3
-
-// Division behavior determined by operator, not operand types
-// val float_result = a / b     // ❌ Error: Float division requires explicit result type
-val int_result = a \ b          // i32 \ i32 = i32 (integer division)
-
-// ✅ Explicit type for float division
-val explicit_float : f64 = a / b // i32 / i32 → f64 (float division)
-
-// Mixed concrete division
-val c : i64 = 20
-// val mixed_div = a / c        // ❌ Error: Mixed concrete types need explicit handling
-val explicit_div : f64 = a / c  // ✅ Mixed concrete types → explicit target type
-```
+1. **Type Consistency**: The target type of a mutable variable cannot change after declaration
+2. **Context Priority**: The mutable variable's type provides the primary context for all assignments
+3. **TYPE_SYSTEM.md Alignment**: All assignment rules follow the exact same conversion table
+4. **Comptime Adaptation**: Comptime types adapt implicitly to the mutable variable's type (no cost)
+5. **Explicit Conversions**: Concrete type mixing requires explicit `value:type` syntax (cost visible)
+6. **Predictable Behavior**: The same expression will resolve consistently based on the mutable variable's type
 
 ## Division Operations: Float vs Integer
 
-Hexen provides **two distinct division operators** that make computational intent clear and costs transparent. The beauty is that comptime types adapt naturally to both operators:
+Hexen provides **two distinct division operators** that make computational intent clear and costs transparent, following the TYPE_SYSTEM.md conversion patterns:
 
 ### Float Division (`/`) - Mathematical Division
-**Produces floating-point results** for mathematical precision, with comptime literals adapting seamlessly:
+**Produces floating-point results** for mathematical precision:
 
 ```hexen
-// ✨ Ergonomic: comptime_float adapts seamlessly (TYPE_SYSTEM.md default rule)
+// ✅ Default resolution (TYPE_SYSTEM.md default rule)
 val precise1 = 10 / 3        // comptime_int / comptime_int → comptime_float → f64 (default)
 val precise2 = 7 / 2         // comptime_int / comptime_int → comptime_float → f64 (default)
 val float_calc = 10.5 / 2.1  // comptime_float / comptime_float → comptime_float → f64 (default)
@@ -429,46 +329,48 @@ val float_calc = 10.5 / 2.1  // comptime_float / comptime_float → comptime_flo
 val precise3 : f32 = 22 / 7     // comptime_float → f32 (implicit, no cost)
 val explicit_f64 : f64 = 10 / 3 // comptime_float → f64 (implicit, no cost)
 
-// 🔧 Mixed concrete types require explicit syntax (TYPE_SYSTEM.md explicit rule)
+// 🔧 Mixed concrete types require context (TYPE_SYSTEM.md explicit rule)
 val int_val : i32 = 10
 val float_val : f64 = 3.0
-// val mixed = int_val / float_val  // ❌ Error: mixed concrete requires explicit type annotation
-val explicit_mixed : f64 = int_val / float_val  // ✅ Explicit: i32 → f64 (conversion cost visible)
+// val mixed = int_val / float_val  // ❌ Error: mixed concrete requires context or conversion
+val explicit_mixed : f64 = int_val / float_val  // ✅ Context guides conversion
 
 // 🔧 Assignment to different types requires explicit conversion (TYPE_SYSTEM.md explicit rule)
 mut result : i32 = 0
-// result = 10 / 3               // ❌ Error: f64 → i32 requires ':i32' (TYPE_SYSTEM.md rule)
+// result = 10 / 3               // ❌ Error: f64 → i32 requires explicit conversion
 result = (10 / 3):i32           // ✅ Explicit: f64 → i32 (conversion cost visible)
 ```
 
 ### Integer Division (`\`) - Efficient Truncation
-**Works naturally with integer types**, producing efficient integer results with comptime adaptation:
+**Works naturally with integer types**, producing efficient integer results:
 
 ```hexen
-// Integer division (efficient, no floating-point computation)
-val fast1 = 10 \ 3              // comptime_int \ comptime_int → comptime_int (adapts to i32 context)
-val fast2 = 7 \ 2               // comptime_int \ comptime_int → comptime_int (adapts to i32 context)
-val fast3 : i64 = 22 \ 7        // comptime_int \ comptime_int → comptime_int (adapts to i64 context)
+// ✅ Default resolution (TYPE_SYSTEM.md default rule)
+val fast1 = 10 \ 3              // comptime_int \ comptime_int → comptime_int → i32 (default)
+val fast2 = 7 \ 2               // comptime_int \ comptime_int → comptime_int → i32 (default)
 
-// Integer division with concrete types
+// ✅ Implicit adaptation to different integer types (TYPE_SYSTEM.md implicit rule)
+val fast3 : i64 = 22 \ 7        // comptime_int → i64 (implicit, no cost)
+
+// ✅ Integer division with concrete types
 val a : i32 = 10
 val b : i32 = 3
-val efficient = a \ b           // i32 \ i32 → comptime_int (adapts to i32 context)
+val efficient = a \ b           // i32 \ i32 → i32 (identity, no conversion)
 
 // ❌ Float operands with integer division is an error
 // val invalid = 10.5 \ 2.1     // Error: Integer division requires integer operands
 // val also_bad = 3.14 \ 42     // Error: Integer division requires integer operands
 
-// Mixed integer types require explicit handling
+// 🔧 Mixed integer types require context (TYPE_SYSTEM.md explicit rule)
 val c : i64 = 20
-// val mixed = a \ c            // ❌ Error: Mixed concrete types need explicit handling
-val explicit_mixed : i64 = a \ c  // ✅ Mixed concrete types → explicit target type
+// val mixed = a \ c            // ❌ Error: Mixed concrete types need context or conversion
+val explicit_mixed : i64 = a \ c  // ✅ Context guides conversion
 
 // Mutable assignment with integer division
 mut result : i32 = 0
-result = a \ b                  // ✅ Safe: comptime_int adapts to i32 context
-// result = c \ b               // ❌ Error: Mixed concrete types need explicit handling
-result = (c \ b):i32            // ✅ Explicit truncation from i64
+result = a \ b                  // ✅ Identity: i32 \ i32 → i32 (no conversion)
+// result = c \ b               // ❌ Error: Mixed concrete types need context or conversion
+result = (c:i32) \ b            // ✅ Explicit conversion then identity
 ```
 
 ### Design Philosophy
@@ -478,231 +380,60 @@ result = (c \ b):i32            // ✅ Explicit truncation from i64
 - **`\` → Integer result**: User sees integer type, knows efficient integer operation
 
 #### **Mathematical Honesty** 
-- **`10 / 3`** naturally produces a fraction → requires explicit float type
-- **`10 \ 3`** explicitly requests truncation → produces comptime_int that adapts to context
+- **`10 / 3`** naturally produces a fraction → defaults to f64, adapts to context
+- **`10 \ 3`** explicitly requests truncation → defaults to i32, adapts to context
 
 #### **No Hidden Magic**
 - Division behavior determined by **operator choice**, not operand types
-- Comptime types adapt to context consistently
-- Clear, predictable semantics
+- Comptime types adapt to context following TYPE_SYSTEM.md rules
+- All conversions follow the same patterns as individual values
 
 ### Truncation Rules
 
-Float-to-integer conversion follows standard truncation rules:
+Float-to-integer conversion follows standard truncation rules from TYPE_SYSTEM.md:
 
 ```hexen
-// Truncation towards zero
+// Truncation towards zero (TYPE_SYSTEM.md explicit conversion rule)
 mut result : i32 = 0
-result = (10.9 / 2.0):i32     // 5.45 → 5 
-result = (-10.9 / 2.0):i32    // -5.45 → -5
+result = (10.9 / 2.0):i32     // 5.45 → 5 (explicit conversion)
+result = (-10.9 / 2.0):i32    // -5.45 → -5 (explicit conversion)
 
 // Exact conversions when possible
-result = (20.0 / 4.0):i32     // 5.0 → 5 (exact)
+result = (20.0 / 4.0):i32     // 5.0 → 5 (exact, but still explicit)
 ```
 
-## Complex Expression Resolution
+## Function Return Context
 
-The target type guides the **entire expression tree**, not just individual operations. All expressions start with comptime types and adapt to their context.
-
-### Function Return Context (Consistent with TYPE_SYSTEM.md)
-
-Function return types provide context for binary operations, just like variable assignments:
+Function return types provide context for binary operations, following TYPE_SYSTEM.md patterns:
 
 ```hexen
 // Return type provides context for binary operations
-func get_count() : i32 = 42 + 100       // comptime_int + comptime_int → comptime_int (adapts to i32)
-func get_ratio() : f64 = 42 + 3.14      // comptime_int + comptime_float → comptime_float (adapts to f64)
-func precise_calc() : f32 = 10 / 3      // Float division → comptime_float (adapts to f32)
+func get_count() : i32 = 42 + 100       // comptime_int + comptime_int → i32 (implicit)
+func get_ratio() : f64 = 42 + 3.14      // comptime_int + comptime_float → f64 (implicit)
+func precise_calc() : f32 = 10 / 3      // Float division → f32 (implicit)
 
 // Mixed concrete types in return context
-func mixed_sum(a: i32, b: i64) : f64 = a + b  // i32 + i64 → comptime_int (adapts to f64)
+func mixed_sum(a: i32, b: i64) : f64 = a + b  // Context guides: i32 + i64 → f64
 ```
 
 ## Complex Expression Resolution
 
-The target type guides the **entire expression tree**, not just individual operations. All expressions start with comptime types and adapt to their context.
-
-### Nested Operations with Context
+Complex expressions follow the same TYPE_SYSTEM.md patterns as simple operations:
 
 ```hexen
 val a : i32 = 10
 val b : i64 = 20
 val c : f32 = 3.14
 
-// Complex expression resolution with comptime types
-// 1. b * c: i64 * f32 → comptime_float (requires explicit type)
-// 2. a + (b * c): i32 + comptime_float → comptime_float (requires explicit type)
-// 3. Final result is coerced to target type
-val result_f64 : f64 = a + b * c    // Explicit context guides entire expression
+// ❌ Error: Mixed types require context
+// val result = a + b * c
 
-// ❌ Error: Mixed types require explicit result type
-// val result = a + b
+// ✅ Context guides entire expression resolution
+val result : f64 = a + b * c    // Context guides: i32 + (i64 * f32) → f64
 
-// ✅ Explicit target type for mixed types
-val result_i32 : i32 = a + b        // comptime_int adapts to i32 context
-val result_f64_2 : f64 = (a + 42) * (b + 3.14)  // comptime_float adapts to f64 context
+// ✅ Explicit conversions work too
+val result2 = a:f64 + b:f64 * c:f64  // All explicit conversions
 ```
-
-### Expression Resolution Strategy
-
-Hexen uses a **two-phase resolution approach** that leverages our comptime type system:
-
-#### Phase 1: Comptime Type Analysis
-1. **Start with comptime types** for all literals and operations
-2. **Preserve comptime types** through operations when possible
-3. **Identify promotion points** where comptime types would change
-
-#### Phase 2: Context-Guided Resolution
-1. **Apply target context** to guide type resolution
-2. **Convert comptime types** to concrete types based on context
-3. **Handle precision/truncation** explicitly when needed
-
-### Resolution Examples
-
-#### Comptime Expression with Target Context
-```hexen
-val complex : f32 = ((10 + 20) * 3.14) / (5 + 2)
-// Phase 1 - Comptime Analysis:
-// - (10 + 20): comptime_int + comptime_int = comptime_int
-// - 3.14: comptime_float 
-// - comptime_int * comptime_float = comptime_float (promotion)
-// - (5 + 2): comptime_int + comptime_int = comptime_int
-// - comptime_float / comptime_int = comptime_float
-// Expression type: comptime_float
-
-// Phase 2 - Context Resolution:
-// - Target type: f32
-// - Convert comptime_float → f32
-// - Result: 13.457...f32
-```
-
-#### Mixed Concrete Types with Context
-```hexen
-val a : i32 = 10
-val b : i64 = 20
-// ❌ Error without explicit type:
-// val result = a + b   // Error: Mixed concrete types require explicit result type
-
-// ✅ With explicit type:
-val result : f64 = a + b // comptime_int adapts to f64 context
-// Stepwise:
-// 1. a (i32) + b (i64) → comptime_int
-// 2. comptime_int adapts to f64 context
-// Result: 30.0f64
-```
-
-## Assignment Context Propagation
-
-Assignment context in Hexen follows the **"Ergonomic Literals + Transparent Costs"** philosophy, where comptime literals adapt naturally to the target type context while concrete type mixing requires explicit acknowledgment for cost transparency.
-
-### Assignment Statement Context
-
-Assignment statements use the target variable's type as context for expression resolution. For mutable variables (`mut`), the target type remains constant throughout the variable's lifetime. Comptime types adapt to this context naturally.
-
-#### Mutable Assignment Behavior
-
-```hexen
-mut counter : i32 = 0
-mut precise : f32 = 0.0
-
-// Safe assignments - comptime types adapt to context
-counter = 42                          // comptime_int adapts to i32 context
-counter = 10 + 20                     // comptime_int + comptime_int → comptime_int adapts to i32 context
-precise = 3.14                        // comptime_float adapts to f32 context
-
-// Mixed concrete types produce concrete results - may need explicit acknowledgment
-// precise = some_i32 + some_f64      // ❌ Error: i32 + f64 → f64, needs ':f32' for precision loss
-precise = (some_i32 + some_f64):f32  // ✅ Explicit: i32 + f64 → f64, then f64 → f32 (precision loss acknowledged)
-counter = some_i32 + 42               // ✅ OK: i32 + comptime_int → i32 (comptime adapts, result is concrete)
-
-// ❌ Error: Type annotation must match mutable variable's type
-// counter = some_i64:i64               // Error: Type annotation must match mutable variable's type (i32)
-// counter = (some_i64 + some_f64):f64  // Error: Type annotation must match mutable variable's type (i32)
-// precise = 3.14159265359:f64          // Error: Type annotation must match mutable variable's type (f32)
-
-// ✅ Explicit acknowledgment of precision loss/truncation (type matches mutable variable)
-counter = some_i64:i32               // Explicit: "I know this might truncate to i32"
-counter = (some_i64 + some_f64):i32  // Explicit: "I know this might truncate to i32"
-precise = 3.14159265359:f32          // Explicit: "I know this will lose precision to f32"
-```
-
-#### Type Annotation Precedence
-
-When required, the type annotation has highest precedence and applies to the entire expression:
-
-```hexen
-mut result : i32 = 0
-
-// These are equivalent - type annotation applies to whole expression
-result = (a + b):i32                  // (a + b):i32
-result = (a + b * c):i32              // (a + b * c):i32
-result = ((a + b) * c):i32            // ((a + b) * c):i32
-
-// Complex expressions with potential precision loss
-result = (some_i64 * some_f64):i32    // (some_i64 * some_f64):i32
-result = ((a + b) * (c + d)):i32      // ((a + b) * (c + d)):i32
-```
-
-#### When Type Annotations Are Required
-
-The compiler requires explicit type annotations in these cases, and the type annotation MUST match the mutable variable's declared type:
-
-1. **Integer Truncation**:
-```hexen
-mut counter : i32 = 0
-// ❌ Error: Type annotation must match mutable variable's type
-// counter = some_i64:i64               // Error: Type annotation must match mutable variable's type (i32)
-
-// ❌ Error: Potential truncation without type annotation
-// counter = some_i64                     // Error: Add ': i32' to acknowledge truncation
-
-// ✅ Explicit acknowledgment (type matches mutable variable)
-counter = some_i64:i32               // Explicit truncation to i32
-```
-
-2. **Float Precision Loss**:
-```hexen
-mut precise : f32 = 0.0
-// ❌ Error: Type annotation must match mutable variable's type
-// precise = 3.14159265359:f64          // Error: Type annotation must match mutable variable's type (f32)
-// precise = (some_f64 * 2.0):f64       // Error: Type annotation must match mutable variable's type (f32)
-
-// ❌ Error: Concrete f64 types need explicit acknowledgment for precision loss  
-// precise = some_f64                     // Error: f64 → f32 needs ': f32' to acknowledge precision loss
-// precise = some_f64 * 2.0               // Error: f64 * comptime_int → f64, needs ': f32' for precision loss
-
-// ✅ comptime_float adapts implicitly to f32 (TYPE_SYSTEM.md rule)
-precise = 3.14159265359               // ✅ OK: comptime_float adapts to f32 context (implicit, safe)
-// ✅ Concrete f64 needs explicit acknowledgment (TYPE_SYSTEM.md rule) 
-precise = some_f64:f32               // Explicit: f64 → f32 (precision loss acknowledged)
-precise = (some_f64 * 2.0):f32       // Explicit: f64 → f32 (precision loss acknowledged)
-```
-
-3. **Mixed Types with Potential Issues**:
-```hexen
-mut result : i32 = 0
-// ❌ Error: Type annotation must match mutable variable's type
-// result = (some_i64 + some_f64):f64   // Error: Type annotation must match mutable variable's type (i32)
-// result = (some_f64 * some_i32):f64   // Error: Type annotation must match mutable variable's type (i32)
-
-// ❌ Error: Mixed types with potential truncation without type annotation
-// result = some_i64 + some_f64           // Error: Add ': i32' to acknowledge truncation
-// result = some_f64 * some_i32           // Error: Add ': i32' to acknowledge truncation
-
-// ✅ Explicit acknowledgment (type matches mutable variable)
-result = (some_i64 + some_f64):i32    // Explicit truncation to i32
-result = (some_f64 * some_i32):i32    // Explicit truncation to i32
-```
-
-#### Mutable Assignment Rules
-
-1. **Type Consistency**: The target type of a mutable variable cannot change
-2. **Context Priority**: The mutable variable's type provides the primary context for all assignments
-3. **Comptime Adaptation**: Comptime types naturally adapt to the target type's context
-4. **Explicit Precision Loss**: Type annotations are required only when there's potential precision loss or truncation
-5. **Type Annotation Match**: Type annotations MUST match the mutable variable's declared type - they are not conversions but explicit acknowledgments
-6. **Highest Precedence**: When used, type annotations apply to the entire expression
-7. **Predictable Behavior**: The same expression will resolve consistently based on the mutable variable's type
 
 ## Grammar Extensions
 
