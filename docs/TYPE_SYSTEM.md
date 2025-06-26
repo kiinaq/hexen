@@ -135,11 +135,9 @@ mut pi : f64 = 3.14         // ✅ Explicit type required
 // mut bad_pi = 3.14        // ❌ Error: mut requires explicit type
 ```
 
-
-
 ### Design Philosophy
 
-The comptime system embodies Hexen's **"Cost Transparency + Ergonomic Literals"** principle:
+The comptime system embodies Hexen's **"Ergonomic Literals + Transparent Costs"** principle:
 
 - **Ergonomic Literals**: Comptime types adapt seamlessly (no conversion cost at runtime)
 - **Explicit Conversions**: All concrete type mixing requires visible syntax
@@ -189,6 +187,11 @@ Think of comptime types as "smart literals" that ask their context: *"What type 
 2. **Type Checker**: Propagates target types as context through expressions  
 3. **Resolution**: Comptime types check if they can safely become the target type
 4. **Error**: If conversion is unsafe or no context exists, compilation fails with helpful message
+
+Think of comptime types as "adaptive literals"
+42 + 100    // Two comptime_int values asking: "What type should we become?"
+// In context: val result : f64 = 42 + 100
+// They "negotiate" and both become f64 (seamless)
 
 This creates a clean, consistent system where the same literal works everywhere without sacrificing type safety.
 
