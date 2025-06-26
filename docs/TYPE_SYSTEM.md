@@ -4,19 +4,20 @@
 
 ## Overview
 
-Hexen's type system is designed around the principle of **"Explicit Danger, Implicit Safety"** - making dangerous or ambiguous operations explicit while keeping safe operations seamlessly implicit. This philosophy creates a system that is both ergonomic for common cases and safe for complex scenarios.
+Hexen's type system is designed around two core principles: **"Cost Transparency"** and **"Explicit Conversions"** - making all computational costs visible while keeping common literal usage ergonomic. This philosophy creates a system where users always understand what work the computer is doing, with no hidden performance costs.
 
 ## Core Philosophy
 
-### Design Principle: Context-Guided Type Resolution
+### Design Principle: Transparent Computational Costs
 
-Hexen follows a unified pattern where **assignment target types serve as context anchors** that guide the resolution of complex expressions. This pattern is consistent across all language features:
+Hexen follows a simple, unified pattern that eliminates hidden behaviors and makes all type conversions explicit:
 
-- **Safe + Unambiguous = Implicit** (comptime type coercion)
-- **Dangerous + Explicit Context = Allowed** (`undef` with type annotation)  
-- **Ambiguous = Error** (require explicit type context)
+- **Comptime Magic**: Literals adapt seamlessly to context (ergonomic for common cases)
+- **Explicit Conversions**: All concrete type mixing requires explicit syntax (`value:type`)
+- **Cost Visibility**: Every conversion is visible in the code (no hidden performance costs)
+- **Predictable Rules**: Same simple pattern everywhere (minimal cognitive load)
 
-This same pattern extends to binary operations and mixed-type expressions.
+This philosophy ensures that **performance-critical code** has no surprises, while **everyday literal usage** remains ergonomic.
 
 ## Type Hierarchy
 
@@ -70,18 +71,21 @@ This creates three problems:
 2. **Inflexibility**: Hard to change types without updating all literals
 3. **Inconsistency**: Different rules for integers vs floats
 
-### The Solution: Context-Adaptive Literals
+### The Solution: Smart Literals with Explicit Concrete Conversions
 
-Hexen solves this with **comptime types** - special types that literals have initially, which then adapt to their usage context:
+Hexen solves this with **comptime types** - special types that literals have initially, which adapt to context. For concrete types, all conversions are explicit:
 
 ```hexen
-// ✨ Safe conversions are implicit, unsafe conversions are explicit
-val small : i32 = 42    // comptime_int → i32 (safe, implicit)
-val large : i64 = 42    // comptime_int → i64 (safe, implicit)
-val precise : f64 = 42  // comptime_int → f64 (safe, implicit)
-val double : f64 = 3.14 // comptime_float → f64 (safe, implicit)
-val single : f32 = 3.14 // comptime_float → f32 (safe, implicit)
-val truncated : i32 = 3.14 : i32 // comptime_float → i32 (unsafe, explicit)
+// ✨ Comptime literals adapt seamlessly (ergonomic)
+val small : i32 = 42    // comptime_int → i32 (implicit, no cost)
+val large : i64 = 42    // comptime_int → i64 (implicit, no cost)
+val precise : f64 = 42  // comptime_int → f64 (implicit, no cost)
+val double : f64 = 3.14 // comptime_float → f64 (implicit, no cost)
+val single : f32 = 3.14 // comptime_float → f32 (implicit, no cost)
+
+// 🔧 All concrete conversions are explicit (transparent costs)
+val converted : i32 = float_val:i32     // f64 → i32 (explicit conversion, visible cost)
+val widened : i64 = int_val:i64         // i32 → i64 (explicit conversion, visible cost)
 ```
 
 ### How Comptime Types Work
@@ -132,12 +136,12 @@ mut pi : f64 = 3.14         // ✅ Explicit type required
 
 ### Design Philosophy
 
-The comptime system embodies Hexen's **"Explicit Danger, Implicit Safety"** principle:
+The comptime system embodies Hexen's **"Cost Transparency + Ergonomic Literals"** principle:
 
-- **Implicit Safety**: Safe conversions (within comptime table) require no extra syntax
-- **Explicit Danger**: Unsafe conversions (outside comptime table) require explicit acknowledgment
-- **No Hidden Behavior**: Type resolution is predictable and visible
-- **Fail Fast**: Unsafe conversions are caught at compile time
+- **Ergonomic Literals**: Comptime types adapt seamlessly (no conversion cost at runtime)
+- **Explicit Conversions**: All concrete type mixing requires visible syntax
+- **Cost Visibility**: Every conversion is transparent in the code
+- **Predictable Rules**: Simple, consistent behavior everywhere
 
 #### **The Safe vs Unsafe Conversion Rule**
 
@@ -202,84 +206,125 @@ val result = calculate(1000, 2.5)       // 1000→i64, 2.5→f32, result is f64
 val mixed : f64 = (42 + 3.14) : f64     // Explicit: result type f64
 ```
 
-## Type Coercion Rules
+## Type Conversion Rules
 
-### 1. Identity Coercion
-Any type can coerce to itself:
+### 1. Identity (No Conversion Needed)
+Same types work automatically:
 ```hexen
-val x : i32 = some_i32_value  // i32 → i32
+val x : i32 = some_i32_value  // i32 → i32 (no conversion)
+val y : f64 = some_f64_value  // f64 → f64 (no conversion)
 ```
 
-### 2. Comptime Type Coercion (The Magic)
+### 2. Comptime Type Magic (Ergonomic Literals)
 
-**comptime_int** can coerce to:
+**comptime_int** can adapt to:
 - `i32`, `i64` (integer types)
 - `f32`, `f64` (float types)
-- **Cannot** coerce to `bool`, `string` (type safety)
+- **Cannot** adapt to `bool`, `string` (not meaningful)
 
-**comptime_float** can coerce to:
-- `f32`, `f64` (float types - implicit, safe)
-- `i32`, `i64` (integer types - **explicit only**, requires `: i32` or `: i64` annotation)
-- **Cannot** coerce to `bool`, `string` (not meaningful)
-
-**Key Rule**: All transformations **within the table** are implicit (safe). Transformations **outside the table** require explicit type annotation.
+**comptime_float** can adapt to:
+- `f32`, `f64` (float types)
+- **Cannot** adapt to `bool`, `string`, `i32`, `i64` (not meaningful without explicit conversion)
 
 ```hexen
-// ✅ Safe implicit comptime coercions
-val int_var : i32 = 42      // comptime_int → i32 (implicit, safe)
-val float_var : f64 = 42    // comptime_int → f64 (implicit, safe)
-val precise : f32 = 3.14    // comptime_float → f32 (implicit, safe)
+// ✅ Comptime literals adapt seamlessly (ergonomic)
+val int_var : i32 = 42      // comptime_int → i32 (implicit, no cost)
+val float_var : f64 = 42    // comptime_int → f64 (implicit, no cost)
+val precise : f32 = 3.14    // comptime_float → f32 (implicit, no cost)
 
-// ❌ Implicit coercions that lose data or meaning (compilation errors)
-// val bad_bool : bool = 42    // Error: comptime_int → bool requires explicit logic
-// val bad_string : string = 3.14 // Error: comptime_float → string not meaningful
-// val bad_int : i32 = 3.14    // Error: comptime_float → i32 requires explicit ': i32'
+// ❌ Comptime types that don't make sense (compilation errors)
+// val bad_bool : bool = 42        // Error: use explicit logic instead
+// val bad_string : string = 3.14  // Error: not meaningful
+// val bad_int : i32 = 3.14        // Error: use explicit conversion
 
-// ✅ Explicit coercions with precision loss (allowed with acknowledgment)
-val explicit_int : i32 = 3.14 : i32    // comptime_float → i32 (explicit truncation)
-val explicit_logic : bool = if 42 != 0 { true } else { false }  // Explicit boolean logic
-
-// 🎯 Critical Pattern: Type annotation ALWAYS at end, ALWAYS matches left side
-//    └─ target type ─┘   └─ expression ─┘ : └─ SAME type ─┘
-//    This is NOT conversion - it's explicit acknowledgment of result type
+// ✅ Explicit conversions when needed
+val explicit_int : i32 = 3.14:i32   // comptime_float → i32 (explicit conversion)
+val explicit_logic : bool = (42 != 0)  // Explicit boolean logic
 ```
 
-### 3. Regular Type Widening
+### 3. Concrete Type Conversions (All Explicit)
 
-For concrete (non-comptime) types, widening coercion is allowed:
+For concrete (non-comptime) types, **all conversions require explicit syntax**:
 
 ```hexen
-// Integer widening
-val wide : i64 = i32_value  // i32 → i64
+// 🔧 All concrete conversions are explicit (transparent costs)
+val widened : i64 = i32_value:i64       // i32 → i64 (explicit widening)
+val precise : f64 = f32_value:f64       // f32 → f64 (explicit widening)
+val converted : f32 = i32_value:f32     // i32 → f32 (explicit conversion)
+val narrowed : i32 = i64_value:i32      // i64 → i32 (explicit narrowing, potential data loss)
+val truncated : i32 = f64_value:i32     // f64 → i32 (explicit truncation, data loss)
 
-// Float widening  
-val precise : f64 = f32_value  // f32 → f64
-
-// Integer to float conversion
-val as_float : f32 = i32_value  // i32 → f32
-val as_double : f64 = i64_value // i64 → f64
-
-// Precision loss requires explicit acknowledgment
-val may_lose_precision : f32 = i64_value : f32  // i64 → f32 (explicit: may lose precision)
+// ❌ No automatic widening or conversion
+// val auto_wide : i64 = i32_value      // Error: use i32_value:i64
+// val auto_convert : f64 = f32_value   // Error: use f32_value:f64
 ```
 
-**Widening Rules:**
-- `i32` → `{i64, f32, f64}`
-- `i64` → `{f32, f64}` (may lose precision for very large integers)
-- `f32` → `{f64}`
+**Conversion Philosophy:**
+- **All costs visible**: Every conversion is explicit in the code
+- **No surprises**: No hidden performance costs or data loss
+- **Uniform syntax**: `value:target_type` for all concrete conversions
+
+## Type Conversion Rules Summary
+
+### Quick Reference Table
+
+| From Type | To Type | Conversion | Required Syntax | Notes |
+|-----------|---------|------------|-----------------|-------|
+| **Comptime Types (Ergonomic Literals)** |
+| `comptime_int` | `i32` | ✅ Default | `val x = 42` | System default when no explicit type |
+| `comptime_int` | `i32` | ✅ Implicit | `val x : i32 = 42` | No cost, ergonomic |
+| `comptime_int` | `i64` | ✅ Implicit | `val x : i64 = 42` | No cost, ergonomic |
+| `comptime_int` | `f32` | ✅ Implicit | `val x : f32 = 42` | No cost, ergonomic |
+| `comptime_int` | `f64` | ✅ Implicit | `val x : f64 = 42` | No cost, ergonomic |
+| `comptime_int` | `bool` | ❌ Forbidden | N/A | Use explicit logic: `(42 != 0)` |
+| `comptime_int` | `string` | ❌ Forbidden | N/A | Not meaningful |
+| `comptime_float` | `f32` | ✅ Implicit | `val x : f32 = 3.14` | No cost, ergonomic |
+| `comptime_float` | `f64` | ✅ Default | `val x = 3.14` | Precision default when no explicit type |
+| `comptime_float` | `f64` | ✅ Implicit | `val x : f64 = 3.14` | No cost, ergonomic |
+| `comptime_float` | `i32` | 🔧 Explicit | `val x : i32 = 3.14:i32` | Conversion cost visible |
+| `comptime_float` | `i64` | 🔧 Explicit | `val x : i64 = 3.14:i64` | Conversion cost visible |
+| `comptime_float` | `bool` | ❌ Forbidden | N/A | Use explicit logic: `(3.14 != 0.0)` |
+| `comptime_float` | `string` | ❌ Forbidden | N/A | Not meaningful |
+| **Concrete Types (All Explicit)** |
+| `i32` | `i64` | 🔧 Explicit | `val x : i64 = i32_val:i64` | Conversion cost visible |
+| `i32` | `f32` | 🔧 Explicit | `val x : f32 = i32_val:f32` | Conversion cost visible |
+| `i32` | `f64` | 🔧 Explicit | `val x : f64 = i32_val:f64` | Conversion cost visible |
+| `i64` | `i32` | 🔧 Explicit | `val x : i32 = i64_val:i32` | Conversion + data loss visible |
+| `i64` | `f32` | 🔧 Explicit | `val x : f32 = i64_val:f32` | Conversion + precision loss visible |
+| `i64` | `f64` | 🔧 Explicit | `val x : f64 = i64_val:f64` | Conversion cost visible |
+| `f32` | `f64` | 🔧 Explicit | `val x : f64 = f32_val:f64` | Conversion cost visible |
+| `f64` | `f32` | 🔧 Explicit | `val x : f32 = f64_val:f32` | Conversion + precision loss visible |
+| `f32` | `i32` | 🔧 Explicit | `val x : i32 = f32_val:i32` | Conversion + data loss visible |
+| `f64` | `i32` | 🔧 Explicit | `val x : i32 = f64_val:i32` | Conversion + data loss visible |
+| `f32` | `i64` | 🔧 Explicit | `val x : i64 = f32_val:i64` | Conversion + data loss visible |
+| `f64` | `i64` | 🔧 Explicit | `val x : i64 = f64_val:i64` | Conversion + data loss visible |
+| **Identity (No Conversion)** |
+| Any type | Same type | ✅ Identity | `val x : i32 = i32_val` | No conversion needed |
+| **Forbidden Conversions** |
+| Any numeric | `bool` | ❌ Forbidden | N/A | Use explicit comparison: `(value != 0)` |
+| Any numeric | `string` | ❌ Forbidden | N/A | Use string formatting functions |
+| `bool` | Any numeric | ❌ Forbidden | N/A | Use conditional expression |
+| `string` | Any numeric | ❌ Forbidden | N/A | Use parsing functions |
+
+### Legend
+
+- **✅ Default**: Default resolution when no explicit type is provided (comptime types only)
+- **✅ Implicit**: Happens automatically, no conversion cost (comptime types only)
+- **🔧 Explicit**: Requires explicit syntax (`value:type`), conversion cost visible
+- **❌ Forbidden**: Not allowed, compilation error
 
 ## Binary Operations
 
-Binary operations in Hexen follow the **context-guided resolution** strategy with consistent, pedantic rules that eliminate hidden behaviors. Due to the complexity and importance of this topic, it has been moved to a dedicated specification:
+Binary operations in Hexen follow the **explicit conversion** strategy with transparent cost visibility. All concrete type mixing requires explicit conversions. Due to the complexity and importance of this topic, it has been moved to a dedicated specification:
 
 **→ See [BINARY_OPS.md](BINARY_OPS.md) for complete binary operations specification**
 
 Key highlights:
-- **Consistent type preservation**: Operations maintain operand types unless explicitly guided by context
-- **No hidden promotions**: Mixed comptime types (42 + 3.14) require explicit context
-- **Context-dependent division**: integer vs float division based on target type
-- **Explicit mixed-type resolution**: All ambiguous operations require type annotations
-- **Precedence hierarchy** following mathematical conventions
+- **Explicit conversions**: All concrete type mixing requires `value:type` syntax
+- **Cost transparency**: Every conversion is visible in the code
+- **Comptime adaptation**: Literals adapt seamlessly (ergonomic for common cases)
+- **No hidden costs**: No automatic widening or promotion
+- **Predictable rules**: Simple, consistent behavior everywhere
 - **Implementation guidelines** for semantic analyzer
 
 ## Assignment and Context
@@ -312,12 +357,13 @@ val derived : f64 = result * 2.5       // ✅ OK: initialization with expression
 
 ```hexen
 mut counter : i32 = 0                  // ✅ OK: explicit type required
-counter = 42                           // ✅ OK: reassignment uses i32 context
-counter = compute_value()              // ✅ OK: reassignment uses i32 context
-counter = large_value : i32            // ✅ OK: reassignment with explicit acknowledgment
+counter = 42                           // ✅ OK: comptime_int adapts to i32 context
+counter = compute_value()              // ✅ OK: if compute_value() returns i32
+counter = large_value:i32              // ✅ OK: explicit conversion (e.g., i64 → i32)
 
 // mut bad_counter = 0                 // ❌ Error: mut requires explicit type
 // counter = "text"                    // ❌ Error: Cannot change type (i32 → string)
+// counter = float_val                 // ❌ Error: use float_val:i32 for explicit conversion
 ```
 
 #### **Key Principle: Different Safety Models for Different Use Cases**
@@ -404,149 +450,118 @@ double = 3.14              // comptime_float → f64
 double = 3.14159265359     // comptime_float → f64
 ```
 
-### Type Annotations for Precision Loss
+### Explicit Conversions for Mixed Types  
 
-When reassignment might cause precision loss or truncation, explicit type annotations are required. This follows our "Explicit Danger, Implicit Safety" principle. **Important**: The type annotation must match the mutable variable's declared type - it is not a conversion but an explicit acknowledgment of the variable's type.
+When reassignment involves different concrete types, explicit conversions are required. This makes all computational costs visible and prevents accidental data loss.
 
-#### Integer Precision Loss
+#### Integer Conversions
 
 ```hexen
 mut small : i32 = 0
 val large : i64 = 9223372036854775807  // Maximum i64 value
 
-// ❌ Error: Potential truncation
-// small = large                        // Error: Potential truncation, add ': i32' to acknowledge
-// small = large : i64                  // Error: Type annotation must match variable's type (i32)
+// ❌ Error: No automatic conversion between concrete types
+// small = large                        // Error: use explicit conversion large:i32
 
-// ✅ Explicit acknowledgment of truncation
-small = large : i32                    // Explicit: "I know this will truncate to i32"
-small = 9223372036854775807 : i32      // Explicit: "I know this will truncate to i32"
+// ✅ Explicit conversion with visible cost
+small = large:i32                      // Explicit: i64 → i32 conversion (potential data loss)
+small = 9223372036854775807:i32        // Explicit: comptime_int → i32 conversion
 ```
 
-#### Float Precision Loss
+#### Float Conversions
 
 ```hexen
 mut single : f32 = 0.0
 val double : f64 = 3.141592653589793   // More precise than f32 can represent
 
-// ❌ Error: Potential precision loss
-// single = double                      // Error: Potential precision loss, add ': f32' to acknowledge
-// single = double : f64                // Error: Type annotation must match variable's type (f32)
+// ❌ Error: No automatic conversion between concrete types
+// single = double                      // Error: use explicit conversion double:f32
 
-// ✅ Explicit acknowledgment of precision loss
-single = double : f32                   // Explicit: "I know this will lose precision to f32"
-single = 3.141592653589793 : f32        // Explicit: "I know this will lose precision to f32"
+// ✅ Explicit conversion with visible cost
+single = double:f32                    // Explicit: f64 → f32 conversion (precision loss)
+single = 3.141592653589793:f32         // Explicit: comptime_float → f32 conversion
 ```
 
-#### Mixed Type Precision Loss
+#### Cross-Type Conversions
 
 ```hexen
 mut precise : f32 = 0.0
 val big_int : i64 = 9223372036854775807
 
-// ❌ Error: Mixed types with potential precision loss
-// precise = big_int                    // Error: Mixed types with potential precision loss, add ': f32'
-// precise = big_int : i64              // Error: Type annotation must match variable's type (f32)
+// ❌ Error: No automatic conversion between different concrete types
+// precise = big_int                    // Error: use explicit conversion big_int:f32
 
-// ✅ Explicit acknowledgment
-precise = big_int : f32                 // Explicit: "I know this will lose precision to f32"
-precise = 9223372036854775807 : f32     // Explicit: "I know this will lose precision to f32"
+// ✅ Explicit conversion with visible cost
+precise = big_int:f32                  // Explicit: i64 → f32 conversion (precision loss)
+precise = 9223372036854775807:f32      // Explicit: comptime_int → f32 conversion
 ```
 
-### Type Annotation Rules
+### Explicit Conversion Syntax
 
-Type annotations (`: type`) follow a strict, consistent pattern throughout Hexen:
+All concrete type conversions use the `value:type` syntax for maximum transparency:
 
-#### **Fundamental Rule: Explicit Result Type Declaration**
-Type annotations are **always** an explicit remark of the **result type**:
-- **Position**: Must be at the end of the right-hand side expression
-- **Match Requirement**: Must exactly match the left-hand side type  
-- **Purpose**: Explicit acknowledgment, not type conversion
+#### **Fundamental Rule: Visible Conversion Costs**
+The `value:type` syntax makes every conversion explicit and visible:
+- **Position**: Immediately after the value being converted
+- **Purpose**: Transparent type conversion with visible cost
+- **Scope**: Applies to the value immediately before the colon
 
 ```hexen
-// ✅ Correct pattern: result type explicitly declared at end
-val variable : i32 = expression : i32
-mut variable : f32 = expression : f32
+// ✅ Explicit conversion syntax
+val widened : i64 = i32_val:i64         // i32 → i64 conversion (visible cost)
+val converted : f32 = i64_val:f32       // i64 → f32 conversion (visible cost)
+val narrowed : i32 = i64_val:i32        // i64 → i32 conversion (visible data loss)
 
-// ❌ Wrong patterns
-// val variable : i32 = expression : f64    // Error: annotation doesn't match left side
-// val variable : i32 = : i32 expression    // Error: annotation not at end
-// val variable : i32 = (expression : f64)  // Error: nested annotation doesn't match
-// val variable = expression : i32          // Error: type annotation requires explicit left side type
+// ❌ No automatic conversions
+// val auto_wide : i64 = i32_val        // Error: use i32_val:i64
+// val auto_narrow : i32 = i64_val      // Error: use i64_val:i32
 ```
 
 #### **Design Philosophy**
-1. **Type Match**: Type annotations must match the target variable's declared type
-2. **Not Conversion**: Type annotations are not conversions but explicit acknowledgments  
-3. **Scope**: Type annotations apply to the entire expression on the right
-4. **Precedence**: Type annotations have highest precedence in expressions
-5. **Documentation**: They serve as explicit acknowledgment of precision loss
-6. **Safety**: They prevent accidental precision loss or truncation
-7. **Consistency**: Same rule applies everywhere - declarations, assignments, function returns
+1. **Cost Transparency**: Every conversion is visible in the code
+2. **No Hidden Behavior**: No automatic conversions between concrete types
+3. **Explicit Choice**: Developer must consciously choose all conversions
+4. **Uniform Syntax**: Same `value:type` pattern everywhere
+5. **Performance Clarity**: Conversion costs are obvious
+6. **Safety**: Prevents accidental data loss through explicit acknowledgment
+7. **Simplicity**: One rule, no exceptions
 
 #### **The Universal Pattern**
 ```hexen
-// Every type annotation follows this exact pattern:
-target_variable : target_type = expression : SAME_target_type
+// Every conversion follows this exact pattern:
+target_variable : target_type = source_value:target_type
 
 // Examples across all contexts:
-val number : i32 = 3.14 : i32           // Variable declaration
-mut counter : i32 = large_value : i32   // Reassignment
-func process() : f64 = calculation : f64 // Function return
-array[index] : i32 = mixed_expr : i32   // Array assignment
+val converted : f32 = int_val:f32       // Variable declaration
+mut counter : i32 = large_val:i32       // Reassignment
+func process(x: i32) = big_val:i32      // Function argument
+array[index] = float_val:i32            // Array assignment
+```
+
+#### **Expression Context**
+Conversions work naturally in complex expressions:
+
+```hexen
+// Conversions in expressions
+val result : f64 = (int_val:f64 + float_val:f64) / 2.0:f64
+val mixed : i32 = (a:i32 + b:i32) * c:i32
+val complex : f32 = sqrt(x:f32 * x:f32 + y:f32 * y:f32)
+
+// Conversions with function calls
+val processed : i64 = compute_value():i64
+val formatted : string = format_number(value:f64)
 ```
 
 **Key Points:**
-- `: type` is **always** at the rightmost end of the expression
-- `: type` **always** matches the left-hand side target type exactly
-- `: type` is an **explicit acknowledgment**, not a type conversion
-- `: type` **requires** an explicit type on the left side to match against
+- `value:type` is **always** a conversion operation
+- Conversions can be **chained**: `value:intermediate:final`
+- **Comptime types** don't need conversion syntax (they adapt automatically)
+- **Same types** don't need conversion syntax (identity is free)
 - This pattern works **everywhere** in Hexen - no exceptions
-
-#### **Critical Rule: No Type Annotation Without Explicit Left Side Type**
-
-Type annotations can **only** be used when there's an explicit type declaration on the left side:
-
-```hexen
-// ❌ FORBIDDEN: Type annotation without explicit left side type
-// val result = 42 + 3.14 : f64        // Error: No explicit left side type to match
-// val mixed = some_expr : i32         // Error: No explicit left side type to match
-// mut counter = large_value : i32     // Error: No explicit left side type to match
-
-// ✅ CORRECT: Explicit left side type that matches right side annotation
-val result : f64 = (42 + 3.14) : f64   // Both sides have f64
-val mixed : i32 = some_expr : i32       // Both sides have i32
-mut counter : i32 = large_value : i32   // Both sides have i32
-
-// ✅ CORRECT: No type annotation needed when left side provides context
-val result : f64 = 42 + 3.14           // Left side provides f64 context
-val mixed : i32 = some_expr             // Left side provides i32 context
-```
-
-**Why this rule exists:**
-- **Consistency**: Type annotations are acknowledgments, not inference hints
-- **Clarity**: The left side type must be explicit to make the contract clear
-- **Safety**: Prevents ambiguous type annotation usage
-- **Predictability**: Same pattern everywhere - no special cases
-
-```hexen
-mut result : i32 = 0
-val a : i64 = 1000
-val b : f64 = 3.14
-
-// ❌ Error: Wrong type annotation
-// result = a : i64                     // Error: Type annotation must match variable's type (i32)
-// result = b : f64                     // Error: Type annotation must match variable's type (i32)
-
-// ✅ Correct: Type annotation matches variable's type
-result = a : i32                        // Explicit: "I know this will truncate to i32"
-result = b : i32                        // Explicit: "I know this will truncate to i32"
-result = (a + b) : i32                  // Explicit: "I know this will truncate to i32"
-```
 
 ### Error Messages
 
-Error messages for reassignment follow a consistent pattern, providing clear guidance:
+Error messages for type mismatches follow a consistent pattern, providing clear guidance:
 
 ```hexen
 mut small : i32 = 0
@@ -554,53 +569,52 @@ val large : i64 = 9223372036854775807
 
 // ❌ Error messages with guidance
 // small = large
-// Error: Potential truncation in assignment to i32 variable
-// Add ': i32' to explicitly acknowledge truncation
-
-// small = large : i64
-// Error: Type annotation must match variable's type (i32)
+// Error: Cannot assign i64 to i32 variable
+// Use explicit conversion: large:i32
 
 // small = 3.14159
-// Error: Mixed types with potential truncation in assignment to i32 variable
-// Add ': i32' to explicitly acknowledge truncation
+// Error: Cannot assign comptime_float to i32 variable
+// Use explicit conversion: 3.14159:i32
 
 // ✅ Following the guidance
-small = large : i32                     // Explicit acknowledgment of i32 type
-small = 3.14159 : i32                   // Explicit acknowledgment of i32 type
+small = large:i32                       // Explicit conversion (potential data loss)
+small = 3.14159:i32                     // Explicit conversion (truncation)
 ```
 
 ### Benefits
 
-1. **Type Safety**: All type conversions are explicit and intentional
-2. **Code Clarity**: Type annotations document potential precision loss
-3. **Error Prevention**: Accidental precision loss is caught at compile time
-4. **Maintainability**: Clear documentation of type conversion intent
-5. **Consistency**: Follows the "Explicit Danger, Implicit Safety" principle
-6. **Type Integrity**: Type annotations enforce the mutable variable's declared type
+1. **Cost Transparency**: All conversion costs are visible in the code
+2. **Type Safety**: All type conversions are explicit and intentional
+3. **Performance Clarity**: No hidden conversions or unexpected costs
+4. **Error Prevention**: Accidental type mismatches caught at compile time
+5. **Maintainability**: Clear documentation of every conversion
+6. **Predictability**: Simple, consistent rules with no exceptions
+7. **Ergonomic Literals**: Comptime types adapt seamlessly for common cases
 
 ## Uninitialized Variables (`undef`)
 
 ### Philosophy Consistency
 
-The `undef` system follows the same **"explicit danger, implicit safety"** principle:
+The `undef` system follows the same **"cost transparency"** principle:
 
 ```hexen
-// ❌ Implicit undef (dangerous - no type info)
+// ❌ Implicit undef (ambiguous - no type info)
 mut pending = undef             // Error: Cannot infer type
 
-// ✅ Explicit undef (safe - type specified)
+// ✅ Explicit undef (clear - type specified)
 mut pending : i32 = undef       // OK: Type explicitly provided
 mut config : string = undef     // OK: Type explicitly provided
 ```
 
-### undef with Binary Operations
+### undef with Type Conversions
 
-Uninitialized variables follow the same coercion rules once assigned:
+Uninitialized variables follow the same conversion rules once assigned:
 
 ```hexen
 mut value : i32 = undef
-value = 42                      // comptime_int → i32 (assignment context)
-value = 10 + 20                 // comptime_int + comptime_int → i32 (assignment context)
+value = 42                      // comptime_int adapts to i32 (ergonomic)
+value = large_val:i32          // explicit conversion (visible cost)
+value = 10 + 20                // comptime arithmetic adapts to i32 (ergonomic)
 ```
 
 ### `undef` with `val` vs `mut` Variables
@@ -753,26 +767,32 @@ def _resolve_binary_operation_with_context(self, left: HexenType, right: HexenTy
 
 ```hexen
 func demonstrate_type_system() : void = {
-    // ===== Comptime Type Magic (val - immutable) =====
-    val default_int = 42        // comptime_int → i32 (default)
-    val explicit_i64 : i64 = 42 // comptime_int → i64 (context)
-    val as_float : f32 = 42     // comptime_int → f32 (context)
-    val precise : f64 = 3.14    // comptime_float → f64 (default)
-    val single : f32 = 3.14     // comptime_float → f32 (context)
+    // ===== Comptime Type Magic (Ergonomic Literals) =====
+    val default_int = 42        // comptime_int → i32 (default, no cost)
+    val explicit_i64 : i64 = 42 // comptime_int → i64 (adapt, no cost)
+    val as_float : f32 = 42     // comptime_int → f32 (adapt, no cost)
+    val precise : f64 = 3.14    // comptime_float → f64 (default, no cost)
+    val single : f32 = 3.14     // comptime_float → f32 (adapt, no cost)
     
-    // ===== Type Coercion (val - immutable) =====
-    val wide : i64 = i32_value  // i32 → i64 (widening)
-    val precise : f64 = f32_value  // f32 → f64 (widening)
-    val as_float : f32 = i32_value  // i32 → f32 (conversion)
+    // ===== Explicit Concrete Conversions (Visible Costs) =====
+    val wide : i64 = i32_value:i64      // i32 → i64 (explicit conversion)
+    val precise : f64 = f32_value:f64   // f32 → f64 (explicit conversion)
+    val as_float : f32 = i32_value:f32  // i32 → f32 (explicit conversion)
+    val narrowed : i32 = i64_value:i32  // i64 → i32 (explicit, potential data loss)
     
-    // ===== Mutable Variables with Reassignment =====
+    // ===== Mutable Variables with Explicit Conversions =====
     mut counter : i32 = 0       // Mutable integer
-    counter = 42                // ✅ OK: reassignment
-    counter = large_value : i32 // ✅ OK: reassignment with explicit acknowledgment
+    counter = 42                // ✅ OK: comptime_int adapts (no cost)
+    counter = large_value:i32   // ✅ OK: explicit conversion (visible cost)
     
     mut accumulator : f64 = 0.0 // Mutable float
-    accumulator = 3.14          // ✅ OK: comptime_float → f64
-    accumulator = counter       // ✅ OK: i32 → f64 (widening)
+    accumulator = 3.14          // ✅ OK: comptime_float adapts (no cost)
+    accumulator = counter:f64   // ✅ OK: explicit conversion (visible cost)
+    
+    // ===== Mixed Type Operations (All Explicit) =====
+    val result1 : f64 = int_val:f64 + float_val:f64  // All conversions visible
+    val result2 : i32 = (big_val:i32 + small_val:i32) * multiplier:i32
+    val complex : f32 = sqrt(x:f32 * x:f32 + y:f32 * y:f32)
     
     // ===== Complex Initialization with Expression Blocks =====
     val complex_init : i32 = {
@@ -782,16 +802,17 @@ func demonstrate_type_system() : void = {
             validate_system(config)
         }
         
-        // Complex computation  
-        val base = expensive_computation()
-        val factor = get_dynamic_factor()
+        // Complex computation with explicit conversions
+        val base = expensive_computation():i32
+        val factor = get_dynamic_factor():i32
         return base * factor
     }
     
     // ===== undef with Different Mutability =====
     // val pending : i32 = undef   // ❌ Error: val + undef creates unusable variable
     mut pending : i32 = undef   // ✅ OK: mut allows later assignment
-    pending = compute_value()   // ✅ OK: deferred initialization
+    pending = compute_value()   // ✅ OK: if compute_value() returns i32
+    pending = other_value:i32   // ✅ OK: explicit conversion if needed
     
     // val bad = undef          // ❌ Error: no type context
 }
@@ -803,21 +824,28 @@ func demonstrate_type_system() : void = {
 
 ### Developer Experience
 
-1. **Ergonomic**: Common operations work seamlessly without explicit casting
-2. **Predictable**: Same context pattern applies everywhere (variables, returns, assignments)
-3. **Safe**: Dangerous operations require conscious choice through explicit typing
-4. **Consistent**: One mental model for the entire type system
+1. **Ergonomic**: Comptime literals adapt seamlessly (no casting for common cases)
+2. **Predictable**: Simple, consistent rules with no exceptions
+3. **Transparent**: All conversion costs are visible in the code
+4. **Intentional**: Every type conversion is an explicit developer choice
+
+### Performance Clarity
+
+1. **Cost Transparency**: Every conversion is visible in the code
+2. **No Hidden Costs**: No automatic conversions or unexpected operations
+3. **Performance Predictable**: Developers can easily reason about runtime costs
+4. **Optimization Friendly**: Compilers can optimize knowing all conversions are explicit
 
 ### Type Safety
 
 1. **Compile-time validation**: All type compatibility checked at compile time
-2. **No silent bugs**: Ambiguous operations cause compilation errors with helpful messages
-3. **Precision preservation**: Developers must explicitly choose when to lose precision
-4. **Context clarity**: Assignment target type makes developer intent explicit
+2. **No silent bugs**: Type mismatches cause compilation errors with clear guidance
+3. **Explicit data loss**: Developers must consciously acknowledge potential data loss
+4. **Clear intent**: Every conversion documents the developer's intention
 
-### Future-Proof Design
+### Maintainability
 
-1. **Extensible**: Pattern works with user-defined types, generics, and operator overloading
-2. **Composable**: Binary operations can be nested arbitrarily with context guidance
-3. **Maintainable**: Clear rules that are easy to understand and implement
-4. **Consistent**: Same philosophy extends to all language features 
+1. **Simple mental model**: One rule for all conversions (`value:type`)
+2. **Readable code**: All type operations are visible in the source
+3. **Easy debugging**: No hidden conversions to trace through
+4. **Consistent everywhere**: Same philosophy extends to all language features 
