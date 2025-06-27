@@ -172,6 +172,51 @@ process_i64(magic_number)              // Resolves to i64 for function parameter
 
 **Result**: Write code once, use everywhere - the type system adapts to your needs instead of forcing you to adapt to the type system.
 
+#### The Critical Boundary: Concrete Types Cannot Become Comptime
+
+While comptime types can adapt to any compatible concrete type, **the reverse is forbidden**. Once a value becomes concrete (from function calls, runtime computation, etc.), it cannot be forced back into comptime:
+
+```hexen
+// ✅ Comptime → Concrete (Always Allowed)
+val flexible = 42           // comptime_int
+val concrete : i32 = flexible   // comptime_int → i32 (✅ context-driven)
+
+// ❌ Concrete → Comptime (Always Forbidden)
+val runtime_result : i32 = compute_value()  // Explicit type required for concrete values!
+// comptime val bad = runtime_result        // ❌ Error: Cannot use runtime value in comptime context
+// val bad : comptime_int = runtime_result  // ❌ Error: Cannot coerce concrete i32 to comptime_int
+
+// ✅ Concrete → Concrete (Explicit Types Required)
+val runtime_result : i32 = compute_value()  // ✅ Explicit type required for concrete values
+val another : i32 = runtime_result          // i32 → i32 (identity, no conversion)
+val widened : i64 = runtime_result:i64      // i32 → i64 (explicit conversion required)
+
+// ✅ Mixed: Concrete + Comptime (Comptime Adapts)
+val runtime_result : i32 = compute_value()  // ✅ Explicit type required for concrete values
+val mixed = runtime_result + 100            // i32 + comptime_int → i32 (comptime adapts to i32)
+```
+
+**Comparison Example - Comptime vs Concrete Sources:**
+```hexen
+// ===== COMPTIME SOURCE (Maximum Flexibility) =====
+val flexible_math = 42 + 100               // comptime_int (stays flexible!)
+val as_i32 : i32 = flexible_math           // comptime_int → i32 ✅
+val as_i64 : i64 = flexible_math           // Same source → i64 ✅
+val as_f64 : f64 = flexible_math           // Same source → f64 ✅
+
+// ===== CONCRETE SOURCE (No Flexibility) =====
+val concrete_math : i32 = compute_value() + other_value()  // Explicit type required! i32 + i32 → i32 (concrete result)
+val copy : i32 = concrete_math             // i32 → i32 ✅ (identity)
+val widened : i64 = concrete_math:i64      // i32 → i64 ✅ (explicit conversion required)
+// val bad : comptime_int = concrete_math  // ❌ Error: Cannot force concrete into comptime
+```
+
+**Key Insights**: 
+1. **Flexibility flows one direction only** - from comptime to concrete, never the reverse
+2. **Comptime types**: Get type inference (`val x = 42`) - maximum flexibility  
+3. **Concrete types**: Require explicit types (`val x : i32 = compute()`) - transparent costs
+4. This maintains the compile-time/runtime boundary while maximizing ergonomics
+
 ### Design Philosophy
 
 The comptime system embodies Hexen's **"Ergonomic Literals + Transparent Costs"** principle:
@@ -711,13 +756,14 @@ val config : string = {
 val result : i32 = {
     // Setup work in statement block (scoped)
     {
-        val temp_data = load_data()
-        validate(temp_data)
+        val temp_data : string = load_data()  // Explicit type required for concrete values!
+        validate(temp_data)                   // Runtime function call
     }
     
-    // Complex computation
-    val base = expensive_computation()
-    return base * multiplier_factor()
+    // Complex computation with concrete values
+    val base : i32 = expensive_computation()  // Explicit type required for concrete values!
+    val factor : i32 = multiplier_factor()    // Explicit type required for concrete values!
+    return base * factor                       // i32 * i32 → i32 (concrete arithmetic)
 }
 ```
 
