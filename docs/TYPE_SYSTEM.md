@@ -120,13 +120,18 @@ func get_count() : i32 = {       // return type provides context
 }
 ```
 
-#### Step 3: Default Resolution
-When there's **no context**, comptime types use sensible defaults:
+#### Step 3: Comptime Type Preservation
+When there's **no explicit type context**, comptime types **preserve maximum flexibility**:
 
 ```hexen
-// val allows type inference (single assignment)
-val counter = 42      // No explicit type → comptime_int becomes i32 (system default)
-val pi = 3.14         // No explicit type → comptime_float becomes f64 (precision default)
+// val allows comptime type preservation (maximum flexibility)
+val flexible_int = 42      // comptime_int (preserved - can adapt to any numeric context later!)
+val flexible_float = 3.14  // comptime_float (preserved - can adapt to f32/f64 context later!)
+
+// Later usage provides context for resolution
+val small : i32 = flexible_int     // NOW comptime_int → i32 (context-driven)
+val large : i64 = flexible_int     // SAME source → i64 (different context!)
+val precise : f64 = flexible_int   // SAME source → f64 (maximum flexibility!)
 
 // mut requires explicit type (prevents action-at-a-distance)
 mut counter : i32 = 42      // ✅ Explicit type required
@@ -134,6 +139,64 @@ mut pi : f64 = 3.14         // ✅ Explicit type required
 // mut bad_counter = 42     // ❌ Error: mut requires explicit type
 // mut bad_pi = 3.14        // ❌ Error: mut requires explicit type
 ```
+
+**Key Insight**: Comptime types **stay flexible until forced** - they don't automatically become concrete types!
+
+#### What Happens When No Context Is Available?
+
+When comptime types have no explicit context to resolve against, you get a **compilation error** rather than automatic defaults:
+
+```hexen
+// ❌ Error: Comptime types need context to resolve
+func ambiguous_function() {
+    val unknown = 42        // Error: Cannot determine target type for comptime_int
+    return unknown          // No context available - compilation fails
+}
+
+// ✅ Solution: Provide explicit context
+func clear_function() : i32 = {
+    val flexible = 42       // comptime_int (preserved)
+    return flexible         // NOW has context: function return type is i32
+}
+
+// ✅ Alternative: Use explicit type annotation
+func explicit_function() {
+    val specific : i64 = 42 // Explicit context provided
+    return specific         // Clear type, no ambiguity
+}
+```
+
+This **prevents ambiguous code** and forces developers to be explicit about their intentions when the compiler cannot infer the appropriate type from context.
+
+#### The Revolutionary Paradigm: Maximum Flexibility Preservation
+
+The key insight of Hexen's comptime system is **flexibility preservation over premature resolution**:
+
+**❌ Traditional Approach**: "Literals have default types"
+- `42` is always `int` (or requires suffixes like `42L`)
+- Hard to change types without updating all literals
+- Rigid, requires explicit casting everywhere
+
+**✅ Hexen's Approach**: "Literals preserve maximum flexibility"
+- `42` stays `comptime_int` until context forces resolution
+- Same literal adapts to any compatible context
+- Maximum ergonomics with zero performance cost
+
+**This enables powerful patterns:**
+```hexen
+val magic_number = 42 * 1000 + 500     // Stays comptime_int (flexible!)
+
+// Later, same expression used in different contexts:
+val config_id : i32 = magic_number     // Resolves to i32
+val timestamp : i64 = magic_number     // Same expr, resolves to i64  
+val ratio : f64 = magic_number         // Same expr, resolves to f64
+
+// Function calls get the right types automatically:
+process_i32(magic_number)              // Resolves to i32 for function parameter
+process_i64(magic_number)              // Resolves to i64 for function parameter
+```
+
+**Result**: Write code once, use everywhere - the type system adapts to your needs instead of forcing you to adapt to the type system.
 
 ### Design Philosophy
 
@@ -181,19 +244,23 @@ val h : i64 = 3.14:i64   // comptime_float → i64 (explicit truncation)
 
 ### Implementation Mental Model
 
-Think of comptime types as "smart literals" that ask their context: *"What type do you need me to be?"*
+Think of comptime types as "smart literals" that preserve maximum flexibility: *"I'll stay flexible until you need me to be concrete!"*
 
 1. **Parser**: Creates comptime_int/comptime_float for all numeric literals
-2. **Type Checker**: Propagates target types as context through expressions  
-3. **Resolution**: Comptime types check if they can safely become the target type
-4. **Error**: If conversion is unsafe or no context exists, compilation fails with helpful message
+2. **Type Checker**: Preserves comptime types until explicit context forces resolution
+3. **Resolution**: Only happens when comptime meets concrete type or explicit annotation
+4. **Error**: If conversion is unsafe or context requires explicit choice, compilation fails with helpful message
 
-Think of comptime types as "adaptive literals"
-42 + 100    // Two comptime_int values asking: "What type should we become?"
-// In context: val result : f64 = 42 + 100
-// They "negotiate" and both become f64 (seamless)
+Think of comptime types as "maximally flexible values":
+```hexen
+val flexible = 42 + 100    // Stays comptime_int (preserved!)
+val small : i32 = flexible    // NOW resolves to i32 (context forces resolution)
+val large : i64 = flexible    // SAME source, different target (maximum flexibility!)
+```
 
-This creates a clean, consistent system where the same literal works everywhere without sacrificing type safety.
+**Key insight**: Comptime types **preserve flexibility** rather than resolve to defaults. The same comptime expression can resolve to different concrete types based on usage context.
+
+This creates a clean, consistent system where literals stay flexible until context demands specificity, maximizing both ergonomics and type safety.
 
 ### Context Propagation Examples
 
@@ -217,8 +284,13 @@ func get_ratio() : f64 = {             // return type provides context
 }
 
 // Variable declarations provide context
-val precise : f64 = 42 + 100           // comptime_int + comptime_int → comptime_int → f64
-val integer : i32 = 42 + 100           // comptime_int + comptime_int → comptime_int → i32
+val precise : f64 = 42 + 100           // comptime_int + comptime_int → comptime_int → f64 (context-driven)
+val integer : i32 = 42 + 100           // comptime_int + comptime_int → comptime_int → i32 (context-driven)
+
+// Same expression, different contexts - demonstrating flexibility!
+val arithmetic = 10 * 20 + 5           // comptime_int (preserved until context forces resolution)
+val as_small : i32 = arithmetic        // NOW resolves to i32 based on target type
+val as_precise : f64 = arithmetic      // SAME expr, different resolution!
 ```
 
 ## Type Conversion Rules
@@ -286,15 +358,15 @@ val truncated : i32 = f64_value:i32     // f64 → i32 (explicit truncation, dat
 | From Type | To Type | Conversion | Required Syntax | Notes |
 |-----------|---------|------------|-----------------|-------|
 | **Comptime Types (Ergonomic Literals)** |
-| `comptime_int` | `i32` | ✅ Default | `val x = 42` | System default when no explicit type |
+| `comptime_int` | `comptime_int` | ✅ Preserved | `val x = 42` | Comptime type preserved (maximum flexibility!) |
 | `comptime_int` | `i32` | ✅ Implicit | `val x : i32 = 42` | No cost, ergonomic |
 | `comptime_int` | `i64` | ✅ Implicit | `val x : i64 = 42` | No cost, ergonomic |
 | `comptime_int` | `f32` | ✅ Implicit | `val x : f32 = 42` | No cost, ergonomic |
 | `comptime_int` | `f64` | ✅ Implicit | `val x : f64 = 42` | No cost, ergonomic |
 | `comptime_int` | `bool` | ❌ Forbidden | N/A | Use explicit logic: `(42 != 0)` |
 | `comptime_int` | `string` | ❌ Forbidden | N/A | Not meaningful |
+| `comptime_float` | `comptime_float` | ✅ Preserved | `val x = 3.14` | Comptime type preserved (maximum flexibility!) |
 | `comptime_float` | `f32` | ✅ Implicit | `val x : f32 = 3.14` | No cost, ergonomic |
-| `comptime_float` | `f64` | ✅ Default | `val x = 3.14` | Precision default when no explicit type |
 | `comptime_float` | `f64` | ✅ Implicit | `val x : f64 = 3.14` | No cost, ergonomic |
 | `comptime_float` | `i32` | 🔧 Explicit | `val x : i32 = 3.14:i32` | Conversion cost visible |
 | `comptime_float` | `i64` | 🔧 Explicit | `val x : i64 = 3.14:i64` | Conversion cost visible |
@@ -323,7 +395,7 @@ val truncated : i32 = f64_value:i32     // f64 → i32 (explicit truncation, dat
 
 ### Legend
 
-- **✅ Default**: Default resolution when no explicit type is provided (comptime types only)
+- **✅ Preserved**: Comptime type stays flexible, maximum adaptability (comptime types only)
 - **✅ Implicit**: Happens automatically, no conversion cost (comptime types only)
 - **🔧 Explicit**: Requires explicit syntax (`value:type`), conversion cost visible
 - **❌ Forbidden**: Not allowed, compilation error
@@ -707,8 +779,8 @@ Type mismatch: variable 'x' declared as i32 but assigned value of type comptime_
 
 #### Mixed Operation Errors  
 ```
-Mixed-type operation 'i32 + i64' requires explicit result type annotation
-Add type annotation: 'val result : i64 = ...' or 'val result : f64 = ...'
+Mixed-type operation 'i32 + i64' requires explicit conversions
+Use explicit conversions: 'val result = i32_val:i64 + i64_val' or 'val result = i32_val:f64 + i64_val:f64'
 ```
 
 #### undef Errors
@@ -736,11 +808,22 @@ All errors suggest appropriate solutions: **add explicit type annotation** or **
 ```hexen
 func demonstrate_type_system() : void = {
     // ===== Comptime Type Magic (Ergonomic Literals) =====
-    val default_int = 42        // comptime_int → i32 (default, no cost)
-    val explicit_i64 : i64 = 42 // comptime_int → i64 (adapt, no cost)
-    val as_float : f32 = 42     // comptime_int → f32 (adapt, no cost)
-    val precise : f64 = 3.14    // comptime_float → f64 (default, no cost)
-    val single : f32 = 3.14     // comptime_float → f32 (adapt, no cost)
+    val flexible_int = 42       // comptime_int (preserved - maximum flexibility!)
+    val explicit_i64 : i64 = 42 // comptime_int → i64 (context-driven, no cost)
+    val as_float : f32 = 42     // comptime_int → f32 (context-driven, no cost)
+    val flexible_float = 3.14   // comptime_float (preserved - maximum flexibility!)
+    val single : f32 = 3.14     // comptime_float → f32 (context-driven, no cost)
+    
+    // ===== Demonstrating Comptime Type Flexibility =====
+    // Same flexible variable used in different contexts!
+    val small_version : i32 = flexible_int    // comptime_int → i32 (same source!)
+    val large_version : i64 = flexible_int    // comptime_int → i64 (same source!)
+    val float_version : f64 = flexible_int    // comptime_int → f64 (same source!)
+    
+    // Same comptime arithmetic in different contexts
+    val math_expr = 42 + 100 * 5              // comptime_int (stays flexible!)
+    val as_i32 : i32 = math_expr              // NOW resolves to i32
+    val as_f64 : f64 = math_expr              // SAME expr resolves to f64
     
     // ===== Explicit Concrete Conversions (Visible Costs) =====
     val wide : i64 = i32_value:i64      // i32 → i64 (explicit conversion)
