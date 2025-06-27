@@ -142,32 +142,6 @@ mut pi : f64 = 3.14         // ✅ Explicit type required
 
 **Key Insight**: Comptime types **stay flexible until forced** - they don't automatically become concrete types!
 
-#### What Happens When No Context Is Available?
-
-When comptime types have no explicit context to resolve against, you get a **compilation error** rather than automatic defaults:
-
-```hexen
-// ❌ Error: Comptime types need context to resolve
-func ambiguous_function() {
-    val unknown = 42        // Error: Cannot determine target type for comptime_int
-    return unknown          // No context available - compilation fails
-}
-
-// ✅ Solution: Provide explicit context
-func clear_function() : i32 = {
-    val flexible = 42       // comptime_int (preserved)
-    return flexible         // NOW has context: function return type is i32
-}
-
-// ✅ Alternative: Use explicit type annotation
-func explicit_function() {
-    val specific : i64 = 42 // Explicit context provided
-    return specific         // Clear type, no ambiguity
-}
-```
-
-This **prevents ambiguous code** and forces developers to be explicit about their intentions when the compiler cannot infer the appropriate type from context.
-
 #### The Revolutionary Paradigm: Maximum Flexibility Preservation
 
 The key insight of Hexen's comptime system is **flexibility preservation over premature resolution**:
