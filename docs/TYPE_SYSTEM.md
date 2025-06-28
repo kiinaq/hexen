@@ -20,6 +20,66 @@ Hexen follows a simple, unified pattern that makes common cases ergonomic while 
 
 This philosophy ensures that **everyday coding feels natural**, while **performance-critical conversions** are always explicit and visible.
 
+## Variable Declaration Keywords
+
+Before diving into the type system, it's essential to understand Hexen's two variable declaration keywords that you'll see throughout this document:
+
+### `val` - Immutable Variables (Values)
+The `val` keyword declares **immutable variables** - variables that can only be assigned once at declaration:
+
+```hexen
+val message = "Hello, World!"    // ✅ Immutable variable
+val count = 42                   // ✅ Single assignment at declaration
+// count = 43                    // ❌ Error: Cannot reassign val variable
+```
+
+**Key characteristics:**
+- **Single assignment**: Can only be set once (at declaration)
+- **Type inference allowed**: Can omit type annotation when using comptime literals
+- **Name origin**: "val" stands for **"value"** - representing a single, unchanging value
+
+### `mut` - Mutable Variables
+The `mut` keyword declares **mutable variables** - variables that can be reassigned after declaration:
+
+```hexen
+mut counter : i32 = 0           // ✅ Mutable variable with explicit type
+counter = 42                    // ✅ Reassignment allowed
+counter = 100                   // ✅ Multiple reassignments allowed
+```
+
+**Key characteristics:**
+- **Multiple assignments**: Can be reassigned as many times as needed
+- **Explicit type required**: Must specify type annotation to prevent action-at-a-distance effects
+- **Name origin**: "mut" stands for **"mutable"** - representing a changeable variable
+
+### Why Two Keywords?
+
+This distinction serves important design goals:
+
+1. **Safety by Default**: `val` encourages immutable-first programming
+2. **Clear Intent**: The keyword immediately tells you if a variable can change
+3. **Type System Benefits**: Different rules for type inference and comptime type preservation
+4. **Performance**: Compiler can optimize better knowing what can/cannot change
+
+### Usage Guidelines
+
+- **Use `val`** for: Constants, computed results, configuration values that don't change
+- **Use `mut`** for: Counters, accumulators, state variables that need updates
+
+```hexen
+// ✅ Good usage patterns
+val config_file = "app.toml"        // Configuration - doesn't change
+val result = compute_expensive()     // Computed result - doesn't change  
+mut counter : i32 = 0               // Counter - will be incremented
+mut buffer : string = ""            // Buffer - will be appended to
+
+// ❌ Poor usage patterns  
+mut constant_pi : f64 = 3.14159     // Should be val - never changes
+val accumulator : i32 = 0           // Should be mut - probably needs updates
+```
+
+Now that you understand `val` and `mut`, let's explore how they interact with Hexen's type system.
+
 ## Type Hierarchy
 
 ### Concrete Types
@@ -473,10 +533,12 @@ counter = large_value:i32              // ✅ OK: explicit conversion (e.g., i64
 ```
 
 #### **Key Principle: Different Safety Models for Different Use Cases**
-- **`val` variables**: Type inference allowed since declaration = only use
-- **`mut` variables**: Explicit type required since type affects all future reassignments
+- **`val` variables**: Type inference allowed since declaration = only use (enables comptime type preservation)
+- **`mut` variables**: Explicit type required since type affects all future reassignments (prevents comptime type preservation)
 
 **Design rationale**: `mut` variables require explicit types to prevent "action at a distance" where changing the initial assignment value could silently change the meaning of all subsequent reassignments.
+
+**🔴 Critical Consequence**: This design choice means **`mut` variables can never preserve comptime types** - they sacrifice maximum flexibility for safety. Only `val` declarations can preserve comptime types for later context-dependent resolution.
 
 ### Variable Declaration with Context
 
@@ -833,6 +895,18 @@ func demonstrate_type_system() : void = {
     val as_float : f32 = 42     // comptime_int → f32 (context-driven, no cost)
     val flexible_float = 3.14   // comptime_float (preserved - maximum flexibility!)
     val single : f32 = 3.14     // comptime_float → f32 (context-driven, no cost)
+    
+    // ===== Critical Difference: val vs mut Comptime Type Preservation =====
+    // ✅ val preserves comptime types (maximum flexibility)
+    val preserved_math = 42 + 100 * 5      // comptime_int (stays flexible!)
+    val as_different_i32 : i32 = preserved_math    // SAME source → i32
+    val as_different_i64 : i64 = preserved_math    // SAME source → i64 
+    val as_different_f64 : f64 = preserved_math    // SAME source → f64
+    
+    // 🔴 mut cannot preserve comptime types (immediate resolution required)
+    mut counter : i32 = 42 + 100 * 5       // comptime_int → i32 (immediately resolved!)
+    // val cant_adapt : i64 = counter      // ❌ Error: counter is concrete i32, needs counter:i64
+    val must_convert : i64 = counter:i64   // ✅ Explicit conversion required (no flexibility left)
     
     // ===== Demonstrating Comptime Type Flexibility =====
     // Same flexible variable used in different contexts!
