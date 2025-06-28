@@ -4,7 +4,7 @@
 
 ## Overview
 
-Hexen's binary operations system follows the **"Ergonomic Literals + Transparent Costs"** philosophy - making common operations seamless while keeping all computational costs visible. The system is built on top of our comptime type system, ensuring consistent type resolution across all operations with natural adaptation for literals and explicit syntax for concrete type mixing.
+Hexen's binary operations system follows the **"Ergonomic Literals + Transparent Costs"** philosophy - making common operations seamless while keeping all computational costs visible. The system is built on top of our comptime type system, ensuring consistent type resolution across all operations with natural adaptation for literals and explicit conversions for concrete type mixing.
 
 ### Key Design Principles
 
@@ -51,7 +51,7 @@ Binary operations apply the TYPE_SYSTEM.md conversion rules to their results:
 | `comptime_float` | ✅ Preserved | `val x = 3.14 + 2.71` | Comptime type preserved (maximum flexibility!) |
 | `comptime_float` | ✅ Implicit | `val x : f32 = 3.14 + 2.71` | No cost, ergonomic adaptation |
 | **🔧 Explicit (Concrete Results)** |
-| Mixed concrete | 🔧 Explicit | `val x : f64 = i32_val:f64 + f64_val` | Conversion cost visible via explicit syntax |
+| Mixed concrete | 🔧 Explicit | `val x : f64 = i32_val:f64 + f64_val` | Conversion cost visible via explicit conversion |
 | Precision loss | 🔧 Explicit | `val x : i32 = f64_val:i32 + f32_val:i32` | Data loss visible via conversion |
 | **❌ Forbidden** |
 | No context | ❌ Forbidden | `val x = i32_val + f64_val` | Use explicit conversion: `i32_val:f64 + f64_val` |
@@ -60,7 +60,7 @@ Binary operations apply the TYPE_SYSTEM.md conversion rules to their results:
 
 - **✅ Preserved**: Comptime type stays flexible, maximum adaptability (comptime types only)
 - **✅ Implicit**: Happens automatically, no conversion cost (comptime types only)
-- **🔧 Explicit**: Requires explicit syntax (`value:type`), conversion cost visible
+- **🔧 Explicit**: Requires explicit conversion (`value:type`), conversion cost visible
 - **❌ Forbidden**: Not allowed, compilation error
 
 **Key Insight**: Binary operation results follow the **same conversion rules** as individual values - maintaining complete consistency.
@@ -266,9 +266,9 @@ val count : i32 = 100
 val ratio : f64 = 2.5
 
 // ✨ Ergonomic: comptime adapts to concrete type (implicit, no cost)
-val result1 = count + 42        // i32 + comptime_int → i32 (comptime adapts following TYPE_SYSTEM.md)
-val result2 = count * 2         // i32 * comptime_int → i32 (comptime adapts following TYPE_SYSTEM.md)
-val result3 = count \ 10        // i32 \ comptime_int → i32 (comptime adapts following TYPE_SYSTEM.md)
+val result1 : i32 = count + 42        // i32 + comptime_int → i32 (comptime adapts following TYPE_SYSTEM.md)
+val result2 : i32 = count * 2         // i32 * comptime_int → i32 (comptime adapts following TYPE_SYSTEM.md)
+val result3 : i32 = count \ 10        // i32 \ comptime_int → i32 (comptime adapts following TYPE_SYSTEM.md)
 
 // 🔧 Explicit conversions when result differs from target (TYPE_SYSTEM.md rule)
 val result4 : f64 = ratio + 42  // f64 + comptime_int → f64 (comptime adapts, no conversion needed)
@@ -276,26 +276,26 @@ val result4 : f64 = ratio + 42  // f64 + comptime_int → f64 (comptime adapts, 
 val narrow : i32 = (ratio + 42):i32  // ✅ Explicit: f64 → i32 (conversion cost visible)
 ```
 
-#### Pattern 3: 🔧 Mixed Concrete → Requires Explicit Syntax (Cost Visibility)
+#### Pattern 3: 🔧 Mixed Concrete → Requires Explicit Conversion (Cost Visibility)
 
-When two different concrete types meet, **explicit syntax is required** following TYPE_SYSTEM.md rules:
+When two different concrete types meet, **explicit conversions are required** following TYPE_SYSTEM.md rules:
 
 ```hexen
 val small : i32 = 10
 val large : i64 = 20
 val precise : f64 = 3.14
 
-// ❌ Mixed concrete types require explicit syntax (TYPE_SYSTEM.md rule)
+// ❌ Mixed concrete types require explicit conversions (TYPE_SYSTEM.md rule)
 // val mixed1 = small + large   // Error: i32 + i64 requires explicit type annotation
 // val mixed2 = small + precise // Error: i32 + f64 requires explicit type annotation
 
-// ✅ Explicit syntax makes conversion costs visible (TYPE_SYSTEM.md rule)
-val as_i64 : i64 = small + large           // 🔧 Explicit: i32 → i64 (conversion cost visible)
-val as_f64 : f64 = small + precise         // 🔧 Explicit: i32 → f64 (conversion cost visible)
+// ✅ Explicit conversions make conversion costs visible (TYPE_SYSTEM.md rule)
+val as_i64 : i64 = small:i64 + large           // 🔧 Explicit: i32 → i64 (conversion cost visible)
+val as_f64 : f64 = small:f64 + precise         // 🔧 Explicit: i32 → f64 (conversion cost visible)
 
-// 🔧 Data loss requires explicit acknowledgment (TYPE_SYSTEM.md rule)
-// val lose_precision : i32 = large + small  // Error: i64 → i32 needs ':i32' (data loss)
-val with_truncation : i32 = (large + small):i32  // ✅ Explicit: i64 → i32 (data loss visible)
+// 🔧 Data loss requires explicit conversion (TYPE_SYSTEM.md rule)
+// val lose_precision : i32 = large + small  // ❌ Error: Mixed concrete types (i64 + i32) forbidden
+val with_truncation : i32 = (large:i32 + small)  // ✅ Explicit: i64 → i32 conversion, then i32 + i32 → i32 (data loss visible)
 ```
 
 #### Pattern 4: ⚡ Same Concrete → Same Concrete (Identity)
@@ -307,14 +307,14 @@ val a : i32 = 10
 val b : i32 = 20
 
 // ⚡ Identity: same concrete types produce same concrete type (no conversion)
-val result1 = a + b             // i32 + i32 → i32 (identity, no conversion needed)
-val result2 = a * b             // i32 * i32 → i32 (identity, no conversion needed)
-val result3 = a \ b             // i32 \ i32 → i32 (identity, no conversion needed)
+val result1 : i32 = a + b             // i32 + i32 → i32 (identity, no conversion needed)
+val result2 : i32 = a * b             // i32 * i32 → i32 (identity, no conversion needed)
+val result3 : i32 = a \ b             // i32 \ i32 → i32 (identity, no conversion needed)
 
 // 🔧 Assignment to different types requires explicit conversion (TYPE_SYSTEM.md rule)
 val c : f64 = 3.14
 val d : f64 = 2.71
-val result4 = c + d             // f64 + f64 → f64 (identity, no conversion needed)
+val result4 : f64 = c + d             // f64 + f64 → f64 (identity, no conversion needed)
 // val narrow : f32 = c + d     // ❌ Error: f64 → f32 requires ':f32' (TYPE_SYSTEM.md rule)
 val narrow : f32 = (c + d):f32 // ✅ Explicit: f64 → f32 (conversion cost visible)
 ```
@@ -327,7 +327,7 @@ val narrow : f32 = (c + d):f32 // ✅ Explicit: f64 → f32 (conversion cost vis
 | `comptime + comptime` (context provided) | ✅ Implicit | `val x : i32 = 42 + 100` | No cost, ergonomic adaptation |
 | `comptime + concrete` | ✅ Implicit | `i32_val + 42` | No cost, comptime adapts |
 | `same_concrete + same_concrete` | ✅ Identity | `i32_val + i32_val` | No conversion needed |
-| `mixed_concrete + mixed_concrete` | 🔧 Explicit | `val x : f64 = i32_val:f64 + f64_val` | Conversion cost visible via explicit syntax |
+| `mixed_concrete + mixed_concrete` | 🔧 Explicit | `val x : f64 = i32_val:f64 + f64_val` | Conversion cost visible via explicit conversion |
 
 **Key Insight**: Binary operations are **not special** - they follow the **exact same conversion rules** as individual values, ensuring complete consistency across Hexen.
 
@@ -451,7 +451,7 @@ val fast3 : i64 = 22 \ 7        // comptime_int → i64 (implicit, no cost)
 // ✅ Integer division with concrete types
 val a : i32 = 10
 val b : i32 = 3
-val efficient = a \ b           // i32 \ i32 → i32 (identity, no conversion)
+val efficient : i32 = a \ b           // i32 \ i32 → i32 (identity, no conversion)
 
 // ❌ Float operands with integer division is an error
 // val invalid = 10.5 \ 2.1     // Error: Integer division requires integer operands
@@ -536,7 +536,7 @@ val c : f32 = 3.14
 val result : f64 = a:f64 + (b:f64 * c:f64)  // Explicit: i32 → f64 + (i64 → f64 * f32 → f64)
 
 // ✅ Explicit conversions work too
-val result2 = a:f64 + b:f64 * c:f64  // All explicit conversions
+val result2 : f64 = a:f64 + b:f64 * c:f64  // All explicit conversions
 ```
 
 ## Grammar Extensions
