@@ -18,11 +18,11 @@ Hexen's binary operations system follows the **"Ergonomic Literals + Transparent
    - Two division operators for clear intent: `/` (mathematical) and `\` (efficient integer)
    - Float result types reveal floating-point computation
    - Integer result types guarantee efficient integer math
-   - Mixed concrete types require explicit context for cost visibility
+   - Mixed concrete types require explicit conversions for cost visibility
 
 3. **Predictable Type Resolution**:
    - Same comptime types stay comptime (maximum flexibility)
-   - Mixed comptime types adapt to context or use sensible defaults
+   - Mixed comptime types adapt to context or preserve maximum flexibility until context forces resolution
    - Concrete type mixing requires explicit target types
    - Operator choice determines computation type (`/` vs `\`)
 
@@ -46,15 +46,22 @@ Binary operations apply the TYPE_SYSTEM.md conversion rules to their results:
 | Result Type | Conversion | Syntax | Notes |
 |-------------|------------|--------|-------|
 | **✅ Ergonomic (Comptime Results)** |
-| `comptime_int` | ✅ Default | `val x = 42 + 100` | System default when no explicit type |
+| `comptime_int` | ✅ Preserved | `val x = 42 + 100` | Comptime type preserved (maximum flexibility!) |
 | `comptime_int` | ✅ Implicit | `val x : i32 = 42 + 100` | No cost, ergonomic adaptation |
-| `comptime_float` | ✅ Default | `val x = 3.14 + 2.71` | Precision default when no explicit type |
+| `comptime_float` | ✅ Preserved | `val x = 3.14 + 2.71` | Comptime type preserved (maximum flexibility!) |
 | `comptime_float` | ✅ Implicit | `val x : f32 = 3.14 + 2.71` | No cost, ergonomic adaptation |
 | **🔧 Explicit (Concrete Results)** |
-| Mixed concrete | 🔧 Explicit | `val x : f64 = i32_val + f64_val` | Conversion cost visible via context |
+| Mixed concrete | 🔧 Explicit | `val x : f64 = i32_val:f64 + f64_val` | Conversion cost visible via explicit syntax |
 | Precision loss | 🔧 Explicit | `val x : i32 = f64_val:i32 + f32_val:i32` | Data loss visible via conversion |
 | **❌ Forbidden** |
-| No context | ❌ Forbidden | `val x = i32_val + f64_val` | Use context or explicit conversion |
+| No context | ❌ Forbidden | `val x = i32_val + f64_val` | Use explicit conversion: `i32_val:f64 + f64_val` |
+
+### Legend
+
+- **✅ Preserved**: Comptime type stays flexible, maximum adaptability (comptime types only)
+- **✅ Implicit**: Happens automatically, no conversion cost (comptime types only)
+- **🔧 Explicit**: Requires explicit syntax (`value:type`), conversion cost visible
+- **❌ Forbidden**: Not allowed, compilation error
 
 **Key Insight**: Binary operation results follow the **same conversion rules** as individual values - maintaining complete consistency.
 
@@ -83,7 +90,7 @@ val result2 : i32 = (2 + 3) * 4         // (2 + 3) * 4 = 20
 
 // Division operators have same precedence but different semantics:
 val float_precise : i32 = ((10 / 3) * 9):i32  // Float division: (3.333... * 9) = 30.0 → 30 (explicit conversion)
-val int_truncated = (10 \ 3) * 9          // Integer division: (3 * 9) = 27 (comptime → i32 default)
+val int_preserved = (10 \ 3) * 9          // Integer division: (3 * 9) = 27 (comptime_int preserved until context)
 val mixed : f64 = 20 * (3 / 2)            // 20 * (1.5) = 30.0
 
 // Comparison precedence  
@@ -156,9 +163,9 @@ But some operations **would change the comptime type** and need explicit guidanc
 val mixed : f64 = 42 + 3.14     // comptime_int + comptime_float → comptime_float (adapts to f64)
 val float_div : f32 = 42 / 3    // comptime_int / comptime_int → comptime_float (adapts to f32)
 
-// ✅ And comptime_float operations work with context or defaults
+// ✅ And comptime_float operations work with context or preserve flexibility
 val float_ops : f64 = 3.14 + 2.71  // comptime_float + comptime_float → comptime_float (adapts to f64)
-val float_default = 3.14 + 2.71    // comptime_float + comptime_float → comptime_float (defaults to f64)
+val float_preserved = 3.14 + 2.71    // comptime_float + comptime_float → comptime_float (preserved until context)
 ```
 
 #### Pattern 2: 🔄 Comptime + Concrete → Concrete (Ergonomic Adaptation)
@@ -225,12 +232,13 @@ val narrow : f32 = (c + d):f32 // ✅ Explicit: f64 → f32 (conversion cost vis
 
 ### 🎯 Pattern Summary: Complete TYPE_SYSTEM.md Alignment
 
-| Binary Operation Pattern | TYPE_SYSTEM.md Rule | Syntax | Cost |
-|---------------------------|---------------------|---------|------|
-| `comptime + comptime` | ✅ Implicit | `val x : i32 = 42 + 100` | Zero runtime cost |
-| `comptime + concrete` | ✅ Implicit | `i32_val + 42` | Zero runtime cost |
-| `same_concrete + same_concrete` | ✅ Identity | `i32_val + i32_val` | No conversion |
-| `mixed_concrete + mixed_concrete` | 🔧 Explicit | `val x : f64 = i32_val + f64_val` | Conversion cost visible |
+| Binary Operation Pattern | Conversion | Syntax | Notes |
+|---------------------------|------------|---------|-------|
+| `comptime + comptime` (same type) | ✅ Preserved | `val x = 42 + 100` | Comptime type preserved (maximum flexibility!) |
+| `comptime + comptime` (context provided) | ✅ Implicit | `val x : i32 = 42 + 100` | No cost, ergonomic adaptation |
+| `comptime + concrete` | ✅ Implicit | `i32_val + 42` | No cost, comptime adapts |
+| `same_concrete + same_concrete` | ✅ Identity | `i32_val + i32_val` | No conversion needed |
+| `mixed_concrete + mixed_concrete` | 🔧 Explicit | `val x : f64 = i32_val:f64 + f64_val` | Conversion cost visible via explicit syntax |
 
 **Key Insight**: Binary operations are **not special** - they follow the **exact same conversion rules** as individual values, ensuring complete consistency across Hexen.
 
@@ -298,9 +306,9 @@ counter = some_i64:i32               // ✅ Explicit: i64 → i32 (conversion co
 counter = some_i64:i32 + some_f64:i32  // ✅ Explicit: convert both operands
 precise = some_f64:f32               // ✅ Explicit: f64 → f32 (conversion cost visible)
 
-// 🔧 Or provide context via the mutable variable type
+// 🔧 Explicit conversions required for mixed concrete types
 mut result : f64 = 0.0
-result = some_i32 + some_i64         // ✅ Context guides: i32 + i64 → f64 (cost visible via context)
+result = some_i32:f64 + some_i64:f64  // ✅ Explicit: i32 → f64 + i64 → f64 (conversion costs visible)
 ```
 
 #### Key Mutable Assignment Rules
@@ -320,20 +328,20 @@ Hexen provides **two distinct division operators** that make computational inten
 **Produces floating-point results** for mathematical precision:
 
 ```hexen
-// ✅ Default resolution (TYPE_SYSTEM.md default rule)
-val precise1 = 10 / 3        // comptime_int / comptime_int → comptime_float → f64 (default)
-val precise2 = 7 / 2         // comptime_int / comptime_int → comptime_float → f64 (default)
-val float_calc = 10.5 / 2.1  // comptime_float / comptime_float → comptime_float → f64 (default)
+// ✅ Preserved resolution (TYPE_SYSTEM.md preservation rule)
+val precise1 = 10 / 3        // comptime_int / comptime_int → comptime_float (preserved until context)
+val precise2 = 7 / 2         // comptime_int / comptime_int → comptime_float (preserved until context)
+val float_calc = 10.5 / 2.1  // comptime_float / comptime_float → comptime_float (preserved until context)
 
 // ✅ Implicit adaptation to different float types (TYPE_SYSTEM.md implicit rule)
 val precise3 : f32 = 22 / 7     // comptime_float → f32 (implicit, no cost)
 val explicit_f64 : f64 = 10 / 3 // comptime_float → f64 (implicit, no cost)
 
-// 🔧 Mixed concrete types require context (TYPE_SYSTEM.md explicit rule)
+// 🔧 Mixed concrete types require explicit conversions (TYPE_SYSTEM.md explicit rule)
 val int_val : i32 = 10
 val float_val : f64 = 3.0
-// val mixed = int_val / float_val  // ❌ Error: mixed concrete requires context or conversion
-val explicit_mixed : f64 = int_val / float_val  // ✅ Context guides conversion
+// val mixed = int_val / float_val  // ❌ Error: mixed concrete requires explicit conversion
+val explicit_mixed : f64 = int_val:f64 / float_val  // ✅ Explicit: i32 → f64 (conversion cost visible)
 
 // 🔧 Assignment to different types requires explicit conversion (TYPE_SYSTEM.md explicit rule)
 mut result : i32 = 0
@@ -345,9 +353,9 @@ result = (10 / 3):i32           // ✅ Explicit: f64 → i32 (conversion cost vi
 **Works naturally with integer types**, producing efficient integer results:
 
 ```hexen
-// ✅ Default resolution (TYPE_SYSTEM.md default rule)
-val fast1 = 10 \ 3              // comptime_int \ comptime_int → comptime_int → i32 (default)
-val fast2 = 7 \ 2               // comptime_int \ comptime_int → comptime_int → i32 (default)
+// ✅ Preserved resolution (TYPE_SYSTEM.md preservation rule)
+val fast1 = 10 \ 3              // comptime_int \ comptime_int → comptime_int (preserved until context)
+val fast2 = 7 \ 2               // comptime_int \ comptime_int → comptime_int (preserved until context)
 
 // ✅ Implicit adaptation to different integer types (TYPE_SYSTEM.md implicit rule)
 val fast3 : i64 = 22 \ 7        // comptime_int → i64 (implicit, no cost)
@@ -361,15 +369,15 @@ val efficient = a \ b           // i32 \ i32 → i32 (identity, no conversion)
 // val invalid = 10.5 \ 2.1     // Error: Integer division requires integer operands
 // val also_bad = 3.14 \ 42     // Error: Integer division requires integer operands
 
-// 🔧 Mixed integer types require context (TYPE_SYSTEM.md explicit rule)
+// 🔧 Mixed integer types require explicit conversions (TYPE_SYSTEM.md explicit rule)
 val c : i64 = 20
-// val mixed = a \ c            // ❌ Error: Mixed concrete types need context or conversion
-val explicit_mixed : i64 = a \ c  // ✅ Context guides conversion
+// val mixed = a \ c            // ❌ Error: Mixed concrete types need explicit conversion
+val explicit_mixed : i64 = a:i64 \ c  // ✅ Explicit: i32 → i64 (conversion cost visible)
 
 // Mutable assignment with integer division
 mut result : i32 = 0
 result = a \ b                  // ✅ Identity: i32 \ i32 → i32 (no conversion)
-// result = c \ b               // ❌ Error: Mixed concrete types need context or conversion
+// result = c \ b               // ❌ Error: Mixed concrete types need explicit conversion
 result = (c:i32) \ b            // ✅ Explicit conversion then identity
 ```
 
@@ -380,8 +388,8 @@ result = (c:i32) \ b            // ✅ Explicit conversion then identity
 - **`\` → Integer result**: User sees integer type, knows efficient integer operation
 
 #### **Mathematical Honesty** 
-- **`10 / 3`** naturally produces a fraction → defaults to f64, adapts to context
-- **`10 \ 3`** explicitly requests truncation → defaults to i32, adapts to context
+- **`10 / 3`** naturally produces a fraction → comptime_float preserved until context forces resolution
+- **`10 \ 3`** explicitly requests truncation → comptime_int preserved until context forces resolution
 
 #### **No Hidden Magic**
 - Division behavior determined by **operator choice**, not operand types
@@ -412,8 +420,8 @@ func get_count() : i32 = 42 + 100       // comptime_int + comptime_int → i32 (
 func get_ratio() : f64 = 42 + 3.14      // comptime_int + comptime_float → f64 (implicit)
 func precise_calc() : f32 = 10 / 3      // Float division → f32 (implicit)
 
-// Mixed concrete types in return context
-func mixed_sum(a: i32, b: i64) : f64 = a + b  // Context guides: i32 + i64 → f64
+// Mixed concrete types require explicit conversions
+func mixed_sum(a: i32, b: i64) : f64 = a:f64 + b:f64  // Explicit: i32 → f64 + i64 → f64
 ```
 
 ## Complex Expression Resolution
@@ -425,11 +433,11 @@ val a : i32 = 10
 val b : i64 = 20
 val c : f32 = 3.14
 
-// ❌ Error: Mixed types require context
+// ❌ Error: Mixed types require explicit conversions
 // val result = a + b * c
 
-// ✅ Context guides entire expression resolution
-val result : f64 = a + b * c    // Context guides: i32 + (i64 * f32) → f64
+// ✅ Explicit conversions for mixed concrete types
+val result : f64 = a:f64 + (b:f64 * c:f64)  // Explicit: i32 → f64 + (i64 → f64 * f32 → f64)
 
 // ✅ Explicit conversions work too
 val result2 = a:f64 + b:f64 * c:f64  // All explicit conversions
