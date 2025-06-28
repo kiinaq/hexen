@@ -408,6 +408,38 @@ result = some_i32:f64 + some_i64:f64  // ✅ Explicit: i32 → f64 + i64 → f64
 5. **Explicit Conversions**: Concrete type mixing requires explicit `value:type` syntax (cost visible)
 6. **Predictable Behavior**: The same expression will resolve consistently based on the mutable variable's type
 
+#### **🔴 Critical Limitation: `mut` Variables Cannot Preserve Comptime Types**
+
+Because `mut` variables require explicit type annotations (TYPE_SYSTEM.md safety rule), **they cannot preserve comptime types from binary operations** - they must immediately resolve results to concrete types:
+
+```hexen
+// ✅ val preserves comptime types from binary operations (maximum flexibility)
+val flexible_math = 42 + 100 * 3       // comptime_int (preserved - can adapt to any numeric context later!)
+val flexible_division = 10 / 3         // comptime_float (preserved - can adapt to f32/f64 context later!)
+
+// Later: same expressions adapt to different contexts (maximum flexibility!)
+val as_i32 : i32 = flexible_math       // comptime_int → i32 (flexibility preserved until now!)
+val as_i64 : i64 = flexible_math       // SAME source → i64 (different context!)
+val as_f32 : f32 = flexible_division   // comptime_float → f32 (flexibility preserved until now!)
+val as_f64 : f64 = flexible_division   // SAME source → f64 (different context!)
+
+// 🔴 mut cannot preserve comptime types (immediate resolution required)
+mut counter : i32 = 42 + 100 * 3       // comptime_int → i32 (immediately resolved, no preservation!)
+mut result : f64 = 10 / 3               // comptime_float → f64 (immediately resolved, no preservation!)
+
+// 🔴 mut variables lose flexibility - cannot adapt to different contexts
+// val cant_adapt : i64 = counter      // ❌ Error: counter is concrete i32, needs counter:i64
+val must_convert : i64 = counter:i64   // ✅ Explicit conversion required (no flexibility left)
+```
+
+**Why This Matters:**
+- **`val`**: Maximizes flexibility by preserving comptime types from binary operations until context forces resolution
+- **`mut`**: Prioritizes safety by requiring explicit types, sacrificing comptime type preservation from binary operations  
+- **Design Trade-off**: Safety vs Flexibility - same fundamental trade-off as individual values extends to binary operations
+- **Consistency**: This follows the exact same pattern as TYPE_SYSTEM.md - `mut` variables sacrifice flexibility for safety
+
+**Key Insight**: The `mut` limitation applies to **all comptime-producing operations** - arithmetic, division, complex expressions, etc. Only `val` declarations can preserve the flexibility of comptime results from binary operations.
+
 ## Division Operations: Float vs Integer
 
 Hexen provides **two distinct division operators** that make computational intent clear and costs transparent, following the TYPE_SYSTEM.md conversion patterns:
