@@ -152,28 +152,110 @@ val large : i64 = integers      // comptime_int → i64 (implicit, no cost)
 val precise : f64 = integers    // comptime_int → f64 (implicit, no cost)
 ```
 
-**Mixed comptime operations naturally resolve to the most flexible comptime type**, following natural mathematical rules:
+### **🔄 Comptime Type Propagation: The Compiler's Computational Capacity**
+
+**The fundamental principle**: The compiler has the capacity to **resolve operations between comptime types** and **propagate the results through chains of operations** until a concrete type boundary is encountered.
+
+#### **Comptime Operation Chains**
+The compiler can evaluate arbitrarily complex comptime expressions without premature resolution:
 
 ```hexen
-// ✅ All comptime operations preserve maximum flexibility until context forces resolution
-val mixed = 42 + 3.14        // comptime_int + comptime_float → comptime_float (preserved until context)
-val float_div = 42 / 3       // comptime_int / comptime_int → comptime_float (preserved until context)
-val int_div = 42 \ 3         // comptime_int \ comptime_int → comptime_int (preserved until context)
-val same_type = 3.14 + 2.71  // comptime_float + comptime_float → comptime_float (preserved until context)
+// ✅ Compiler propagates comptime operations through multiple steps
+val step1 = 42 + 100              // comptime_int + comptime_int → comptime_int
+val step2 = step1 * 2             // comptime_int * comptime_int → comptime_int
+val step3 = step2 + 3.14          // comptime_int + comptime_float → comptime_float (promotion in comptime space)
+val step4 = step3 / 2.0           // comptime_float / comptime_float → comptime_float
+val step5 = step4 + (50 \ 7)      // comptime_float + comptime_int → comptime_float
 
-// ✅ Context guides resolution to appropriate concrete types seamlessly
-val mixed_f64 : f64 = 42 + 3.14     // comptime_float → f64 (implicit, no cost)
-val mixed_f32 : f32 = 42 + 3.14     // comptime_float → f32 (implicit, no cost)
-val div_f64 : f64 = 42 / 3          // comptime_float → f64 (implicit, no cost)
-val div_f32 : f32 = 42 / 3          // comptime_float → f32 (implicit, no cost)
-val int_result : i32 = 42 \ 3       // comptime_int → i32 (implicit, no cost)
+// ✅ All steps happen in "comptime space" - no concrete resolution yet!
+// Only when we provide concrete context does resolution occur:
+val final_f64 : f64 = step5       // NOW: comptime_float → f64 (single resolution point)
+val final_f32 : f32 = step5       // SAME source, different target (maximum flexibility!)
+val final_i32 : i32 = step5:i32   // Explicit conversion needed
 ```
 
-#### **🎯 Comptime Resolution Rules (Formalized)**
+#### **Complex Expression Propagation**
+Even complex expressions stay in comptime space until forced to resolve:
+
+```hexen
+// ✅ Entire expression evaluated in comptime space
+val complex_math = (42 + 100) * 3.14 + (50 / 7) - (25 \ 4)
+// Breakdown: 
+//   (142) * 3.14 + (7.14...) - (6) 
+//   445.88 + 7.14... - 6 
+//   → comptime_float (stays flexible!)
+
+// ✅ Same expression, multiple concrete resolutions
+val as_precise : f64 = complex_math      // comptime_float → f64
+val as_single : f32 = complex_math       // comptime_float → f32  
+val as_integer : i32 = complex_math:i32  // comptime_float → i32 (explicit conversion)
+```
+
+#### **🎯 Comptime Propagation Rules (Formalized)**
 1. **`comptime_int ○ comptime_int`** → **`comptime_int`** (except `/` which produces `comptime_float`)
-2. **`comptime_int ○ comptime_float`** → **`comptime_float`** (natural mathematical promotion)
-3. **`comptime_float ○ comptime_float`** → **`comptime_float`** (stays float)
-4. **All preserved until context forces concrete resolution** → **Maximum flexibility maintained**
+2. **`comptime_int ○ comptime_float`** → **`comptime_float`** (natural mathematical promotion in comptime space)
+3. **`comptime_float ○ comptime_float`** → **`comptime_float`** (stays in comptime space)
+4. **Operations chain indefinitely** → **Compiler resolves entire expression trees in comptime space**
+5. **Resolution only at boundaries** → **Concrete types or explicit annotations force resolution**
+
+#### **Resolution Boundaries**
+Comptime propagation continues until the compiler encounters a **resolution boundary**:
+
+**What stays in comptime space:**
+- **Literals**: `42`, `3.14`, `true`
+- **Comptime operations**: `42 + 100`, `3.14 * 2.5`, `100 / 7`
+- **Comptime variables**: `val x = 42 + 3.14` (result of comptime operations)
+
+**What creates resolution boundaries:**
+- **Function calls**: `sqrt(5.0)`, `compute_value()` (return concrete types)
+- **Concrete variables**: `val x : i32 = 50` (explicitly typed variables)
+- **Mixed operations**: `comptime_type + concrete_type` → concrete result
+- **Explicit type annotations**: `val x : f64 = comptime_expr` (forces resolution)
+
+```hexen
+// ✅ Stays in comptime space
+val flexible = 42 + 3.14 * 2.5 + 100    // All literals → comptime_float
+val derived = flexible / 2.0 + 50        // comptime_float operations → comptime_float
+
+// 🚧 Resolution boundaries
+val concrete : i32 = 50                 // Explicit concrete type
+val boundary : i32 = flexible + concrete       // BOUNDARY: comptime_float + i32 → i32 (concrete result)
+val function_result : f64 = sqrt(25.0)        // BOUNDARY: function call → f64 (concrete result)
+
+// ✅ Function parameters create boundaries
+func process(value: f64) : void = { /* implementation */ }
+process(42 + 3.14 * 2.0)                // BOUNDARY: comptime_float resolves to f64 for parameter
+
+// ✅ Assignment provides resolution context
+val result : f32 = 42 + 3.14 + 100 * 2.5  // BOUNDARY: entire expression resolves to f32
+```
+
+#### **The Revolutionary Advantage**
+This approach provides **unprecedented flexibility**:
+
+```hexen
+// ✅ Define complex mathematical constants once (pure comptime operations)
+val math_constant = (1.0 + 2.236) / 2.0           // comptime_float (flexible!)
+val complex_calc = math_constant * math_constant + 1.0  // Still comptime_float!
+val big_calculation = 42 * 3.14159 + 100 / 7      // All comptime operations → comptime_float
+
+// ✅ Use in different precision contexts without modification
+val high_precision : f64 = math_constant          // Resolves to f64
+val fast_compute : f32 = math_constant            // Same calc, resolves to f32
+val for_display : i32 = math_constant:i32         // Same calc, explicit to i32
+
+// ✅ Complex expressions adapt to usage context
+func get_f64_physics() : f64 = {
+    return 9.81 * 2.5 + 100.0                     // Pure comptime operations → resolves to f64
+}
+func get_f32_physics() : f32 = {
+    return 9.81 * 2.5 + 100.0                     // Same calc → resolves to f32
+}
+
+// ❌ Function calls break comptime propagation (create resolution boundaries)
+// val bad_example = (1.0 + sqrt(5.0)) / 2.0      // sqrt() returns concrete f64, not comptime
+// val physics_calc = 9.81 * mass_factor + offset // Variables are concrete types, not comptime
+```
 
 #### Pattern 2: 🔄 Comptime + Concrete → Concrete (Ergonomic Adaptation)
 
@@ -422,12 +504,20 @@ Function return types provide context for binary operations, following TYPE_SYST
 
 ```hexen
 // Return type provides context for binary operations
-func get_count() : i32 = 42 + 100       // comptime_int + comptime_int → i32 (implicit)
-func get_ratio() : f64 = 42 + 3.14      // comptime_int + comptime_float → f64 (implicit)
-func precise_calc() : f32 = 10 / 3      // Float division → f32 (implicit)
+func get_count() : i32 = {
+    return 42 + 100                      // comptime_int + comptime_int → i32 (implicit)
+}
+func get_ratio() : f64 = {
+    return 42 + 3.14                     // comptime_int + comptime_float → f64 (implicit)
+}
+func precise_calc() : f32 = {
+    return 10 / 3                        // Float division → f32 (implicit)
+}
 
 // Mixed concrete types require explicit conversions
-func mixed_sum(a: i32, b: i64) : f64 = a:f64 + b:f64  // Explicit: i32 → f64 + i64 → f64
+func mixed_sum(a: i32, b: i64) : f64 = {
+    return a:f64 + b:f64                 // Explicit: i32 → f64 + i64 → f64
+}
 ```
 
 ## Complex Expression Resolution
