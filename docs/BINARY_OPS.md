@@ -196,7 +196,7 @@ val as_integer : i32 = complex_math:i32  // comptime_float → i32 (explicit con
 2. **`comptime_int ○ comptime_float`** → **`comptime_float`** (natural mathematical promotion in comptime space)
 3. **`comptime_float ○ comptime_float`** → **`comptime_float`** (stays in comptime space)
 4. **Operations chain indefinitely** → **Compiler resolves entire expression trees in comptime space**
-5. **Resolution only at boundaries** → **Concrete types or explicit annotations force resolution**
+5. **Resolution only at boundaries** → **Concrete types or explicit annotations (developer requests concrete type) force resolution**
 
 #### **Resolution Boundaries**
 Comptime propagation continues until the compiler encounters a **resolution boundary**:
@@ -210,7 +210,7 @@ Comptime propagation continues until the compiler encounters a **resolution boun
 - **Function calls**: `sqrt(5.0)`, `compute_value()` (return concrete types)
 - **Concrete variables**: `val x : i32 = 50` (explicitly typed variables)
 - **Mixed operations**: `comptime_type + concrete_type` → concrete result
-- **Explicit type annotations**: `val x : f64 = comptime_expr` (forces resolution)
+- **Explicit type annotations**: `val x : f64 = comptime_expr` (developer requests concrete type)
 
 ```hexen
 // ✅ Stays in comptime space
@@ -226,8 +226,8 @@ val function_result : f64 = sqrt(25.0)        // BOUNDARY: function call → f64
 func process(value: f64) : void = { /* implementation */ }
 process(42 + 3.14 * 2.0)                // BOUNDARY: comptime_float resolves to f64 for parameter
 
-// ✅ Assignment provides resolution context
-val result : f32 = 42 + 3.14 + 100 * 2.5  // BOUNDARY: entire expression resolves to f32
+// ✅ Developer requests concrete type
+val result : f32 = 42 + 3.14 + 100 * 2.5  // BOUNDARY: developer requests f32, forces resolution
 ```
 
 #### **The Revolutionary Advantage**

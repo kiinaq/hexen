@@ -193,7 +193,7 @@ val widened : i64 = runtime_result:i64      // i32 → i64 (explicit conversion 
 
 // ✅ Mixed: Concrete + Comptime (Comptime Adapts)
 val runtime_result : i32 = compute_value()  // ✅ Explicit type required for concrete values
-val mixed = runtime_result + 100            // i32 + comptime_int → i32 (comptime adapts to i32)
+val mixed : i32 = runtime_result + 100      // i32 + comptime_int → i32 (comptime adapts to i32)
 ```
 
 **Comparison Example - Comptime vs Concrete Sources:**
