@@ -6,7 +6,9 @@
 
 ## Overview
 
-Hexen's binary operations system follows the **"Ergonomic Literals + Transparent Costs"** philosophy - making common operations seamless while keeping all computational costs visible. The system is built on top of our comptime type system, ensuring consistent type resolution across all operations with natural adaptation for literals and explicit conversions for concrete type mixing.
+Hexen's binary operations system follows the **"Ergonomic Literals + Transparent Costs"** philosophy - making common operations seamless while keeping all computational costs visible. The system is built on top of our comptime type system, ensuring consistent type resolution across **all binary operations** (arithmetic, comparison, and logical) with natural adaptation for literals and explicit conversions for concrete type mixing.
+
+**Key Insight**: All binary operations (arithmetic, comparison, and logical) follow the **same type resolution rules** - there are no special restrictions for any operation type.
 
 ### Key Design Principles
 
@@ -22,11 +24,17 @@ Hexen's binary operations system follows the **"Ergonomic Literals + Transparent
    - Integer result types guarantee efficient integer math
    - Mixed concrete types require explicit conversions for cost visibility
 
-3. **Predictable Type Resolution**:
+3. **Unified Type Resolution**:
+   - **Same rules for all operations**: Arithmetic, comparison, and logical operations follow identical type resolution rules
    - Same comptime types stay comptime (maximum flexibility)
    - Mixed comptime types adapt to context or preserve maximum flexibility until context forces resolution
-   - Concrete type mixing requires explicit target types
-   - Operator choice determines computation type (`/` vs `\`)
+   - Concrete type mixing requires explicit target types for **all** operation types
+   - **No special restrictions**: Comparison operations are not more restrictive than arithmetic operations
+
+4. **Boolean Result Semantics**:
+   - Comparison operations (`<`, `>`, `<=`, `>=`, `==`, `!=`) always produce `bool` results
+   - Logical operations (`&&`, `||`, `!`) work exclusively with boolean values
+   - No implicit coercion to/from boolean types - explicit comparisons required
 
 ## Core Philosophy
 
@@ -573,40 +581,182 @@ val result : f64 = a:f64 + (b:f64 * c:f64)  // Explicit: i32 → f64 + (i64 → 
 val result2 : f64 = a:f64 + b:f64 * c:f64  // All explicit conversions
 ```
 
-## Grammar Extensions
+## Comparison Operations
 
-### Lark Grammar for Binary Operations
+Comparison operations (`<`, `>`, `<=`, `>=`, `==`, `!=`) follow the **exact same type resolution rules** as arithmetic operations. There are no special restrictions - they require explicit conversions for mixed concrete types just like arithmetic operations do.
 
-```lark
-// Current expression rule
-expression: NUMBER | STRING | BOOLEAN | IDENTIFIER | block
+### Basic Comparison Operations
 
-// Extended expression rule with binary operations
-expression: binary_expr
+```hexen
+// ✅ Comptime type comparisons work naturally
+val is_greater = 42 > 30              // comptime_int > comptime_int → bool
+val is_equal = 3.14 == 3.14           // comptime_float == comptime_float → bool
+val mixed_comp = 42 < 3.14            // comptime_int < comptime_float → bool (comptime promotion)
 
-binary_expr: logical_or
+// ✅ Same concrete types work seamlessly
+val a : i32 = 10
+val b : i32 = 20
+val result1 = a < b                   // i32 < i32 → bool
 
-logical_or: logical_and (("||") logical_and)*
-logical_and: equality (("&&") equality)*
-equality: relational (("==" | "!=") relational)*
-relational: additive (("<" | ">" | "<=" | ">=") additive)*
-additive: multiplicative (("+" | "-") multiplicative)*
-multiplicative: unary (("*" | "/" | "\\" | "%") unary)*
-unary: ("-" | "!")? primary
-primary: NUMBER | STRING | BOOLEAN | IDENTIFIER | block | "(" expression ")"
+val x : f64 = 3.14
+val y : f64 = 2.71
+val result2 = x >= y                  // f64 >= f64 → bool
 ```
 
-### AST Node Structure
+### Mixed Concrete Types: Same Rules as Arithmetic
 
-Binary operations create AST nodes with this structure:
+**Key Insight**: Comparison operations follow the **identical type resolution rules** as arithmetic operations from TYPE_SYSTEM.md:
 
-```python
-{
-    "type": "binary_operation",
-    "operator": "+",  # The operator: +, -, *, /, %, <, >, <=, >=, ==, !=, &&, ||
-    "left": {...},    # Left operand (expression)
-    "right": {...},   # Right operand (expression)
-}
+```hexen
+val int_val : i32 = 10
+val float_val : f64 = 3.14
+
+// ❌ Error: Mixed concrete types require explicit conversions (same as arithmetic)
+// val comparison = int_val < float_val
+
+// ✅ Explicit conversions required (same pattern as a:f64 + b)
+val explicit_comp1 = int_val:f64 < float_val      // i32 → f64, then compare
+val explicit_comp2 = int_val < float_val:i32      // f64 → i32, then compare (with potential precision loss)
 ```
+
+**This is identical to arithmetic operations:**
+```hexen
+// Arithmetic operations (same rules)
+// val arithmetic = int_val + float_val        // ❌ Error: Same restriction
+val explicit_arith = int_val:f64 + float_val   // ✅ Same solution pattern
+```
+
+### Equality Operations
+
+Equality (`==`, `!=`) works with all types but follows the same concrete type mixing rules:
+
+```hexen
+// ✅ Comptime types work naturally
+val same1 = 42 == 42                  // comptime_int == comptime_int → bool
+val same2 = 3.14 == 3.14              // comptime_float == comptime_float → bool
+val different = 42 != 3.14            // comptime_int != comptime_float → bool (comptime promotion)
+
+// ✅ Same concrete types
+val str1 : string = "hello"
+val str2 : string = "world"
+val str_eq = str1 == str2             // string == string → bool
+
+val bool1 : bool = true
+val bool2 : bool = false
+val bool_eq = bool1 != bool2          // bool != bool → bool
+
+// ❌ Mixed concrete types need explicit conversion (same as arithmetic)
+val int_val : i32 = 42
+val float_val : f64 = 42.0
+// val mixed_eq = int_val == float_val   // ❌ Error: Mixed concrete types
+val explicit_eq = int_val:f64 == float_val  // ✅ Explicit conversion required
+```
+
+### Boolean Results and Context
+
+Unlike arithmetic operations, comparison operations always produce `bool` results, but they still follow the same input type resolution rules:
+
+```hexen
+// ✅ Boolean context is always clear
+val result : bool = 10 > 5            // Always produces bool
+val condition = 3.14 < 2.71           // Always produces bool
+
+// ✅ Used in boolean expressions and assignments
+val is_valid = 42 > 30               // Boolean result can be stored
+val should_continue = counter < limit // Boolean expressions work naturally
+```
+
+## Logical Operations
+
+Logical operations (`&&`, `||`, `!`) work exclusively with boolean values and provide short-circuit evaluation.
+
+### Basic Logical Operations
+
+```hexen
+// ✅ Boolean operations
+val true_val : bool = true
+val false_val : bool = false
+
+val and_result = true_val && false_val    // bool && bool → bool (false)
+val or_result = true_val || false_val     // bool || bool → bool (true)
+val not_result = !true_val                // !bool → bool (false)
+```
+
+### No Implicit Boolean Coercion
+
+Unlike some languages, Hexen requires explicit boolean comparisons and has no implicit coercion to boolean:
+
+```hexen
+val count : i32 = 5
+val name : string = "test"
+
+// ❌ Error: No implicit coercion to bool - values cannot be used directly as boolean
+// val is_truthy = count                 // Error: i32 cannot be used as bool
+// val name_exists = name                // Error: string cannot be used as bool
+
+// ✅ Explicit comparisons required to produce boolean values
+val is_positive = count > 0             // i32 > comptime_int → bool
+val is_nonzero = count != 0             // i32 != comptime_int → bool  
+val is_empty = name == ""               // string == comptime_string → bool
+val has_content = name != ""            // string != comptime_string → bool
+```
+
+### Short-Circuit Evaluation
+
+Logical operators provide short-circuit evaluation for performance and safety:
+
+```hexen
+// ✅ Short-circuit AND (&&)
+val result1 = false && expensive_operation()   // expensive_operation() not called
+val result2 = true && check_condition()       // check_condition() is called
+
+// ✅ Short-circuit OR (||)  
+val result3 = true || expensive_operation()    // expensive_operation() not called
+val result4 = false || check_fallback()       // check_fallback() is called
+
+// ✅ Practical usage
+val safe_access = ptr != null && ptr.value > 0     // Safe null check pattern
+val default_value = user_input != "" || default_config()  // Default value pattern
+```
+
+### Complex Boolean Expressions
+
+Boolean expressions follow operator precedence and can be grouped with parentheses:
+
+```hexen
+val a : i32 = 10
+val b : i32 = 20  
+val c : i32 = 30
+val flag : bool = true
+
+// ✅ Precedence: Comparison operators bind tighter than logical operators
+val complex1 = a < b && b < c            // (a < b) && (b < c)
+val complex2 = a == b || b == c && flag  // (a == b) || ((b == c) && flag)
+
+// ✅ Explicit grouping for clarity
+val complex3 = (a < b || a > c) && flag  // Explicit grouping
+val complex4 = flag && (a + b) > c       // Mixed arithmetic and comparison
+```
+
+### Boolean Result Propagation
+
+Boolean operations always produce `bool` results and can be chained:
+
+```hexen
+// ✅ Boolean result chaining
+val condition1 : bool = temperature > 20
+val condition2 : bool = humidity < 80
+val condition3 : bool = pressure == 1013
+
+val weather_ok = condition1 && condition2 && condition3
+val any_problem = !condition1 || !condition2 || !condition3
+
+// ✅ Complex boolean logic expressions
+val system_ready = weather_ok && !maintenance_mode
+val backup_needed = any_problem && backup_available
+val overall_status = system_ready || backup_needed
+```
+
+
 
 
