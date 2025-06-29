@@ -1,6 +1,8 @@
 # Hexen Binary Operations 🦉
 
-*Design Specification*
+*Design Exploration & Specification*
+
+> **Experimental Note**: This document describes our exploration into binary operations design. We're experimenting with different approaches to type resolution and documenting our journey to share with the community and gather insights. These ideas are part of our learning process in language design.
 
 ## Overview
 
@@ -104,9 +106,9 @@ val complex_int : i32 = (a + b) * (c - d) \ (e + f)     // Integer division
 
 ## How Comptime Types Work in Binary Operations
 
-### ✨ The Ergonomic Foundation: Smart Literal Adaptation
+### ✨ The Ergonomic Foundation: Adaptive Literal Experiment
 
-Hexen's binary operations start with a simple, powerful concept: **all numeric literals are "smart" and adapt to their context**. This creates natural, seamless usage for common cases while maintaining complete type safety.
+Hexen's binary operations explore a concept where **all numeric literals are "adaptive" and adapt to their context**. This aims to create natural, seamless usage for common cases while maintaining complete type safety.
 
 ```hexen
 // Every numeric literal starts as a comptime type that can adapt
@@ -116,7 +118,7 @@ Hexen's binary operations start with a simple, powerful concept: **all numeric l
 2.5       // comptime_float - adapts to context seamlessly
 ```
 
-**The Magic:** These smart literals make common operations feel natural with **zero runtime cost**:
+**The Approach:** These comptime literals aim to make common operations feel natural with **zero runtime cost**:
 
 ```hexen
 // ✨ Same literals, different contexts - zero runtime cost
@@ -138,7 +140,7 @@ Binary operations follow four simple patterns derived from the TYPE_SYSTEM.md co
 
 #### Pattern 1: ✅ Comptime + Comptime → Comptime (Ergonomic)
 
-When both operands are comptime types, the result **stays comptime** for maximum flexibility and zero runtime cost:
+When both operands are comptime types, the result **stays comptime** for continued flexibility and zero runtime cost:
 
 ```hexen
 // ✨ Ergonomic: comptime operations stay comptime (zero runtime cost)
@@ -230,8 +232,8 @@ process(42 + 3.14 * 2.0)                // BOUNDARY: comptime_float resolves to 
 val result : f32 = 42 + 3.14 + 100 * 2.5  // BOUNDARY: developer requests f32, forces resolution
 ```
 
-#### **The Revolutionary Advantage**
-This approach provides **unprecedented flexibility**:
+#### **An Interesting Design Property**
+This approach explores a flexibility pattern we're experimenting with:
 
 ```hexen
 // ✅ Define complex mathematical constants once (pure comptime operations)
@@ -333,7 +335,7 @@ val narrow : f32 = (c + d):f32 // ✅ Explicit: f64 → f32 (conversion cost vis
 
 ## Visual Mental Model
 
-Think of it like **smart literal adaptation in different "worlds"**:
+Think of it like **adaptive literal behavior in different "contexts"**:
 
 ```
 🌍 i32 World          🌍 i64 World          🌍 f64 World
@@ -433,7 +435,7 @@ val must_convert : i64 = counter:i64   // ✅ Explicit conversion required (no f
 ```
 
 **Why This Matters:**
-- **`val`**: Maximizes flexibility by preserving comptime types from binary operations until context forces resolution
+- **`val`**: Explores flexibility by preserving comptime types from binary operations until context forces resolution
 - **`mut`**: Prioritizes safety by requiring explicit types, sacrificing comptime type preservation from binary operations  
 - **Design Trade-off**: Safety vs Flexibility - same fundamental trade-off as individual values extends to binary operations
 - **Consistency**: This follows the exact same pattern as TYPE_SYSTEM.md - `mut` variables sacrifice flexibility for safety
@@ -511,7 +513,7 @@ result = (c:i32) \ b            // ✅ Explicit conversion then identity
 - **`10 / 3`** naturally produces a fraction → comptime_float preserved until context forces resolution
 - **`10 \ 3`** explicitly requests truncation → comptime_int preserved until context forces resolution
 
-#### **No Hidden Magic**
+#### **Predictable Behavior**
 - Division behavior determined by **operator choice**, not operand types
 - Comptime types adapt to context following TYPE_SYSTEM.md rules
 - All conversions follow the same patterns as individual values

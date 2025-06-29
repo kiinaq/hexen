@@ -1,10 +1,12 @@
 # Hexen Type System 🦉
 
-*Design Specification*
+*Design Exploration & Specification*
+
+> **Experimental Note**: This document describes our exploration into type system design. We're experimenting with different approaches to type coercion and literal handling, documenting our journey to share with the community and gather insights. These ideas are part of our learning process in language design.
 
 ## Overview
 
-Hexen's type system is designed around two core principles: **"Ergonomic Literals"** and **"Transparent Costs"** - making common literal usage seamless while keeping all computational costs visible. This philosophy creates a system where everyday coding feels natural, but performance-critical conversions are always explicit and visible.
+Hexen's type system is designed around two core principles: **"Ergonomic Literals"** and **"Transparent Costs"** - making common literal usage seamless while keeping all computational costs visible. This philosophy aims to create a system where everyday coding feels natural, but performance-critical conversions are always explicit and visible.
 
 ## Core Philosophy
 
@@ -18,7 +20,7 @@ Hexen follows a simple, unified pattern that makes common cases ergonomic while 
 - **Visible Conversions**: Performance costs are always explicit in the code
 - **Predictable Rules**: Same simple pattern everywhere (minimal cognitive load)
 
-This philosophy ensures that **everyday coding feels natural**, while **performance-critical conversions** are always explicit and visible.
+This philosophy aims to ensure that **everyday coding feels natural**, while **performance-critical conversions** are always explicit and visible.
 
 ## Variable Declaration Keywords
 
@@ -132,9 +134,9 @@ This creates three problems:
 2. **Inflexibility**: Hard to change types without updating all literals
 3. **Inconsistency**: Different rules for integers vs floats
 
-### The Solution: Smart Literals with Explicit Concrete Conversions
+### Our Experimental Solution: Adaptive Literals with Explicit Concrete Conversions
 
-Hexen solves this with **comptime types** - special types that literals have initially, which adapt to context. For concrete types, all conversions are explicit:
+Hexen explores solving this with **comptime types** - special types that literals have initially, which adapt to context. For concrete types, all conversions are explicit:
 
 ```hexen
 // ✨ Comptime literals adapt seamlessly (ergonomic)
@@ -181,17 +183,17 @@ func get_count() : i32 = {       // return type provides context
 ```
 
 #### Step 3: Comptime Type Preservation
-When there's **no explicit type context**, comptime types **preserve maximum flexibility**:
+When there's **no explicit type context**, comptime types **preserve flexibility**:
 
 ```hexen
-// val allows comptime type preservation (maximum flexibility)
+// val allows comptime type preservation (flexibility)
 val flexible_int = 42      // comptime_int (preserved - can adapt to any numeric context later!)
 val flexible_float = 3.14  // comptime_float (preserved - can adapt to f32/f64 context later!)
 
 // Later usage provides context for resolution
 val small : i32 = flexible_int     // NOW comptime_int → i32 (context-driven)
 val large : i64 = flexible_int     // SAME source → i64 (different context!)
-val precise : f64 = flexible_int   // SAME source → f64 (maximum flexibility!)
+val precise : f64 = flexible_int   // SAME source → f64 (flexible adaptation!)
 
 // mut requires explicit type (prevents action-at-a-distance)
 mut counter : i32 = 42      // ✅ Explicit type required
@@ -202,21 +204,21 @@ mut pi : f64 = 3.14         // ✅ Explicit type required
 
 **Key Insight**: Comptime types **stay flexible until forced** - they don't automatically become concrete types!
 
-#### The Revolutionary Paradigm: Maximum Flexibility Preservation
+#### An Experimental Approach: Flexibility Preservation
 
-The key insight of Hexen's comptime system is **flexibility preservation over premature resolution**:
+We're exploring an approach that prioritizes **flexibility preservation over premature resolution**:
 
 **❌ Traditional Approach**: "Literals have default types"
 - `42` is always `int` (or requires suffixes like `42L`)
 - Hard to change types without updating all literals
 - Rigid, requires explicit casting everywhere
 
-**✅ Hexen's Approach**: "Literals preserve maximum flexibility"
+**✅ Our Experimental Approach**: "Literals preserve flexibility"
 - `42` stays `comptime_int` until context forces resolution
 - Same literal adapts to any compatible context
-- Maximum ergonomics with zero performance cost
+- Ergonomics with zero performance cost
 
-**This enables powerful patterns:**
+**This enables interesting patterns:**
 ```hexen
 val magic_number = 42 * 1000 + 500     // Stays comptime_int (flexible!)
 
@@ -258,7 +260,7 @@ val mixed : i32 = runtime_result + 100      // i32 + comptime_int → i32 (compt
 
 **Comparison Example - Comptime vs Concrete Sources:**
 ```hexen
-// ===== COMPTIME SOURCE (Maximum Flexibility) =====
+// ===== COMPTIME SOURCE (Flexible Adaptation) =====
 val flexible_math = 42 + 100               // comptime_int (stays flexible!)
 val as_i32 : i32 = flexible_math           // comptime_int → i32 ✅
 val as_i64 : i64 = flexible_math           // Same source → i64 ✅
@@ -273,7 +275,7 @@ val widened : i64 = concrete_math:i64      // i32 → i64 ✅ (explicit conversi
 
 **Key Insights**: 
 1. **Flexibility flows one direction only** - from comptime to concrete, never the reverse
-2. **Comptime types**: Get type inference (`val x = 42`) - maximum flexibility  
+2. **Comptime types**: Get type inference (`val x = 42`) - flexible adaptation  
 3. **Concrete types**: Require explicit types (`val x : i32 = compute()`) - transparent costs
 4. This maintains the compile-time/runtime boundary while maximizing ergonomics
 
@@ -323,7 +325,7 @@ val h : i64 = 3.14:i64   // comptime_float → i64 (explicit truncation)
 
 ### Implementation Mental Model
 
-Think of comptime types as "smart literals" that preserve maximum flexibility: *"I'll stay flexible until you need me to be concrete!"*
+Think of comptime types as "adaptive literals" that preserve flexibility: *"I'll stay flexible until you need me to be concrete!"*
 
 1. **Parser**: Creates comptime_int/comptime_float for all numeric literals
 2. **Type Checker**: Preserves comptime types until explicit context forces resolution
@@ -334,12 +336,12 @@ Think of comptime types as "maximally flexible values":
 ```hexen
 val flexible = 42 + 100    // Stays comptime_int (preserved!)
 val small : i32 = flexible    // NOW resolves to i32 (context forces resolution)
-val large : i64 = flexible    // SAME source, different target (maximum flexibility!)
+val large : i64 = flexible    // SAME source, different target (flexible adaptation!)
 ```
 
 **Key insight**: Comptime types **preserve flexibility** rather than resolve to defaults. The same comptime expression can resolve to different concrete types based on usage context.
 
-This creates a clean, consistent system where literals stay flexible until context demands specificity, maximizing both ergonomics and type safety.
+This aims to create a clean, consistent system where literals stay flexible until context demands specificity, balancing both ergonomics and type safety.
 
 ### Context Propagation Examples
 
@@ -437,14 +439,14 @@ val truncated : i32 = f64_value:i32     // f64 → i32 (explicit truncation, dat
 | From Type | To Type | Conversion | Required Syntax | Notes |
 |-----------|---------|------------|-----------------|-------|
 | **Comptime Types (Ergonomic Literals)** |
-| `comptime_int` | `comptime_int` | ✅ Preserved | `val x = 42` | Comptime type preserved (maximum flexibility!) |
+| `comptime_int` | `comptime_int` | ✅ Preserved | `val x = 42` | Comptime type preserved (flexible adaptation!) |
 | `comptime_int` | `i32` | ✅ Implicit | `val x : i32 = 42` | No cost, ergonomic |
 | `comptime_int` | `i64` | ✅ Implicit | `val x : i64 = 42` | No cost, ergonomic |
 | `comptime_int` | `f32` | ✅ Implicit | `val x : f32 = 42` | No cost, ergonomic |
 | `comptime_int` | `f64` | ✅ Implicit | `val x : f64 = 42` | No cost, ergonomic |
 | `comptime_int` | `bool` | ❌ Forbidden | N/A | Use explicit logic: `(42 != 0)` |
 | `comptime_int` | `string` | ❌ Forbidden | N/A | Not meaningful |
-| `comptime_float` | `comptime_float` | ✅ Preserved | `val x = 3.14` | Comptime type preserved (maximum flexibility!) |
+| `comptime_float` | `comptime_float` | ✅ Preserved | `val x = 3.14` | Comptime type preserved (flexible adaptation!) |
 | `comptime_float` | `f32` | ✅ Implicit | `val x : f32 = 3.14` | No cost, ergonomic |
 | `comptime_float` | `f64` | ✅ Implicit | `val x : f64 = 3.14` | No cost, ergonomic |
 | `comptime_float` | `i32` | 🔧 Explicit | `val x : i32 = 3.14:i32` | Conversion cost visible |
@@ -538,7 +540,7 @@ counter = large_value:i32              // ✅ OK: explicit conversion (e.g., i64
 
 **Design rationale**: `mut` variables require explicit types to prevent "action at a distance" where changing the initial assignment value could silently change the meaning of all subsequent reassignments.
 
-**🔴 Critical Consequence**: This design choice means **`mut` variables can never preserve comptime types** - they sacrifice maximum flexibility for safety. Only `val` declarations can preserve comptime types for later context-dependent resolution.
+**🔴 Critical Consequence**: This design choice means **`mut` variables can never preserve comptime types** - they sacrifice flexibility for safety. Only `val` declarations can preserve comptime types for later context-dependent resolution.
 
 ### Variable Declaration with Context
 
@@ -890,14 +892,14 @@ All errors suggest appropriate solutions: **add explicit type annotation** or **
 ```hexen
 func demonstrate_type_system() : void = {
     // ===== Comptime Type Magic (Ergonomic Literals) =====
-    val flexible_int = 42       // comptime_int (preserved - maximum flexibility!)
+    val flexible_int = 42       // comptime_int (preserved - flexible adaptation!)
     val explicit_i64 : i64 = 42 // comptime_int → i64 (context-driven, no cost)
     val as_float : f32 = 42     // comptime_int → f32 (context-driven, no cost)
-    val flexible_float = 3.14   // comptime_float (preserved - maximum flexibility!)
+    val flexible_float = 3.14   // comptime_float (preserved - flexible adaptation!)
     val single : f32 = 3.14     // comptime_float → f32 (context-driven, no cost)
     
     // ===== Critical Difference: val vs mut Comptime Type Preservation =====
-    // ✅ val preserves comptime types (maximum flexibility)
+    // ✅ val preserves comptime types (flexible adaptation)
     val preserved_math = 42 + 100 * 5      // comptime_int (stays flexible!)
     val as_different_i32 : i32 = preserved_math    // SAME source → i32
     val as_different_i64 : i64 = preserved_math    // SAME source → i64 
