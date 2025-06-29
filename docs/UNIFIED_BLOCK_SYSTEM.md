@@ -1,6 +1,8 @@
 # Hexen Unified Block System 🦉
 
-*Design and Implementation Specification*
+*Design Exploration & Specification*
+
+> **Experimental Note**: This document describes our exploration into unified block system design. We're experimenting with context-driven behavior patterns and documenting our journey to share with the community and gather insights. These ideas are part of our learning process in language design.
 
 ## Overview
 
@@ -96,7 +98,8 @@ func setup_environment() : void = {
     }
     
     // Function returns are allowed in statement blocks
-    if early_exit_condition {
+    {
+        val should_exit = check_early_exit()
         return    // Exits the function, not just the block
     }
     
@@ -158,6 +161,168 @@ func process_data() : string = {
 - **Scope Management**: Managed identically to other block types
 - **Context Integration**: Function context provides return type information
 
+## Block System + Type System Integration
+
+### Unified Design Philosophy
+
+The unified block system works seamlessly with Hexen's comptime type system and binary operations, following the same **"Ergonomic Literals + Transparent Costs"** philosophy established in [TYPE_SYSTEM.md](TYPE_SYSTEM.md) and [BINARY_OPS.md](BINARY_OPS.md).
+
+### Expression Blocks + Comptime Type Preservation
+
+Expression blocks naturally preserve comptime types, enabling maximum flexibility until context forces resolution:
+
+```hexen
+// ✨ Expression block preserves comptime flexibility (TYPE_SYSTEM.md pattern)
+val flexible_computation = {
+    val base = 42              // comptime_int
+    val multiplier = 100       // comptime_int  
+    val result = base * multiplier  // comptime_int * comptime_int → comptime_int (BINARY_OPS.md)
+    return result              // Block result: comptime_int (preserved!)
+}
+
+// ✅ Same block result adapts to different contexts (TYPE_SYSTEM.md flexibility)
+val as_i32 : i32 = flexible_computation    // comptime_int → i32 (context-driven)
+val as_i64 : i64 = flexible_computation    // SAME source → i64 (different context!)
+val as_f64 : f64 = flexible_computation    // SAME source → f64 (maximum flexibility!)
+```
+
+### Division Operators in Expression Blocks
+
+Expression blocks work naturally with both division operators from [BINARY_OPS.md](BINARY_OPS.md):
+
+```hexen
+// Float division in expression blocks
+val precise_calc = {
+    val numerator = 22         // comptime_int
+    val denominator = 7        // comptime_int
+    return numerator / denominator  // comptime_int / comptime_int → comptime_float (BINARY_OPS.md)
+}
+
+// Integer division in expression blocks  
+val efficient_calc = {
+    val total = 100            // comptime_int
+    val parts = 3              // comptime_int
+    return total \ parts       // comptime_int \ comptime_int → comptime_int (BINARY_OPS.md)
+}
+
+// Same expressions, different target types
+val precise_f32 : f32 = precise_calc      // comptime_float → f32
+val precise_f64 : f64 = precise_calc      // comptime_float → f64
+val efficient_i32 : i32 = efficient_calc  // comptime_int → i32
+val efficient_i64 : i64 = efficient_calc  // comptime_int → i64
+```
+
+### Mixed Type Operations in Blocks
+
+When blocks contain mixed concrete types, they follow [TYPE_SYSTEM.md](TYPE_SYSTEM.md) explicit conversion rules:
+
+```hexen
+func demonstrate_mixed_types() : void = {
+    val int_val : i32 = 10
+    val float_val : f64 = 3.14
+    
+    // Expression block with explicit conversions (TYPE_SYSTEM.md pattern)
+    val mixed_result : f64 = {
+        val converted : f64 = int_val:f64 + float_val  // Explicit conversion required
+        val scaled = converted * 2.5                   // f64 * comptime_float → f64
+        return scaled                                   // Block returns concrete f64, explicit type required
+    }
+    
+    // Statement block for scoped conversions
+    {
+        val temp_result : f32 = mixed_result:f32       // Explicit precision loss (TYPE_SYSTEM.md)
+        save_result(temp_result)
+        // temp_result not accessible outside block
+    }
+}
+```
+
+### Variable Declaration Context in Blocks
+
+Blocks integrate with [TYPE_SYSTEM.md](TYPE_SYSTEM.md) variable declaration rules:
+
+```hexen
+func demonstrate_variable_context() : void = {
+    // Expression block with val (preserves comptime flexibility)
+    val flexible_math = {
+        val step1 = 42 + 100      // comptime_int + comptime_int → comptime_int
+        val step2 = step1 * 3.14  // comptime_int * comptime_float → comptime_float
+        return step2              // Preserves comptime_float flexibility
+    }
+    
+    // Statement block with mut (requires explicit type)
+    {
+        mut accumulator : f64 = 0.0           // Explicit type required (TYPE_SYSTEM.md)
+        accumulator = flexible_math           // comptime_float → f64 (adapts to mut type)
+        accumulator = accumulator + 1.5       // f64 + comptime_float → f64
+        process_accumulator(accumulator)
+        // accumulator scoped to this block
+    }
+}
+```
+
+### Function Integration Pattern
+
+Expression blocks work seamlessly with function calls, following [TYPE_SYSTEM.md](TYPE_SYSTEM.md) parameter context rules:
+
+```hexen
+func process_data(input: f64) : f64 = {
+    return input * 2.0
+}
+
+func demonstrate_function_integration() : void = {
+    // Expression block result used as function argument
+    val computation = {
+        val base = 42             // comptime_int
+        val adjusted = base / 3   // comptime_int / comptime_int → comptime_float
+        return adjusted
+    }
+    
+    // Function parameter provides context (TYPE_SYSTEM.md pattern)
+    val result = process_data(computation)  // comptime_float → f64 (parameter context)
+    
+    // Complex nested pattern
+    val complex_result : f64 = process_data({
+        val temp = 100 + 50      // comptime_int + comptime_int → comptime_int
+        return temp * 3.14       // comptime_int * comptime_float → comptime_float
+    })  // Expression block → comptime_float → f64 (parameter context), function returns concrete f64
+}
+```
+
+### Critical Insight: `mut` Variables Cannot Preserve Block Comptime Types
+
+Following [TYPE_SYSTEM.md](TYPE_SYSTEM.md) safety rules, `mut` variables cannot preserve comptime types from expression blocks:
+
+```hexen
+// ✅ val preserves expression block comptime types (maximum flexibility)
+val flexible_block = {
+    val calc = 42 + 100 * 3    // All comptime operations
+    return calc / 2            // comptime_int / comptime_int → comptime_float
+}
+val as_f32 : f32 = flexible_block  // comptime_float → f32 (preserved until now!)
+val as_f64 : f64 = flexible_block  // SAME source → f64 (different context!)
+
+// 🔴 mut cannot preserve expression block comptime types (safety over flexibility)
+mut concrete_result : f64 = {
+    val calc = 42 + 100 * 3    // Same comptime operations
+    return calc / 2            // comptime_float → f64 (immediately resolved!)
+}
+// No flexibility preserved - concrete_result is concrete f64
+
+// Explicit conversions required for mut results (TYPE_SYSTEM.md pattern)
+mut narrow_result : f32 = concrete_result:f32  // f64 → f32 (explicit conversion)
+```
+
+### Design Consistency Benefits
+
+This integration demonstrates Hexen's unified design philosophy:
+
+1. **Same Conversion Rules**: Blocks follow identical TYPE_SYSTEM.md conversion patterns
+2. **Consistent Flexibility**: Expression blocks preserve comptime types like `val` declarations
+3. **Explicit Costs**: Mixed concrete types require visible conversions everywhere
+4. **Context Propagation**: Parameter types provide context through block boundaries
+5. **Predictable Behavior**: Same simple patterns work across all language features
+
 ## Scope Management
 
 ### Universal Scope Rules
@@ -192,42 +357,18 @@ func demonstrate_scoping() : void = {
 }
 ```
 
-### Scope Stack Implementation
+### Summary of Scope Rules
 
-The semantic analyzer maintains a scope stack for all block types:
-
-```python
-# Scope management (from semantic.py)
-def _analyze_block(self, body: Dict, node: Dict, context: str = None):
-    # ALL blocks manage their own scope (unified)
-    self.symbol_table.enter_scope()
-    
-    # Context-specific behavior while maintaining unified scope management
-    # ... analyze statements ...
-    
-    # ALL blocks clean up their own scope (unified)
-    self.symbol_table.exit_scope()
-```
+The unified block system provides consistent scope behavior:
 
 **Key Benefits:**
 - **Consistent Mental Model**: Same scoping rules everywhere
-- **Predictable Behavior**: No special cases to remember
-- **Clean Implementation**: Single code path for all block types
+- **Predictable Behavior**: No special cases to remember  
+- **Clean Design**: Unified approach eliminates complexity
 
-## Context Determination
+## Context-Dependent Behavior
 
-### Context Flow
-
-Context information flows through the analysis pipeline to determine block behavior:
-
-```python
-# Context determination examples
-self._analyze_block(body, node)                      # Function body (default context)
-self._analyze_block(node, node, context="expression")  # Expression block
-self._analyze_block(node, node, context="statement")   # Statement block
-```
-
-### Context-Specific Behaviors
+### Block Behavior Summary
 
 | Context | Scope Management | Return Requirements | Value Production | Function Returns |
 |---------|------------------|---------------------|------------------|------------------|
@@ -235,9 +376,9 @@ self._analyze_block(node, node, context="statement")   # Statement block
 | **Statement** | ✅ Isolated | ❌ Optional | ❌ No | ✅ Allowed |
 | **Function** | ✅ Isolated | 🔄 Type-dependent | 🔄 Type-dependent | ✅ Expected |
 
-### Return Statement Validation
+### Return Statement Examples
 
-Return statements are validated based on context:
+Return statements work differently based on block context:
 
 ```hexen
 // Expression block context
@@ -249,10 +390,9 @@ val value = {
 // Statement block context  
 {
     val temp = 42
-    if condition {
-        return    // ✅ Function return (exits containing function)
-    }
-    // No return required
+    val should_exit = check_condition()
+    return    // ✅ Function return (exits containing function)
+    // No return required for statement blocks in general
 }
 
 // Function context (void)
@@ -268,118 +408,97 @@ func calculate() : i32 = {
 }
 ```
 
-## Implementation Architecture
-
-### Unified Declaration Framework
-
-The block system integrates with Hexen's unified declaration framework:
-
-```python
-def _analyze_declaration(self, node: Dict) -> None:
-    """Unified analysis for all declaration types"""
-    # Extract components (works for functions, val, mut)
-    name, type_annotation, value = self._extract_declaration_components(node)
-    
-    # Type-specific handling
-    if decl_type == "function":
-        self._analyze_function_declaration(name, type_annotation, value, node)
-        # value is the function body block - analyzed like any other block
-```
-
-### Block Analysis Pipeline
-
-```python
-def _analyze_block(self, body: Dict, node: Dict, context: str = None) -> Optional[HexenType]:
-    """Smart unified block analysis"""
-    
-    # 1. Universal scope management
-    self.symbol_table.enter_scope()
-    
-    # 2. Context determination
-    is_expression_block = context == "expression"
-    is_statement_block = context == "statement"
-    is_void_function = self.current_function_return_type == HexenType.VOID
-    
-    # 3. Statement analysis with context-specific return validation
-    for stmt in statements:
-        self._analyze_statement(stmt)
-    
-    # 4. Context-specific validation
-    if is_expression_block and not last_return_stmt:
-        self._error("Expression block must end with a return statement", node)
-    
-    # 5. Universal scope cleanup
-    self.symbol_table.exit_scope()
-    
-    # 6. Context-dependent return value
-    return block_return_type if is_expression_block else None
-```
-
-### Context Tracking
-
-```python
-# Context stack for nested blocks
-self.block_context: List[str] = []  # Track: "expression", "statement", etc.
-
-# Expression context tracking
-if is_expression_block:
-    self.block_context.append("expression")
-    # ... analysis ...
-    self.block_context.pop()
-```
-
 ## Advanced Usage Patterns
 
-### Nested Block Compositions
+### Nested Block Compositions with Type System Integration
 
 ```hexen
 func complex_computation() : f64 = {
-    val base_value = {
-        // Expression block for base computation
-        val raw = load_data()
-        val processed = validate(raw)
-        return processed * 2.5
+    // Expression block preserving comptime flexibility (TYPE_SYSTEM.md pattern)
+    val base_computation = {
+        val raw_data = 42           // comptime_int
+        val scale_factor = 2.5      // comptime_float
+        val result = raw_data * scale_factor  // comptime_int * comptime_float → comptime_float (BINARY_OPS.md)
+        return result               // Preserves comptime_float flexibility
     }
     
-    // Statement block for side effects
+    // Statement block for scoped concrete operations
     {
-        val log_entry = format("Processing: {}", base_value)
-        write_log(log_entry)
-        update_metrics()
+        val concrete_base : f64 = base_computation  // comptime_float → f64 (explicit context)
+        val log_message = format_value(concrete_base)
+        write_log(log_message)
+        // concrete_base and log_message scoped to this block
     }
     
-    val final_result = {
-        // Another expression block
-        val multiplier = get_multiplier()
-        val adjusted = base_value * multiplier
-        return adjusted + bias_correction()
+    // Expression block with mixed comptime and concrete types
+    val final_computation : f64 = {
+        val multiplier = get_multiplier()           // Returns concrete f64
+        val bias = 1.05                             // comptime_float
+        val mixed : f64 = base_computation * multiplier + bias  // comptime_float * f64 + comptime_float → explicit f64 needed
+        return mixed                                // Block returns concrete f64, explicit type required
     }
     
-    return final_result
+    return final_computation
 }
 ```
 
-### Conditional Block Usage
+### Function-Based Block Usage with Type System Integration
 
 ```hexen
-val result = if condition {
-    // Expression block in conditional
-    val temp = expensive_computation()
-    return temp * 2
-} else {
-    // Alternative expression block
-    val fallback = default_value()
-    return fallback
+// Expression blocks in functions showing different calculation approaches
+func get_performance_calculation() : f64 = {
+    // Expression block with comptime operations → f64 return type
+    val base = 100             // comptime_int
+    val factor = 1.5           // comptime_float
+    return base * factor       // comptime_int * comptime_float → comptime_float → f64 (function return context)
 }
 
-// Statement blocks for conditional side effects
-if should_cleanup {
-    // Statement block
+func get_conservative_calculation() : f64 = {
+    // Expression block with different operations → f64 return type
+    val conservative = 42      // comptime_int
+    val adjustment = 2         // comptime_int
+    return conservative / adjustment  // comptime_int / comptime_int → comptime_float → f64 (function return context)
+}
+
+// Function call results are concrete (TYPE_SYSTEM.md rule)
+val calculation_result : f64 = get_performance_calculation()  // Function returns concrete f64
+
+// Expression blocks with comptime operations showing flexibility
+val flexible_calc = {
+    val base = 50              // comptime_int
+    val multiplier = 2.25      // comptime_float
+    return base * multiplier   // comptime_int * comptime_float → comptime_float (preserved!)
+}
+
+// Same comptime result adapts to different contexts (TYPE_SYSTEM.md flexibility)
+val as_precise : f64 = flexible_calc    // comptime_float → f64
+val as_single : f32 = flexible_calc     // comptime_float → f32
+
+// Statement blocks for scoped operations with explicit type conversions
+func cleanup_operation() : void = {
+    // Statement block with explicit type conversions when needed
     {
-        val temp_files = list_temp_files()
+        val threshold : f32 = flexible_calc:f32  // Explicit conversion (TYPE_SYSTEM.md)
+        val temp_files = get_files_above_threshold(threshold)
         remove_files(temp_files)
         clear_cache()
+        // threshold and temp_files scoped to this block
     }
+}
+
+// Function with mixed types requiring explicit conversions
+func get_complex_calculation() : f64 = {
+    // Expression block requiring explicit type management
+    val runtime_val : i64 = get_runtime_value()  // Concrete type from function
+    val comptime_multiplier = 3.14                // comptime_float
+    val result : f64 = runtime_val:f64 * comptime_multiplier  // Explicit conversion (TYPE_SYSTEM.md)
+    return result
+}
+
+func get_fallback_calculation() : f64 = {
+    // Fallback expression block
+    val default_calc = 42 * 2.5  // comptime_int * comptime_float → comptime_float
+    return default_calc          // comptime_float → f64 (function return context)
 }
 ```
 
@@ -403,14 +522,14 @@ val safe_result = try {
 1. **Cognitive Simplicity**: One syntax to learn, context provides behavior
 2. **Consistent Scoping**: Same rules everywhere, no special cases
 3. **Composability**: Blocks can be nested and combined naturally
-4. **Implementation Elegance**: Single code path for scope management
-5. **Future-Proof**: Pattern extends to new language constructs
+4. **Design Elegance**: Unified syntax eliminates syntactic complexity
+5. **Type System Integration**: Seamlessly works with comptime types and explicit conversions (see [TYPE_SYSTEM.md](TYPE_SYSTEM.md))
+6. **Future-Proof**: Pattern extends to new language constructs
 
 ### Trade-offs
 
 1. **Context Dependency**: Behavior depends on usage context
-2. **Learning Curve**: Must understand context implications
-3. **Analysis Complexity**: Implementation requires context tracking
+2. **Learning Curve**: Must understand context implications and different block behaviors
 
 ### Comparison with Other Languages
 
@@ -495,34 +614,39 @@ func transform<T>(value: T) : T = {
 }
 ```
 
-## Implementation Guidelines
-
-### For Language Implementers
-
-1. **Unified Scope Management**: All blocks use identical scope creation/destruction
-2. **Context Propagation**: Pass context information through analysis pipeline
-3. **Return Validation**: Implement context-specific return statement validation
-4. **Error Recovery**: Continue analysis after block-related errors
-5. **Consistent Semantics**: Same rules apply regardless of block usage
-
-### For Tool Developers
-
-1. **Syntax Highlighting**: Same highlighting rules for all `{}` blocks
-2. **Code Completion**: Context-aware suggestions based on block type
-3. **Error Reporting**: Block-context-specific error messages
-4. **Refactoring**: Understand scope boundaries for safe transformations
+## Usage Guidelines
 
 ### For Hexen Developers
 
 1. **Mental Model**: Think "block = scope + context-specific behavior"
-2. **Scope Awareness**: Variables are always scoped to their containing block
+2. **Scope Awareness**: Variables are always scoped to their containing block  
 3. **Context Clarity**: Understand how block usage determines behavior
-4. **Composition**: Combine blocks naturally for complex logic
+4. **Type System Consistency**: Blocks follow the same comptime type and conversion rules as other language features (see [TYPE_SYSTEM.md](TYPE_SYSTEM.md))
+5. **Composition**: Combine blocks naturally for complex logic
 
 ## Conclusion
 
-The Unified Block System represents a fundamental design achievement in Hexen: taking the complexity of different execution contexts and providing a single, elegant syntax that adapts naturally to its usage. This system embodies the language's core philosophy of being "pedantic to write, but really easy to read" - developers must be explicit about context, but the resulting code is immediately understandable.
+The Unified Block System represents a fundamental design exploration in Hexen: taking the complexity of different execution contexts and providing a single, elegant syntax that adapts naturally to its usage. This system embodies the language's core philosophy of being "pedantic to write, but really easy to read" - developers must be explicit about context, but the resulting code is immediately understandable.
 
-By unifying scope management across all contexts while allowing context-specific behaviors, Hexen achieves both implementation elegance and developer ergonomics. The system is extensible, consistent, and provides a solid foundation for future language features.
+### Seamless Integration with Core Type System
 
-The unified block system is not just a syntactic convenience - it's a fundamental architectural decision that influences how developers think about code organization, scope management, and expression composition in Hexen. 
+The unified block system works in perfect harmony with Hexen's type system features:
+
+- **Comptime Type Preservation**: Expression blocks naturally preserve comptime types following [TYPE_SYSTEM.md](TYPE_SYSTEM.md) flexibility patterns
+- **Explicit Conversion Requirements**: Mixed concrete types in blocks require the same explicit conversion syntax established in the type system
+- **Variable Declaration Consistency**: The same `val`/`mut` rules apply within blocks, maintaining consistent behavior
+- **Binary Operations Integration**: Division operators and arithmetic work identically inside blocks as specified in [BINARY_OPS.md](BINARY_OPS.md)
+
+### Design Philosophy Coherence
+
+By unifying scope management across all contexts while allowing context-specific behaviors, Hexen achieves both design elegance and developer ergonomics. The system demonstrates how experimental language features can work together cohesively:
+
+1. **"One Syntax, Context-Driven Behavior"** (blocks) + **"Ergonomic Literals + Transparent Costs"** (types) = **Consistent, Predictable Language**
+2. **Same Rules Everywhere**: No special cases or exceptions between different language features
+3. **Composable Design**: Blocks, types, and operations combine naturally without syntactic friction
+
+### Extensible Foundation
+
+The unified block system is not just a syntactic convenience - it's a fundamental architectural decision that influences how developers think about code organization, scope management, and expression composition in Hexen. This foundation integrates seamlessly with the type system and provides a solid base for future language features.
+
+As we continue exploring these design patterns, the unified block system serves as a concrete example of how consistent design principles can create both design elegance and developer ergonomics - a key goal in our language design journey. 
