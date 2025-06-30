@@ -80,7 +80,7 @@ val complex = ({
 // Statement block for scoped execution
 {
     val temp_config = "setup"
-    val processed_data = process(temp_config)
+    val processed_data : string = process(temp_config)  // Explicit type required for function result
     save_to_cache(processed_data)
     // No return statement needed
 }
@@ -93,13 +93,13 @@ func setup_environment() : void = {
     {
         // Inner statement block scope
         val local_temp = "temp_data"
-        val processed = transform(local_temp)
+        val processed : string = transform(local_temp)  // Explicit type required for function result
         // local_temp not accessible outside this block
     }
     
     // Function returns are allowed in statement blocks
     {
-        val should_exit = check_early_exit()
+        val should_exit : bool = check_early_exit()  // Explicit type required for function result
         return    // Exits the function, not just the block
     }
     
@@ -123,7 +123,7 @@ func setup_environment() : void = {
 ```hexen
 // Void function - no return value required
 func setup() : void = {
-    val config = initialize()
+    val config : string = initialize()  // Explicit type required for function result
     apply_settings(config)
     return    // Bare return allowed
 }
@@ -137,18 +137,18 @@ func compute() : i32 = {
 
 // Complex function with nested blocks
 func process_data() : string = {
-    val input = load_data()
+    val input : string = load_data()  // Explicit type required for function result
     
     // Statement block for preprocessing
     {
-        val temp = validate(input)
+        val temp : string = validate(input)  // Explicit type required for function result
         normalize(temp)
     }
     
     // Expression block for computation
-    val result = {
-        val processed = transform(input)
-        return format(processed)
+    val result : string = {
+        val processed : string = transform(input)  // Explicit type required for function result
+        return format(processed)  // format() returns string, adapted to return context
     }
     
     return result    // Function return
@@ -279,7 +279,7 @@ func demonstrate_function_integration() : void = {
     }
     
     // Function parameter provides context (TYPE_SYSTEM.md pattern)
-    val result = process_data(computation)  // comptime_float → f64 (parameter context)
+    val result : f64 = process_data(computation)  // Function returns concrete f64, explicit type required
     
     // Complex nested pattern
     val complex_result : f64 = process_data({
@@ -390,14 +390,14 @@ val value = {
 // Statement block context  
 {
     val temp = 42
-    val should_exit = check_condition()
+    val should_exit : bool = check_condition()  // Explicit type required for function result
     return    // ✅ Function return (exits containing function)
     // No return required for statement blocks in general
 }
 
 // Function context (void)
 func work() : void = {
-    val setup = initialize()
+    val setup : string = initialize()  // Explicit type required for function result
     return    // ✅ Bare return in void function
 }
 
@@ -425,14 +425,14 @@ func complex_computation() : f64 = {
     // Statement block for scoped concrete operations
     {
         val concrete_base : f64 = base_computation  // comptime_float → f64 (explicit context)
-        val log_message = format_value(concrete_base)
+        val log_message : string = format_value(concrete_base)  // Explicit type required for function result
         write_log(log_message)
         // concrete_base and log_message scoped to this block
     }
     
     // Expression block with mixed comptime and concrete types
     val final_computation : f64 = {
-        val multiplier = get_multiplier()           // Returns concrete f64
+        val multiplier : f64 = get_multiplier()     // Explicit type required for function result
         val bias = 1.05                             // comptime_float
         val mixed : f64 = base_computation * multiplier + bias  // comptime_float * f64 + comptime_float → explicit f64 needed
         return mixed                                // Block returns concrete f64, explicit type required
@@ -479,10 +479,10 @@ func cleanup_operation() : void = {
     // Statement block with explicit type conversions when needed
     {
         val threshold : f32 = flexible_calc:f32  // Explicit conversion (TYPE_SYSTEM.md)
-        val temp_files = get_files_above_threshold(threshold)
-        remove_files(temp_files)
+        val cleanup_result : string = cleanup_files_above_threshold(threshold)  // Explicit type required for function result
+        log_cleanup_result(cleanup_result)
         clear_cache()
-        // threshold and temp_files scoped to this block
+        // threshold and cleanup_result scoped to this block
     }
 }
 
@@ -502,19 +502,6 @@ func get_fallback_calculation() : f64 = {
 }
 ```
 
-### Block-Based Error Handling (Future)
-
-```hexen
-// Future: try-catch blocks using unified block system
-val safe_result = try {
-    val risky = dangerous_operation()
-    return process(risky)
-} catch error {
-    val fallback = handle_error(error)
-    return fallback
-}
-```
-
 ## Benefits and Trade-offs
 
 ### Benefits
@@ -524,7 +511,7 @@ val safe_result = try {
 3. **Composability**: Blocks can be nested and combined naturally
 4. **Design Elegance**: Unified syntax eliminates syntactic complexity
 5. **Type System Integration**: Seamlessly works with comptime types and explicit conversions (see [TYPE_SYSTEM.md](TYPE_SYSTEM.md))
-6. **Future-Proof**: Pattern extends to new language constructs
+6. **Extensible Design**: Pattern can accommodate new language constructs
 
 ### Trade-offs
 
@@ -575,45 +562,6 @@ val access = scoped    // Error: "Undefined variable: 'scoped'"
 }
 ```
 
-## Future Extensions
-
-### Pattern Matching Blocks
-
-```hexen
-// Future: match expressions using unified blocks
-val result = match value {
-    Pattern1 => {
-        val processed = handle_pattern1(value)
-        return processed
-    }
-    Pattern2 => {
-        val alternative = handle_pattern2(value)
-        return alternative
-    }
-}
-```
-
-### Async Blocks
-
-```hexen
-// Future: async blocks using unified syntax
-val async_result = async {
-    val data = await fetch_data()
-    val processed = await process(data)
-    return processed
-}
-```
-
-### Generic Blocks
-
-```hexen
-// Future: generic function bodies
-func transform<T>(value: T) : T = {
-    val processed = apply_transformation(value)
-    return processed
-}
-```
-
 ## Usage Guidelines
 
 ### For Hexen Developers
@@ -647,6 +595,6 @@ By unifying scope management across all contexts while allowing context-specific
 
 ### Extensible Foundation
 
-The unified block system is not just a syntactic convenience - it's a fundamental architectural decision that influences how developers think about code organization, scope management, and expression composition in Hexen. This foundation integrates seamlessly with the type system and provides a solid base for future language features.
+The unified block system is not just a syntactic convenience - it's a fundamental architectural decision that influences how developers think about code organization, scope management, and expression composition in Hexen. This foundation integrates seamlessly with the type system.
 
 As we continue exploring these design patterns, the unified block system serves as a concrete example of how consistent design principles can create both design elegance and developer ergonomics - a key goal in our language design journey. 
