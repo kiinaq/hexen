@@ -8,16 +8,18 @@ Hexen's function system extends the language's core philosophy of **"Explicit Da
 
 ## Core Philosophy
 
-### Design Principle: Parameter Context Anchoring
+### Design Principle: Ergonomic Literals + Transparent Costs
 
-Functions in Hexen follow the same **context-guided resolution** pattern as other language features:
+Functions in Hexen extend the language's core **"Ergonomic Literals + Transparent Costs"** philosophy to function declarations, parameters, and calls, integrating seamlessly with the comptime type system and unified type conversion rules.
 
-- **Function parameters provide type context** for comptime type resolution in function calls
-- **Parameter types serve as context anchors** that guide argument type adaptation
+- **Ergonomic Literals**: Function parameters provide type context for seamless comptime type adaptation
+- **Transparent Costs**: All concrete type conversions in function arguments require explicit syntax (`value:type`)
+- **Comptime Type Preservation**: Functions leverage the flexibility of comptime types until parameter context forces resolution
+- **Unified Type Rules**: Same TYPE_SYSTEM.md conversion rules apply everywhere - no function-specific exceptions
 - **Immutable by default** - parameters are read-only unless explicitly marked `mut`
 - **Consistent with variable system** - same `val`/`mut` semantics apply to parameters
 
-This pattern ensures that function calls provide clear, predictable type resolution while maintaining Hexen's safety guarantees.
+This pattern ensures that function calls provide clear, predictable type resolution while maintaining Hexen's cost transparency guarantees and maximizing the flexibility of comptime types.
 
 ## Function Declaration Syntax
 
@@ -37,8 +39,8 @@ func log_message(message: string, level: string) : void = {
 
 // Function with mixed parameter types
 func convert_and_scale(value: i64, scale: f64) : f64 = {
-    // Mixed concrete types require explicit target type (return type provides context)
-    val result : f64 = value * scale  // ✅ Explicit context for i64 * f64 → f64
+    // Mixed concrete types require explicit conversions (TYPE_SYSTEM.md rule)
+    val result : f64 = value:f64 * scale  // ✅ Explicit conversion: i64 → f64, then f64 * f64 → f64
     return result
 }
 ```
@@ -71,13 +73,13 @@ By default, function parameters are **immutable** - they cannot be reassigned wi
 
 ```hexen
 func process_value(input: i32) : i32 = {
-    val doubled = input * 2     // ✅ OK: Reading parameter value
+    val doubled : i32 = input * 2     // ✅ Explicit type required for concrete result (i32 * comptime_int → i32)
     // input = 42               // ❌ Error: Cannot reassign immutable parameter 'input'
     return doubled
 }
 
 func format_message(message: string, prefix: string) : string = {
-    val formatted = prefix + ": " + message  // ✅ OK: Reading parameter values
+    val formatted : string = prefix + ": " + message  // ✅ Explicit type required for concrete result (string + string + string → string)
     // message = "modified"     // ❌ Error: Cannot reassign immutable parameter 'message'
     return formatted
 }
@@ -101,8 +103,8 @@ func normalize_string(mut text: string) : string = {
 
 // Mutable parameters with type constraints (same rules as mut variables)
 func process_with_precision_loss(mut result: f32, high_precision: f64) : f32 = {
-    // result = high_precision              // ❌ Error: f64 → f32 requires explicit acknowledgment
-    result = high_precision : f32           // ✅ OK: Explicit precision loss acknowledgment
+    // result = high_precision              // ❌ Error: f64 → f32 requires explicit conversion
+    result = high_precision:f32           // ✅ OK: Explicit conversion for precision loss
     return result
 }
 ```
@@ -114,7 +116,7 @@ Parameters and local variables follow the same mutability semantics but serve di
 ```hexen
 func demonstrate_scoping(input: i32, mut output: i32) : i32 = {
     // Parameters are in function scope
-    val local_immutable = input * 2         // ✅ OK: val variable from immutable parameter
+    val local_immutable : i32 = input * 2         // ✅ Explicit type required for concrete result (i32 * comptime_int → i32)
     mut local_mutable : i32 = output        // ✅ OK: mut variable with explicit type required
     
     // local_immutable = 42                 // ❌ Error: Cannot reassign val variable
@@ -127,9 +129,9 @@ func demonstrate_scoping(input: i32, mut output: i32) : i32 = {
 
 ## Type System Integration
 
-### Comptime Type Context Propagation
+### Comptime Type Preservation in Function Calls
 
-Function parameters provide **type context** for comptime type resolution in function calls:
+Function parameters provide **type context** for comptime type resolution, but the real power comes from **comptime type preservation** - the same flexibility benefits from TYPE_SYSTEM.md extend to function contexts:
 
 ```hexen
 func calculate_area(width: f64, height: f64) : f64 = {
@@ -140,20 +142,28 @@ func process_count(items: i32, multiplier: i32) : i32 = {
     return items * multiplier
 }
 
-// Function calls provide parameter type context for comptime literals
-val area = calculate_area(10.5, 20.3)      // f64 + f64 parameters (comptime literals adapt)
-val area2 = calculate_area(42, 30)         // comptime_int → f64 (adapts to parameter types)
-val count = process_count(100, 5)          // comptime_int → i32 (adapts to parameter types)
+// ✨ Comptime type preservation provides maximum flexibility
+val math_result = 42 + 100 * 5          // comptime_int (preserved until context forces resolution!)
+val float_calc = 10.5 * 2.0             // comptime_float (preserved until context forces resolution!)
+
+// Same expressions adapt to different function contexts (maximum flexibility!)
+val area1 = calculate_area(math_result, float_calc)     // Both adapt: comptime_int → f64, comptime_float → f64
+val count1 = process_count(math_result, 5)             // comptime_int → i32, comptime_int → i32
+val area2 = calculate_area(10.5, 20.3)                 // Direct comptime_float → f64 adaptation
+
+// Traditional approach (still works, but less flexible)
+val area3 = calculate_area(42, 30)                     // Direct comptime_int → f64 adaptation
+val count2 = process_count(100, 5)                     // Direct comptime_int → i32 adaptation
 ```
 
-### Mixed Parameter Types
+### Mixed Parameter Types and Explicit Conversions
 
-When functions have parameters of different types, each argument adapts to its corresponding parameter type:
+When functions have parameters of different types, each argument adapts to its corresponding parameter type following TYPE_SYSTEM.md rules. **Crucially, mixed concrete types require explicit conversions** to maintain cost transparency:
 
 ```hexen
 func mixed_calculation(base: i32, multiplier: f64, precision: f32) : f64 = {
-    val scaled : f64 = base * multiplier      // ✅ Explicit context for i32 * f64 → f64
-    return scaled * precision                 // ✅ Function return type f64 provides context for f64 * f32
+    val scaled : f64 = base:f64 * multiplier      // ✅ Explicit conversion: i32 → f64, then f64 * f64 → f64
+    return scaled * precision:f64                 // ✅ Explicit conversion: f32 → f64, then f64 * f64 → f64 (return type context)
     
     // ❌ ERROR: Type annotation must match function's declared return type (when used)
     // return scaled * precision : f32        // Error: Type annotation must match function return type (f64)
@@ -164,20 +174,34 @@ func mixed_calculation(base: i32, multiplier: f64, precision: f32) : f64 = {
 // enabling mixed concrete type operations (f64 * f32) to resolve to f64 automatically.
 // This is equivalent to: val temp : f64 = scaled * precision; return temp
 
-// Example with precision loss - type annotation required
-func mixed_calculation_f32(base: i32, multiplier: f64, precision: f32) : f32 = {
-    val scaled : f64 = base * multiplier      // ✅ Explicit context for i32 * f64 → f64
-    // return scaled * precision              // ❌ Error: f64 * f32 → f64, but function returns f32 (precision loss)
-    return scaled * precision : f32           // ✅ Explicit acknowledgment of precision loss f64 → f32
-}
-
-// Each argument adapts to its parameter type independently
-val result = mixed_calculation(42, 3.14, 1.5)
+// ✨ Comptime literals adapt seamlessly to parameter contexts (ergonomic)
+val result1 = mixed_calculation(42, 3.14, 1.5)
 // Breakdown:
 // - 42 (comptime_int) → i32 (adapts to base parameter)
 // - 3.14 (comptime_float) → f64 (adapts to multiplier parameter)  
 // - 1.5 (comptime_float) → f32 (adapts to precision parameter)
-// - Function return type f64 means result is f64
+
+// 🔧 Mixed concrete types require explicit conversions (transparent costs)
+val int_val : i32 = 10
+val large_val : i64 = 20
+val float_val : f64 = 3.14
+
+// ❌ Error: Mixed concrete types forbidden without explicit conversion
+// mixed_calculation(large_val, float_val, float_val)
+
+// ✅ Explicit conversions make all costs visible
+mixed_calculation(large_val:i32, float_val, float_val:f32)
+// Breakdown:
+// - large_val:i32 (explicit i64 → i32 conversion, cost visible)
+// - float_val (f64 → f64, no conversion needed)
+// - float_val:f32 (explicit f64 → f32 conversion, precision loss visible)
+
+// Example with precision loss - explicit conversion required
+func mixed_calculation_f32(base: i32, multiplier: f64, precision: f32) : f32 = {
+    val scaled : f64 = base:f64 * multiplier      // ✅ Explicit conversion: i32 → f64, then f64 * f64 → f64
+    // return scaled * precision              // ❌ Error: f64 * f32 → f64, but function returns f32 (precision loss)
+    return (scaled * precision:f64):f32     // ✅ Explicit conversion: f32 → f64, then f64 * f64 → f64, then f64 → f32 (explicit conversion)
+}
 ```
 
 ### Parameter Type Coercion Rules
@@ -198,41 +222,49 @@ val medium_val : i32 = 20
 val large_val : i64 = 30
 process_numbers(small_val, medium_val, large_val)  // i32 → i64, i64 → f64 (safe widenings)
 
-// ❌ Unsafe narrowing requires explicit acknowledgment
+// ❌ Unsafe narrowing requires explicit conversion
 val very_large : i64 = 9223372036854775807
-// process_numbers(very_large, large_val, precise_val)  // Error: i64 → i32 requires ': i32'
-process_numbers(very_large : i32, large_val, precise_val)  // ✅ Explicit truncation
+// process_numbers(very_large, large_val, precise_val)  // Error: i64 → i32 requires ':i32'
+process_numbers(very_large:i32, large_val, precise_val)  // ✅ Explicit conversion
 ```
 
-## Function Calls and Context Resolution
+## Function Calls and Unified Type Resolution
 
-### Argument-to-Parameter Mapping
+### Unified Type Resolution Strategy
 
-Function calls map arguments to parameters positionally, with each argument evaluated in the context of its corresponding parameter type:
+Function calls follow the **exact same TYPE_SYSTEM.md conversion rules** as all other contexts - there are no function-specific type resolution rules:
+
+1. **Unified Type Rules**: Each parameter type provides context following TYPE_SYSTEM.md Quick Reference Table
+2. **Comptime Preservation**: Comptime types stay flexible until parameter context forces resolution  
+3. **Explicit Conversions**: Mixed concrete types require `value:type` syntax (same as everywhere else)
+4. **Independent Resolution**: Each argument resolves independently based on TYPE_SYSTEM.md rules
+5. **Error Consistency**: Type errors follow the same patterns as variable declarations
 
 ```hexen
-func transform_data(
-    input: string, 
-    scale_factor: f32, 
-    iterations: i32,
-    debug_mode: bool
-) : string = {
-    // Function implementation
-    return processed_result
-}
+func process(small: i32, large: i64, precise: f64) : void = { return }
 
-// Positional argument mapping with type context
-val result = transform_data(
-    "hello world",      // string → input parameter (exact match)
-    2.5,                // comptime_float → f32 parameter (adapts)
-    10,                 // comptime_int → i32 parameter (adapts)
-    true                // bool → debug_mode parameter (exact match)
-)
+// ✅ Comptime literals adapt (TYPE_SYSTEM.md implicit rule - same as val x : i32 = 42)
+process(42, 100, 3.14)
+
+// ✅ Same concrete types work (TYPE_SYSTEM.md identity rule - same as val x : i32 = i32_val)  
+val a : i32 = 10
+val b : i64 = 20
+val c : f64 = 3.14
+process(a, b, c)                    // i32→i32, i64→i64, f64→f64 (identity)
+
+// 🔧 Mixed concrete types need explicit conversion (TYPE_SYSTEM.md explicit rule - same as val x : i32 = i64_val:i32)
+val large_val : i64 = 1000
+// process(large_val, b, c)         // ❌ Error: i64 → i32 requires ':i32' 
+process(large_val:i32, b, c)       // ✅ Explicit conversion (same pattern as variable assignment)
+
+// ✅ Comptime type preservation works the same as with variables
+val math_expr = 42 + 100           // comptime_int (preserved - same as variables!)
+process(math_expr, math_expr, math_expr)  // Adapts to i32, i64, f64 respectively (maximum flexibility!)
 ```
 
-### Complex Expression Arguments
+### Complex Expression Arguments and Comptime Preservation
 
-Arguments can be complex expressions that benefit from parameter type context:
+Arguments can be complex expressions that benefit from both **comptime type preservation** and **parameter type context**:
 
 ```hexen
 func compute_result(base: f64, factor: f64) : f64 = {
@@ -242,16 +274,29 @@ func compute_result(base: f64, factor: f64) : f64 = {
 val x : i32 = 10
 val y : i32 = 20
 
+// ✨ Comptime expressions preserve flexibility until function call
+val flexible_math : i32 = x + y           // ✅ Explicit type required for concrete result (i32 + i32 → i32)
+val comptime_math = 42 + 100        // comptime_int + comptime_int → comptime_int (preserved!)
+
 // Complex expressions adapt to parameter context
-val result = compute_result(
-    x + y,              // i32 + i32 → i32, then i32 → f64 (adapts to base parameter)
-    3.14 * 2.0          // comptime_float * comptime_float → comptime_float → f64 (adapts to factor parameter)
+val result1 = compute_result(
+    comptime_math,           // comptime_int → f64 (adapts to base parameter)
+    3.14 * 2.0              // comptime_float * comptime_float → comptime_float → f64 (adapts to factor parameter)
 )
 
-// Mixed-type expressions in arguments benefit from parameter context
+// 🔧 Mixed-type expressions require explicit context (TYPE_SYSTEM.md rule)
 val a : i32 = 5
 val b : f64 = 2.5
-val result = compute_result(a + b, 1.0)             // ✅ Parameter type f64 provides context for i32 + f64
+
+// ❌ Error: Mixed concrete types in expression
+// val result2 = compute_result(a + b, 1.0)
+
+// ✅ Explicit context required for mixed concrete types
+val mixed_result : f64 = a:f64 + b          // Explicit conversion in expression
+val result2 = compute_result(mixed_result, 1.0)    // Now f64 → f64 (identity)
+
+// Alternative: explicit conversion in function call
+val result3 = compute_result((a + b):f64, 1.0)     // Mixed expression with explicit result type
 ```
 
 ### Function Call Type Resolution Strategy
@@ -265,7 +310,7 @@ Function calls follow a **parameter-guided resolution approach**:
 
 ### Type Annotations in Function Context
 
-Type annotations in function calls follow the same rules as TYPE_SYSTEM.md:
+Type annotations in function calls follow the same rules as TYPE_SYSTEM.md - they use explicit conversion syntax for all type changes:
 
 ```hexen
 func process(value: f64) : f64 = { return value * 2.0 }
@@ -273,40 +318,38 @@ func process(value: f64) : f64 = { return value * 2.0 }
 val int_val : i32 = 10
 val large_val : i64 = 1000
 
-// ✅ CORRECT: Type annotation matches target context when precision loss occurs
-val result1 : f64 = process(large_val)          // i64 → f64 (safe widening, no annotation needed)
+// ✅ CORRECT: Safe widening conversions (TYPE_SYSTEM.md implicit rule)
+val result1 : f64 = process(large_val)          // i64 → f64 (safe widening, no conversion needed)
 
-// ❌ ERROR: Direct precision loss without acknowledgment  
-// val result2 : f32 = process(large_val)       // Error: f64 result → f32 requires ': f32'
+// ❌ ERROR: Direct precision loss without explicit conversion (TYPE_SYSTEM.md explicit rule)  
+// val result2 : f32 = process(large_val)       // Error: f64 result → f32 requires explicit conversion
 
-// ✅ CORRECT: Explicit acknowledgment of precision loss
-val result2 : f32 = process(large_val) : f32    // f64 → f32 (explicit precision loss acknowledgment)
+// ✅ CORRECT: Explicit conversion for precision loss (TYPE_SYSTEM.md explicit rule)
+val result2 : f32 = process(large_val):f32    // f64 → f32 (explicit conversion)
 
-// ✅ CORRECT: Parameter provides context for mixed expressions  
-val mixed_arg : f64 = int_val + 3.14            // i32 + comptime_float → f64 (explicit type needed)
+// ✅ CORRECT: Mixed expressions with explicit conversion (TYPE_SYSTEM.md explicit rule)
+val mixed_arg : f64 = int_val:f64 + 3.14        // i32 → f64 + comptime_float → f64 (explicit conversion)
 val result3 = process(mixed_arg)                // f64 → f64 (exact match)
-```
 
-**Key Rule**: Type annotations are for **acknowledgment of precision loss**, not for **type conversion guidance**.
-
-```hexen
-func process(int_param: i32, float_param: f64, string_param: string) : void = { 
-    val result : f64 = int_param + float_param  // ✅ Explicit context for i32 + f64 → f64
+// Each argument resolved using TYPE_SYSTEM.md rules
+func process_multi(int_param: i32, float_param: f64, string_param: string) : void = { 
     return
 }
 
-// Each argument resolved independently
-process(
+// ✅ Comptime literals adapt (TYPE_SYSTEM.md implicit rule)
+process_multi(
     42,                 // comptime_int → i32 (parameter context)
     3.14,               // comptime_float → f64 (parameter context)  
     "hello"             // string → string (exact match)
 )
 
-// Error localization per parameter
+// 🔧 Mixed concrete types require explicit conversion (TYPE_SYSTEM.md explicit rule)
 val mixed_val : f64 = 2.5
-// process(mixed_val, 42, "test")       // ❌ Error: Argument 1: f64 cannot narrow to i32 without ': i32'
-process(mixed_val : i32, 42, "test")   // ✅ Explicit narrowing for argument 1
+// process_multi(mixed_val, 42, "test")       // ❌ Error: Argument 1: f64 → i32 requires ':i32'
+process_multi(mixed_val:i32, 42, "test")     // ✅ Explicit conversion for argument 1
 ```
+
+**Key Rule**: All type conversions use explicit `value:type` syntax - there are no special type annotation patterns for specific cases.
 
 ## Integration with Unified Block System
 
@@ -318,14 +361,14 @@ Function bodies use the same unified block system as other Hexen constructs, wit
 func complex_computation(input: i32, threshold: f64) : f64 = {
     // Statement block for setup (scoped)
     {
-        val config_value = 100      
-        val is_valid = input > 0    
+        val config_value = 100      // ✅ Comptime literal (comptime_int can be inferred)
+        val is_valid : bool = input > 0    // ✅ Explicit type required for concrete result (i32 > comptime_int → bool)
     }
     
     // Expression block for intermediate calculation
     val intermediate = {
-        val scaled = input * 2
-        val adjusted = scaled + 10
+        val scaled : i32 = input * 2      // ✅ Explicit type required for concrete result (i32 * comptime_int → i32)
+        val adjusted : i32 = scaled + 10  // ✅ Explicit type required for concrete result (i32 + comptime_int → i32)
         return adjusted       // Expression block requires return
     }
     
@@ -344,18 +387,18 @@ Parameters are accessible throughout the function body and all nested blocks:
 
 ```hexen
 func nested_scope_demo(base: i32, multiplier: f64) : f64 = {
-    val outer_scope = base * 2      // ✅ Parameters accessible in function scope
+    val outer_scope : i32 = base * 2      // ✅ Explicit type required for concrete result (i32 * comptime_int → i32)
     
     {
         // Statement block - parameters still accessible
-        val inner_calc = base + 10  // ✅ Parameter accessible in nested block
-        val converted = multiplier * 3.14  // ✅ Parameter accessible in nested block
-        val debug_message = "calculation complete"  // Simple string instead of undefined function
+        val inner_calc : i32 = base + 10  // ✅ Explicit type required for concrete result (i32 + comptime_int → i32)
+        val converted : f64 = multiplier * 3.14  // ✅ Explicit type required for concrete result (f64 * comptime_float → f64)
+        val debug_message = "calculation complete"  // ✅ String literal (comptime_string can be inferred)
     }
     
     val final_result = {
         // Expression block - parameters accessible
-        val result = base * multiplier  // ✅ Parameters accessible in expression block
+        val result : f64 = base:f64 * multiplier  // ✅ Explicit type and conversion required (i32 → f64 * f64 → f64)
         return result                   // Expression block return
     }
     
@@ -395,37 +438,45 @@ func process(input: i32) : i32 = {
 }
 ```
 
-#### Function Call Argument Errors
+#### Function Call Argument Errors (TYPE_SYSTEM.md Consistency)
 ```hexen
 func calculate(base: i32, factor: f64) : f64 = { 
-    return base * factor 
+    return base:f64 * factor        // ✅ Explicit conversion for mixed concrete types
 }
 
 val large_val : i64 = 9223372036854775807
 // calculate(large_val, 3.14)
-// Error: Argument 1: Potential truncation from i64 to i32 parameter 'base'
-// Add explicit truncation: 'calculate(large_val : i32, 3.14)'
+// Error: Argument 1: i64 → i32 requires explicit conversion (TYPE_SYSTEM.md explicit rule)
+// Use explicit conversion: 'calculate(large_val:i32, 3.14)'
 
 val int_val : i32 = 10
 val float_val : f64 = 2.5
 // calculate(int_val + float_val, 3.14)
-// Error: Argument 1: Mixed-type expression 'i32 + f64' requires explicit result type
-// Add explicit context: 'val temp : f64 = int_val + float_val; calculate(temp, 3.14)'
-// Or use explicit variable: 'calculate((int_val + float_val : f64), 3.14)' with matching result type
+// Error: Argument 1: Mixed concrete types 'i32 + f64' require explicit conversion (TYPE_SYSTEM.md explicit rule)
+// Use explicit conversion: 'calculate(int_val:f64 + float_val, 3.14)'
+// Or assign with explicit type: 'val temp : f64 = int_val:f64 + float_val; calculate(temp, 3.14)'
+
+// ✅ Correct patterns following TYPE_SYSTEM.md rules
+calculate(large_val:i32, 3.14)              // Explicit i64 → i32 conversion
+calculate(int_val:f64 + float_val, 3.14)    // Explicit i32 → f64 conversion
+val temp : f64 = int_val:f64 + float_val    // Alternative: explicit type assignment
+calculate(temp, 3.14)                       // f64 → f64 (identity)
 ```
 
 #### Mutable Parameter Type Errors
 ```hexen
 func modify_value(mut result: f32, input: f64) : f32 = {
     // result = input
-    // Error: Assignment to mutable parameter 'result': f64 cannot assign to f32 without ': f32'
-    // Add explicit precision loss acknowledgment: 'result = input : f32'
+    // Error: Assignment to mutable parameter 'result': f64 cannot assign to f32 without explicit conversion
+    // Add explicit conversion: 'result = input:f32'
 }
 ```
 
 ## Advanced Usage Patterns
 
-### Multi-Parameter Context Resolution
+### Comptime Type Preservation in Complex Function Calls
+
+Functions work seamlessly with comptime type preservation, enabling maximum flexibility:
 
 ```hexen
 func complex_transform(
@@ -434,22 +485,51 @@ func complex_transform(
     offset: f64,
     iterations: i32
 ) : f64 = {
-    mut accumulator : f64 = base      // ✅ Explicit type required for mut (i64 → f64 widening)
+    mut accumulator : f64 = base:f64      // ✅ Explicit type required for mut (i64 → f64 conversion)
     
     {
-        // Mixed concrete types (f64 * f32) require explicit context per BINARY_OPS.md
-        accumulator = (accumulator * scale + offset) : f64  // ✅ Explicit context for f64 * f32 + f64
+        // Mixed concrete types require explicit context (BINARY_OPS.md rule)
+        accumulator = (accumulator * scale:f64 + offset) // ✅ Explicit f32 → f64 conversion
     }
     
     return accumulator
 }
 
-// Complex call with mixed literal types
-val result = complex_transform(
+// ✨ Comptime type preservation provides maximum flexibility
+val comptime_base = 1000 + 500          // comptime_int (preserved!)
+val comptime_scale = 2.0 + 0.5          // comptime_float (preserved!)
+val comptime_offset = 10.0 * 3.14       // comptime_float (preserved!)
+val comptime_iterations = 5 + 0         // comptime_int (preserved!)
+
+// Same comptime expressions adapt to different parameter types!
+val result1 = complex_transform(
+    comptime_base,          // comptime_int → i64 (adapts to base parameter)
+    comptime_scale,         // comptime_float → f32 (adapts to scale parameter)
+    comptime_offset,        // comptime_float → f64 (adapts to offset parameter)
+    comptime_iterations     // comptime_int → i32 (adapts to iterations parameter)
+)
+
+// Alternative: Direct comptime literals (traditional approach, still works)
+val result2 = complex_transform(
     1000,           // comptime_int → i64 (adapts to base parameter)
     2.5,            // comptime_float → f32 (adapts to scale parameter)
     10.0,           // comptime_float → f64 (adapts to offset parameter)
     5               // comptime_int → i32 (adapts to iterations parameter)
+)
+
+// 🔧 Mixed concrete types require explicit conversions (TYPE_SYSTEM.md explicit rule)
+val concrete_base : i32 = 1000      // Concrete type
+val concrete_scale : f64 = 2.5      // Different concrete type
+
+// ❌ Error: Mixed concrete types
+// complex_transform(concrete_base, concrete_scale, 10.0, 5)
+
+// ✅ Explicit conversions required
+complex_transform(
+    concrete_base:i64,      // i32 → i64 (explicit conversion)
+    concrete_scale:f32,     // f64 → f32 (explicit conversion)
+    10.0,                   // comptime_float → f64 (adapts)
+    5                       // comptime_int → i32 (adapts)
 )
 ```
 
@@ -487,13 +567,13 @@ func scale_value(value: f64, factor: f64) : f64 = {
 }
 
 func truncate_to_int(value: f64) : i32 = {
-    return value : i32      // Explicit truncation
+    return value:i32      // Explicit conversion
 }
 
 func process_chain(input: i32) : i32 = {
     // Function composition with context propagation
-    val scaled = scale_value(input, 2.5)        // i32 → f64 (parameter context)
-    val final = truncate_to_int(scaled)         // f64 → i32 (explicit truncation)
+    val scaled : f64 = scale_value(input, 2.5)        // ✅ Explicit type required for concrete result (function returns f64)
+    val final : i32 = truncate_to_int(scaled)         // ✅ Explicit type required for concrete result (function returns i32)
     return final
 }
 ```
@@ -550,9 +630,9 @@ func is_valid_user(age: i32, has_license: bool, credit_score: i32) : bool = {
 ```hexen
 // In-place modification pattern
 func normalize_vector(mut x: f64, mut y: f64, mut z: f64) : void = {
-    val length_squared = x * x + y * y + z * z  // Simple computation without sqrt
+    val length_squared : f64 = x * x + y * y + z * z  // ✅ Explicit type required for concrete result (f64 * f64 + f64 * f64 + f64 * f64 → f64)
     if length_squared > 0.0 {
-        val scale_factor = 1.0 / length_squared  // Simple scaling instead of sqrt normalization
+        val scale_factor : f64 = 1.0 / length_squared  // ✅ Explicit type required for concrete result (comptime_float / f64 → f64)
         x = x * scale_factor
         y = y * scale_factor  
         z = z * scale_factor
@@ -732,17 +812,25 @@ Function calls create AST nodes with this structure:
 
 ### Benefits
 
-1. **Type Safety**: Compile-time parameter type checking prevents runtime errors
-2. **Context Clarity**: Parameter types provide clear context for function calls
-3. **Consistent Semantics**: Same mutability model as variables
-4. **Composability**: Functions integrate seamlessly with other language features
-5. **Performance**: No runtime type checking overhead
+1. **Unified Type System**: Functions follow the exact same TYPE_SYSTEM.md conversion rules - no special cases or exceptions
+2. **Comptime Type Flexibility**: Function calls leverage comptime type preservation for maximum adaptability
+3. **Cost Transparency**: All concrete type conversions require explicit `value:type` syntax (same as everywhere else)
+4. **Ergonomic Literals**: Comptime types adapt seamlessly to parameter contexts (zero runtime cost)
+5. **Predictable Behavior**: Same conversion patterns work identically in all contexts
+6. **Type Safety**: Compile-time parameter type checking prevents runtime errors
+7. **Consistent Semantics**: Same `val`/`mut` mutability model as variables
+8. **Performance Clarity**: No hidden conversions or unexpected computational costs
+9. **Composability**: Functions integrate seamlessly with other language features
 
 ### Trade-offs  
 
-1. **Verbosity**: Requires explicit parameter type annotations
-2. **Learning Curve**: Must understand parameter context propagation
-3. **Flexibility vs Safety**: More restrictive than dynamically typed languages
+1. **Learning Curve**: Must understand comptime type system and unified conversion rules
+2. **Explicit Conversions**: All concrete type mixing requires visible `value:type` syntax
+3. **Type Annotation Requirements**: Parameter types must be explicitly declared
+4. **Complexity**: More sophisticated than simple parameter context systems
+5. **Flexibility vs Safety**: More restrictive than dynamically typed languages, but safer
+
+**Design Philosophy**: These trade-offs are intentional - they prioritize **predictability, safety, and cost transparency** over **implicit convenience**. The unified approach reduces cognitive load by applying the same rules everywhere, even though those rules have some complexity.
 
 ### Comparison with Other Languages
 
@@ -791,10 +879,18 @@ func process(input: string) : string = { ... }
 
 ## Conclusion
 
-The Function System extends Hexen's core philosophy to function declarations and calls, providing type-safe parameter handling with context-guided resolution. By integrating seamlessly with the comptime type system and unified block system, functions maintain the language's consistency while enabling powerful composition patterns.
+The Function System extends Hexen's **"Ergonomic Literals + Transparent Costs"** philosophy to function declarations and calls, providing type-safe parameter handling with seamless comptime type integration. By working within the unified TYPE_SYSTEM.md conversion rules, functions maintain complete consistency while leveraging the flexibility and cost transparency of the type system.
 
-The parameter system's emphasis on explicit type annotations and immutability by default reinforces Hexen's safety-first approach, while the context propagation mechanism ensures that function calls provide natural, predictable type resolution for arguments.
+The function system's key contributions:
 
-This foundation is extensible and ready to support advanced features like default parameters, generics, and function overloading in future language phases.
+- **Ergonomic Function Calls**: Comptime types preserve flexibility until parameter context forces resolution
+- **Transparent Conversion Costs**: All concrete type mixing requires explicit `value:type` syntax  
+- **Unified Type Rules**: Same TYPE_SYSTEM.md conversion rules apply everywhere - no function-specific exceptions
+- **Comptime Type Preservation**: Functions leverage the full flexibility of comptime types for maximum adaptability
+- **Consistent Safety**: Same `val`/`mut` semantics and immutability patterns throughout
+
+By integrating seamlessly with the comptime type system and unified block system, functions enable powerful composition patterns while maintaining Hexen's core design principles. The emphasis on explicit type annotations and immutable-by-default parameters reinforces the language's safety-first approach, while comptime type preservation ensures that function calls provide natural, predictable type resolution without sacrificing flexibility.
+
+This foundation is extensible and ready to support advanced features like default parameters, generics, and function overloading in future language phases, all while maintaining the unified **"Ergonomic Literals + Transparent Costs"** philosophy.
 
 ---
