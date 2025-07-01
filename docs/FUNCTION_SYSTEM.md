@@ -147,13 +147,13 @@ val math_result = 42 + 100 * 5          // comptime_int (preserved until context
 val float_calc = 10.5 * 2.0             // comptime_float (preserved until context forces resolution!)
 
 // Same expressions adapt to different function contexts (maximum flexibility!)
-val area1 = calculate_area(math_result, float_calc)     // Both adapt: comptime_int → f64, comptime_float → f64
-val count1 = process_count(math_result, 5)             // comptime_int → i32, comptime_int → i32
-val area2 = calculate_area(10.5, 20.3)                 // Direct comptime_float → f64 adaptation
+val area1 : f64 = calculate_area(math_result, float_calc)     // ✅ Explicit type required for concrete result (function returns f64)
+val count1 : i32 = process_count(math_result, 5)             // ✅ Explicit type required for concrete result (function returns i32)
+val area2 : f64 = calculate_area(10.5, 20.3)                 // ✅ Explicit type required for concrete result (function returns f64)
 
 // Traditional approach (still works, but less flexible)
-val area3 = calculate_area(42, 30)                     // Direct comptime_int → f64 adaptation
-val count2 = process_count(100, 5)                     // Direct comptime_int → i32 adaptation
+val area3 : f64 = calculate_area(42, 30)                     // ✅ Explicit type required for concrete result (function returns f64)
+val count2 : i32 = process_count(100, 5)                     // ✅ Explicit type required for concrete result (function returns i32)
 ```
 
 ### Mixed Parameter Types and Explicit Conversions
@@ -164,10 +164,7 @@ When functions have parameters of different types, each argument adapts to its c
 func mixed_calculation(base: i32, multiplier: f64, precision: f32) : f64 = {
     val scaled : f64 = base:f64 * multiplier      // ✅ Explicit conversion: i32 → f64, then f64 * f64 → f64
     return scaled * precision:f64                 // ✅ Explicit conversion: f32 → f64, then f64 * f64 → f64 (return type context)
-    
-    // ❌ ERROR: Type annotation must match function's declared return type (when used)
-    // return scaled * precision : f32        // Error: Type annotation must match function return type (f64)
-}
+ }
 
 // 🎯 Key Insight: Return statements have implicit target type context
 // The function's return type (f64) serves as context for the return expression,
@@ -175,11 +172,7 @@ func mixed_calculation(base: i32, multiplier: f64, precision: f32) : f64 = {
 // This is equivalent to: val temp : f64 = scaled * precision; return temp
 
 // ✨ Comptime literals adapt seamlessly to parameter contexts (ergonomic)
-val result1 = mixed_calculation(42, 3.14, 1.5)
-// Breakdown:
-// - 42 (comptime_int) → i32 (adapts to base parameter)
-// - 3.14 (comptime_float) → f64 (adapts to multiplier parameter)  
-// - 1.5 (comptime_float) → f32 (adapts to precision parameter)
+val result1 : f64 = mixed_calculation(42, 3.14, 1.5)  // ✅ Explicit type required for concrete result (function returns f64)
 
 // 🔧 Mixed concrete types require explicit conversions (transparent costs)
 val int_val : i32 = 10
@@ -216,16 +209,17 @@ func process_numbers(small: i32, large: i64, precise: f64) : void = {
 // ✅ Safe comptime type adaptations
 process_numbers(42, 100, 3.14)         // All comptime literals adapt to parameter types
 
-// ✅ Safe widening coercions
+// ✅ All conversions require explicit syntax (TYPE_SYSTEM.md explicit rule)
 val small_val : i32 = 10
 val medium_val : i32 = 20  
 val large_val : i64 = 30
-process_numbers(small_val, medium_val, large_val)  // i32 → i64, i64 → f64 (safe widenings)
+process_numbers(small_val:i64, medium_val, large_val:f64)  // ✅ Explicit conversions: i32 → i64, i64 → f64
 
-// ❌ Unsafe narrowing requires explicit conversion
+// ❌ Narrowing conversions require explicit conversion (TYPE_SYSTEM.md explicit rule)
 val very_large : i64 = 9223372036854775807
+val precise_val : f64 = 3.14159
 // process_numbers(very_large, large_val, precise_val)  // Error: i64 → i32 requires ':i32'
-process_numbers(very_large:i32, large_val, precise_val)  // ✅ Explicit conversion
+process_numbers(very_large:i32, large_val, precise_val)  // ✅ Explicit narrowing conversion
 ```
 
 ## Function Calls and Unified Type Resolution
@@ -279,7 +273,7 @@ val flexible_math : i32 = x + y           // ✅ Explicit type required for conc
 val comptime_math = 42 + 100        // comptime_int + comptime_int → comptime_int (preserved!)
 
 // Complex expressions adapt to parameter context
-val result1 = compute_result(
+val result1 : f64 = compute_result(
     comptime_math,           // comptime_int → f64 (adapts to base parameter)
     3.14 * 2.0              // comptime_float * comptime_float → comptime_float → f64 (adapts to factor parameter)
 )
@@ -289,14 +283,10 @@ val a : i32 = 5
 val b : f64 = 2.5
 
 // ❌ Error: Mixed concrete types in expression
-// val result2 = compute_result(a + b, 1.0)
+// val result2 : f64 = compute_result(a + b, 1.0)
 
-// ✅ Explicit context required for mixed concrete types
-val mixed_result : f64 = a:f64 + b          // Explicit conversion in expression
-val result2 = compute_result(mixed_result, 1.0)    // Now f64 → f64 (identity)
-
-// Alternative: explicit conversion in function call
-val result3 = compute_result((a + b):f64, 1.0)     // Mixed expression with explicit result type
+// ✅ Explicit conversion required for mixed concrete types
+val result2 : f64 = compute_result(a:f64 + b, 1.0)
 ```
 
 ### Function Call Type Resolution Strategy
@@ -318,18 +308,18 @@ func process(value: f64) : f64 = { return value * 2.0 }
 val int_val : i32 = 10
 val large_val : i64 = 1000
 
-// ✅ CORRECT: Safe widening conversions (TYPE_SYSTEM.md implicit rule)
-val result1 : f64 = process(large_val)          // i64 → f64 (safe widening, no conversion needed)
+// ✅ CORRECT: All conversions require explicit syntax (TYPE_SYSTEM.md explicit rule)
+val result1 : f64 = process(large_val:f64)          // ✅ Explicit conversion required (i64 → f64)
 
 // ❌ ERROR: Direct precision loss without explicit conversion (TYPE_SYSTEM.md explicit rule)  
 // val result2 : f32 = process(large_val)       // Error: f64 result → f32 requires explicit conversion
 
 // ✅ CORRECT: Explicit conversion for precision loss (TYPE_SYSTEM.md explicit rule)
-val result2 : f32 = process(large_val):f32    // f64 → f32 (explicit conversion)
+val result2 : f32 = process(large_val:f64):f32    // ✅ Explicit conversions: i64 → f64, then f64 → f32
 
 // ✅ CORRECT: Mixed expressions with explicit conversion (TYPE_SYSTEM.md explicit rule)
 val mixed_arg : f64 = int_val:f64 + 3.14        // i32 → f64 + comptime_float → f64 (explicit conversion)
-val result3 = process(mixed_arg)                // f64 → f64 (exact match)
+val result3 : f64 = process(mixed_arg)                // ✅ Explicit type required for concrete result (function returns f64)
 
 // Each argument resolved using TYPE_SYSTEM.md rules
 func process_multi(int_param: i32, float_param: f64, string_param: string) : void = { 
@@ -358,7 +348,7 @@ process_multi(mixed_val:i32, 42, "test")     // ✅ Explicit conversion for argu
 Function bodies use the same unified block system as other Hexen constructs, with the function's return type providing context:
 
 ```hexen
-func complex_computation(input: i32, threshold: f64) : f64 = {
+func simple_computation(input: i32, threshold: f64) : f64 = {
     // Statement block for setup (scoped)
     {
         val config_value = 100      // ✅ Comptime literal (comptime_int can be inferred)
@@ -373,11 +363,8 @@ func complex_computation(input: i32, threshold: f64) : f64 = {
     }
     
     // Function return (guided by f64 return type)
-    if intermediate > threshold {
-        return intermediate * 1.5    // i32 * comptime_float → f64 (return type context)
-    } else {
-        return threshold / 2.0       // f64 / comptime_float → f64 (return type context)
-    }
+    // Return type context allows mixed concrete types without explicit conversion
+    return intermediate:f64 * threshold + 1.5    // i32 → f64 * f64 + comptime_float → f64 (return type context)
 }
 ```
 
@@ -502,7 +489,7 @@ val comptime_offset = 10.0 * 3.14       // comptime_float (preserved!)
 val comptime_iterations = 5 + 0         // comptime_int (preserved!)
 
 // Same comptime expressions adapt to different parameter types!
-val result1 = complex_transform(
+val result1 : f64 = complex_transform(
     comptime_base,          // comptime_int → i64 (adapts to base parameter)
     comptime_scale,         // comptime_float → f32 (adapts to scale parameter)
     comptime_offset,        // comptime_float → f64 (adapts to offset parameter)
@@ -510,7 +497,7 @@ val result1 = complex_transform(
 )
 
 // Alternative: Direct comptime literals (traditional approach, still works)
-val result2 = complex_transform(
+val result2 : f64 = complex_transform(
     1000,           // comptime_int → i64 (adapts to base parameter)
     2.5,            // comptime_float → f32 (adapts to scale parameter)
     10.0,           // comptime_float → f64 (adapts to offset parameter)
@@ -614,7 +601,7 @@ func validate_range(value: f64, min: f64, max: f64) : bool = {
 // Mixed-type comparisons require explicit type conversion
 func mixed_comparison(int_val: i32, float_val: f64) : bool = {
     // return int_val < float_val            // ❌ Error: Cannot compare i32 and f64
-    val int_as_float : f64 = int_val        // ✅ Explicit conversion before comparison
+    val int_as_float : f64 = int_val:f64    // ✅ Explicit conversion before comparison
     return int_as_float < float_val         // ✅ f64 < f64 (same types after conversion)
 }
 
@@ -629,182 +616,19 @@ func is_valid_user(age: i32, has_license: bool, credit_score: i32) : bool = {
 
 ```hexen
 // In-place modification pattern
-func normalize_vector(mut x: f64, mut y: f64, mut z: f64) : void = {
-    val length_squared : f64 = x * x + y * y + z * z  // ✅ Explicit type required for concrete result (f64 * f64 + f64 * f64 + f64 * f64 → f64)
-    if length_squared > 0.0 {
-        val scale_factor : f64 = 1.0 / length_squared  // ✅ Explicit type required for concrete result (comptime_float / f64 → f64)
-        x = x * scale_factor
-        y = y * scale_factor  
-        z = z * scale_factor
-    }
+func scale_vector(mut x: f64, mut y: f64, mut z: f64, scale_factor: f64) : void = {
+    // Direct modifications using mutable parameters
+    x = x * scale_factor      // ✅ Mutable parameter allows reassignment
+    y = y * scale_factor      // ✅ f64 * f64 → f64 (same type assignment)
+    z = z * scale_factor      // ✅ All operations use same concrete types
 }
 
-// Accumulator pattern (simplified without undefined syntax)
-func sum_with_transform(
-    value1: i32, 
-    value2: i32,
-    value3: i32,
-    mut accumulator: f64,
-    transform_factor: f64
-) : f64 = {
-    {
-        // Process three values sequentially instead of undefined array/while syntax
-        accumulator = accumulator + (value1 * transform_factor)
-        accumulator = accumulator + (value2 * transform_factor)
-        accumulator = accumulator + (value3 * transform_factor)
-    }
-    return accumulator
-}
-```
-
-## Implementation Guidelines
-
-### Function Declaration Analysis
-
-The semantic analyzer should extend the unified declaration framework to handle function parameters:
-
-```python
-def _analyze_function_declaration(self, name: str, parameters: List[Dict], 
-                                return_type: str, body: Dict, node: Dict) -> None:
-    """Analyze function declaration with parameter type checking."""
-    
-    # Create function scope and add parameters
-    self.symbol_table.enter_scope()
-    
-    # Process each parameter
-    param_types = []
-    for param in parameters:
-        param_name = param["name"]
-        param_type = self._parse_type(param["type"])
-        is_mutable = param.get("mutable", False)
-        
-        # Add parameter to symbol table
-        self.symbol_table.declare_symbol(param_name, param_type, is_mutable)
-        param_types.append(param_type)
-    
-    # Set function context for return type validation
-    func_return_type = self._parse_type(return_type)
-    self.current_function_return_type = func_return_type
-    
-    # Analyze function body with unified block system
-    self._analyze_block(body, node, context="function")
-    
-    # Clean up function context
-    self.current_function_return_type = None
-    self.symbol_table.exit_scope()
-    
-    # Register function in symbol table
-    func_type = HexenFunctionType(param_types, func_return_type)
-    self.symbol_table.declare_symbol(name, func_type, False)
-```
-
-### Function Call Analysis
-
-```python
-def _analyze_function_call(self, name: str, arguments: List[Dict], node: Dict) -> HexenType:
-    """Analyze function call with parameter context propagation."""
-    
-    # Look up function type
-    func_symbol = self.symbol_table.lookup_symbol(name)
-    if not isinstance(func_symbol.type, HexenFunctionType):
-        self._error(f"'{name}' is not a function", node)
-        return HexenType.UNKNOWN
-    
-    func_type = func_symbol.type
-    
-    # Check argument count
-    if len(arguments) != len(func_type.parameters):
-        self._error(f"Function '{name}' expects {len(func_type.parameters)} arguments, got {len(arguments)}", node)
-        return HexenType.UNKNOWN
-    
-    # Analyze each argument with parameter type context
-    for i, (arg_node, param_type) in enumerate(zip(arguments, func_type.parameters)):
-        arg_type = self._analyze_expression(arg_node, target_type=param_type)
-        
-        # Check type compatibility
-        if not self._can_coerce_type(arg_type, param_type):
-            self._error(f"Argument {i+1}: Cannot convert {arg_type} to parameter type {param_type}", node)
-    
-    return func_type.return_type
-```
-
-### Parameter Mutability Tracking
-
-```python
-def _analyze_parameter_assignment(self, name: str, value: Dict, node: Dict) -> None:
-    """Analyze assignment to function parameter."""
-    
-    param_symbol = self.symbol_table.lookup_symbol(name)
-    if param_symbol is None:
-        self._error(f"Undefined parameter: '{name}'", node)
-        return
-    
-    # Check if parameter is mutable
-    if not param_symbol.is_mutable:
-        self._error(f"Cannot reassign immutable parameter '{name}'\n"
-                   f"Parameters are immutable by default. Use 'mut {name}: {param_symbol.type}' for mutable parameters", node)
-        return
-    
-    # Analyze assignment with parameter type context
-    value_type = self._analyze_expression(value, target_type=param_symbol.type)
-    
-    # Apply same rules as mutable variable assignment
-    self._validate_mutable_assignment(param_symbol.type, value_type, node)
-```
-
-## Grammar Extensions
-
-### Lark Grammar for Function Parameters
-
-```lark
-// Enhanced function declaration rule
-function: "func" IDENTIFIER "(" parameter_list? ")" ":" type "=" block
-
-// Parameter list grammar
-parameter_list: parameter ("," parameter)*
-parameter: ("mut")? IDENTIFIER ":" type
-
-// Updated parameter extraction
-parameter_name: IDENTIFIER
-parameter_type: type
-parameter_mutability: "mut"?
-```
-
-### AST Node Structure
-
-Function declarations create AST nodes with this structure:
-
-```python
-{
-    "type": "function",
-    "name": "function_name",
-    "parameters": [
-        {
-            "name": "param1",
-            "type": "i32", 
-            "mutable": False
-        },
-        {
-            "name": "param2",
-            "type": "f64",
-            "mutable": True
-        }
-    ],
-    "return_type": "f64",
-    "body": {...}  # Block AST node
-}
-```
-
-Function calls create AST nodes with this structure:
-
-```python
-{
-    "type": "function_call",
-    "name": "function_name",
-    "arguments": [
-        {...},  # Expression AST nodes
-        {...}
-    ]
+// Computation and modification pattern
+func transform_values(mut result: f64, input1: i32, input2: f32) : f64 = {
+    // Mutable parameter accumulates results
+    result = result + input1:f64         // ✅ Explicit conversion: i32 → f64, then f64 + f64 → f64
+    result = result * input2:f64         // ✅ Explicit conversion: f32 → f64, then f64 * f64 → f64
+    return result                        // ✅ Return the accumulated result
 }
 ```
 
@@ -849,14 +673,14 @@ Function calls create AST nodes with this structure:
 // Future: Default parameter values
 func setup_connection(host: string = "localhost", port: i32 = 8080) : bool = {
     // Placeholder implementation for future syntax demonstration
-    val connection_established = host != "" && port > 0
+    val connection_established : bool = host != "" && port > 0  // ✅ Explicit type required for concrete result (string != string && i32 > comptime_int → bool)
     return connection_established
 }
 
 // Calls with defaults
-val success1 = setup_connection()                    // Uses both defaults
-val success2 = setup_connection("production.com")   // Uses port default
-val success3 = setup_connection("staging.com", 9090) // No defaults
+val success1 : bool = setup_connection()                    // ✅ Explicit type required for concrete result (function returns bool)
+val success2 : bool = setup_connection("production.com")   // ✅ Explicit type required for concrete result (function returns bool)
+val success3 : bool = setup_connection("staging.com", 9090) // ✅ Explicit type required for concrete result (function returns bool)
 ```
 
 ### Generic Functions (Phase III)
