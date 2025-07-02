@@ -19,7 +19,6 @@ val_declaration: VAL IDENTIFIER ":" type "=" (expression | "undef")
                | VAL IDENTIFIER "=" expression
 
 mut_declaration: MUT IDENTIFIER ":" type "=" (expression | "undef")
-               | MUT IDENTIFIER "=" expression
 
 return_stmt: "return" expression?
 

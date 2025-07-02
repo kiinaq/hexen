@@ -34,11 +34,11 @@ class TestVariableDeclarations:
         assert val_decl["value"]["type"] == NodeType.LITERAL.value
         assert val_decl["value"]["value"] == 42
 
-    def test_mut_declaration_without_type(self):
-        """Test mut declaration without type annotation"""
+    def test_mut_declaration_with_explicit_type(self):
+        """Test mut declaration requires explicit type annotation"""
         source = """
         func main() : i32  = {
-            mut counter = 0
+            mut counter : i32 = 0
             return counter
         }
         """
@@ -50,7 +50,7 @@ class TestVariableDeclarations:
         mut_decl = statements[0]
         assert mut_decl["type"] == NodeType.MUT_DECLARATION.value
         assert mut_decl["name"] == "counter"
-        assert mut_decl["type_annotation"] is None
+        assert mut_decl["type_annotation"] == "i32"
         assert mut_decl["value"]["type"] == NodeType.LITERAL.value
         assert mut_decl["value"]["value"] == 0
 
@@ -96,7 +96,7 @@ class TestVariableDeclarations:
         source = """
         func main() : i32  = {
             val name = "Hexen"
-            mut count = 1
+            mut count : i32 = 1
             val flag = 0
             return count
         }
@@ -125,7 +125,7 @@ class TestVariableDeclarations:
         source = """
         func main() : i32  = {
             val immutable = 42
-            mut mutable = 42
+            mut mutable : i32 = 42
             return 0
         }
         """
@@ -208,13 +208,13 @@ class TestVariableDeclarations:
             assert decl["value"]["value"] == expected_value
 
     def test_mixed_explicit_and_inferred_types(self):
-        """Test mixing explicit type annotations with type inference"""
+        """Test mixing explicit type annotations with type inference (val only)"""
         source = """
         func main() : i32  = {
             val inferred_int = 42
             val explicit_int : i32 = 42
-            mut inferred_string = "hello"
-            mut explicit_string : string = "world"
+            mut explicit_string1 : string = "hello"
+            mut explicit_string2 : string = "world"
             return 0
         }
         """
@@ -222,10 +222,14 @@ class TestVariableDeclarations:
         ast = self.parser.parse(source)
         statements = ast["functions"][0]["body"]["statements"]
 
-        # Check inferred types have None annotation
+        # Check val inferred type has None annotation
         assert statements[0]["type_annotation"] is None
-        assert statements[2]["type_annotation"] is None
 
-        # Check explicit types have proper annotation
+        # Check all explicit types have proper annotation
         assert statements[1]["type_annotation"] == "i32"
-        assert statements[3]["type_annotation"] == "string"
+        assert (
+            statements[2]["type_annotation"] == "string"
+        )  # mut requires explicit type
+        assert (
+            statements[3]["type_annotation"] == "string"
+        )  # mut requires explicit type

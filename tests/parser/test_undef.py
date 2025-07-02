@@ -55,12 +55,12 @@ class TestUndefDeclarations:
         assert stmt["value"]["name"] == "undef"
 
     def test_type_inference_still_works(self):
-        """Test that type inference works without explicit types."""
+        """Test that type inference works for val declarations only."""
         code = """
         func test() : i32  = {
             val inferred_int = 42
             val inferred_string = "hello"
-            mut mutable_int = 123
+            mut mutable_int : i32 = 123
             return inferred_int
         }
         """
@@ -79,19 +79,19 @@ class TestUndefDeclarations:
         assert statements[1]["type_annotation"] is None
         assert statements[1]["value"]["value"] == "hello"
 
-        # mut mutable_int = 123
+        # mut mutable_int : i32 = 123
         assert statements[2]["type"] == NodeType.MUT_DECLARATION.value
         assert statements[2]["name"] == "mutable_int"
-        assert statements[2]["type_annotation"] is None
+        assert statements[2]["type_annotation"] == "i32"
         assert statements[2]["value"]["value"] == 123
 
     def test_mixed_declarations_in_same_function(self):
-        """Test mixing inferred and explicit undef declarations."""
+        """Test mixing val inference with explicit mut and undef declarations."""
         code = """
         func test() : i32  = {
             val a = 42
             val b: i64 = undef
-            mut c = "test"
+            mut c : string = "test"
             mut d: f64 = undef
             return a
         }
@@ -107,8 +107,8 @@ class TestUndefDeclarations:
         assert statements[1]["type_annotation"] == "i64"
         assert statements[1]["value"]["name"] == "undef"
 
-        # mut c = "test" (inferred)
-        assert statements[2]["type_annotation"] is None
+        # mut c : string = "test" (explicit)
+        assert statements[2]["type_annotation"] == "string"
         assert statements[2]["value"]["value"] == "test"
 
         # mut d: f64 = undef (explicit)

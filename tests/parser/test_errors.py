@@ -28,3 +28,37 @@ class TestParserErrorMessages:
         # This tests the error handling in parse_file method
         # We'll create a temporary file in a later iteration
         pass
+
+    def test_mut_without_type_fails(self):
+        """Test that mut declaration without type annotation fails at parse time"""
+        source = """
+        func test() : void = {
+            mut counter = 42
+        }
+        """
+        with pytest.raises(SyntaxError) as exc_info:
+            self.parser.parse(source)
+        assert "Parse error" in str(exc_info.value)
+
+    def test_mut_with_undef_without_type_fails(self):
+        """Test that mut with undef without type annotation fails at parse time"""
+        source = """
+        func test() : void = {
+            mut pending = undef
+        }
+        """
+        with pytest.raises(SyntaxError) as exc_info:
+            self.parser.parse(source)
+        assert "Parse error" in str(exc_info.value)
+
+    def test_val_without_type_still_works(self):
+        """Test that val declarations without type annotation still work"""
+        source = """
+        func test() : void = {
+            val inferred = 42
+            return
+        }
+        """
+        # Should parse successfully
+        ast = self.parser.parse(source)
+        assert ast is not None
