@@ -387,7 +387,7 @@ class TestComprehensiveIntegration:
             val bad_var = undefined_symbol  // Error: undefined symbol
             val another_good = "hello"
             
-            mut counter = good_var
+            mut counter : i32 = good_var
             // Simplified assignment without function call
             counter = 99
             
