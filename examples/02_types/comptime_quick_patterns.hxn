@@ -1,0 +1,133 @@
+// Comptime Quick Patterns - Practical Demonstration
+// Shows the essential patterns from the quick reference card
+
+func demonstrate_quick_patterns() : void = {
+    
+    // 🧠 Mental Model: Literals stay flexible until context forces resolution
+    val flexible_int = 42           // comptime_int (flexible!)
+    val flexible_float = 3.14       // comptime_float (flexible!)
+    
+    // Same sources, different contexts - demonstrating flexibility
+    val as_i32 : i32 = flexible_int      // comptime_int → i32
+    val as_i64 : i64 = flexible_int      // Same source → i64
+    val as_f32 : f32 = flexible_int      // Same source → f32
+    val as_f64 : f64 = flexible_float    // comptime_float → f64
+    
+    // ✨ Pattern 1: Comptime + Comptime = Comptime (stays flexible!)
+    val math_result = 42 + 100 * 3.14   // comptime_float (flexible!)
+    val precise_calc : f64 = math_result    // Adapts to f64
+    val fast_calc : f32 = math_result       // Same source, adapts to f32
+    val truncated : i32 = math_result:i32   // Explicit conversion needed
+    
+    // 🔄 Pattern 2: Comptime + Concrete = Concrete (comptime adapts)
+    val concrete_count : i32 = 100
+    val result1 : i32 = concrete_count + 42     // i32 + comptime_int → i32
+    val result2 : i64 = concrete_count + 42     // i32 + comptime_int → i64 (context!)
+    
+    // 🔧 Pattern 3: Concrete + Concrete = Explicit Required
+    val small_num : i32 = 10
+    val large_num : i64 = 20
+    // val mixed = small_num + large_num        // ❌ Error: mixed concrete types
+    // val explicit_result : i64 = small_num + large_num   // ❌ Still error: context doesn't help
+    val conversion_result : i64 = small_num:i64 + large_num  // ✅ Explicit conversion required
+    
+    // ⚡ Pattern 4: Same + Same = Same (identity)
+    val num1 : i32 = 15
+    val num2 : i32 = 25
+    val same_result : i32 = num1 + num2     // i32 + i32 → i32
+}
+
+func demonstrate_context_sources() : void = {
+    // 🎯 Context Sources - what forces resolution
+    
+    // Type annotations force resolution
+    val explicit_type : i64 = 42           // comptime_int → i64
+    
+    // Assignment targets provide context
+    mut counter : i32 = 0
+    counter = 42                           // comptime_int → i32 (assignment context)
+    
+    // Mixed operations create context
+    val concrete : f32 = 3.14
+    val mixed_result : f32 = concrete + 42  // comptime_int adapts to f32
+}
+
+func demonstrate_val_vs_mut_flexibility() : void = {
+    // 🔐 val vs mut: Flexibility Rules
+    
+    // ✅ val preserves maximum flexibility
+    val flexible_calculation = 42 + 100 * 2    // comptime_int (flexible!)
+    val as_different_i32 : i32 = flexible_calculation   // Can adapt to i32
+    val as_different_i64 : i64 = flexible_calculation   // Same source → i64
+    val as_different_f64 : f64 = flexible_calculation   // Same source → f64
+    
+    // 🔒 mut requires explicit types (safety over flexibility)
+    mut accumulator : i32 = 42 + 100 * 2   // Must specify type, becomes i32
+    // val cant_reuse : i64 = accumulator   // ❌ No flexibility left
+    val must_convert : i64 = accumulator:i64  // ✅ Explicit conversion required
+}
+
+func demonstrate_explicit_conversions() : void = {
+    // 🔧 Explicit Conversion Patterns
+    
+    val int_value : i32 = 100
+    val long_value : i64 = 200
+    val float_value : f64 = 3.14
+    
+    // Pattern: value:target_type
+    val widened : i64 = int_value:i64           // i32 → i64 (safe widening)
+    val narrowed : i32 = long_value:i32         // i64 → i32 (data loss visible)
+    val to_float : f64 = int_value:f64          // i32 → f64 (conversion visible)
+    val truncated : i32 = float_value:i32       // f64 → i32 (truncation visible)
+}
+
+func demonstrate_success_patterns() : void = {
+    // ✅ Common Success Patterns
+    
+    // 🎯 Define flexible constants
+    val BUFFER_SIZE = 1024 * 1024              // comptime_int (flexible!)
+    val small_buffer : i32 = BUFFER_SIZE       // Adapts to i32
+    val large_buffer : i64 = BUFFER_SIZE       // Same constant → i64
+    
+    // 🎯 Use explicit conversions for mixed concrete operations
+    val int_val : i32 = 42
+    val float_val : f64 = 3.14
+    // val combined : f64 = int_val + float_val   // ❌ Error: mixed concrete types
+    val combined : f64 = int_val:f64 + float_val   // ✅ Explicit conversion required
+    
+    // 🎯 Preserve flexibility with val for reuse
+    val complex_math = 42 * 3.14 + 100         // comptime_float (flexible!)
+    val precise_result : f64 = complex_math    // High precision
+    val fast_result : f32 = complex_math       // Fast computation
+}
+
+func demonstrate_common_gotchas() : void = {
+    // 🚨 Common Gotchas (commented to show what NOT to do)
+    
+    // ❌ Don't expect comptime types to become concrete automatically
+    val x = 42              // This is comptime_int, not i32!
+    val y = 3.14            // This is comptime_float, not f64!
+    
+    // ❌ Don't mix concrete types without explicit conversion
+    val a : i32 = 10
+    val b : i64 = 20
+    // val result = a + b   // ❌ Error: mixed concrete types need explicit conversion
+    val correct_result : i64 = a:i64 + b   // ✅ Explicit conversion required
+    
+    // ❌ Don't try to make concrete types flexible again
+    val concrete : i32 = 42    // This becomes concrete i32
+    // val flexible = concrete  // ❌ No, concrete stays concrete
+    val copy : i32 = concrete   // ✅ Identity copy is fine
+}
+
+func main() : i32 = {
+    // Quick patterns demonstration - shows all key concepts in action
+    demonstrate_quick_patterns()
+    demonstrate_context_sources()
+    demonstrate_val_vs_mut_flexibility()
+    demonstrate_explicit_conversions()
+    demonstrate_success_patterns()
+    demonstrate_common_gotchas()
+    
+    return 0  // comptime_int → i32 (function return context)
+} 

@@ -4,6 +4,8 @@ This directory contains comprehensive examples demonstrating every Hexen languag
 
 ## 📚 Learning Path
 
+> **🚀 Quick Reference**: Before diving into examples, check out the **[Comptime Types Quick Reference →](../docs/COMPTIME_QUICK_REFERENCE.md)** for essential patterns and mental models!
+
 ### 01. Getting Started
 Perfect for newcomers to Hexen - covers the absolute basics:
 
@@ -15,6 +17,9 @@ Perfect for newcomers to Hexen - covers the absolute basics:
 Comprehensive coverage of Hexen's type system:
 
 - **`all_types.hxn`** - Complete type system showcase (`i32`, `i64`, `f64`, `string`, `bool`, `void`)
+- **`comptime_types.hxn`** - Comptime type system demonstration with elegant coercion
+- **`comptime_quick_patterns.hxn`** - ⚡ Practical demonstration of quick reference patterns
+- **`i64_numbers.hxn`** - 64-bit integer handling with seamless coercion
 - **`booleans.hxn`** - Deep dive into boolean types and patterns
 
 ### 03. Blocks

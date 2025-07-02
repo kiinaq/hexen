@@ -31,6 +31,7 @@ This is not just an academic exercise, but a practical exploration of what progr
 - [Architecture Roadmap](#architecture-roadmap) — Implementation strategy and evolution path
 
 ### 📚 Detailed Documentation
+- **[Comptime Quick Reference →](docs/COMPTIME_QUICK_REFERENCE.md)** - Essential patterns for the comptime type system ⚡
 - **[Examples →](examples/README.md)** - Comprehensive learning examples organized by difficulty
 - **[Source Code →](src/README.md)** - Complete compiler architecture and implementation details  
 - **[Tests →](tests/README.md)** - Testing strategy and validation approach (164 tests)

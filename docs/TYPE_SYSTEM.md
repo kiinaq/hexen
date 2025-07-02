@@ -112,6 +112,8 @@ Now that you understand `val` and `mut`, let's explore how they interact with He
 
 ## Comptime Type System
 
+> **🚀 Quick Start**: New to comptime types? Check out the **[Comptime Quick Reference →](COMPTIME_QUICK_REFERENCE.md)** for essential patterns and mental models!
+
 ### The Problem: Literal Type Ambiguity
 
 In most systems programming languages, numeric literals face a fundamental problem:
