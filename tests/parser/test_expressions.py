@@ -52,7 +52,7 @@ class TestBasicParentheses:
 
         # Verify the parentheses are correctly parsed and removed
         expr = ast["functions"][0]["body"]["statements"][0]["value"]
-        assert expr["type"] == NodeType.LITERAL.value
+        assert expr["type"] == NodeType.COMPTIME_INT.value
         assert expr["value"] == 42
 
     def test_parenthesized_string(self):
@@ -109,7 +109,7 @@ class TestBasicParentheses:
 
         return_stmt = ast["functions"][0]["body"]["statements"][0]
         assert return_stmt["type"] == NodeType.RETURN_STATEMENT.value
-        assert return_stmt["value"]["type"] == NodeType.LITERAL.value
+        assert return_stmt["value"]["type"] == NodeType.COMPTIME_INT.value
         assert return_stmt["value"]["value"] == 42
 
 
@@ -130,7 +130,7 @@ class TestNestedParentheses:
         ast = self.parser.parse(source)
 
         expr = ast["functions"][0]["body"]["statements"][0]["value"]
-        assert expr["type"] == NodeType.LITERAL.value
+        assert expr["type"] == NodeType.COMPTIME_INT.value
         assert expr["value"] == 42
 
     def test_triple_parentheses(self):
@@ -187,7 +187,7 @@ class TestParenthesesInBlocks:
         assert block["type"] == NodeType.BLOCK.value
 
         temp_expr = block["statements"][0]["value"]
-        assert temp_expr["type"] == NodeType.LITERAL.value
+        assert temp_expr["type"] == NodeType.COMPTIME_INT.value
         assert temp_expr["value"] == 100
 
     def test_parentheses_in_statement_block(self):
@@ -207,7 +207,7 @@ class TestParenthesesInBlocks:
 
         # Check first variable
         first_expr = block["statements"][0]["value"]
-        assert first_expr["type"] == NodeType.LITERAL.value
+        assert first_expr["type"] == NodeType.COMPTIME_FLOAT.value
         assert first_expr["value"] == 3.14
 
         # Check second variable
@@ -234,7 +234,7 @@ class TestParenthesesInBlocks:
 
         # Check the inner computation
         inner_expr = expr["statements"][0]["value"]
-        assert inner_expr["type"] == NodeType.LITERAL.value
+        assert inner_expr["type"] == NodeType.COMPTIME_INT.value
         assert inner_expr["value"] == 50
 
 
@@ -259,17 +259,17 @@ class TestParenthesesWithTypes:
         statements = ast["functions"][0]["body"]["statements"]
 
         # Check integer
-        assert statements[0]["value"]["type"] == NodeType.LITERAL.value
+        assert statements[0]["value"]["type"] == NodeType.COMPTIME_INT.value
         assert statements[0]["value"]["value"] == 42
 
         # Check float values
-        assert statements[1]["value"]["type"] == NodeType.LITERAL.value
+        assert statements[1]["value"]["type"] == NodeType.COMPTIME_FLOAT.value
         assert statements[1]["value"]["value"] == 3.14
 
-        assert statements[2]["value"]["type"] == NodeType.LITERAL.value
+        assert statements[2]["value"]["type"] == NodeType.COMPTIME_FLOAT.value
         assert statements[2]["value"]["value"] == 2.718
 
-        assert statements[3]["value"]["type"] == NodeType.LITERAL.value
+        assert statements[3]["value"]["type"] == NodeType.COMPTIME_FLOAT.value
         assert statements[3]["value"]["value"] == 1.5
 
     def test_parentheses_preserve_type_annotations(self):
@@ -321,13 +321,13 @@ class TestOperatorPrecedence:
         mul_op = {
             "type": NodeType.BINARY_OPERATION.value,
             "operator": "*",
-            "left": {"type": NodeType.LITERAL.value, "value": 20},
-            "right": {"type": NodeType.LITERAL.value, "value": 2},
+            "left": {"type": NodeType.COMPTIME_INT.value, "value": 20},
+            "right": {"type": NodeType.COMPTIME_INT.value, "value": 2},
         }
         verify_binary_operation_ast(
             statements[0]["value"],
             "+",
-            {"type": NodeType.LITERAL.value, "value": 10},
+            {"type": NodeType.COMPTIME_INT.value, "value": 10},
             mul_op,
         )
 
@@ -336,14 +336,14 @@ class TestOperatorPrecedence:
         add_op = {
             "type": NodeType.BINARY_OPERATION.value,
             "operator": "+",
-            "left": {"type": NodeType.LITERAL.value, "value": 10},
-            "right": {"type": NodeType.LITERAL.value, "value": 20},
+            "left": {"type": NodeType.COMPTIME_INT.value, "value": 10},
+            "right": {"type": NodeType.COMPTIME_INT.value, "value": 20},
         }
         verify_binary_operation_ast(
             statements[1]["value"],
             "*",
             add_op,
-            {"type": NodeType.LITERAL.value, "value": 2},
+            {"type": NodeType.COMPTIME_INT.value, "value": 2},
         )
 
     def test_unary_minus_precedence(self):
@@ -363,25 +363,25 @@ class TestOperatorPrecedence:
         neg_two = {
             "type": NodeType.UNARY_OPERATION.value,
             "operator": "-",
-            "operand": {"type": NodeType.LITERAL.value, "value": 2},
+            "operand": {"type": NodeType.COMPTIME_INT.value, "value": 2},
         }
         verify_binary_operation_ast(
             statements[0]["value"],
             "*",
             neg_two,
-            {"type": NodeType.LITERAL.value, "value": 3},
+            {"type": NodeType.COMPTIME_INT.value, "value": 3},
         )
 
         # Test 2 * -3
         neg_three = {
             "type": NodeType.UNARY_OPERATION.value,
             "operator": "-",
-            "operand": {"type": NodeType.LITERAL.value, "value": 3},
+            "operand": {"type": NodeType.COMPTIME_INT.value, "value": 3},
         }
         verify_binary_operation_ast(
             statements[1]["value"],
             "*",
-            {"type": NodeType.LITERAL.value, "value": 2},
+            {"type": NodeType.COMPTIME_INT.value, "value": 2},
             neg_three,
         )
 
@@ -389,12 +389,12 @@ class TestOperatorPrecedence:
         neg_two = {
             "type": NodeType.UNARY_OPERATION.value,
             "operator": "-",
-            "operand": {"type": NodeType.LITERAL.value, "value": 2},
+            "operand": {"type": NodeType.COMPTIME_INT.value, "value": 2},
         }
         neg_three = {
             "type": NodeType.UNARY_OPERATION.value,
             "operator": "-",
-            "operand": {"type": NodeType.LITERAL.value, "value": 3},
+            "operand": {"type": NodeType.COMPTIME_INT.value, "value": 3},
         }
         verify_binary_operation_ast(statements[2]["value"], "+", neg_two, neg_three)
 
@@ -422,14 +422,14 @@ class TestComplexExpressions:
         add_op = {
             "type": NodeType.BINARY_OPERATION.value,
             "operator": "+",
-            "left": {"type": NodeType.LITERAL.value, "value": 10},
-            "right": {"type": NodeType.LITERAL.value, "value": 20},
+            "left": {"type": NodeType.COMPTIME_INT.value, "value": 10},
+            "right": {"type": NodeType.COMPTIME_INT.value, "value": 20},
         }
         sub_op = {
             "type": NodeType.BINARY_OPERATION.value,
             "operator": "-",
-            "left": {"type": NodeType.LITERAL.value, "value": 30},
-            "right": {"type": NodeType.LITERAL.value, "value": 40},
+            "left": {"type": NodeType.COMPTIME_INT.value, "value": 30},
+            "right": {"type": NodeType.COMPTIME_INT.value, "value": 40},
         }
         verify_binary_operation_ast(statements[0]["value"], "*", add_op, sub_op)
 
@@ -452,20 +452,20 @@ class TestComplexExpressions:
         mul_op = {
             "type": NodeType.BINARY_OPERATION.value,
             "operator": "*",
-            "left": {"type": NodeType.LITERAL.value, "value": 20},
-            "right": {"type": NodeType.LITERAL.value, "value": 30},
+            "left": {"type": NodeType.COMPTIME_INT.value, "value": 20},
+            "right": {"type": NodeType.COMPTIME_INT.value, "value": 30},
         }
         first_add = {
             "type": NodeType.BINARY_OPERATION.value,
             "operator": "+",
-            "left": {"type": NodeType.LITERAL.value, "value": 10},
+            "left": {"type": NodeType.COMPTIME_INT.value, "value": 10},
             "right": mul_op,
         }
         div_op = {
             "type": NodeType.BINARY_OPERATION.value,
             "operator": "/",
-            "left": {"type": NodeType.LITERAL.value, "value": 40},
-            "right": {"type": NodeType.LITERAL.value, "value": 50},
+            "left": {"type": NodeType.COMPTIME_INT.value, "value": 40},
+            "right": {"type": NodeType.COMPTIME_INT.value, "value": 50},
         }
         verify_binary_operation_ast(statements[0]["value"], "-", first_add, div_op)
 
