@@ -40,19 +40,23 @@ class TestUnaryMinus:
 
         # Test single negation
         verify_unary_operation_ast(
-            statements[0]["value"], "-", {"type": NodeType.LITERAL.value, "value": 42}
+            statements[0]["value"],
+            "-",
+            {"type": NodeType.COMPTIME_INT.value, "value": 42},
         )
 
         # Test negation of zero
         verify_unary_operation_ast(
-            statements[1]["value"], "-", {"type": NodeType.LITERAL.value, "value": 0}
+            statements[1]["value"],
+            "-",
+            {"type": NodeType.COMPTIME_INT.value, "value": 0},
         )
 
         # Test double negation
         inner_neg = {
             "type": NodeType.UNARY_OPERATION.value,
             "operator": "-",
-            "operand": {"type": NodeType.LITERAL.value, "value": 42},
+            "operand": {"type": NodeType.COMPTIME_INT.value, "value": 42},
         }
         verify_unary_operation_ast(statements[2]["value"], "-", inner_neg)
 
@@ -71,19 +75,23 @@ class TestUnaryMinus:
 
         # Test single negation
         verify_unary_operation_ast(
-            statements[0]["value"], "-", {"type": NodeType.LITERAL.value, "value": 3.14}
+            statements[0]["value"],
+            "-",
+            {"type": NodeType.COMPTIME_FLOAT.value, "value": 3.14},
         )
 
         # Test negation of zero
         verify_unary_operation_ast(
-            statements[1]["value"], "-", {"type": NodeType.LITERAL.value, "value": 0.0}
+            statements[1]["value"],
+            "-",
+            {"type": NodeType.COMPTIME_FLOAT.value, "value": 0.0},
         )
 
         # Test double negation
         inner_neg = {
             "type": NodeType.UNARY_OPERATION.value,
             "operator": "-",
-            "operand": {"type": NodeType.LITERAL.value, "value": 3.14},
+            "operand": {"type": NodeType.COMPTIME_FLOAT.value, "value": 3.14},
         }
         verify_unary_operation_ast(statements[2]["value"], "-", inner_neg)
 

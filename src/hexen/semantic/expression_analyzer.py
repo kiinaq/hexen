@@ -80,7 +80,9 @@ class ExpressionAnalyzer:
 
         Expression types handled:
         - TYPE_ANNOTATED_EXPRESSION: Explicit acknowledgment of precision loss
-        - LITERAL: Comptime type inference with context adaptation
+        - LITERAL: Non-numeric literals (string, bool)
+        - COMPTIME_INT: Comptime integer literals with adaptive resolution
+        - COMPTIME_FLOAT: Comptime float literals with adaptive resolution
         - IDENTIFIER: Symbol lookup and validation
         - BLOCK: Expression blocks (delegate to block analyzer)
         - BINARY_OPERATION: Delegate to binary ops analyzer
@@ -90,8 +92,14 @@ class ExpressionAnalyzer:
             # Handle type annotated expressions - implements TYPE_SYSTEM.md rules
             return self._analyze_type_annotated_expression(node, target_type)
         elif expr_type == NodeType.LITERAL.value:
-            # Comptime type inference - delegates to type_util
+            # Non-numeric literals (string, bool) - delegates to type_util
             return infer_type_from_value(node)
+        elif expr_type == NodeType.COMPTIME_INT.value:
+            # Comptime integer literals - adaptive type resolution
+            return HexenType.COMPTIME_INT
+        elif expr_type == NodeType.COMPTIME_FLOAT.value:
+            # Comptime float literals - adaptive type resolution
+            return HexenType.COMPTIME_FLOAT
         elif expr_type == NodeType.IDENTIFIER.value:
             # Symbol lookup and validation
             return self._analyze_identifier(node)

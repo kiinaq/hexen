@@ -306,16 +306,16 @@ class HexenTransformer(Transformer):
         return {"type": NodeType.IDENTIFIER.value, "name": str(token)}
 
     def NUMBER(self, token):
-        # Parse number literals with support for both integers and floats
-        # 42 -> {type: "literal", value: 42} (int)
-        # 3.14 -> {type: "literal", value: 3.14} (float)
+        # Parse number literals as comptime types that adapt to context
+        # 42 -> {type: "comptime_int", value: 42} (comptime_int)
+        # 3.14 -> {type: "comptime_float", value: 3.14} (comptime_float)
         token_str = str(token)
         if "." in token_str:
-            # Float literal
-            return {"type": NodeType.LITERAL.value, "value": float(token_str)}
+            # Float literal → comptime_float
+            return {"type": NodeType.COMPTIME_FLOAT.value, "value": float(token_str)}
         else:
-            # Integer literal
-            return {"type": NodeType.LITERAL.value, "value": int(token_str)}
+            # Integer literal → comptime_int
+            return {"type": NodeType.COMPTIME_INT.value, "value": int(token_str)}
 
     def BOOLEAN(self, token):
         # Parse boolean literals: true -> {type: "literal", value: true}

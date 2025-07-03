@@ -42,6 +42,10 @@ class NodeType(Enum):
     UNARY_OPERATION = "unary_operation"
     TYPE_ANNOTATED_EXPRESSION = "type_annotated_expression"
 
+    # Comptime Types (Literals that adapt to context)
+    COMPTIME_INT = "comptime_int"
+    COMPTIME_FLOAT = "comptime_float"
+
     def __str__(self):
         """Return the string value for convenient usage"""
         return self.value

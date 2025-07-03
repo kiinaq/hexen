@@ -31,7 +31,7 @@ class TestVariableDeclarations:
         assert val_decl["type"] == NodeType.VAL_DECLARATION.value
         assert val_decl["name"] == "x"
         assert val_decl["type_annotation"] is None
-        assert val_decl["value"]["type"] == NodeType.LITERAL.value
+        assert val_decl["value"]["type"] == NodeType.COMPTIME_INT.value
         assert val_decl["value"]["value"] == 42
 
     def test_mut_declaration_with_explicit_type(self):
@@ -51,7 +51,7 @@ class TestVariableDeclarations:
         assert mut_decl["type"] == NodeType.MUT_DECLARATION.value
         assert mut_decl["name"] == "counter"
         assert mut_decl["type_annotation"] == "i32"
-        assert mut_decl["value"]["type"] == NodeType.LITERAL.value
+        assert mut_decl["value"]["type"] == NodeType.COMPTIME_INT.value
         assert mut_decl["value"]["value"] == 0
 
     def test_val_declaration_with_string(self):

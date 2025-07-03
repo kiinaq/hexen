@@ -45,36 +45,36 @@ def test_basic_arithmetic_operators():
     verify_binary_operation_ast(
         statements[0]["value"],
         "+",
-        {"type": NodeType.LITERAL.value, "value": 10},
-        {"type": NodeType.LITERAL.value, "value": 20},
+        {"type": NodeType.COMPTIME_INT.value, "value": 10},
+        {"type": NodeType.COMPTIME_INT.value, "value": 20},
     )
 
     verify_binary_operation_ast(
         statements[1]["value"],
         "-",
-        {"type": NodeType.LITERAL.value, "value": 10},
-        {"type": NodeType.LITERAL.value, "value": 20},
+        {"type": NodeType.COMPTIME_INT.value, "value": 10},
+        {"type": NodeType.COMPTIME_INT.value, "value": 20},
     )
 
     verify_binary_operation_ast(
         statements[2]["value"],
         "*",
-        {"type": NodeType.LITERAL.value, "value": 10},
-        {"type": NodeType.LITERAL.value, "value": 20},
+        {"type": NodeType.COMPTIME_INT.value, "value": 10},
+        {"type": NodeType.COMPTIME_INT.value, "value": 20},
     )
 
     verify_binary_operation_ast(
         statements[3]["value"],
         "/",
-        {"type": NodeType.LITERAL.value, "value": 10},
-        {"type": NodeType.LITERAL.value, "value": 20},
+        {"type": NodeType.COMPTIME_INT.value, "value": 10},
+        {"type": NodeType.COMPTIME_INT.value, "value": 20},
     )
 
     verify_binary_operation_ast(
         statements[4]["value"],
         "\\",
-        {"type": NodeType.LITERAL.value, "value": 10},
-        {"type": NodeType.LITERAL.value, "value": 20},
+        {"type": NodeType.COMPTIME_INT.value, "value": 10},
+        {"type": NodeType.COMPTIME_INT.value, "value": 20},
     )
 
 

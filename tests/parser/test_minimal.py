@@ -42,7 +42,7 @@ class TestMinimalHexen:
         # Test the return statement within the block
         return_stmt = func["body"]["statements"][0]
         assert return_stmt["type"] == NodeType.RETURN_STATEMENT.value
-        assert return_stmt["value"]["type"] == NodeType.LITERAL.value
+        assert return_stmt["value"]["type"] == NodeType.COMPTIME_INT.value
         assert return_stmt["value"]["value"] == 0
 
     def test_different_function_names(self):
