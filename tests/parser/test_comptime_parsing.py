@@ -179,17 +179,19 @@ class TestComptimeParsing:
         """Test comptime literals with type annotations work correctly"""
         source = """
         func test() : void = {
-            val result = 42 : i32
+            val result = 42:i32
         }
         """
         ast = self.parser.parse(source)
         val_decl = ast["functions"][0]["body"]["statements"][0]
         type_annotated_expr = val_decl["value"]
 
-        assert type_annotated_expr["type"] == NodeType.TYPE_ANNOTATED_EXPRESSION.value
+        assert (
+            type_annotated_expr["type"] == NodeType.EXPLICIT_CONVERSION_EXPRESSION.value
+        )
         assert type_annotated_expr["expression"]["type"] == NodeType.COMPTIME_INT.value
         assert type_annotated_expr["expression"]["value"] == 42
-        assert type_annotated_expr["type_annotation"] == "i32"
+        assert type_annotated_expr["target_type"] == "i32"
 
     def test_comptime_edge_case_values(self):
         """Test comptime literals with edge case values"""

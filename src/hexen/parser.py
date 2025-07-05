@@ -95,12 +95,12 @@ class HexenTransformer(Transformer):
         if len(children) == 1:
             return children[0]
         else:
-            # Expression with type annotation
-            expr, type_annotation = children
+            # Expression with explicit type conversion
+            expr, target_type = children
             return {
-                "type": NodeType.TYPE_ANNOTATED_EXPRESSION.value,
+                "type": NodeType.EXPLICIT_CONVERSION_EXPRESSION.value,
                 "expression": expr,
-                "type_annotation": type_annotation,
+                "target_type": target_type,
             }
 
     def logical_or(self, children):

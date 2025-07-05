@@ -109,9 +109,9 @@ def test_binary_operations_with_type_annotations():
     """Test binary operations combined with type annotations"""
     source = """
     func main(): i32 = {
-        val mixed : f64 = (42 + 3.14) : f64
-        val complex : i32 = (10 * 20 + 30) : i32
-        val logical : bool = (true && false) : bool
+        val mixed : f64 = (42 + 3.14):f64
+        val complex : i32 = (10 * 20 + 30):i32
+        val logical : bool = (true && false):bool
         return 0
     }
     """
@@ -125,6 +125,6 @@ def test_binary_operations_with_type_annotations():
     for i, stmt in enumerate(statements[:3]):  # Skip return statement
         assert stmt["type"] in [NodeType.VAL_DECLARATION.value]
         expr = stmt["value"]
-        assert expr["type"] == NodeType.TYPE_ANNOTATED_EXPRESSION.value
+        assert expr["type"] == NodeType.EXPLICIT_CONVERSION_EXPRESSION.value
         # The expression inside should be a binary operation
         assert expr["expression"]["type"] == NodeType.BINARY_OPERATION.value

@@ -238,7 +238,7 @@ class DeclarationAnalyzer:
                         # For non-type-annotated expressions, require acknowledgment
                         if (
                             value.get("type")
-                            != NodeType.TYPE_ANNOTATED_EXPRESSION.value
+                            != NodeType.EXPLICIT_CONVERSION_EXPRESSION.value
                         ):
                             # Generate appropriate error message based on operation type
                             if (
@@ -289,7 +289,7 @@ class DeclarationAnalyzer:
                         # (type annotations handle their own validation)
                         if (
                             value.get("type")
-                            != NodeType.TYPE_ANNOTATED_EXPRESSION.value
+                            != NodeType.EXPLICIT_CONVERSION_EXPRESSION.value
                         ):
                             self._error(
                                 f"Type mismatch: variable '{name}' declared as {var_type.value} "

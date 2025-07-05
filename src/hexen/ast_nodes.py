@@ -40,7 +40,7 @@ class NodeType(Enum):
     IDENTIFIER = "identifier"
     BINARY_OPERATION = "binary_operation"
     UNARY_OPERATION = "unary_operation"
-    TYPE_ANNOTATED_EXPRESSION = "type_annotated_expression"
+    EXPLICIT_CONVERSION_EXPRESSION = "explicit_conversion_expression"
 
     # Comptime Types (Literals that adapt to context)
     COMPTIME_INT = "comptime_int"

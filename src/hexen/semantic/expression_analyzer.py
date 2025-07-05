@@ -79,7 +79,7 @@ class ExpressionAnalyzer:
         Dispatch expression analysis to appropriate handler.
 
         Expression types handled:
-        - TYPE_ANNOTATED_EXPRESSION: Explicit acknowledgment of precision loss
+        - EXPLICIT_CONVERSION_EXPRESSION: Explicit conversion
         - LITERAL: Non-numeric literals (string, bool)
         - COMPTIME_INT: Comptime integer literals with adaptive resolution
         - COMPTIME_FLOAT: Comptime float literals with adaptive resolution
@@ -88,7 +88,7 @@ class ExpressionAnalyzer:
         - BINARY_OPERATION: Delegate to binary ops analyzer
         - UNARY_OPERATION: Delegate to unary ops analyzer
         """
-        if expr_type == NodeType.TYPE_ANNOTATED_EXPRESSION.value:
+        if expr_type == NodeType.EXPLICIT_CONVERSION_EXPRESSION.value:
             # Handle type annotated expressions - implements TYPE_SYSTEM.md rules
             return self._analyze_type_annotated_expression(node, target_type)
         elif expr_type == NodeType.LITERAL.value:
@@ -131,7 +131,7 @@ class ExpressionAnalyzer:
         Pattern: val variable : target_type = expression : SAME_target_type
         """
         expr = node.get("expression")
-        type_annotation = node.get("type_annotation")
+        type_annotation = node.get("target_type")
         annotated_type = parse_type(type_annotation)
 
         # Rule: Type annotations require explicit left-side types
