@@ -16,10 +16,7 @@ from typing import Dict, Optional, Callable
 from ..ast_nodes import NodeType
 from .types import HexenType
 from .type_util import (
-    parse_type,
     infer_type_from_value,
-    can_coerce,
-    is_precision_loss_operation,
 )
 
 
@@ -47,6 +44,7 @@ class ExpressionAnalyzer:
             [Dict, Optional[HexenType]], HexenType
         ],
         lookup_symbol_callback: Callable[[str], Optional[object]],
+        conversion_analyzer,
     ):
         """Initialize with callbacks to main analyzer functionality."""
         self._error = error_callback
@@ -54,6 +52,7 @@ class ExpressionAnalyzer:
         self._analyze_binary_operation = analyze_binary_operation_callback
         self._analyze_unary_operation = analyze_unary_operation_callback
         self._lookup_symbol = lookup_symbol_callback
+        self._conversion_analyzer = conversion_analyzer
 
     def analyze_expression(
         self, node: Dict, target_type: Optional[HexenType] = None
@@ -89,8 +88,8 @@ class ExpressionAnalyzer:
         - UNARY_OPERATION: Delegate to unary ops analyzer
         """
         if expr_type == NodeType.EXPLICIT_CONVERSION_EXPRESSION.value:
-            # Handle type annotated expressions - implements TYPE_SYSTEM.md rules
-            return self._analyze_type_annotated_expression(node, target_type)
+            # Handle explicit conversion expressions - implements TYPE_SYSTEM.md rules
+            return self._conversion_analyzer.analyze_conversion(node, target_type)
         elif expr_type == NodeType.LITERAL.value:
             # Non-numeric literals (string, bool) - delegates to type_util
             return infer_type_from_value(node)
@@ -115,68 +114,6 @@ class ExpressionAnalyzer:
         else:
             self._error(f"Unknown expression type: {expr_type}", node)
             return HexenType.UNKNOWN
-
-    def _analyze_type_annotated_expression(
-        self, node: Dict, target_type: Optional[HexenType] = None
-    ) -> HexenType:
-        """
-        Analyze type annotated expressions implementing "Explicit Danger, Implicit Safety".
-
-        From TYPE_SYSTEM.md, key rules:
-        1. Type annotation must match the target type exactly (left-hand side)
-        2. Type annotations require explicit left-side types
-        3. Type annotations enable precision loss operations (acknowledgment)
-        4. Type annotations are NOT conversions, they're acknowledgments
-
-        Pattern: val variable : target_type = expression : SAME_target_type
-        """
-        expr = node.get("expression")
-        type_annotation = node.get("target_type")
-        annotated_type = parse_type(type_annotation)
-
-        # Rule: Type annotations require explicit left-side types
-        if target_type is None:
-            self._error(
-                "Type annotation requires explicit left side type. "
-                f"Add explicit type: 'val result : {annotated_type.value} = ...'",
-                node,
-            )
-            return HexenType.UNKNOWN
-
-        # Rule: Type annotation must match target type exactly
-        if annotated_type != target_type:
-            self._error(
-                f"Type annotation must match variable's declared type: "
-                f"expected {target_type.value}, got {annotated_type.value}",
-                node,
-            )
-            return HexenType.UNKNOWN
-
-        # Analyze the expression with the annotated type as target
-        expr_type = self.analyze_expression(expr, annotated_type)
-
-        # Type annotation enables precision loss operations (acknowledgment)
-        # This means we allow operations that would normally be rejected
-        if expr_type != HexenType.UNKNOWN:
-            # Check if this is a precision loss operation that needs acknowledgment
-            if is_precision_loss_operation(expr_type, annotated_type):
-                # Type annotation acknowledged - allow the operation
-                return annotated_type
-
-            # For safe operations, still check coercion
-            if not can_coerce(expr_type, annotated_type):
-                self._error(
-                    f"Type mismatch: expression of type {expr_type.value} cannot be coerced to {annotated_type.value}",
-                    node,
-                )
-                return HexenType.UNKNOWN
-        else:
-            # If expression analysis failed (e.g., due to undefined variables),
-            # the type annotation structure is still valid - return the annotated type
-            # This allows type annotation validation to work even when expressions have errors
-            pass
-
-        return annotated_type
 
     def _analyze_identifier(self, node: Dict) -> HexenType:
         """

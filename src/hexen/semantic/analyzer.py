@@ -19,6 +19,7 @@ from .assignment_analyzer import AssignmentAnalyzer
 from .return_analyzer import ReturnAnalyzer
 from .block_analyzer import BlockAnalyzer
 from .expression_analyzer import ExpressionAnalyzer
+from .conversion_analyzer import ConversionAnalyzer
 
 
 class SemanticAnalyzer:
@@ -101,6 +102,12 @@ class SemanticAnalyzer:
             get_current_function_return_type_callback=lambda: self.current_function_return_type,
         )
 
+        # Initialize conversion analyzer with callbacks
+        self.conversion_analyzer = ConversionAnalyzer(
+            error_callback=self._error,
+            analyze_expression_callback=self._analyze_expression,
+        )
+
         # Initialize expression analyzer with callbacks
         self.expression_analyzer = ExpressionAnalyzer(
             error_callback=self._error,
@@ -108,6 +115,7 @@ class SemanticAnalyzer:
             analyze_binary_operation_callback=self._analyze_binary_operation,
             analyze_unary_operation_callback=self._analyze_unary_operation,
             lookup_symbol_callback=self.symbol_table.lookup_symbol,
+            conversion_analyzer=self.conversion_analyzer,
         )
 
     def analyze(self, ast: Dict) -> List[SemanticError]:
