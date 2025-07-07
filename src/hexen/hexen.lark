@@ -24,7 +24,7 @@ return_stmt: "return" expression?
 
 assignment_stmt: IDENTIFIER "=" expression
 
-expression: logical_or (":" type)?
+expression: logical_or (CONVERSION_OP type)?
 
 logical_or: logical_and (OR_OP logical_and)*
 logical_and: equality (AND_OP equality)*
@@ -68,6 +68,9 @@ IDENTIFIER: /(?!val\b|mut\b|true\b|false\b)[a-zA-Z_][a-zA-Z0-9_]*/
 NUMBER: /-?[0-9]+(\.[0-9]+)?/
 STRING: /\"[^\"]*\"/
 BOOLEAN: "true" | "false"
+
+// Conversion operator (tight binding, high priority)
+CONVERSION_OP.10: /:(?=i32|i64|f32|f64|string|bool|void)/
 
 // Ignore whitespace and comments
 %import common.WS

@@ -1,0 +1,14 @@
+func test_current_parser() : void = {
+    // Test explicit conversion syntax
+    val converted = 42:i32
+    val complex = (10 + 20):f64
+    val variable_conv = x:i64
+    
+    // Test comptime literals
+    val comptime_int = 42
+    val comptime_float = 3.14
+    
+    // Test basic functionality
+    val a : i32 = 10
+    mut b : i64 = 20
+}

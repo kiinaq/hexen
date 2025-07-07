@@ -91,11 +91,19 @@ class HexenTransformer(Transformer):
         }
 
     def expression(self, children):
-        # Handle: expression [":" type]
+        # Handle: expression [CONVERSION_OP type]
         if len(children) == 1:
             return children[0]
+        elif len(children) == 3:
+            # Expression with explicit type conversion: expr, conversion_op_token, target_type
+            expr, conversion_token, target_type = children
+            return {
+                "type": NodeType.EXPLICIT_CONVERSION_EXPRESSION.value,
+                "expression": expr,
+                "target_type": target_type,
+            }
         else:
-            # Expression with explicit type conversion
+            # Expression with explicit type conversion: expr, target_type
             expr, target_type = children
             return {
                 "type": NodeType.EXPLICIT_CONVERSION_EXPRESSION.value,
