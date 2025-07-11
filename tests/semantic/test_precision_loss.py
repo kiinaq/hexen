@@ -23,8 +23,8 @@ class TestIntegerPrecisionLoss(StandardTestBase):
         """Test detection of potential i64 to i32 truncation"""
         source = """
         func test() : void = {
-            val large : i64 = 9223372036854775807  // Max i64 value
-            mut small : i32 = 0
+            val large:i64 = 9223372036854775807  // Max i64 value
+            mut small:i32 = 0
             
             // ❌ Should require explicit acknowledgment
             small = large
@@ -43,11 +43,11 @@ class TestIntegerPrecisionLoss(StandardTestBase):
         """Test that explicit acknowledgment allows i64 to i32 conversion"""
         source = """
         func test() : void = {
-            val large : i64 = 9223372036854775807  // Max i64 value
-            mut small : i32 = 0
+            val large:i64 = 9223372036854775807  // Max i64 value
+            mut small:i32 = 0
             
             // ✅ Explicit acknowledgment of truncation
-            small = large : i32
+            small = large:i32
         }
         """
         ast = self.parser.parse(source)
@@ -59,7 +59,7 @@ class TestIntegerPrecisionLoss(StandardTestBase):
         source = """
         func test() : void = {
             // ❌ Large literal that may not fit in i32 without acknowledgment
-            val truncated : i32 = 4294967296  // 2^32, too large for i32
+            val truncated:i32 = 4294967296  // 2^32, too large for i32
         }
         """
         ast = self.parser.parse(source)
@@ -73,10 +73,10 @@ class TestIntegerPrecisionLoss(StandardTestBase):
         """Test val variables support integer truncation acknowledgment"""
         source = """
         func test() : void = {
-            val large : i64 = 9223372036854775807
+            val large:i64 = 9223372036854775807
             
             // ✅ val variables support precision loss acknowledgment
-            val truncated : i32 = large : i32    // Acknowledge truncation
+            val truncated:i32 = large:i32    // Acknowledge truncation
         }
         """
         ast = self.parser.parse(source)
@@ -87,12 +87,12 @@ class TestIntegerPrecisionLoss(StandardTestBase):
         """Test mut variables support integer truncation acknowledgment in reassignments"""
         source = """
         func test() : void = {
-            val large : i64 = 9223372036854775807
-            mut small : i32 = 0
+            val large:i64 = 9223372036854775807
+            mut small:i32 = 0
             
             // ✅ mut reassignment supports truncation acknowledgment
-            small = large : i32      // Acknowledge truncation
-            small = (large * 2) : i32 // Complex expression with acknowledgment
+            small = large:i32      // Acknowledge truncation
+            small = (large * 2):i32 // Complex expression with acknowledgment
         }
         """
         ast = self.parser.parse(source)
@@ -107,8 +107,8 @@ class TestFloatPrecisionLoss(StandardTestBase):
         """Test detection of f64 to f32 precision loss"""
         source = """
         func test() : void = {
-            val precise : f64 = 3.141592653589793  // High precision π
-            mut single : f32 = 0.0
+            val precise:f64 = 3.141592653589793  // High precision π
+            mut single:f32 = 0.0
             
             // ❌ Should require explicit acknowledgment of precision loss
             single = precise
@@ -127,11 +127,11 @@ class TestFloatPrecisionLoss(StandardTestBase):
         """Test that explicit acknowledgment allows f64 to f32 conversion"""
         source = """
         func test() : void = {
-            val precise : f64 = 3.141592653589793  // High precision π
-            mut single : f32 = 0.0
+            val precise:f64 = 3.141592653589793  // High precision π
+            mut single:f32 = 0.0
             
             // ✅ Explicit acknowledgment of precision loss
-            single = precise : f32
+            single = precise:f32
         }
         """
         ast = self.parser.parse(source)
@@ -143,12 +143,12 @@ class TestFloatPrecisionLoss(StandardTestBase):
         source = """
         func test() : void = {
             // ✅ comptime_float can safely coerce to f32
-            val single : f32 = 3.141592653589793  // Safe comptime coercion
+            val single:f32 = 3.141592653589793  // Safe comptime coercion
             
             // But concrete f64 to f32 requires acknowledgment
-            val double : f64 = 3.141592653589793
-            mut target : f32 = 0.0
-            target = double : f32                   // ✅ Explicit acknowledgment
+            val double:f64 = 3.141592653589793
+            mut target:f32 = 0.0
+            target = double:f32                   // ✅ Explicit acknowledgment
         }
         """
         ast = self.parser.parse(source)
@@ -159,10 +159,10 @@ class TestFloatPrecisionLoss(StandardTestBase):
         """Test val variables work with float precision loss acknowledgments"""
         source = """
         func test() : void = {
-            val precise : f64 = 3.141592653589793
+            val precise:f64 = 3.141592653589793
             
             // ✅ val variables support precision loss acknowledgment
-            val reduced : f32 = precise : f32     // Acknowledge precision loss
+            val reduced:f32 = precise:f32     // Acknowledge precision loss
         }
         """
         ast = self.parser.parse(source)
@@ -173,12 +173,12 @@ class TestFloatPrecisionLoss(StandardTestBase):
         """Test mut variables support float precision loss acknowledgment in reassignments"""
         source = """
         func test() : void = {
-            val precise : f64 = 3.141592653589793
-            mut single : f32 = 0.0
+            val precise:f64 = 3.141592653589793
+            mut single:f32 = 0.0
             
             // ✅ mut reassignment supports precision loss acknowledgment
-            single = precise : f32   // Acknowledge precision loss
-            single = (precise + 1.0) : f32 // Complex expression with acknowledgment
+            single = precise:f32   // Acknowledge precision loss
+            single = (precise + 1.0):f32 // Complex expression with acknowledgment
         }
         """
         ast = self.parser.parse(source)
@@ -193,8 +193,8 @@ class TestMixedTypePrecisionLoss(StandardTestBase):
         """Test i64 to f32 conversion which may lose precision for very large integers"""
         source = """
         func test() : void = {
-            val big_int : i64 = 9223372036854775807  // Max i64
-            mut float_val : f32 = 0.0
+            val big_int:i64 = 9223372036854775807  // Max i64
+            mut float_val:f32 = 0.0
             
             // ❌ Large i64 to f32 may lose precision for very large values
             float_val = big_int
@@ -211,8 +211,8 @@ class TestMixedTypePrecisionLoss(StandardTestBase):
         """Test float to integer conversion (truncation)"""
         source = """
         func test() : void = {
-            val float_val : f64 = 3.14159
-            mut int_val : i32 = 0
+            val float_val:f64 = 3.14159
+            mut int_val:i32 = 0
             
             // ❌ Float to integer truncation requires explicit acknowledgment
             int_val = float_val
@@ -233,11 +233,11 @@ class TestMixedTypePrecisionLoss(StandardTestBase):
         """Test float to integer conversion with explicit acknowledgment"""
         source = """
         func test() : void = {
-            val float_val : f64 = 3.14159
-            mut int_val : i32 = 0
+            val float_val:f64 = 3.14159
+            mut int_val:i32 = 0
             
             // ✅ Explicit acknowledgment of truncation
-            int_val = float_val : i32
+            int_val = float_val:i32
         }
         """
         ast = self.parser.parse(source)
@@ -248,16 +248,16 @@ class TestMixedTypePrecisionLoss(StandardTestBase):
         """Test all combinations of mixed-type precision loss"""
         source = """
         func test() : void = {
-            val float_val : f32 = 3.14
-            val double_val : f64 = 2.718
-            mut int32_var : i32 = 0
-            mut int64_var : i64 = 0
+            val float_val:f32 = 3.14
+            val double_val:f64 = 2.718
+            mut int32_var:i32 = 0
+            mut int64_var:i64 = 0
             
             // ✅ Explicit acknowledgment allows all truncations
-            int32_var = float_val : i32   // f32 → i32 with acknowledgment
-            int32_var = double_val : i32  // f64 → i32 with acknowledgment
-            int64_var = float_val : i64   // f32 → i64 with acknowledgment
-            int64_var = double_val : i64  // f64 → i64 with acknowledgment
+            int32_var = float_val:i32   // f32 → i32 with acknowledgment
+            int32_var = double_val:i32  // f64 → i32 with acknowledgment
+            int64_var = float_val:i64   // f32 → i64 with acknowledgment
+            int64_var = double_val:i64  // f64 → i64 with acknowledgment
         }
         """
         ast = self.parser.parse(source)
@@ -272,15 +272,15 @@ class TestSafeOperationsNoAcknowledgment(StandardTestBase):
         """Test that safe integer widening doesn't require acknowledgment"""
         source = """
         func test() : void = {
-            val small : i32 = 42
+            val small:i32 = 42
             
             // ✅ Safe widening - no acknowledgment required
-            val wide : i64 = small          // i32 → i64 (safe)
-            val as_float : f32 = small      // i32 → f32 (safe)
-            val as_double : f64 = small     // i32 → f64 (safe)
+            val wide:i64 = small          // i32 → i64 (safe)
+            val as_float:f32 = small      // i32 → f32 (safe)
+            val as_double:f64 = small     // i32 → f64 (safe)
             
-            mut wide_mut : i64 = 0
-            mut float_mut : f32 = 0.0
+            mut wide_mut:i64 = 0
+            mut float_mut:f32 = 0.0
             wide_mut = small                // i32 → i64 (safe reassignment)
             float_mut = small               // i32 → f32 (safe reassignment)
         }
@@ -293,12 +293,12 @@ class TestSafeOperationsNoAcknowledgment(StandardTestBase):
         """Test that safe float widening doesn't require acknowledgment"""
         source = """
         func test() : void = {
-            val single : f32 = 3.14
+            val single:f32 = 3.14
             
             // ✅ Safe widening - no acknowledgment required  
-            val double : f64 = single       // f32 → f64 (safe)
+            val double:f64 = single       // f32 → f64 (safe)
             
-            mut double_mut : f64 = 0.0
+            mut double_mut:f64 = 0.0
             double_mut = single             // f32 → f64 (safe reassignment)
         }
         """
@@ -312,14 +312,14 @@ class TestSafeOperationsNoAcknowledgment(StandardTestBase):
         func test() : void = {
             // ✅ All comptime type coercions are safe and implicit
             val int_default = 42            // comptime_int → i32 (default)
-            val int_explicit : i64 = 42     // comptime_int → i64 (safe)
-            val float_from_int : f64 = 42   // comptime_int → f64 (safe)
+            val int_explicit:i64 = 42     // comptime_int → i64 (safe)
+            val float_from_int:f64 = 42   // comptime_int → f64 (safe)
             val float_default = 3.14        // comptime_float → f64 (default)
-            val float_explicit : f32 = 3.14 // comptime_float → f32 (safe)
+            val float_explicit:f32 = 3.14 // comptime_float → f32 (safe)
             
             // mut variables follow same rules
-            mut counter : i32 = 0
-            mut precise : f64 = 0.0
+            mut counter:i32 = 0
+            mut precise:f64 = 0.0
             counter = 42                    // comptime_int → i32 (safe reassignment)
             precise = 3.14                  // comptime_float → f64 (safe reassignment)
         }
@@ -336,9 +336,9 @@ class TestBinaryOperationsPrecisionLoss(StandardTestBase):
         """Test precision loss when binary operation results need truncation"""
         source = """
         func test() : void = {
-            val a : i64 = 1000
-            val b : i64 = 2000
-            mut result : i32 = 0
+            val a:i64 = 1000
+            val b:i64 = 2000
+            mut result:i32 = 0
             
             // ❌ Binary operation result may exceed i32 range
             result = a + b
@@ -353,9 +353,9 @@ class TestBinaryOperationsPrecisionLoss(StandardTestBase):
         """Test precision loss in mixed-type binary operations"""
         source = """
         func test() : void = {
-            val int_val : i32 = 10
-            val float_val : f64 = 3.14
-            mut result : i32 = 0
+            val int_val:i32 = 10
+            val float_val:f64 = 3.14
+            mut result:i32 = 0
             
             // ❌ Mixed operation result needs truncation acknowledgment
             result = int_val + float_val
@@ -369,12 +369,12 @@ class TestBinaryOperationsPrecisionLoss(StandardTestBase):
         """Test binary operations with explicit precision loss acknowledgment"""
         source = """
         func test() : void = {
-            val int_val : i32 = 10
-            val float_val : f64 = 3.14
-            mut result : i32 = 0
+            val int_val:i32 = 10
+            val float_val:f64 = 3.14
+            mut result:i32 = 0
             
             // ✅ Explicit acknowledgment for mixed operation result
-            result = (int_val + float_val) : i32
+            result = (int_val + float_val):i32
         }
         """
         ast = self.parser.parse(source)
@@ -396,11 +396,11 @@ class TestComplexPrecisionLossScenarios(StandardTestBase):
         """Test detection of precision loss in assignment chains"""
         source = """
         func test() : void = {
-            val start : f64 = 3.141592653589793   // High precision
+            val start:f64 = 3.141592653589793   // High precision
             
             // Chain involving precision loss - requires acknowledgment
-            mut intermediate : f32 = 0.0
-            mut final : i32 = 0
+            mut intermediate:f32 = 0.0
+            mut final:i32 = 0
             
             // ❌ Each step with potential precision loss needs acknowledgment
             intermediate = start       // f64 → f32 precision loss
@@ -415,14 +415,14 @@ class TestComplexPrecisionLossScenarios(StandardTestBase):
         """Test that explicit acknowledgments resolve chained precision loss"""
         source = """
         func test() : void = {
-            val start : f64 = 3.141592653589793
+            val start:f64 = 3.141592653589793
             
-            mut intermediate : f32 = 0.0
-            mut final : i32 = 0
+            mut intermediate:f32 = 0.0
+            mut final:i32 = 0
             
             // ✅ Explicit acknowledgment at each step
-            intermediate = start : f32         // Acknowledge f64 → f32 precision loss
-            final = intermediate : i32         // Acknowledge f32 → i32 truncation
+            intermediate = start:f32         // Acknowledge f64 → f32 precision loss
+            final = intermediate:i32         // Acknowledge f32 → i32 truncation
         }
         """
         ast = self.parser.parse(source)
@@ -433,11 +433,11 @@ class TestComplexPrecisionLossScenarios(StandardTestBase):
         """Test precision loss in complex expressions"""
         source = """
         func test() : void = {
-            val a : f64 = 1.23456789
-            val b : f64 = 9.87654321
-            val c : i64 = 1000000
+            val a:f64 = 1.23456789
+            val b:f64 = 9.87654321
+            val c:i64 = 1000000
             
-            mut result : i32 = 0
+            mut result:i32 = 0
             
             // ❌ Complex expression with multiple precision loss points
             result = (a * b + c)    // f64 operation result → i32
@@ -451,14 +451,14 @@ class TestComplexPrecisionLossScenarios(StandardTestBase):
         """Test complex expressions with precision loss acknowledgment"""
         source = """
         func test() : void = {
-            val a : f64 = 1.23456789
-            val b : f64 = 9.87654321
-            val c : i64 = 1000000
+            val a:f64 = 1.23456789
+            val b:f64 = 9.87654321
+            val c:i64 = 1000000
             
-            mut result : i32 = 0
+            mut result:i32 = 0
             
             // ✅ Explicit acknowledgment for entire complex expression
-            result = (a * b + c) : i32
+            result = (a * b + c):i32
         }
         """
         ast = self.parser.parse(source)
@@ -475,13 +475,13 @@ class TestComplexPrecisionLossScenarios(StandardTestBase):
         """Test precision loss in nested expressions with different target types"""
         source = """
         func test() : void = {
-            val precise : f64 = 3.141592653589793
-            mut single : f32 = 0.0
-            mut integer : i32 = 0
+            val precise:f64 = 3.141592653589793
+            mut single:f32 = 0.0
+            mut integer:i32 = 0
             
             // ✅ Complex nested expressions with proper acknowledgments
-            single = (precise * 2.0 + 1.0) : f32  // Nested f64 operations → f32
-            integer = (precise * single) : i32     // Mixed f64 * f32 → i32
+            single = (precise * 2.0 + 1.0):f32  // Nested f64 operations → f32
+            integer = (precise * single):i32     // Mixed f64 * f32 → i32
         }
         """
         ast = self.parser.parse(source)
@@ -502,8 +502,8 @@ class TestPrecisionLossErrorMessages(StandardTestBase):
         """Test that truncation errors provide clear guidance"""
         source = """
         func test() : void = {
-            val large : i64 = 9223372036854775807
-            mut small : i32 = 0
+            val large:i64 = 9223372036854775807
+            mut small:i32 = 0
             
             small = large   // Error with guidance
         }
@@ -521,8 +521,8 @@ class TestPrecisionLossErrorMessages(StandardTestBase):
         """Test that precision loss errors provide clear guidance"""
         source = """
         func test() : void = {
-            val precise : f64 = 3.141592653589793
-            mut single : f32 = 0.0
+            val precise:f64 = 3.141592653589793
+            mut single:f32 = 0.0
             
             single = precise   // Error with guidance
         }
@@ -540,11 +540,11 @@ class TestPrecisionLossErrorMessages(StandardTestBase):
         """Test that multiple precision loss scenarios are all detected"""
         source = """
         func test() : void = {
-            val large : i64 = 9223372036854775807
-            val precise : f64 = 3.141592653589793
+            val large:i64 = 9223372036854775807
+            val precise:f64 = 3.141592653589793
             
-            mut small : i32 = 0
-            mut single : f32 = 0.0
+            mut small:i32 = 0
+            mut single:f32 = 0.0
             
             // Multiple precision loss scenarios
             small = large      // Truncation error
@@ -567,11 +567,11 @@ class TestPrecisionLossErrorMessages(StandardTestBase):
         """Test clear error messages when type annotations don't match variable type"""
         source = """
         func test() : void = {
-            val large : i64 = 9223372036854775807
+            val large:i64 = 9223372036854775807
             
-            mut small : i32 = 0
+            mut small:i32 = 0
             // ❌ Type annotation must match variable's declared type
-            small = large : i64    // Error: annotation should be i32, not i64
+            small = large:i64    // Error: annotation should be i32, not i64
         }
         """
         ast = self.parser.parse(source)
@@ -592,15 +592,15 @@ class TestBoundaryConditions(StandardTestBase):
         source = """
         func test() : void = {
             // Test with large values that definitely cause precision loss
-            val max_i64 : i64 = 9223372036854775807
-            val max_f64 : f64 = 179769313486231570000000000000000000000.0
+            val max_i64:i64 = 9223372036854775807
+            val max_f64:f64 = 179769313486231570000000000000000000000.0
 
-            mut target_i32 : i32 = 0
-            mut target_f32 : f32 = 0.0
+            mut target_i32:i32 = 0
+            mut target_f32:f32 = 0.0
 
             // These should definitely require acknowledgment
-            target_i32 = max_i64 : i32    // ✅ Acknowledge truncation
-            target_f32 = max_f64 : f32    // ✅ Acknowledge precision loss
+            target_i32 = max_i64:i32    // ✅ Acknowledge truncation
+            target_f32 = max_f64:f32    // ✅ Acknowledge precision loss
         }
         """
         ast = self.parser.parse(source)
@@ -611,11 +611,11 @@ class TestBoundaryConditions(StandardTestBase):
         """Test that small values don't trigger false precision loss warnings"""
         source = """
         func test() : void = {
-            val small_i64 : i64 = 42      // Small value, fits in i32
-            val small_f64 : f64 = 3.14    // Small value, fits in f32
+            val small_i64:i64 = 42      // Small value, fits in i32
+            val small_f64:f64 = 3.14    // Small value, fits in f32
             
-            mut target_i32 : i32 = 0
-            mut target_f32 : f32 = 0.0
+            mut target_i32:i32 = 0
+            mut target_f32:f32 = 0.0
             
             // ❌ Still requires acknowledgment due to type difference
             // Implementation may vary - some allow small values, others require consistency
@@ -632,16 +632,16 @@ class TestBoundaryConditions(StandardTestBase):
         """Test values that are exactly representable across types"""
         source = """
         func test() : void = {
-            val exact_int : i64 = 42          // Exactly representable in i32
-            val exact_float : f64 = 2.0       // Exactly representable in f32
+            val exact_int:i64 = 42          // Exactly representable in i32
+            val exact_float:f64 = 2.0       // Exactly representable in f32
             
-            mut target_i32 : i32 = 0
-            mut target_f32 : f32 = 0.0
+            mut target_i32:i32 = 0
+            mut target_f32:f32 = 0.0
             
             // ❌ Even exact values may require acknowledgment for type consistency
             // (Implementation choice - some systems require it, others allow it)
-            target_i32 = exact_int      // May require : i32
-            target_f32 = exact_float    // May require : f32
+            target_i32 = exact_int      // May require:i32
+            target_f32 = exact_float    // May require:f32
         }
         """
         ast = self.parser.parse(source)
@@ -657,17 +657,17 @@ class TestTypeAnnotationConsistency(StandardTestBase):
         """Test that type annotations must exactly match the target variable's type"""
         source = """
         func test() : void = {
-            val large : i64 = 9223372036854775807
+            val large:i64 = 9223372036854775807
             
             // ✅ Correct: annotation matches variable type
-            val correct_val : i32 = large : i32
-            mut correct_mut : i32 = 0
-            correct_mut = large : i32
+            val correct_val:i32 = large:i32
+            mut correct_mut:i32 = 0
+            correct_mut = large:i32
             
             // ❌ Wrong: annotation doesn't match variable type
-            val wrong_val : i32 = large : i64    // Error: left i32, annotation i64
-            mut wrong_mut : i32 = 0
-            wrong_mut = large : i64              // Error: left i32, annotation i64
+            val wrong_val:i32 = large:i64    // Error: left i32, annotation i64
+            mut wrong_mut:i32 = 0
+            wrong_mut = large:i64              // Error: left i32, annotation i64
         }
         """
         ast = self.parser.parse(source)
@@ -682,14 +682,14 @@ class TestTypeAnnotationConsistency(StandardTestBase):
         """Test that precision loss annotations must be at rightmost end of expressions"""
         source = """
         func test() : void = {
-            val a : f64 = 3.14
-            val b : f64 = 2.71
-            mut result : i32 = 0
+            val a:f64 = 3.14
+            val b:f64 = 2.71
+            mut result:i32 = 0
             
             // ✅ Correct: annotation at rightmost end
-            result = (a + b) : i32
-            result = (a * b * 2.0) : i32
-            result = (a + (b * 2.0)) : i32
+            result = (a + b):i32
+            result = (a * b * 2.0):i32
+            result = (a + (b * 2.0)):i32
         }
         """
         ast = self.parser.parse(source)

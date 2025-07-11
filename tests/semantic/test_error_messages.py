@@ -44,7 +44,7 @@ class TestTypeAnnotationErrorMessages:
         """Test clear error messages when type annotations don't match"""
         source = """
         func test() : void = {
-            val wrong : i32 = 3.14 : f64
+            val wrong:i32 = 3.14:f64
         }
         """
         ast = self.parser.parse(source)
@@ -60,7 +60,7 @@ class TestTypeAnnotationErrorMessages:
         """Test error message when type annotation used without explicit left-side type"""
         source = """
         func test() : void = {
-            val result = 42 + 3.14 : f64
+            val result = 42 + 3.14:f64
         }
         """
         ast = self.parser.parse(source)
@@ -76,15 +76,15 @@ class TestTypeAnnotationErrorMessages:
 
         error_msg = annotation_errors[0].message
         assert "Type annotation requires explicit left side type" in error_msg
-        assert "val result : f64 = ..." in error_msg  # Should suggest solution
+        assert "val result:f64 = ..." in error_msg  # Should suggest solution
 
     def test_type_annotation_guidance_consistency(self):
         """Test type annotation error messages provide consistent guidance"""
         test_cases = [
             # Different contexts, same guidance pattern
-            ("val var : i32 = 3.14 : f64", "must match"),
-            ("mut var : f32 = 2.5 : f64", "must match"),
-            ("val result = expr : i32", "explicit left side type"),
+            ("val var:i32 = 3.14:f64", "must match"),
+            ("mut var:f32 = 2.5:f64", "must match"),
+            ("val result = expr:i32", "explicit left side type"),
         ]
 
         for source_fragment, expected_pattern in test_cases:
@@ -112,8 +112,8 @@ class TestPrecisionLossErrorMessages:
         """Test that truncation error messages have consistent format"""
         source = """
         func test() : void = {
-            val large : i64 = 9223372036854775807
-            mut small : i32 = 0
+            val large:i64 = 9223372036854775807
+            mut small:i32 = 0
             
             small = large
         }
@@ -133,8 +133,8 @@ class TestPrecisionLossErrorMessages:
         """Test that precision loss error messages have consistent format"""
         source = """
         func test() : void = {
-            val precise : f64 = 3.141592653589793
-            mut single : f32 = 0.0
+            val precise:f64 = 3.141592653589793
+            mut single:f32 = 0.0
             
             single = precise
         }
@@ -155,18 +155,18 @@ class TestPrecisionLossErrorMessages:
         test_cases = [
             # i64 → f32 (may lose precision for very large integers)
             (
-                "val large : i64 = 9223372036854775807",
-                "mut single : f32 = 0.0",
+                "val large:i64 = 9223372036854775807",
+                "mut single:f32 = 0.0",
                 "single = large",
             ),
             # f64 → i32 (truncates fractional part)
             (
-                "val precise : f64 = 3.14159",
-                "mut int_val : i32 = 0",
+                "val precise:f64 = 3.14159",
+                "mut int_val:i32 = 0",
                 "int_val = precise",
             ),
             # comptime_float → i32 (truncates fractional part)
-            ("mut int_val : i32 = 0", "", "int_val = 3.14159"),
+            ("mut int_val:i32 = 0", "", "int_val = 3.14159"),
         ]
 
         for setup1, setup2, assignment in test_cases:
@@ -218,7 +218,7 @@ class TestMutabilityErrorMessages:
         """Test error message for val + undef combination"""
         source = """
         func test() : void = {
-            val pending : i32 = undef
+            val pending:i32 = undef
         }
         """
         ast = self.parser.parse(source)
@@ -239,10 +239,10 @@ class TestMutabilityErrorMessages:
             # Different val reassignment scenarios
             ("val x = 42\n            x = 100", "Cannot assign to immutable"),
             (
-                'val y : string = "hello"\n            y = "world"',
+                'val y:string = "hello"\n            y = "world"',
                 "Cannot assign to immutable",
             ),
-            ("val z : f64 = 3.14\n            z = 2.5", "Cannot assign to immutable"),
+            ("val z:f64 = 3.14\n            z = 2.5", "Cannot assign to immutable"),
         ]
 
         for code_fragment, expected_pattern in test_cases:
@@ -270,8 +270,8 @@ class TestMixedTypeErrorMessages:
         """Test error messages for mixed-type binary operations"""
         source = """
         func test() : void = {
-            val a : i32 = 10
-            val b : i64 = 20
+            val a:i32 = 10
+            val b:i64 = 20
             val result = a + b
         }
         """
@@ -305,11 +305,11 @@ class TestMixedTypeErrorMessages:
         test_cases = [
             # Different mixed-type scenarios should have similar guidance
             (
-                "val a : i32 = 10\n            val b : i64 = 20\n            val x = a + b",
+                "val a:i32 = 10\n            val b:i64 = 20\n            val x = a + b",
                 "explicit result type",
             ),
             (
-                "val c : f32 = 3.14\n            val d : f64 = 2.5\n            val y = c * d",
+                "val c:f32 = 3.14\n            val d:f64 = 2.5\n            val y = c * d",
                 "explicit result type",
             ),
             (
@@ -343,11 +343,11 @@ class TestComptimeTypeErrorMessages:
         """Test error messages for invalid comptime type conversions"""
         test_cases = [
             # comptime_int to bool (not in coercion table)
-            ("val flag : bool = 42", "comptime_int", "bool"),
+            ("val flag:bool = 42", "comptime_int", "bool"),
             # comptime_int to string (not in coercion table)
-            ("val text : string = 42", "comptime_int", "string"),
+            ("val text:string = 42", "comptime_int", "string"),
             # comptime_float to bool (not in coercion table)
-            ("val flag : bool = 3.14", "comptime_float", "bool"),
+            ("val flag:bool = 3.14", "comptime_float", "bool"),
         ]
 
         for code_fragment, from_type, to_type in test_cases:
@@ -400,22 +400,22 @@ class TestErrorMessageConsistency:
             # Variable declaration
             """
             func test() : void = {
-                val large : i64 = 1000000
-                val small : i32 = large
+                val large:i64 = 1000000
+                val small:i32 = large
             }
             """,
             # Assignment
             """
             func test() : void = {
-                val large : i64 = 1000000
-                mut small : i32 = 0
+                val large:i64 = 1000000
+                mut small:i32 = 0
                 small = large
             }
             """,
             # Function return (if supported)
             """
             func returns_i32() : i32 = {
-                val large : i64 = 1000000
+                val large:i64 = 1000000
                 return large
             }
             """,
@@ -448,13 +448,13 @@ class TestErrorMessageConsistency:
             # Variable declaration
             """
             func test() : void = {
-                val number : i32 = "string"
+                val number:i32 = "string"
             }
             """,
             # Assignment
             """
             func test() : void = {
-                mut number : i32 = 0
+                mut number:i32 = 0
                 number = "string"
             }
             """,
@@ -493,8 +493,8 @@ class TestHelpfulErrorMessages:
             {
                 "source": """
                 func test() : void = {
-                    val large : i64 = 1000000
-                    mut small : i32 = 0
+                    val large:i64 = 1000000
+                    mut small:i32 = 0
                     small = large
                 }
                 """,
@@ -504,8 +504,8 @@ class TestHelpfulErrorMessages:
             {
                 "source": """
                 func test() : void = {
-                    val a : i32 = 10
-                    val b : i64 = 20
+                    val a:i32 = 10
+                    val b:i64 = 20
                     val result = a + b
                 }
                 """,
@@ -515,7 +515,7 @@ class TestHelpfulErrorMessages:
             {
                 "source": """
                 func test() : void = {
-                    val pending : i32 = undef
+                    val pending:i32 = undef
                 }
                 """,
                 "expected_suggestions": ["Consider using 'mut'", "unusable"],
@@ -544,8 +544,8 @@ class TestHelpfulErrorMessages:
             {
                 "source": """
                 func test() : void = {
-                    val precise : f64 = 3.141592653589793
-                    mut approx : f32 = 0.0
+                    val precise:f64 = 3.141592653589793
+                    mut approx:f32 = 0.0
                     approx = precise
                 }
                 """,
@@ -586,8 +586,8 @@ class TestHelpfulErrorMessages:
         """Test that error messages include relevant context information"""
         source = """
         func test() : void = {
-            val source_var : i64 = 1000000
-            mut target_var : i32 = 0
+            val source_var:i64 = 1000000
+            mut target_var:i32 = 0
             target_var = source_var
         }
         """
@@ -611,8 +611,8 @@ class TestErrorMessageEdgeCases:
         """Test that multiple errors are reported clearly"""
         source = """
         func test() : void = {
-            val undefined_var : i32 = unknown_variable
-            val type_error : string = 42
+            val undefined_var:i32 = unknown_variable
+            val type_error:string = 42
             val immutable = 100
             immutable = 200
         }
@@ -642,10 +642,10 @@ class TestErrorMessageEdgeCases:
         func test() : void = {
             val good_var = 42
             val bad_var = undefined_symbol     // Error 1: undefined symbol
-            mut another_good : i32 = 0
+            mut another_good:i32 = 0
             
             // Should continue analysis despite error
-            another_good = good_var : i32      // Should work despite earlier error  
+            another_good = good_var:i32      // Should work despite earlier error  
             val final_var = another_good * 2   // Should work
         }
         """
@@ -660,9 +660,9 @@ class TestErrorMessageEdgeCases:
         """Test error messages remain clear with complex expressions"""
         source = """
         func test() : void = {
-            val a : i32 = 10
-            val b : i64 = 20
-            val c : f32 = 3.14
+            val a:i32 = 10
+            val b:i64 = 20
+            val c:f32 = 3.14
             
             // Complex nested mixed-type expression
             val result = ((a + b) * c) + (42 - 3.14)

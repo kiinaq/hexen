@@ -17,7 +17,6 @@ from .symbol_table import Symbol
 from .type_util import (
     parse_type,
     can_coerce,
-    resolve_comptime_type,
     is_precision_loss_operation,
 )
 
@@ -338,8 +337,11 @@ class DeclarationAnalyzer:
                     self._error(f"Cannot infer type for variable '{name}'", node)
                     return
 
-            # Resolve comptime types to their default concrete types for inference
-            var_type = resolve_comptime_type(inferred_type, HexenType.UNKNOWN)
+            # SESSION 3: Preserve comptime types for val declarations (flexibility)
+            # Per TYPE_SYSTEM.md: val declarations preserve comptime types for later adaptation
+            var_type = (
+                inferred_type  # ✅ PRESERVE comptime types for maximum flexibility
+            )
 
         # Create and register symbol
         symbol = Symbol(

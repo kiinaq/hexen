@@ -29,7 +29,7 @@ class TestBoolTypeSemantics:
         """Test explicit bool type annotation"""
         source = """
         func test() : bool = {
-            val flag : bool = true
+            val flag:bool = true
             return flag
         }
         """
@@ -52,7 +52,7 @@ class TestBoolTypeSemantics:
         """Test mutable bool variable assignment"""
         source = """
         func test() : bool = {
-            mut flag : bool = false
+            mut flag:bool = false
             flag = true
             return flag
         }
@@ -65,7 +65,7 @@ class TestBoolTypeSemantics:
         """Test bool variable with undef value"""
         source = """
         func test() : bool = {
-            mut flag : bool = undef
+            mut flag:bool = undef
             flag = true
             return flag
         }
@@ -86,7 +86,7 @@ class TestBoolTypeErrors:
         """Test type mismatch when assigning non-bool to bool variable"""
         source = """
         func test() : bool = {
-            mut flag : bool = true
+            mut flag:bool = true
             flag = 42
             return flag
         }
@@ -102,7 +102,7 @@ class TestBoolTypeErrors:
         """Test type mismatch in bool variable declaration"""
         source = """
         func test() : bool = {
-            val flag : bool = 42
+            val flag:bool = 42
             return flag
         }
         """
@@ -145,7 +145,7 @@ class TestBoolTypeErrors:
         """Test using uninitialized bool variable"""
         source = """
         func test() : bool = {
-            mut flag : bool = undef
+            mut flag:bool = undef
             return flag
         }
         """

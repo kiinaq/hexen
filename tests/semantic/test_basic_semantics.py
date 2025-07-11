@@ -52,18 +52,18 @@ class TestBasicLanguageIntegration:
         source = """
         func compute_int() : i32 = {
             val base = 10
-            mut counter : i32 = 0
+            mut counter:i32 = 0
             counter = base * 2
             return counter
         }
         
         func compute_float() : f64 = {
             val precise = 3.14159
-            val doubled : f64 = precise * 2.0
+            val doubled:f64 = precise * 2.0
             return doubled
         }
         
-        func compute_string() : string = {
+        func compute_string():string = {
             val message = "Hello"
             return message
         }
@@ -78,15 +78,15 @@ class TestBasicLanguageIntegration:
         """Test function declarations work with the type system"""
         source = """
         func process_data() : f64 = {
-            val count : i64 = 1000
-            val rate : f32 = 2.5
-            val result : f64 = count * rate
+            val count:i64 = 1000
+            val rate:f32 = 2.5
+            val result:f64 = count * rate
             return result
         }
         
         func main() : i32 = {
             // Simple variable declaration instead of function call
-            val processed : f64 = 42.5
+            val processed:f64 = 42.5
             return 42
         }
         """
@@ -111,8 +111,8 @@ class TestTypeSystemIntegration:
             val immutable_int = 42        // comptime_int → i32
             val immutable_float = 3.14    // comptime_float → f64
             
-            mut mutable_int : i32 = 100         // comptime_int → i32 (explicit type required)
-            mut mutable_float : f64 = 2.5       // comptime_float → f64 (explicit type required)
+            mut mutable_int:i32 = 100         // comptime_int → i32 (explicit type required)
+            mut mutable_float:f64 = 2.5       // comptime_float → f64 (explicit type required)
             
             mutable_int = 200             // comptime_int → i32 (reassignment)
             mutable_float = 7.5           // comptime_float → f64 (reassignment)
@@ -128,9 +128,9 @@ class TestTypeSystemIntegration:
         """Test type coercion works with assignment statements"""
         source = """
         func test() : void = {
-            val small : i32 = 100
-            mut large : i64 = 0
-            mut precise : f64 = 0.0
+            val small:i32 = 100
+            mut large:i64 = 0
+            mut precise:f64 = 0.0
             
             large = small                 // i32 → i64 (widening)
             precise = small               // i32 → f64 (conversion)
@@ -147,10 +147,10 @@ class TestTypeSystemIntegration:
         """Test context-guided type resolution works across features"""
         source = """
         func test() : void = {
-            val explicit_i64 : i64 = 42          // Context guides comptime_int → i64
-            val explicit_f32 : f32 = 3.14        // Context guides comptime_float → f32
+            val explicit_i64:i64 = 42          // Context guides comptime_int → i64
+            val explicit_f32:f32 = 3.14        // Context guides comptime_float → f32
             
-            mut flexible : f64 = 0.0
+            mut flexible:f64 = 0.0
             flexible = 42                        // Assignment context guides comptime_int → f64
             flexible = 3.14                      // Assignment context guides comptime_float → f64
         }
@@ -165,15 +165,15 @@ class TestTypeSystemIntegration:
         """Test explicit acknowledgment pattern works across features"""
         source = """
         func test() : void = {
-            val large : i64 = 9223372036854775807
-            val precise : f64 = 3.141592653589793
+            val large:i64 = 9223372036854775807
+            val precise:f64 = 3.141592653589793
             
-            mut small : i32 = 0
-            mut single : f32 = 0.0
+            mut small:i32 = 0
+            mut single:f32 = 0.0
             
-            small = large : i32               // Explicit acknowledgment of truncation
-            single = precise : f32            // Explicit acknowledgment of precision loss
-            single = large : f32              // Explicit acknowledgment of mixed-type conversion
+            small = large:i32               // Explicit acknowledgment of truncation
+            single = precise:f32            // Explicit acknowledgment of precision loss
+            single = large:f32              // Explicit acknowledgment of mixed-type conversion
         }
         """
 
@@ -194,9 +194,9 @@ class TestBlockSystemIntegration:
         """Test blocks work correctly with the type system"""
         source = """
         func test() : i32 = {
-            val result : i32 = {
-                val temp : i32 = 42
-                val doubled : i32 = temp * 2
+            val result:i32 = {
+                val temp:i32 = 42
+                val doubled:i32 = temp * 2
                 return doubled
             }
             return result
@@ -213,7 +213,7 @@ class TestBlockSystemIntegration:
         source = """
         func test() : void = {
             val immutable = 42
-            mut mutable : i32 = 100
+            mut mutable:i32 = 100
             
             {
                 val scoped = immutable + mutable
@@ -233,10 +233,10 @@ class TestBlockSystemIntegration:
         """Test blocks with complex expressions and type coercion"""
         source = """
         func test() : f64 = {
-            val result : f64 = {
+            val result:f64 = {
                 val int_val = 42
                 val float_val = 3.14
-                val computed : f64 = int_val + float_val
+                val computed:f64 = int_val + float_val
                 return computed
             }
             return result
@@ -261,7 +261,7 @@ class TestErrorIntegrationScenarios:
         source = """
         func test() : i32 = {
             val x = undeclared_var       // Error: undefined variable 
-            val y : string = 42          // Error: type mismatch
+            val y:string = 42          // Error: type mismatch
             val z = "hello"
             z = "world"                  // Error: assignment to immutable
             return "wrong"               // Error: return type mismatch
@@ -285,15 +285,15 @@ class TestErrorIntegrationScenarios:
         """Test precision loss errors in integrated scenarios"""
         source = """
         func test() : void = {
-            val large : i64 = 9223372036854775807
-            val precise : f64 = 3.141592653589793
+            val large:i64 = 9223372036854775807
+            val precise:f64 = 3.141592653589793
             
-            mut small : i32 = 0
-            mut single : f32 = 0.0
+            mut small:i32 = 0
+            mut single:f32 = 0.0
             
-            small = large                 // Error: requires : i32
-            single = precise              // Error: requires : f32
-            single = large                // Error: requires : f32
+            small = large                 // Error: requires:i32
+            single = precise              // Error: requires:f32
+            single = large                // Error: requires:f32
         }
         """
 
@@ -319,8 +319,8 @@ class TestErrorIntegrationScenarios:
         func test() : i32 = {
             val outer = 42
             {
-                val inner : i64 = outer    // OK: i32 → i64 widening
-                mut temp : i64 = inner     // OK: explicit type for mut
+                val inner:i64 = outer    // OK: i32 → i64 widening
+                mut temp:i64 = inner     // OK: explicit type for mut
             }
             return inner                   // Error: inner is out of scope
         }
@@ -344,31 +344,31 @@ class TestComprehensiveIntegration:
         """Test a comprehensive scenario using most language features"""
         source = """
         func calculate_result() : f64 = {
-            val base : i32 = 10
-            val multiplier : f32 = 3.14
-            val converted_base : f64 = base     // Type coercion: i32 → f64
-            val result : f64 = converted_base * multiplier
+            val base:i32 = 10
+            val multiplier:f32 = 3.14
+            val converted_base:f64 = base     // Type coercion: i32 → f64
+            val result:f64 = converted_base * multiplier
             return result
         }
         
         func main() : i32 = {
             // Comptime types with context
-            val int_value : i32 = 42           // comptime_int → i32
-            val float_value : f32 = 3.14       // comptime_float → f32
+            val int_value:i32 = 42           // comptime_int → i32
+            val float_value:f32 = 3.14       // comptime_float → f32
             
             // Mutable variables with reassignment
-            mut counter : i32 = 0
+            mut counter:i32 = 0
             counter = int_value                 // Assignment with coercion
             
             // Expression blocks with type system
-            val computed : f64 = {
-                val temp : f64 = 31.4
-                val adjusted : f64 = temp * 2.0
+            val computed:f64 = {
+                val temp:f64 = 31.4
+                val adjusted:f64 = temp * 2.0
                 return adjusted
             }
             
             // Complex expression with explicit acknowledgment
-            val final_result : i32 = computed : i32
+            val final_result:i32 = computed:i32
             
             return final_result
         }
@@ -387,7 +387,7 @@ class TestComprehensiveIntegration:
             val bad_var = undefined_symbol  // Error: undefined symbol
             val another_good = "hello"
             
-            mut counter : i32 = good_var
+            mut counter:i32 = good_var
             // Simplified assignment without function call
             counter = 99
             
@@ -407,19 +407,19 @@ class TestComprehensiveIntegration:
         source = """
         func test_consistency() : void = {
             // Same comptime type behavior everywhere
-            val var1 : i32 = 42             // comptime_int → i32
-            mut var2 : i64 = 42             // comptime_int → i64
-            val var3 : f32 = 42             // comptime_int → f32
-            val var4 : f64 = 42             // comptime_int → f64
+            val var1:i32 = 42             // comptime_int → i32
+            mut var2:i64 = 42             // comptime_int → i64
+            val var3:f32 = 42             // comptime_int → f32
+            val var4:f64 = 42             // comptime_int → f64
             
             // Same coercion rules everywhere
             var2 = var1                     // i32 → i64 (widening)
-            val var5 : f64 = var1           // i32 → f64 (conversion)
-            val var6 : f64 = var2           // i64 → f64 (conversion)
+            val var5:f64 = var1           // i32 → f64 (conversion)
+            val var6:f64 = var2           // i64 → f64 (conversion)
             
             // Same explicit acknowledgment rules everywhere
-            val var7 : i32 = var2 : i32     // i64 → i32 (explicit)
-            val var8 : f32 = var6 : f32     // f64 → f32 (explicit)
+            val var7:i32 = var2:i32     // i64 → i32 (explicit)
+            val var8:f32 = var6:f32     // f64 → f32 (explicit)
         }
         """
 

@@ -31,9 +31,9 @@ class TestBasicAssignmentStatement(StandardTestBase):
         """Test that valid assignment statements are accepted"""
         source = """
         func test() : void = {
-            mut counter : i32 = 42
-            mut message : string = "hello"
-            mut flag : bool = true
+            mut counter:i32 = 42
+            mut message:string = "hello"
+            mut flag:bool = true
             
             // ✅ Valid assignment statements
             counter = 100
@@ -49,7 +49,7 @@ class TestBasicAssignmentStatement(StandardTestBase):
         """Test multiple assignment statements to same variable"""
         source = """
         func test() : void = {
-            mut value : i32 = 0
+            mut value:i32 = 0
             
             // ✅ Multiple sequential assignments allowed
             value = 10
@@ -67,10 +67,10 @@ class TestBasicAssignmentStatement(StandardTestBase):
         """Test assignment with various compatible types"""
         source = """
         func test() : void = {
-            mut number : i32 = 42
-            mut text : string = "hello"
-            mut boolean : bool = false  
-            mut decimal : f64 = 3.14
+            mut number:i32 = 42
+            mut text:string = "hello"
+            mut boolean:bool = false  
+            mut decimal:f64 = 3.14
             
             // ✅ Compatible type assignments
             number = 100
@@ -87,8 +87,8 @@ class TestBasicAssignmentStatement(StandardTestBase):
         """Test self-assignment (variable = variable)"""
         source = """
         func test() : void = {
-            mut x : i32 = 42
-            mut y : string = "hello"
+            mut x:i32 = 42
+            mut y:string = "hello"
             
             // ✅ Self-assignment is valid (no-op operation)
             x = x
@@ -149,7 +149,7 @@ class TestAssignmentTargetValidation(StandardTestBase):
         # The parser may catch some invalid targets before semantic analysis
         source = """
         func test() : void = {
-            mut x : i32 = 42
+            mut x:i32 = 42
             
             // Valid assignment
             x = 100
@@ -167,10 +167,10 @@ class TestAssignmentTypeCompatibility(StandardTestBase):
         """Test assignments with type-compatible values"""
         source = """
         func test() : void = {
-            mut int_var : i32 = 0
-            mut str_var : string = ""
-            mut bool_var : bool = false
-            mut float_var : f64 = 0.0
+            mut int_var:i32 = 0
+            mut str_var:string = ""
+            mut bool_var:bool = false
+            mut float_var:f64 = 0.0
             
             // ✅ Type-compatible assignments
             int_var = 42           // comptime_int → i32 (compatible)
@@ -187,9 +187,9 @@ class TestAssignmentTypeCompatibility(StandardTestBase):
         """Test assignments with type-incompatible values"""
         source = """
         func test() : void = {
-            mut int_var : i32 = 42
-            mut str_var : string = "hello"
-            mut bool_var : bool = true
+            mut int_var:i32 = 42
+            mut str_var:string = "hello"
+            mut bool_var:bool = true
             
             // ❌ Type-incompatible assignments
             int_var = "wrong_type"    // string → i32 (incompatible)
@@ -221,7 +221,7 @@ class TestAssignmentTypeCompatibility(StandardTestBase):
         func test() : void = {
             val source1 = 10
             val source2 = 20
-            mut target : i32 = 0
+            mut target:i32 = 0
             
             // ✅ Assignment with expression values
             target = source1           // Variable expression
@@ -241,13 +241,13 @@ class TestAssignmentInBlockContexts(StandardTestBase):
         """Test assignment statements work in statement blocks"""
         source = """
         func test() : void = {
-            mut outer_var : i32 = 42
+            mut outer_var:i32 = 42
             
             {
                 // ✅ Assignment in statement block
                 outer_var = 100
                 
-                mut inner_var : string = "hello"
+                mut inner_var:string = "hello"
                 inner_var = "world"
             }
         }
@@ -260,7 +260,7 @@ class TestAssignmentInBlockContexts(StandardTestBase):
         """Test assignment statements work in expression blocks"""
         source = """
         func test() : i32 = {
-            mut accumulator : i32 = 0
+            mut accumulator:i32 = 0
             
             val result = {
                 // ✅ Assignment in expression block (side effect)
@@ -279,7 +279,7 @@ class TestAssignmentInBlockContexts(StandardTestBase):
         """Test assignment to variables from outer scopes"""
         source = """
         func test() : void = {
-            mut outer : i32 = 42
+            mut outer:i32 = 42
             
             {
                 // ✅ Can assign to outer scope variable
@@ -300,10 +300,10 @@ class TestAssignmentInBlockContexts(StandardTestBase):
         """Test assignment to variable that's out of scope"""
         source = """
         func test() : void = {
-            mut outer : i32 = 42
+            mut outer:i32 = 42
             
             {
-                mut inner : i32 = 100
+                mut inner:i32 = 100
             }
             
             // ❌ Cannot assign to inner scope variable (out of scope)
@@ -324,11 +324,11 @@ class TestAssignmentWithExplicitTypes(StandardTestBase):
         """Test assignment with type annotations (for precision loss cases)"""
         source = """
         func test() : void = {
-            mut target : i32 = 0
-            val large_source : i64 = 1000
+            mut target:i32 = 0
+            val large_source:i64 = 1000
             
             // ✅ Assignment with explicit type annotation (precision loss acknowledgment)
-            target = large_source : i32
+            target = large_source:i32
         }
         """
         ast = self.parser.parse(source)
@@ -339,13 +339,13 @@ class TestAssignmentWithExplicitTypes(StandardTestBase):
         """Test assignment with mismatched type annotations"""
         source = """
         func test() : void = {
-            mut target_i32 : i32 = 0
-            mut target_f64 : f64 = 0.0
+            mut target_i32:i32 = 0
+            mut target_f64:f64 = 0.0
             val source = 100
             
             // ❌ Type annotation must match target variable type
-            target_i32 = source : f64      // Annotation doesn't match target
-            target_f64 = source : i32      // Annotation doesn't match target
+            target_i32 = source:f64      // Annotation doesn't match target
+            target_f64 = source:i32      // Annotation doesn't match target
         }
         """
         ast = self.parser.parse(source)
@@ -367,7 +367,7 @@ class TestAssignmentWithUndef(StandardTestBase):
         """Test assignment to variable that was initialized with undef"""
         source = """
         func test() : void = {
-            mut deferred : i32 = undef
+            mut deferred:i32 = undef
             
             // ✅ Assignment to undef variable (deferred initialization)
             deferred = 42
@@ -384,8 +384,8 @@ class TestAssignmentWithUndef(StandardTestBase):
         """Test assignment from variable that contains undef"""
         source = """
         func test() : void = {
-            mut source : i32 = undef
-            mut target : i32 = 0
+            mut source:i32 = undef
+            mut target:i32 = 0
             
             // ❌ Using undef variable as assignment source
             target = source
@@ -406,7 +406,7 @@ class TestAssignmentErrorMessages(StandardTestBase):
         source = """
         func test() : void = {
             val immutable = 42
-            mut mutable : i32 = 0
+            mut mutable:i32 = 0
             
             // Assignment errors
             immutable = 100        // Immutable variable error
@@ -438,8 +438,8 @@ class TestAssignmentErrorMessages(StandardTestBase):
         """Test that assignment errors provide context about variable and value types"""
         source = """
         func test() : void = {
-            mut int_var : i32 = 0
-            mut str_var : string = ""
+            mut int_var:i32 = 0
+            mut str_var:string = ""
             
             int_var = "hello"
             str_var = 42
@@ -471,8 +471,8 @@ class TestAssignmentIntegration(StandardTestBase):
         func test() : void = {
             val source1 = 10
             val source2 = 20
-            mut target1 : i32 = 0
-            mut target2 : i32 = 0
+            mut target1:i32 = 0
+            mut target2:i32 = 0
             
             // ✅ Assignments using variable references
             target1 = source1
@@ -489,9 +489,9 @@ class TestAssignmentIntegration(StandardTestBase):
         """Test patterns involving multiple related assignments"""
         source = """
         func test() : void = {
-            mut a : i32 = 1
-            mut b : i32 = 2
-            mut c : i32 = 3
+            mut a:i32 = 1
+            mut b:i32 = 2
+            mut c:i32 = 3
             
             // ✅ Assignment chain patterns (not chained assignment syntax)
             val temp = a
@@ -515,8 +515,8 @@ class TestAssignmentStatementSemantics(StandardTestBase):
         """Test that assignment evaluates right-hand side before assigning"""
         source = """
         func test() : void = {
-            mut x : i32 = 1
-            mut y : i32 = 2
+            mut x:i32 = 1
+            mut y:i32 = 2
             
             // Assignment evaluates RHS before LHS assignment
             x = y           // x gets value of y (2)
@@ -532,7 +532,7 @@ class TestAssignmentStatementSemantics(StandardTestBase):
         source = """
         func test() : void = {
             // This is declaration (creates new variable)
-            mut new_var : i32 = 42
+            mut new_var:i32 = 42
             
             // This is assignment (updates existing variable)
             new_var = 100
@@ -552,7 +552,7 @@ class TestAssignmentStatementSemantics(StandardTestBase):
             val a = 10
             val b = 20
             val c = 30
-            mut result : i32 = 0
+            mut result:i32 = 0
             
             // ✅ Complex expressions as assignment values
             result = a + b
@@ -573,10 +573,10 @@ class TestAssignmentWithContextGuidance(StandardTestBase):
         """Test assignment provides context for comptime type adaptation"""
         source = """
         func test() : void = {
-            mut int_var : i32 = 0
-            mut long_var : i64 = 0
-            mut float_var : f32 = 0.0
-            mut double_var : f64 = 0.0
+            mut int_var:i32 = 0
+            mut long_var:i64 = 0
+            mut float_var:f32 = 0.0
+            mut double_var:f64 = 0.0
             
             // ✅ Assignment context guides comptime type adaptation
             int_var = 42           // comptime_int adapts to i32 context
@@ -593,8 +593,8 @@ class TestAssignmentWithContextGuidance(StandardTestBase):
         """Test assignment provides context for binary operation resolution"""
         source = """
         func test() : void = {
-            mut int_result : i32 = 0
-            mut float_result : f64 = 0.0
+            mut int_result:i32 = 0
+            mut float_result:f64 = 0.0
             
             // ✅ Assignment context guides binary operation type resolution
             int_result = 10 + 20              // comptime_int + comptime_int → i32 (context)
@@ -611,13 +611,13 @@ class TestAssignmentWithContextGuidance(StandardTestBase):
         """Test assignment provides context for mixed concrete type operations"""
         source = """
         func test() : void = {
-            val small : i32 = 10
-            val large : i64 = 20
-            val single : f32 = 3.14
-            val double : f64 = 2.71
+            val small:i32 = 10
+            val large:i64 = 20
+            val single:f32 = 3.14
+            val double:f64 = 2.71
             
-            mut target_i64 : i64 = 0
-            mut target_f64 : f64 = 0.0
+            mut target_i64:i64 = 0
+            mut target_f64:f64 = 0.0
             
             // ✅ Assignment context resolves mixed concrete types
             target_i64 = small + large        // i32 + i64 → i64 (assignment context)
@@ -633,9 +633,9 @@ class TestAssignmentWithContextGuidance(StandardTestBase):
         """Test assignment context prevents type ambiguity in complex expressions"""
         source = """
         func test() : void = {
-            val a : i32 = 10
-            val b : i64 = 20
-            mut result : f64 = 0.0
+            val a:i32 = 10
+            val b:i64 = 20
+            mut result:f64 = 0.0
             
             // ✅ Assignment context resolves complex mixed-type expressions
             result = (a + b) * 2              // (i32 + i64) * comptime_int → f64 (context)

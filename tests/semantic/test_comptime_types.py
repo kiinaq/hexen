@@ -233,7 +233,7 @@ class TestComptimeUnsafeCoercions(StandardTestBase):
         """Test comptime_float can coerce to integer with explicit acknowledgment"""
         source = """
         func test() : i32 = {
-            val x : i32 = 3.14 : i32  // Explicit acknowledgment
+            val x : i32 = 3.14:i32  // Explicit acknowledgment
             return x
         }
         """

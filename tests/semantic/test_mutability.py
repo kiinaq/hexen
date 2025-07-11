@@ -32,10 +32,10 @@ class TestValVariableSemantics(StandardTestBase):
         source = """
         func test() : void = {
             // ✅ Basic val declarations with immediate initialization
-            val counter : i32 = 42
-            val message : string = "hello"
-            val flag : bool = true
-            val precise : f64 = 3.14159
+            val counter:i32 = 42
+            val message:string = "hello"
+            val flag:bool = true
+            val precise:f64 = 3.14159
             
             // ✅ Val with type inference (comptime type defaults)
             val inferred_int = 42        // comptime_int → i32 (default)
@@ -44,10 +44,10 @@ class TestValVariableSemantics(StandardTestBase):
             val inferred_bool = true     // bool
             
             // ✅ Val with explicit type coercion (comptime adaptation)
-            val int_to_i64 : i64 = 42       // comptime_int → i64 (context)
-            val int_to_f32 : f32 = 42       // comptime_int → f32 (context)
-            val float_to_f32 : f32 = 3.14   // comptime_float → f32 (context)
-            val float_to_f64 : f64 = 3.14   // comptime_float → f64 (context)
+            val int_to_i64:i64 = 42       // comptime_int → i64 (context)
+            val int_to_f32:f32 = 42       // comptime_int → f32 (context)
+            val float_to_f32:f32 = 3.14   // comptime_float → f32 (context)
+            val float_to_f64:f64 = 3.14   // comptime_float → f64 (context)
         }
         """
         ast = self.parser.parse(source)
@@ -80,9 +80,9 @@ class TestValVariableSemantics(StandardTestBase):
         source = """
         func test() : void = {
             // ❌ val + undef creates unusable variables (breaks immutability contract)
-            val config : string = undef     // Cannot be assigned later
-            val result : i32 = undef        // Cannot be assigned later
-            val flag : bool = undef         // Cannot be assigned later
+            val config:string = undef     // Cannot be assigned later
+            val result:i32 = undef        // Cannot be assigned later
+            val flag:bool = undef         // Cannot be assigned later
         }
         """
         ast = self.parser.parse(source)
@@ -100,7 +100,7 @@ class TestValVariableSemantics(StandardTestBase):
         """Test that val + undef errors provide helpful guidance"""
         source = """
         func test() : void = {
-            val pending : i32 = undef
+            val pending:i32 = undef
         }
         """
         ast = self.parser.parse(source)
@@ -122,9 +122,9 @@ class TestMutVariableSemantics(StandardTestBase):
         source = """
         func test() : void = {
             // ✅ Basic mut declarations
-            mut counter : i32 = 0
-            mut message : string = "hello"
-            mut flag : bool = false
+            mut counter:i32 = 0
+            mut message:string = "hello"
+            mut flag:bool = false
             
             // ✅ Single reassignments allowed
             counter = 42
@@ -147,9 +147,9 @@ class TestMutVariableSemantics(StandardTestBase):
         """Test that mut variables maintain declared type across all reassignments"""
         source = """
         func test() : void = {
-            mut int_var : i32 = 0
-            mut str_var : string = "hello"
-            mut bool_var : bool = false
+            mut int_var:i32 = 0
+            mut str_var:string = "hello"
+            mut bool_var:bool = false
             
             // ✅ Type-consistent reassignments
             int_var = 42           // i32 compatible
@@ -193,8 +193,8 @@ class TestMutVariableSemantics(StandardTestBase):
         """Test mut variables enable comptime type adaptation across all reassignments"""
         source = """
         func test() : void = {
-            mut int_var : i64 = 0
-            mut float_var : f32 = 0.0
+            mut int_var:i64 = 0
+            mut float_var:f32 = 0.0
             
             // ✅ Comptime types adapt to declared type across reassignments
             int_var = 42           // comptime_int → i64 (assignment context)
@@ -215,9 +215,9 @@ class TestMutVariableSemantics(StandardTestBase):
         source = """
         func test() : void = {
             // ✅ mut + undef enables deferred initialization
-            mut config : string = undef     // Will be assigned later
-            mut result : i32 = undef        // Will be assigned later
-            mut flag : bool = undef         // Will be assigned later
+            mut config:string = undef     // Will be assigned later
+            mut result:i32 = undef        // Will be assigned later
+            mut flag:bool = undef         // Will be assigned later
             
             // ✅ Deferred assignments (first real assignments)
             config = "production"
@@ -239,8 +239,8 @@ class TestMutVariableSemantics(StandardTestBase):
         source = """
         func test() : void = {
             // ❌ Cannot infer type from undef
-            mut pending : i32 = undef
-            mut unknown : string = undef
+            mut pending:i32 = undef
+            mut unknown:string = undef
         }
         """
         ast = self.parser.parse(source)
@@ -270,7 +270,7 @@ class TestMutabilityScoping(StandardTestBase):
             val check3 = outer         // 42 (original)
             
             // ❌ Cannot access inner (out of scope)
-            val check4 : i32 = inner   // Error: undefined variable (explicit type to avoid inference issues)
+            val check4:i32 = inner   // Error: undefined variable (explicit type to avoid inference issues)
         }
         """
         ast = self.parser.parse(source)
@@ -283,11 +283,11 @@ class TestMutabilityScoping(StandardTestBase):
         """Test mut variables follow same scope isolation as val"""
         source = """
         func test() : void = {
-            mut outer : i32 = 42
+            mut outer:i32 = 42
             
             {
-                mut inner : i32 = 100        // Scoped to inner block
-                mut outer : i32 = 200        // Shadows outer mut (allowed)
+                mut inner:i32 = 100        // Scoped to inner block
+                mut outer:i32 = 200        // Shadows outer mut (allowed)
                 
                 // ✅ Reassignments within scope
                 inner = 150
@@ -313,7 +313,7 @@ class TestMutabilityScoping(StandardTestBase):
             val original = 42
             
             {
-                mut original : i32 = 100     // mut shadows val (allowed)
+                mut original:i32 = 100     // mut shadows val (allowed)
                 original = 200         // ✅ Reassignment to mut shadow
             }
             
@@ -338,13 +338,13 @@ class TestMutabilityIntegration(StandardTestBase):
         source = """
         func test() : void = {
             // ✅ val with expression block (simple initialization)
-            val complex_init : i32 = {
+            val complex_init:i32 = {
                 val temp = 42
                 return temp
             }
             
             // ✅ mut with expression block value
-            mut mutable_result : i32 = {
+            mut mutable_result:i32 = {
                 val base = 100
                 return base
             }
@@ -401,17 +401,17 @@ class TestMutabilityTypeSystemIntegration(StandardTestBase):
         source = """
         func test() : void = {
             // ✅ Both val and mut follow same comptime coercion rules
-            val val_i32 : i32 = 42         // comptime_int → i32
-            mut mut_i32 : i32 = 42         // comptime_int → i32
+            val val_i32:i32 = 42         // comptime_int → i32
+            mut mut_i32:i32 = 42         // comptime_int → i32
             
-            val val_i64 : i64 = 42         // comptime_int → i64  
-            mut mut_i64 : i64 = 42         // comptime_int → i64
+            val val_i64:i64 = 42         // comptime_int → i64  
+            mut mut_i64:i64 = 42         // comptime_int → i64
             
-            val val_f32 : f32 = 42         // comptime_int → f32
-            mut mut_f32 : f32 = 42         // comptime_int → f32
+            val val_f32:f32 = 42         // comptime_int → f32
+            mut mut_f32:f32 = 42         // comptime_int → f32
             
-            val val_f64 : f64 = 3.14       // comptime_float → f64
-            mut mut_f64 : f64 = 3.14       // comptime_float → f64
+            val val_f64:f64 = 3.14       // comptime_float → f64
+            mut mut_f64:f64 = 3.14       // comptime_float → f64
             
             // ✅ Only difference: reassignment capability
             mut_i32 = 100                  // ✅ Allowed
@@ -433,8 +433,8 @@ class TestMutabilityTypeSystemIntegration(StandardTestBase):
         """Test val/mut variables provide same type contexts to expressions"""
         source = """
         func test() : void = {
-            val val_context : f64 = 42 + 3.14      // Mixed comptime → f64 (val context) 
-            mut mut_context : f64 = 42 + 3.14      // Mixed comptime → f64 (mut context)
+            val val_context:f64 = 42 + 3.14      // Mixed comptime → f64 (val context) 
+            mut mut_context:f64 = 42 + 3.14      // Mixed comptime → f64 (mut context)
             
             // ✅ Both provide identical type context for expression resolution
             mut_context = 10 + 2.5                 // Mixed comptime → f64 (mut reassignment context)

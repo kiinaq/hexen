@@ -45,10 +45,10 @@ class TestComptimeBinaryOperations:
             val idiv = 100 \ 3          // comptime_int \ comptime_int -> comptime_int
             
             // Integer division with explicit type
-            val explicit_idiv : i64 = 100 \ 3  // comptime_int \ comptime_int -> i64
+            val explicit_idiv:i64 = 100 \ 3  // comptime_int \ comptime_int -> i64
             
             // Float division requires explicit type
-            val explicit_fdiv : f64 = 100 / 3  // comptime_int / comptime_int -> f64
+            val explicit_fdiv:f64 = 100 / 3  // comptime_int / comptime_int -> f64
             
             return add
         }
@@ -62,13 +62,13 @@ class TestComptimeBinaryOperations:
         source = """
         func test() : f64 = {
             // Float operations require explicit type
-            val add : f64 = 3.14 + 2.71     // comptime_float + comptime_float -> f64
-            val sub : f64 = 3.14 - 2.71     // comptime_float - comptime_float -> f64
-            val mul : f64 = 3.14 * 2.71     // comptime_float * comptime_float -> f64
-            val div : f64 = 3.14 / 2.71     // comptime_float / comptime_float -> f64
+            val add:f64 = 3.14 + 2.71     // comptime_float + comptime_float -> f64
+            val sub:f64 = 3.14 - 2.71     // comptime_float - comptime_float -> f64
+            val mul:f64 = 3.14 * 2.71     // comptime_float * comptime_float -> f64
+            val div:f64 = 3.14 / 2.71     // comptime_float / comptime_float -> f64
             
             // Can use f32 for reduced precision
-            val single : f32 = 3.14 + 2.71  // comptime_float + comptime_float -> f32
+            val single:f32 = 3.14 + 2.71  // comptime_float + comptime_float -> f32
             
             return add
         }
@@ -82,13 +82,13 @@ class TestComptimeBinaryOperations:
         source = """
         func test() : f64 = {
             // Mixed comptime types require explicit result type
-            val add : f64 = 42 + 3.14       // comptime_int + comptime_float -> f64
-            val sub : f64 = 42 - 3.14       // comptime_int - comptime_float -> f64
-            val mul : f64 = 42 * 3.14       // comptime_int * comptime_float -> f64
-            val div : f64 = 42 / 3.14       // comptime_int / comptime_float -> f64
+            val add:f64 = 42 + 3.14       // comptime_int + comptime_float -> f64
+            val sub:f64 = 42 - 3.14       // comptime_int - comptime_float -> f64
+            val mul:f64 = 42 * 3.14       // comptime_int * comptime_float -> f64
+            val div:f64 = 42 / 3.14       // comptime_int / comptime_float -> f64
             
             // Can use f32 for reduced precision
-            val single : f32 = 42 + 3.14    // comptime_int + comptime_float -> f32
+            val single:f32 = 42 + 3.14    // comptime_int + comptime_float -> f32
             
             return add
         }
@@ -110,12 +110,12 @@ class TestDivisionOperators:
         source = """
         func test() : f64 = {
             // Float division always requires explicit type
-            val div1 : f64 = 10 / 3         // comptime_int / comptime_int -> f64 (3.333...)
-            val div2 : f64 = 7 / 2          // comptime_int / comptime_int -> f64 (3.5)
-            val div3 : f32 = 22 / 7         // comptime_int / comptime_int -> f32 (3.142857...)
+            val div1:f64 = 10 / 3         // comptime_int / comptime_int -> f64 (3.333...)
+            val div2:f64 = 7 / 2          // comptime_int / comptime_int -> f64 (3.5)
+            val div3:f32 = 22 / 7         // comptime_int / comptime_int -> f32 (3.142857...)
 
             // Float division with float literals
-            val div4 : f64 = 10.5 / 2.1     // comptime_float / comptime_float -> f64
+            val div4:f64 = 10.5 / 2.1     // comptime_float / comptime_float -> f64
 
             return div1
         }
@@ -133,11 +133,11 @@ class TestDivisionOperators:
             val div2 = 7 \ 2                // comptime_int \ comptime_int -> comptime_int
             
             // Integer division with explicit type
-            val div3 : i64 = 22 \ 7         // comptime_int \ comptime_int -> i64
+            val div3:i64 = 22 \ 7         // comptime_int \ comptime_int -> i64
             
             // Integer division with concrete types
-            val a : i32 = 10
-            val b : i32 = 3
+            val a:i32 = 10
+            val b:i32 = 3
             val div4 = a \ b                // i32 \ i32 -> comptime_int
             
             return div1
@@ -159,17 +159,17 @@ class TestMixedTypeOperations:
         """Test operations between different integer types"""
         source = """
         func test() : i64 = {
-            val a : i32 = 10
-            val b : i64 = 20
+            val a:i32 = 10
+            val b:i64 = 20
             
             // Mixed integer types require explicit result type
-            val add : i64 = a + b           // i32 + i64 -> comptime_int (adapts to i64)
-            val sub : i64 = a - b           // i32 - i64 -> comptime_int (adapts to i64)
-            val mul : i64 = a * b           // i32 * i64 -> comptime_int (adapts to i64)
-            val idiv : i64 = a \ b          // i32 \ i64 -> comptime_int (adapts to i64)
+            val add:i64 = a + b           // i32 + i64 -> comptime_int (adapts to i64)
+            val sub:i64 = a - b           // i32 - i64 -> comptime_int (adapts to i64)
+            val mul:i64 = a * b           // i32 * i64 -> comptime_int (adapts to i64)
+            val idiv:i64 = a \ b          // i32 \ i64 -> comptime_int (adapts to i64)
             
             // Can use f64 for full precision
-            val fdiv : f64 = a / b          // i32 / i64 -> f64 (float division)
+            val fdiv:f64 = a / b          // i32 / i64 -> f64 (float division)
             
             return add
         }
@@ -182,17 +182,17 @@ class TestMixedTypeOperations:
         """Test operations between different float types"""
         source = """
         func test() : f64 = {
-            val a : f32 = 3.14
-            val b : f64 = 2.71
+            val a:f32 = 3.14
+            val b:f64 = 2.71
 
             // Mixed float types require explicit result type
-            val add : f64 = a + b           // f32 + f64 -> comptime_float (adapts to f64)
-            val sub : f64 = a - b           // f32 - f64 -> comptime_float (adapts to f64)
-            val mul : f64 = a * b           // f32 * f64 -> comptime_float (adapts to f64)
-            val div : f64 = a / b           // f32 / f64 -> comptime_float (adapts to f64)
+            val add:f64 = a + b           // f32 + f64 -> comptime_float (adapts to f64)
+            val sub:f64 = a - b           // f32 - f64 -> comptime_float (adapts to f64)
+            val mul:f64 = a * b           // f32 * f64 -> comptime_float (adapts to f64)
+            val div:f64 = a / b           // f32 / f64 -> comptime_float (adapts to f64)
 
             // Can use f32 for reduced precision with explicit acknowledgment
-            val single : f32 = (a + b) : f32  // f32 + f64 -> f32 (explicit narrowing)
+            val single:f32 = (a + b):f32  // f32 + f64 -> f32 (explicit narrowing)
 
             return add
         }
@@ -205,17 +205,17 @@ class TestMixedTypeOperations:
         """Test operations between mixed numeric types"""
         source = """
         func test() : f64 = {
-            val a : i32 = 10
-            val b : f64 = 3.14
+            val a:i32 = 10
+            val b:f64 = 3.14
 
             // Mixed numeric types require explicit result type
-            val add : f64 = a + b           // i32 + f64 -> comptime_float (adapts to f64)
-            val sub : f64 = a - b           // i32 - f64 -> comptime_float (adapts to f64)
-            val mul : f64 = a * b           // i32 * f64 -> comptime_float (adapts to f64)
-            val div : f64 = a / b           // i32 / f64 -> comptime_float (adapts to f64)
+            val add:f64 = a + b           // i32 + f64 -> comptime_float (adapts to f64)
+            val sub:f64 = a - b           // i32 - f64 -> comptime_float (adapts to f64)
+            val mul:f64 = a * b           // i32 * f64 -> comptime_float (adapts to f64)
+            val div:f64 = a / b           // i32 / f64 -> comptime_float (adapts to f64)
 
             // Can use f32 for reduced precision with explicit acknowledgment
-            val single : f32 = (a + b) : f32  // i32 + f64 -> f32 (explicit narrowing)
+            val single:f32 = (a + b):f32  // i32 + f64 -> f32 (explicit narrowing)
 
             return add
         }
@@ -247,8 +247,8 @@ class TestBinaryOperationErrors:
             val add1 = 42 + 3.14           // Error: Mixed comptime types require explicit result type
 
             // Mixed concrete types require explicit type
-            val a : i32 = 10
-            val b : i64 = 20
+            val a:i32 = 10
+            val b:i64 = 20
             val add2 = a + b               // Error: Mixed concrete types require explicit result type
 
             // Float operations require explicit type
@@ -282,8 +282,8 @@ class TestBinaryOperationErrors:
             val div2 = 3.14 \ 42           // Error: Integer division requires integer operands
 
             // Mixed types with integer division
-            val a : i32 = 10
-            val b : f64 = 3.14
+            val a:i32 = 10
+            val b:f64 = 3.14
             val div3 = a \ b               // Error: Integer division requires integer operands
         }
         """
@@ -313,7 +313,7 @@ class TestLogicalOperations:
     def test_basic_logical_operations(self):
         """Test basic logical operations with boolean operands"""
         source = """
-        func test() : bool = {
+        func test():bool = {
             // Basic logical operations
             val and_op = true && false
             val or_op = true || false
@@ -321,8 +321,8 @@ class TestLogicalOperations:
             val nested = true && (false || true) && false
             
             // Logical operations with boolean variables
-            val a : bool = true
-            val b : bool = false
+            val a:bool = true
+            val b:bool = false
             val var_and = a && b
             val var_or = a || b
             val var_complex = (a && b) || (!a && b)
@@ -339,9 +339,9 @@ class TestLogicalOperations:
         source = """
         func test() : void = {
             // Non-boolean operands
-            val a : i32 = 10
-            val b : f64 = 3.14
-            val c : string = "hello"
+            val a:i32 = 10
+            val b:f64 = 3.14
+            val c:string = "hello"
     
             // Invalid logical operations
             val error1 = a && true          // Error: Logical operator requires boolean operands
@@ -374,11 +374,11 @@ class TestLogicalOperations:
     def test_logical_operation_precedence(self):
         """Test operator precedence in logical operations"""
         source = """
-        func test() : bool = {
+        func test():bool = {
             // Test AND precedence over OR
-            val a : bool = true
-            val b : bool = false
-            val c : bool = true
+            val a:bool = true
+            val b:bool = false
+            val c:bool = true
             
             // a && b || c should be (a && b) || c
             val prec1 = a && b || c
@@ -399,9 +399,9 @@ class TestLogicalOperations:
     def test_logical_operation_with_unary_not(self):
         """Test logical operations with unary NOT operator"""
         source = """
-        func test() : bool = {
-            val a : bool = true
-            val b : bool = false
+        func test():bool = {
+            val a:bool = true
+            val b:bool = false
             
             // Logical operations with NOT
             val not_and = !a && b
@@ -429,24 +429,24 @@ class TestComparisonOperations:
         source = """
         func test() : void = {
             // Same type comparisons
-            val a : i32 = 10
-            val b : i32 = 20
-            val c : f64 = 3.14
-            val d : f64 = 2.71
+            val a:i32 = 10
+            val b:i32 = 20
+            val c:f64 = 3.14
+            val d:f64 = 2.71
             
-            val result1 : bool = a < b              // i32 < i32 -> bool
-            val result2 : bool = c > d              // f64 > f64 -> bool
-            val result3 : bool = a <= b             // i32 <= i32 -> bool
-            val result4 : bool = c >= d             // f64 >= f64 -> bool
+            val result1:bool = a < b              // i32 < i32 -> bool
+            val result2:bool = c > d              // f64 > f64 -> bool
+            val result3:bool = a <= b             // i32 <= i32 -> bool
+            val result4:bool = c >= d             // f64 >= f64 -> bool
             
             // Mixed numeric type comparisons
-            val result5 : bool = a < c              // i32 < f64 -> bool (with warning)
-            val result6 : bool = c > a              // f64 > i32 -> bool (with warning)
+            val result5:bool = a < c              // i32 < f64 -> bool (with warning)
+            val result6:bool = c > a              // f64 > i32 -> bool (with warning)
             
             // Comptime numeric comparisons
-            val result7 : bool = 42 < 100           // comptime_int < comptime_int -> bool
-            val result8 : bool = 3.14 > 2.71        // comptime_float > comptime_float -> bool
-            val result9 : bool = 42 < 3.14          // comptime_int < comptime_float -> bool (with warning)
+            val result7:bool = 42 < 100           // comptime_int < comptime_int -> bool
+            val result8:bool = 3.14 > 2.71        // comptime_float > comptime_float -> bool
+            val result9:bool = 42 < 3.14          // comptime_int < comptime_float -> bool (with warning)
         }
         """
         ast = self.parser.parse(source)
@@ -466,26 +466,26 @@ class TestComparisonOperations:
         source = """
         func test() : void = {
             // Same type equality
-            val a : i32 = 10
-            val b : i32 = 20
-            val c : string = "hello"
-            val d : string = "world"
-            val e : bool = true
-            val f : bool = false
+            val a:i32 = 10
+            val b:i32 = 20
+            val c:string = "hello"
+            val d:string = "world"
+            val e:bool = true
+            val f:bool = false
             
-            val result1 : bool = a == b             // i32 == i32 -> bool
-            val result2 : bool = c == d             // string == string -> bool
-            val result3 : bool = e == f             // bool == bool -> bool
+            val result1:bool = a == b             // i32 == i32 -> bool
+            val result2:bool = c == d             // string == string -> bool
+            val result3:bool = e == f             // bool == bool -> bool
             
             // Mixed type equality (should error)
-            val result4 : bool = a == c             // Error: i32 == string
-            val result5 : bool = c == e             // Error: string == bool
-            val result6 : bool = e == a             // Error: bool == i32
+            val result4:bool = a == c             // Error: i32 == string
+            val result5:bool = c == e             // Error: string == bool
+            val result6:bool = e == a             // Error: bool == i32
             
             // Comptime equality
-            val result7 : bool = 42 == 42           // comptime_int == comptime_int -> bool
-            val result8 : bool = "hello" == "world" // string == string -> bool
-            val result9 : bool = true == false      // bool == bool -> bool
+            val result7:bool = 42 == 42           // comptime_int == comptime_int -> bool
+            val result8:bool = "hello" == "world" // string == string -> bool
+            val result9:bool = true == false      // bool == bool -> bool
         }
         """
         ast = self.parser.parse(source)
@@ -497,16 +497,16 @@ class TestComparisonOperations:
         """Test restrictions on relational operators"""
         source = """
         func test() : void = {
-            val a : string = "hello"
-            val b : string = "world"
-            val c : bool = true
-            val d : bool = false
+            val a:string = "hello"
+            val b:string = "world"
+            val c:bool = true
+            val d:bool = false
             
             // Relational operators only work with numeric types
-            val result1 : bool = a < b              // Error: string < string
-            val result2 : bool = c > d              // Error: bool > bool
-            val result3 : bool = a <= b             // Error: string <= string
-            val result4 : bool = c >= d             // Error: bool >= bool
+            val result1:bool = a < b              // Error: string < string
+            val result2:bool = c > d              // Error: bool > bool
+            val result3:bool = a <= b             // Error: string <= string
+            val result4:bool = c >= d             // Error: bool >= bool
         }
         """
         ast = self.parser.parse(source)
@@ -524,18 +524,18 @@ class TestComparisonOperations:
         """Test comparison operations with target type context"""
         source = """
         func test() : void = {
-            val a : i32 = 10
-            val b : i32 = 20
+            val a:i32 = 10
+            val b:i32 = 20
             
             // Comparison operations always produce bool
-            val result1 : i32 = a < b              // Error: cannot assign bool to i32
-            val result2 : string = a == b          // Error: cannot assign bool to string
-            val result3 : f64 = a > b              // Error: cannot assign bool to f64
+            val result1:i32 = a < b              // Error: cannot assign bool to i32
+            val result2:string = a == b          // Error: cannot assign bool to string
+            val result3:f64 = a > b              // Error: cannot assign bool to f64
             
             // Valid boolean assignments
-            val result4 : bool = a < b             // i32 < i32 -> bool
-            val result5 : bool = a == b            // i32 == i32 -> bool
-            val result6 : bool = a > b             // i32 > i32 -> bool
+            val result4:bool = a < b             // i32 < i32 -> bool
+            val result5:bool = a == b            // i32 == i32 -> bool
+            val result6:bool = a > b             // i32 > i32 -> bool
         }
         """
         ast = self.parser.parse(source)

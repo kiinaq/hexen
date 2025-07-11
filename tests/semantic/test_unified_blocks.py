@@ -61,7 +61,7 @@ class TestStatementBlocks(StandardTestBase):
             }
             
             // ❌ Cannot access inner_var (out of scope)
-            val invalid : string = inner_var
+            val invalid:string = inner_var
         }
         """
         ast = self.parser.parse(source)
@@ -75,12 +75,12 @@ class TestStatementBlocks(StandardTestBase):
         source = """
         func test() : void = {
             val config = "production"
-            val counter : i32 = 100
+            val counter:i32 = 100
             
             {
                 // ✅ Can access outer scope variables
                 val local_config = config    // Accesses outer 'config'
-                val doubled : i32 = counter * 2    // Accesses outer 'counter'
+                val doubled:i32 = counter * 2    // Accesses outer 'counter'
                 val processed = "done"
             }
         }
@@ -146,7 +146,7 @@ class TestStatementBlocks(StandardTestBase):
         """Test statement blocks allow function returns (exits containing function)"""
         source = """
         func early_exit() : i32 = {
-            val setup : i32 = 100
+            val setup:i32 = 100
             
             {
                 val condition = true
@@ -313,12 +313,12 @@ class TestExpressionBlocks(StandardTestBase):
         """Test nested expression blocks with value production"""
         source = """
         func test() : i32 = {
-            val result : i32 = {
-                val inner_result : i32 = {
-                    val deep_value : i32 = 42
+            val result:i32 = {
+                val inner_result:i32 = {
+                    val deep_value:i32 = 42
                     return deep_value
                 }
-                val computed : i32 = inner_result * 2
+                val computed:i32 = inner_result * 2
                 return computed
             }
             
@@ -428,7 +428,7 @@ class TestFunctionBodyBlocks(StandardTestBase):
         """Test function body validates return type compatibility"""
         source = """
         func get_number() : i32 = {
-            val result : string = "not a number"
+            val result:string = "not a number"
             return result              // ❌ string → i32 (invalid)
         }
         """
@@ -571,8 +571,8 @@ class TestUniversalBlockScoping(StandardTestBase):
                 val statement_var2 = "second"
                 
                 // ❌ Cannot access other block variables
-                val invalid1 : string = statement_var1    // Error: out of scope
-                val invalid2 : string = expr_var          // Error: out of scope
+                val invalid1:string = statement_var1    // Error: out of scope
+                val invalid2:string = expr_var          // Error: out of scope
             }
         }
         """
@@ -606,7 +606,7 @@ class TestBlockContextDetermination(StandardTestBase):
             }
             
             // Assignment context - expression block
-            mut mutable_result : i32 = {
+            mut mutable_result:i32 = {
                 val value = 100
                 return value
             }
@@ -676,7 +676,7 @@ class TestComplexBlockScenarios(StandardTestBase):
         """Test statement blocks and expression blocks working together"""
         source = """
         func complex_processing() : i32 = {
-            val input : i32 = 100
+            val input:i32 = 100
             
             // Statement block for setup
             {
@@ -685,9 +685,9 @@ class TestComplexBlockScenarios(StandardTestBase):
             }
             
             // Expression block for computation  
-            val intermediate : i32 = {
-                val base : i32 = input * 2
-                val offset : i32 = 10
+            val intermediate:i32 = {
+                val base:i32 = input * 2
+                val offset:i32 = 10
                 return base + offset
             }
             
@@ -698,8 +698,8 @@ class TestComplexBlockScenarios(StandardTestBase):
             }
             
             // Expression block for final result
-            val final_result : i32 = {
-                val bonus : i32 = 5
+            val final_result:i32 = {
+                val bonus:i32 = 5
                 return intermediate + bonus
             }
             
@@ -762,7 +762,7 @@ class TestComplexBlockScenarios(StandardTestBase):
             }
             
             // Expression block assigned to mut  
-            mut mutable_result : i32 = {
+            mut mutable_result:i32 = {
                 return computed + 5
             }
             
@@ -789,7 +789,7 @@ class TestComplexBlockScenarios(StandardTestBase):
         source = """
         func error_scenarios() : i32 = {
             {                                    // Statement block with error
-                val temp : i32 = undefined_variable    // ❌ Undefined variable
+                val temp:i32 = undefined_variable    // ❌ Undefined variable
             }
             
             val result = {                       // Expression block with error

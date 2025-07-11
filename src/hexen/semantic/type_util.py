@@ -296,18 +296,18 @@ def is_mixed_type_operation(left_type: HexenType, right_type: HexenType) -> bool
     Check if an operation involves mixed types that require explicit handling.
 
     Returns True if:
-    - Operation is between comptime_int and comptime_float
-    - Operation is between float and non-float types
+    - Operation is between float and non-float concrete types
     - Operation is between different concrete integer types (e.g. i32 + i64)
     - Operation is between different concrete float types (e.g. f32 + f64)
+
+    Note: comptime_int + comptime_float is NOT considered mixed - it promotes to comptime_float
+    per BINARY_OPS.md Pattern 1 (Comptime + Comptime = Comptime).
     """
     return (
-        (left_type == HexenType.COMPTIME_INT and right_type == HexenType.COMPTIME_FLOAT)
-        or (
-            left_type == HexenType.COMPTIME_FLOAT
-            and right_type == HexenType.COMPTIME_INT
-        )
-        or (is_float_type(left_type) and not is_float_type(right_type))
+        # Skip comptime_int + comptime_float - this promotes to comptime_float per Pattern 1
+        # (left_type == HexenType.COMPTIME_INT and right_type == HexenType.COMPTIME_FLOAT)
+        # or (left_type == HexenType.COMPTIME_FLOAT and right_type == HexenType.COMPTIME_INT)
+        (is_float_type(left_type) and not is_float_type(right_type))
         or (not is_float_type(left_type) and is_float_type(right_type))
         or (
             is_integer_type(left_type)

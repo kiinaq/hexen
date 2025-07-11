@@ -356,7 +356,32 @@ class BinaryOpsAnalyzer:
                 # If coercion is not possible, fall back to standard resolution
                 return get_wider_type(left_resolved, right_resolved)
 
-            # No target context - resolve comptime types with defaults
+            # No target context - handle comptime type promotion first
+            # BINARY_OPS.md Pattern 1: comptime_int + comptime_float → comptime_float
+            if (
+                left_type == HexenType.COMPTIME_INT
+                and right_type == HexenType.COMPTIME_FLOAT
+            ) or (
+                left_type == HexenType.COMPTIME_FLOAT
+                and right_type == HexenType.COMPTIME_INT
+            ):
+                return HexenType.COMPTIME_FLOAT
+
+            # BINARY_OPS.md Pattern 1: comptime_int + comptime_int → comptime_int
+            if (
+                left_type == HexenType.COMPTIME_INT
+                and right_type == HexenType.COMPTIME_INT
+            ):
+                return HexenType.COMPTIME_INT
+
+            # BINARY_OPS.md Pattern 1: comptime_float + comptime_float → comptime_float
+            if (
+                left_type == HexenType.COMPTIME_FLOAT
+                and right_type == HexenType.COMPTIME_FLOAT
+            ):
+                return HexenType.COMPTIME_FLOAT
+
+            # For mixed concrete types or other cases, resolve to defaults and get wider type
             left_resolved = resolve_comptime_type(left_type, None)
             right_resolved = resolve_comptime_type(right_type, None)
 

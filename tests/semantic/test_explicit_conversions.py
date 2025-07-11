@@ -75,13 +75,13 @@ class TestExplicitConversionSemantics:
         """Test valid concrete type conversions per TYPE_SYSTEM.md"""
         source = """
         func test() : void = {
-            val int_val : i32 = 10
-            val float_val : f32 = 3.14
+            val int_val:i32 = 10
+            val float_val:f32 = 3.14
             
-            val widened : i64 = int_val:i64
-            val converted : f64 = int_val:f64
-            val precise : f64 = float_val:f64
-            val narrowed : i32 = float_val:i32
+            val widened:i64 = int_val:i64
+            val converted:f64 = int_val:f64
+            val precise:f64 = float_val:f64
+            val narrowed:i32 = float_val:i32
         }
         """
         errors = self._analyze_source(source)
@@ -101,9 +101,9 @@ class TestExplicitConversionSemantics:
         for expr in invalid_cases:
             source = f"""
             func test() : void = {{
-                val int_val : i32 = 10
-                val float_val : f32 = 3.14
-                val result : bool = {expr}
+                val int_val:i32 = 10
+                val float_val:f32 = 3.14
+                val result:bool = {expr}
             }}
             """
             errors = self._analyze_source(source)
@@ -124,7 +124,7 @@ class TestExplicitConversionSemantics:
         for expr in invalid_cases:
             source = f"""
             func test() : void = {{
-                val result : string = {expr}
+                val result:string = {expr}
             }}
             """
             errors = self._analyze_source(source)
@@ -145,7 +145,7 @@ class TestExplicitConversionSemantics:
         for expr, target_type in invalid_cases:
             source = f"""
             func test() : void = {{
-                val flag : bool = true
+                val flag:bool = true
                 val result : {target_type} = {expr}
             }}
             """
@@ -166,7 +166,7 @@ class TestExplicitConversionSemantics:
         for expr, target_type in invalid_cases:
             source = f"""
             func test() : void = {{
-                val text : string = "123"
+                val text:string = "123"
                 val result : {target_type} = {expr}
             }}
             """
@@ -207,15 +207,15 @@ class TestExplicitConversionSemantics:
                 """
                 if source_expr == "text":
                     source = source.replace(
-                        "val text : string = text", 'val text : string = "hello"'
+                        "val text:string = text", 'val text:string = "hello"'
                     )
                 elif source_expr == "int_val":
                     source = source.replace(
-                        "val int_val : i32 = int", "val int_val : i32 = 42"
+                        "val int_val:i32 = int", "val int_val:i32 = 42"
                     )
                 elif source_expr == "float_val":
                     source = source.replace(
-                        "val float_val : f64 = float", "val float_val : f64 = 3.14"
+                        "val float_val:f64 = float", "val float_val:f64 = 3.14"
                     )
 
             errors = self._analyze_source(source)
@@ -227,9 +227,9 @@ class TestExplicitConversionSemantics:
         """Test conversions with complex expressions (parenthesized literals for now)"""
         source = """
         func test() : void = {
-            val result1 : i64 = (42):i64
-            val result2 : f32 = (100):f32
-            val result3 : f64 = (3.14):f64
+            val result1:i64 = (42):i64
+            val result2:f32 = (100):f32
+            val result3:f64 = (3.14):f64
         }
         """
         errors = self._analyze_source(source)
@@ -241,10 +241,10 @@ class TestExplicitConversionSemantics:
         """Test that conversion errors are reported but analysis continues"""
         source = """
         func test() : void = {
-            val bad1 : bool = 42:bool
-            val good : i64 = 42:i64
-            val bad2 : string = 3.14:string
-            val also_good : f32 = 3.14:f32
+            val bad1:bool = 42:bool
+            val good:i64 = 42:i64
+            val bad2:string = 3.14:string
+            val also_good:f32 = 3.14:f32
         }
         """
         errors = self._analyze_source(source)
@@ -269,9 +269,9 @@ class TestExplicitConversionSemantics:
         }
         
         func test() : void = {
-            val in_declaration : f32 = 3.14:f32
+            val in_declaration:f32 = 3.14:f32
             
-            mut mutable : i32 = 0
+            mut mutable:i32 = 0
             mutable = 100:i32
         }
         """
@@ -299,9 +299,9 @@ class TestConversionIntegration:
         """Test conversions work correctly with symbol table integration"""
         source = """
         func test() : void = {
-            val source_val : i32 = 42
-            val converted : i64 = source_val:i64
-            val also_converted : f64 = source_val:f64
+            val source_val:i32 = 42
+            val converted:i64 = source_val:i64
+            val also_converted:f64 = source_val:f64
         }
         """
         errors = self._analyze_source(source)
@@ -313,7 +313,7 @@ class TestConversionIntegration:
         """Test that undefined variable errors are properly handled in conversions"""
         source = """
         func test() : void = {
-            val result : i64 = undefined_var:i64
+            val result:i64 = undefined_var:i64
         }
         """
         errors = self._analyze_source(source)
@@ -326,8 +326,8 @@ class TestConversionIntegration:
         """Test that uninitialized variable errors are properly handled in conversions"""
         source = """
         func test() : void = {
-            mut uninitialized : i32 = undef
-            val result : i64 = uninitialized:i64
+            mut uninitialized:i32 = undef
+            val result:i64 = uninitialized:i64
         }
         """
         errors = self._analyze_source(source)
