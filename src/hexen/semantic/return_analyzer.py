@@ -165,12 +165,12 @@ class ReturnAnalyzer:
         """Generate appropriate precision loss error message for return statements."""
         if return_type == HexenType.I64 and expected_return_type == HexenType.I32:
             self._error(
-                "Potential truncation, Add ': i32' to explicitly acknowledge",
+                "Potential truncation. Use explicit conversion: 'value:i32'",
                 node,
             )
         elif return_type == HexenType.F64 and expected_return_type == HexenType.F32:
             self._error(
-                "Potential precision loss, Add ': f32' to explicitly acknowledge",
+                "Potential precision loss. Use explicit conversion: 'value:f32'",
                 node,
             )
         elif return_type in {
@@ -180,17 +180,17 @@ class ReturnAnalyzer:
         } and expected_return_type in {HexenType.I32, HexenType.I64}:
             # Float to integer conversion - use "truncation" terminology
             self._error(
-                f"Potential truncation, Add ': {expected_return_type.value}' to explicitly acknowledge",
+                f"Potential truncation. Use explicit conversion: 'value:{expected_return_type.value}'",
                 node,
             )
         elif return_type == HexenType.I64 and expected_return_type == HexenType.F32:
             self._error(
-                "Potential precision loss, Add ': f32' to explicitly acknowledge",
+                "Potential precision loss. Use explicit conversion: 'value:f32'",
                 node,
             )
         else:
             # Generic precision loss message
             self._error(
-                f"Potential precision loss, Add ': {expected_return_type.value}' to explicitly acknowledge",
+                f"Potential precision loss. Use explicit conversion: 'value:{expected_return_type.value}'",
                 node,
             )

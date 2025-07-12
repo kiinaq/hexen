@@ -137,7 +137,8 @@ class BinaryOpsAnalyzer:
                     )
                     return HexenType.UNKNOWN
                 else:
-                    # With target type context, both operands must be explicitly converted
+                    # Mixed concrete types ALWAYS require explicit conversions, even with target context
+                    # This enforces transparent costs and explicit conversion philosophy
                     self._error(
                         f"Mixed concrete type operation '{left_type.value} {operator} {right_type.value}' requires explicit conversions. "
                         f"Use: 'left_val:{target_type.value} {operator} right_val:{target_type.value}'",
