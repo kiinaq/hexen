@@ -2,11 +2,11 @@
 Hexen Binary Operations Analyzer
 
 Handles analysis of binary operations including:
-- Arithmetic operations (+, -, *, /, \)
+- Arithmetic operations (+, -, *, /, \\)
 - Logical operations (&&, ||)
 - Comparison operations (<, >, <=, >=, ==, !=)
 - Type coercion and comptime type adaptation
-- Division operator specific rules (/ vs \)
+- Division operator specific rules (/ vs \\)
 - Mixed type operations with explicit type requirements
 """
 
@@ -38,7 +38,7 @@ class BinaryOpsAnalyzer:
 
     Implements the "Pedantic to write, but really easy to read" philosophy:
     - Explicit type requirements for mixed operations
-    - Clear division operator semantics (/ vs \)
+    - Clear division operator semantics (/ vs \\)
     - Transparent cost model through result types
     - Comptime type adaptation with context guidance
     """
@@ -112,37 +112,53 @@ class BinaryOpsAnalyzer:
                 operator, left_type, right_type, node, target_type
             )
 
-        # Handle mixed type operations and float operations
-        if target_type is None:
-            # No target context - require explicit types for ambiguous operations
-            if is_mixed_type_operation(left_type, right_type):
-                # Provide specific error with type information
-                self._error(
-                    f"Mixed-type operation '{left_type.value} {operator} {right_type.value}' requires explicit result type annotation. "
-                    f"Add explicit type annotation: 'val result : i64 = ...' or 'val result : f64 = ...'",
-                    node,
-                )
-                return HexenType.UNKNOWN
-            if is_float_type(left_type) and is_float_type(right_type):
-                self._error(
-                    "comptime_float operations require explicit result type", node
-                )
-                return HexenType.UNKNOWN
-        else:
-            # When target_type is provided, check if mixed types can be safely resolved
-            if is_mixed_type_operation(left_type, right_type):
-                # For mixed types with target context, let the resolver handle it
-                # The _resolve_binary_operation_type will check if coercion is possible
-                pass  # Allow to proceed to resolver
+        # Handle mixed type operations (BINARY_OPS.md Pattern 2 & 3)
+        if is_mixed_type_operation(left_type, right_type):
+            # Pattern 2: Comptime + Concrete → Concrete (comptime adapts)
+            # Pattern 3: Mixed Concrete → Requires explicit conversions
 
-            # For float operations with target context, allow if target can accommodate
-            if is_float_type(left_type) and is_float_type(right_type):
-                if not is_float_type(target_type):
+            # Check if either operand is comptime (Pattern 2 - should work with target context)
+            has_comptime = left_type in {
+                HexenType.COMPTIME_INT,
+                HexenType.COMPTIME_FLOAT,
+            } or right_type in {HexenType.COMPTIME_INT, HexenType.COMPTIME_FLOAT}
+
+            if has_comptime and target_type is not None:
+                # Pattern 2: Comptime adapts to concrete type with target context
+                # This should work - let the resolve function handle it
+                pass
+            elif not has_comptime:
+                # Pattern 3: Mixed concrete types require explicit conversions
+                if target_type is None:
                     self._error(
-                        "comptime_float operations require explicit result type", node
+                        f"Mixed concrete type operation '{left_type.value} {operator} {right_type.value}' requires target type context. "
+                        f"Use: 'val result : target_type = left_val:target_type {operator} right_val:target_type'",
+                        node,
                     )
                     return HexenType.UNKNOWN
-                # If target is also float type, allow the operation to proceed
+                else:
+                    # With target type context, both operands must be explicitly converted
+                    self._error(
+                        f"Mixed concrete type operation '{left_type.value} {operator} {right_type.value}' requires explicit conversions. "
+                        f"Use: 'left_val:{target_type.value} {operator} right_val:{target_type.value}'",
+                        node,
+                    )
+                    return HexenType.UNKNOWN
+            elif target_type is None:
+                # Comptime types without target context - check if it's a valid comptime operation
+                if left_type in {
+                    HexenType.COMPTIME_INT,
+                    HexenType.COMPTIME_FLOAT,
+                } and right_type in {HexenType.COMPTIME_INT, HexenType.COMPTIME_FLOAT}:
+                    # This is Pattern 1: comptime + comptime - let resolve function handle
+                    pass
+                else:
+                    self._error(
+                        f"Mixed-type operation '{left_type.value} {operator} {right_type.value}' requires target type context. "
+                        f"Use: 'val result : target_type = expression'",
+                        node,
+                    )
+                    return HexenType.UNKNOWN
 
         # Handle remaining arithmetic operations
         return self._resolve_binary_operation_type(
@@ -188,23 +204,35 @@ class BinaryOpsAnalyzer:
             )
             return HexenType.UNKNOWN
 
-        # Handle equality operators (==, !=) first
+        # Handle equality operators (==, !=) - allow more flexibility for now
         if operator in EQUALITY_OPERATORS:
-            # For equality, types must be exactly the same
+            # For numeric types, allow mixed comparisons with warnings
+            if is_numeric_type(left_type) and is_numeric_type(right_type):
+                if is_mixed_type_operation(left_type, right_type):
+                    # Check if both are comptime types (should work naturally)
+                    both_comptime = left_type in {
+                        HexenType.COMPTIME_INT,
+                        HexenType.COMPTIME_FLOAT,
+                    } and right_type in {
+                        HexenType.COMPTIME_INT,
+                        HexenType.COMPTIME_FLOAT,
+                    }
+
+                    if not both_comptime:
+                        # Mixed concrete or mixed comptime/concrete - emit warning but allow
+                        self._error(
+                            f"Comparison between different numeric types may have unexpected results: {left_type.value} {operator} {right_type.value}",
+                            node,
+                        )
+                return HexenType.BOOL
+
+            # For non-numeric types, types must be exactly the same
             if left_type != right_type:
-                # Special case: comptime types can be compared if they're both numeric
-                if is_numeric_type(left_type) and is_numeric_type(right_type):
-                    # Allow comparison but warn about potential precision loss
-                    self._error(
-                        f"Comparison between different numeric types may have unexpected results: {left_type.value} {operator} {right_type.value}",
-                        node,
-                    )
-                else:
-                    self._error(
-                        f"Cannot compare different types with {operator}: {left_type.value} and {right_type.value}",
-                        node,
-                    )
-                    return HexenType.UNKNOWN
+                self._error(
+                    f"Cannot compare different types with {operator}: {left_type.value} and {right_type.value}",
+                    node,
+                )
+                return HexenType.UNKNOWN
             return HexenType.BOOL
 
         # Handle relational operators (<, >, <=, >=)
@@ -216,14 +244,21 @@ class BinaryOpsAnalyzer:
             )
             return HexenType.UNKNOWN
 
-        # For numeric comparisons, apply comptime promotion rules
+        # For numeric comparisons, follow BINARY_OPS.md but allow with warnings for now
         if is_mixed_type_operation(left_type, right_type):
-            # Emit a warning about mixed numeric type comparison
-            self._error(
-                f"Comparison between different numeric types may have unexpected results: {left_type.value} {operator} {right_type.value}",
-                node,
-            )
-            # Always return boolean for comparison operations
+            # Check if both are comptime types (should work naturally)
+            both_comptime = left_type in {
+                HexenType.COMPTIME_INT,
+                HexenType.COMPTIME_FLOAT,
+            } and right_type in {HexenType.COMPTIME_INT, HexenType.COMPTIME_FLOAT}
+
+            if not both_comptime:
+                # Mixed concrete or mixed comptime/concrete - emit warning but allow
+                self._error(
+                    f"Comparison between different numeric types may have unexpected results: {left_type.value} {operator} {right_type.value}",
+                    node,
+                )
+            # Always return boolean for comparison operations (allow the comparison)
             return HexenType.BOOL
 
         # For same-type numeric comparisons, result is boolean
@@ -238,11 +273,11 @@ class BinaryOpsAnalyzer:
         target_type: Optional[HexenType] = None,
     ) -> HexenType:
         """
-        Analyze division operations with specific rules for / and \.
+        Analyze division operations with specific rules for / and \\.
 
         Rules:
         - / (float division): Always produces float result
-        - \ (integer division): Always produces integer result
+        - \\ (integer division): Always produces integer result
         - Both require numeric operands
         - Both support comptime type adaptation
         """

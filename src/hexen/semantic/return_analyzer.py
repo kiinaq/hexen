@@ -142,8 +142,8 @@ class ReturnAnalyzer:
         elif return_type != HexenType.UNKNOWN:
             # Check for precision loss operations that require acknowledgment
             if is_precision_loss_operation(return_type, expected_return_type):
-                # For non-type-annotated expressions, require acknowledgment
-                if value.get("type") != "type_annotated_expression":
+                # For non-explicit-conversion expressions, require acknowledgment
+                if value.get("type") != "explicit_conversion_expression":
                     self._generate_precision_loss_error(
                         return_type, expected_return_type, node
                     )

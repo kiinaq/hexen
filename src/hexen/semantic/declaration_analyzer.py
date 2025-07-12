@@ -229,72 +229,22 @@ class DeclarationAnalyzer:
                 # Pass var_type as target_type for context-guided analysis
                 value_type = self._analyze_expression(value, var_type)
                 if value_type != HexenType.UNKNOWN:
-                    # Type annotations are handled in _analyze_expression
+                    # Explicit conversions are handled in _analyze_expression using value:type syntax
                     # If we get here without errors, the operation was either safe or acknowledged
 
                     # Check for precision loss operations that require acknowledgment
                     if is_precision_loss_operation(value_type, var_type):
-                        # For non-type-annotated expressions, require acknowledgment
-                        if (
-                            value.get("type")
-                            != NodeType.EXPLICIT_CONVERSION_EXPRESSION.value
-                        ):
-                            # Generate appropriate error message based on operation type
-                            if (
-                                value_type == HexenType.I64
-                                and var_type == HexenType.I32
-                            ):
-                                self._error(
-                                    "Potential truncation, Add ': i32' to explicitly acknowledge",
-                                    node,
-                                )
-                            elif (
-                                value_type == HexenType.F64
-                                and var_type == HexenType.F32
-                            ):
-                                self._error(
-                                    "Potential precision loss, Add ': f32' to explicitly acknowledge",
-                                    node,
-                                )
-                            elif value_type in {
-                                HexenType.F32,
-                                HexenType.F64,
-                                HexenType.COMPTIME_FLOAT,
-                            } and var_type in {HexenType.I32, HexenType.I64}:
-                                # Float to integer conversion - use "truncation" terminology
-                                self._error(
-                                    f"Potential truncation, Add ': {var_type.value}' to explicitly acknowledge",
-                                    node,
-                                )
-                            elif (
-                                value_type == HexenType.I64
-                                and var_type == HexenType.F32
-                            ):
-                                self._error(
-                                    "Potential precision loss, Add ': f32' to explicitly acknowledge",
-                                    node,
-                                )
-                            else:
-                                # Generic precision loss message
-                                self._error(
-                                    f"Potential precision loss, Add ': {var_type.value}' to explicitly acknowledge",
-                                    node,
-                                )
-                            return
+                        self._generate_precision_loss_error(value_type, var_type, node)
+                        return
 
                     # Check for remaining type compatibility
                     if not can_coerce(value_type, var_type):
-                        # Only report error if not a type_annotated_expression
-                        # (type annotations handle their own validation)
-                        if (
-                            value.get("type")
-                            != NodeType.EXPLICIT_CONVERSION_EXPRESSION.value
-                        ):
-                            self._error(
-                                f"Type mismatch: variable '{name}' declared as {var_type.value} "
-                                f"but assigned value of type {value_type.value}",
-                                node,
-                            )
+                        # Explicit conversions are handled in _analyze_expression
+                        self._error(
+                            f"Type mismatch: variable '{name}' declared as {var_type.value} "
+                            f"but assigned value of type {value_type.value}",
+                            node,
+                        )
         else:
             # Type inference path - must have value
             if not value:
@@ -353,3 +303,39 @@ class DeclarationAnalyzer:
 
         if not self._declare_symbol(symbol):
             self._error(f"Failed to declare variable '{name}'", node)
+
+    def _generate_precision_loss_error(
+        self, from_type: HexenType, to_type: HexenType, node: Dict
+    ):
+        """Generate appropriate precision loss error message based on operation type."""
+        if from_type == HexenType.I64 and to_type == HexenType.I32:
+            self._error(
+                "Potential truncation. Use explicit conversion: 'value:i32'",
+                node,
+            )
+        elif from_type == HexenType.F64 and to_type == HexenType.F32:
+            self._error(
+                "Potential precision loss. Use explicit conversion: 'value:f32'",
+                node,
+            )
+        elif from_type in {
+            HexenType.F32,
+            HexenType.F64,
+            HexenType.COMPTIME_FLOAT,
+        } and to_type in {HexenType.I32, HexenType.I64}:
+            # Float to integer conversion - use "truncation" terminology
+            self._error(
+                f"Potential truncation. Use explicit conversion: 'value:{to_type.value}'",
+                node,
+            )
+        elif from_type == HexenType.I64 and to_type == HexenType.F32:
+            self._error(
+                "Potential precision loss. Use explicit conversion: 'value:f32'",
+                node,
+            )
+        else:
+            # Generic precision loss message
+            self._error(
+                f"Potential precision loss. Use explicit conversion: 'value:{to_type.value}'",
+                node,
+            )

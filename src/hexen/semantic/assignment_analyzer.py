@@ -93,76 +93,69 @@ class AssignmentAnalyzer:
 
         # Check type compatibility with coercion
         if value_type != HexenType.UNKNOWN:
-            # Type annotations are handled in _analyze_expression, so if we get here
-            # without errors, either it's a safe operation or it was acknowledged
+            # Explicit conversions are handled in _analyze_expression using value:type syntax
+            # If we get here without errors, either it's a safe operation or it was explicitly converted
+            # For complex expressions (like binary operations), check what the natural type would be
+            # without target type influence to detect precision loss scenarios
+            if value.get("type") == "binary_operation":
+                # Check if this might involve comptime types that could safely resolve
+                # If so, skip the precision loss check to avoid false positives
+                left = value.get("left", {})
+                right = value.get("right", {})
 
-            # Only check precision loss if NOT a type_annotated_expression
-            if value.get("type") != "type_annotated_expression":
-                # For complex expressions (like binary operations), check what the natural type would be
-                # without target type influence to detect precision loss scenarios
-                if value.get("type") == "binary_operation":
-                    # Check if this might involve comptime types that could safely resolve
-                    # If so, skip the precision loss check to avoid false positives
-                    left = value.get("left", {})
-                    right = value.get("right", {})
+                # Get operand types
+                left_type = (
+                    self._analyze_expression(left, symbol.type)
+                    if left
+                    else HexenType.UNKNOWN
+                )
+                right_type = (
+                    self._analyze_expression(right, symbol.type)
+                    if right
+                    else HexenType.UNKNOWN
+                )
 
-                    # Get operand types
-                    left_type = (
-                        self._analyze_expression(left, symbol.type)
-                        if left
-                        else HexenType.UNKNOWN
-                    )
-                    right_type = (
-                        self._analyze_expression(right, symbol.type)
-                        if right
-                        else HexenType.UNKNOWN
-                    )
+                # If either operand is a comptime type that can coerce to target, this is likely safe
+                has_comptime_operand = left_type in {
+                    HexenType.COMPTIME_INT,
+                    HexenType.COMPTIME_FLOAT,
+                } or right_type in {
+                    HexenType.COMPTIME_INT,
+                    HexenType.COMPTIME_FLOAT,
+                }
 
-                    # If either operand is a comptime type that can coerce to target, this is likely safe
-                    has_comptime_operand = left_type in {
-                        HexenType.COMPTIME_INT,
-                        HexenType.COMPTIME_FLOAT,
-                    } or right_type in {
-                        HexenType.COMPTIME_INT,
-                        HexenType.COMPTIME_FLOAT,
-                    }
-
-                    # If we have comptime operands that can coerce to target type, skip precision loss check
-                    if has_comptime_operand:
-                        if (
-                            left_type
-                            in {HexenType.COMPTIME_INT, HexenType.COMPTIME_FLOAT}
-                            and can_coerce(left_type, symbol.type)
-                        ) or (
-                            right_type
-                            in {HexenType.COMPTIME_INT, HexenType.COMPTIME_FLOAT}
-                            and can_coerce(right_type, symbol.type)
-                        ):
-                            # Skip precision loss check - comptime types can safely adapt
-                            pass
-                        else:
-                            # Proceed with precision loss check
-                            self._check_precision_loss_in_binary_op(value, symbol, node)
+                # If we have comptime operands that can coerce to target type, skip precision loss check
+                if has_comptime_operand:
+                    if (
+                        left_type in {HexenType.COMPTIME_INT, HexenType.COMPTIME_FLOAT}
+                        and can_coerce(left_type, symbol.type)
+                    ) or (
+                        right_type in {HexenType.COMPTIME_INT, HexenType.COMPTIME_FLOAT}
+                        and can_coerce(right_type, symbol.type)
+                    ):
+                        # Skip precision loss check - comptime types can safely adapt
+                        pass
                     else:
-                        # No comptime operands, but check if this is a safe mixed concrete operation
-                        # If both operand types can coerce to target type, it's safe - skip precision loss check
-                        if can_coerce(left_type, symbol.type) and can_coerce(
-                            right_type, symbol.type
-                        ):
-                            # Both types can safely coerce to target - no precision loss check needed
-                            pass
-                        else:
-                            # Proceed with precision loss check for truly problematic cases
-                            self._check_precision_loss_in_binary_op(value, symbol, node)
+                        # Proceed with precision loss check
+                        self._check_precision_loss_in_binary_op(value, symbol, node)
                 else:
-                    # For non-binary operations, use the existing logic
-                    # Check for precision loss operations that require acknowledgment
-                    if is_precision_loss_operation(value_type, symbol.type):
-                        # Generate appropriate error message based on operation type
-                        self._generate_precision_loss_error(
-                            value_type, symbol.type, node
-                        )
-                        return
+                    # No comptime operands, but check if this is a safe mixed concrete operation
+                    # If both operand types can coerce to target type, it's safe - skip precision loss check
+                    if can_coerce(left_type, symbol.type) and can_coerce(
+                        right_type, symbol.type
+                    ):
+                        # Both types can safely coerce to target - no precision loss check needed
+                        pass
+                    else:
+                        # Proceed with precision loss check for truly problematic cases
+                        self._check_precision_loss_in_binary_op(value, symbol, node)
+            else:
+                # For non-binary operations, use the existing logic
+                # Check for precision loss operations that require acknowledgment
+                if is_precision_loss_operation(value_type, symbol.type):
+                    # Generate appropriate error message based on operation type
+                    self._generate_precision_loss_error(value_type, symbol.type, node)
+                    return
 
             # Check type compatibility with coercion for non-precision-loss cases
             if not can_coerce(value_type, symbol.type):
@@ -204,12 +197,12 @@ class AssignmentAnalyzer:
         """Generate appropriate precision loss error message based on operation type."""
         if from_type == HexenType.I64 and to_type == HexenType.I32:
             self._error(
-                "Potential truncation, Add ': i32' to explicitly acknowledge",
+                "Potential truncation. Use explicit conversion: 'value:i32'",
                 node,
             )
         elif from_type == HexenType.F64 and to_type == HexenType.F32:
             self._error(
-                "Potential precision loss, Add ': f32' to explicitly acknowledge",
+                "Potential precision loss. Use explicit conversion: 'value:f32'",
                 node,
             )
         elif from_type in {
@@ -219,17 +212,17 @@ class AssignmentAnalyzer:
         } and to_type in {HexenType.I32, HexenType.I64}:
             # Float to integer conversion - use "truncation" terminology
             self._error(
-                f"Potential truncation, Add ': {to_type.value}' to explicitly acknowledge",
+                f"Potential truncation. Use explicit conversion: 'value:{to_type.value}'",
                 node,
             )
         elif from_type == HexenType.I64 and to_type == HexenType.F32:
             self._error(
-                "Potential precision loss, Add ': f32' to explicitly acknowledge",
+                "Potential precision loss. Use explicit conversion: 'value:f32'",
                 node,
             )
         else:
             # Generic precision loss message
             self._error(
-                f"Potential precision loss, Add ': {to_type.value}' to explicitly acknowledge",
+                f"Potential precision loss. Use explicit conversion: 'value:{to_type.value}'",
                 node,
             )
