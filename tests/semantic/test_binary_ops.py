@@ -179,20 +179,20 @@ class TestMixedTypeOperations:
         assert errors == []
 
     def test_mixed_float_types(self):
-        """Test operations between different float types"""
+        """Test operations between different float types with explicit conversions"""
         source = """
         func test() : f64 = {
             val a:f32 = 3.14
             val b:f64 = 2.71
 
-            // Mixed float types require explicit result type
-            val add:f64 = a + b           // f32 + f64 -> comptime_float (adapts to f64)
-            val sub:f64 = a - b           // f32 - f64 -> comptime_float (adapts to f64)
-            val mul:f64 = a * b           // f32 * f64 -> comptime_float (adapts to f64)
-            val div:f64 = a / b           // f32 / f64 -> comptime_float (adapts to f64)
+            // Mixed float types require explicit conversions per BINARY_OPS.md Pattern 4
+            val add:f64 = (a:f64) + b     // f32 → f64 + f64 (explicit conversion)
+            val sub:f64 = (a:f64) - b     // f32 → f64 - f64 (explicit conversion)
+            val mul:f64 = (a:f64) * b     // f32 → f64 * f64 (explicit conversion)
+            val div:f64 = (a:f64) / b     // f32 → f64 / f64 (explicit conversion)
 
-            // Can use f32 for reduced precision with explicit acknowledgment
-            val single:f32 = (a + b):f32  // f32 + f64 -> f32 (explicit narrowing)
+            // Can use f32 for reduced precision with explicit conversions
+            val single:f32 = a + (b:f32)  // f32 + f64 → f32 (explicit conversion)
 
             return add
         }
@@ -208,14 +208,14 @@ class TestMixedTypeOperations:
             val a:i32 = 10
             val b:f64 = 3.14
 
-            // Mixed numeric types require explicit result type
-            val add:f64 = a + b           // i32 + f64 -> comptime_float (adapts to f64)
-            val sub:f64 = a - b           // i32 - f64 -> comptime_float (adapts to f64)
-            val mul:f64 = a * b           // i32 * f64 -> comptime_float (adapts to f64)
-            val div:f64 = a / b           // i32 / f64 -> comptime_float (adapts to f64)
+            // Mixed numeric types require explicit conversions per BINARY_OPS.md Pattern 4
+            val add:f64 = (a:f64) + b     // i32 → f64 + f64 (explicit conversion)
+            val sub:f64 = (a:f64) - b     // i32 → f64 - f64 (explicit conversion)
+            val mul:f64 = (a:f64) * b     // i32 → f64 * f64 (explicit conversion)
+            val div:f64 = (a:f64) / b     // i32 → f64 / f64 (explicit conversion)
 
-            // Can use f32 for reduced precision with explicit acknowledgment
-            val single:f32 = (a + b):f32  // i32 + f64 -> f32 (explicit narrowing)
+            // Can use f32 for reduced precision with explicit conversions
+            val single:f32 = a + (b:f32)  // i32 + f64 → f32 (explicit conversion)
 
             return add
         }

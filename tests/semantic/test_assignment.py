@@ -336,28 +336,26 @@ class TestAssignmentWithExplicitTypes(StandardTestBase):
         assert errors == []
 
     def test_assignment_type_annotation_mismatch(self):
-        """Test assignment with mismatched type annotations"""
+        """Test assignment requiring explicit conversion for precision loss"""
         source = """
         func test() : void = {
             mut target_i32:i32 = 0
             mut target_f64:f64 = 0.0
             val source = 100
             
-            // ❌ Type annotation must match target variable type
-            target_i32 = source:f64      // Annotation doesn't match target
-            target_f64 = source:i32      // Annotation doesn't match target
+            // ❌ Conversion to f64 then assignment to i32 requires explicit conversion
+            target_i32 = source:f64      // f64 → i32 requires explicit conversion
+            
+            // ✅ Conversion to i32 then assignment to f64 is fine (no precision loss)
+            target_f64 = source:i32      // i32 → f64 is safe
         }
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        assert len(errors) == 2
+        assert len(errors) == 1
 
-        # Both should be type annotation mismatch errors
-        for error in errors:
-            assert (
-                "Type annotation must match" in error.message
-                or "Type mismatch" in error.message
-            )
+        # Should be precision loss error requiring explicit conversion
+        assert "truncation" in errors[0].message or "explicit" in errors[0].message
 
 
 class TestAssignmentWithUndef(StandardTestBase):

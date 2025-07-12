@@ -33,18 +33,20 @@ from src.hexen.parser import HexenParser
 from src.hexen.semantic import SemanticAnalyzer
 
 
-class TestTypeAnnotationErrorMessages:
-    """Test error messages for type annotation issues"""
+class TestExplicitConversionErrorMessages:
+    """Test error messages for explicit conversion issues"""
 
     def setup_method(self):
         self.parser = HexenParser()
         self.analyzer = SemanticAnalyzer()
 
-    def test_type_annotation_mismatch_message(self):
-        """Test clear error messages when type annotations don't match"""
+    def test_explicit_conversion_precision_loss_message(self):
+        """Test clear error messages for precision loss in assignment"""
         source = """
         func test() : void = {
-            val wrong:i32 = 3.14:f64
+            val source : f64 = 3.14159
+            mut target : i32 = 0
+            target = source
         }
         """
         ast = self.parser.parse(source)
@@ -52,53 +54,44 @@ class TestTypeAnnotationErrorMessages:
         assert len(errors) == 1
 
         error_msg = errors[0].message
-        assert "Type annotation must match variable's declared type" in error_msg
-        assert "expected i32, got f64" in error_msg
-        assert "i32" in error_msg and "f64" in error_msg
+        assert "truncation" in error_msg.lower() or "explicit" in error_msg.lower()
 
-    def test_type_annotation_without_explicit_type_message(self):
-        """Test error message when type annotation used without explicit left-side type"""
+    def test_mixed_type_operation_error_message(self):
+        """Test error message for mixed concrete type operations"""
         source = """
         func test() : void = {
-            val result = 42 + 3.14:f64
+            val a:i32 = 10
+            val b:i64 = 20
+            val result = a + b
         }
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
+        assert len(errors) >= 1
 
-        # Find the specific error about type annotation
-        annotation_errors = [
-            e
-            for e in errors
-            if "Type annotation requires explicit left side type" in e.message
-        ]
-        assert len(annotation_errors) >= 1
+        # Should have mixed-type operation error
+        mixed_errors = [e for e in errors if "Mixed-type operation" in e.message]
+        assert len(mixed_errors) >= 1
 
-        error_msg = annotation_errors[0].message
-        assert "Type annotation requires explicit left side type" in error_msg
-        assert "val result:f64 = ..." in error_msg  # Should suggest solution
+    def test_explicit_conversion_guidance_consistency(self):
+        """Test explicit conversion error messages provide consistent guidance"""
+        source = """
+        func test() : void = {
+            val a:i32 = 10
+            val b:i64 = 20
+            val c:f64 = 3.14
+            val result1 = a + b  // Mixed i32 + i64
+            val result2 = a + c  // Mixed i32 + f64
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+        assert len(errors) >= 2
 
-    def test_type_annotation_guidance_consistency(self):
-        """Test type annotation error messages provide consistent guidance"""
-        test_cases = [
-            # Different contexts, same guidance pattern
-            ("val var:i32 = 3.14:f64", "must match"),
-            ("mut var:f32 = 2.5:f64", "must match"),
-            ("val result = expr:i32", "explicit left side type"),
-        ]
-
-        for source_fragment, expected_pattern in test_cases:
-            source = f"""
-            func test() : void = {{
-                {source_fragment}
-            }}
-            """
-            ast = self.parser.parse(source)
-            errors = self.analyzer.analyze(ast)
-            assert len(errors) >= 1
-
-            error_msg = errors[0].message.lower()
-            assert expected_pattern.lower() in error_msg
+        # All should be mixed-type operation errors with guidance
+        for error in errors:
+            if "Mixed-type operation" in error.message:
+                assert "explicit" in error.message.lower()
 
 
 class TestPrecisionLossErrorMessages:

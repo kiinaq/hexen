@@ -199,24 +199,22 @@ class TestExplicitConversionSemantics:
                 }}
                 """
             else:
+                # Build proper variable declaration based on type
+                if source_expr == "text":
+                    var_decl = 'val text : string = "hello"'
+                elif source_expr == "int_val":
+                    var_decl = "val int_val : i32 = 42"
+                elif source_expr == "float_val":
+                    var_decl = "val float_val : f64 = 3.14"
+                else:
+                    var_decl = f"val {source_expr} : {source_type} = 42"
+
                 source = f"""
                 func test() : void = {{
-                    val {source_expr} : {source_type} = {source_expr.replace("_val", "")}
+                    {var_decl}
                     val result : {target_type} = {conv_expr}
                 }}
                 """
-                if source_expr == "text":
-                    source = source.replace(
-                        "val text:string = text", 'val text:string = "hello"'
-                    )
-                elif source_expr == "int_val":
-                    source = source.replace(
-                        "val int_val:i32 = int", "val int_val:i32 = 42"
-                    )
-                elif source_expr == "float_val":
-                    source = source.replace(
-                        "val float_val:f64 = float", "val float_val:f64 = 3.14"
-                    )
 
             errors = self._analyze_source(source)
             assert len(errors) == 0, (
