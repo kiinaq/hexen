@@ -229,12 +229,29 @@ class DeclarationAnalyzer:
                 # Pass var_type as target_type for context-guided analysis
                 value_type = self._analyze_expression(value, var_type)
                 if value_type != HexenType.UNKNOWN:
-                    # Type annotations are handled in _analyze_expression
+                    # Check for explicit conversion type mismatch
+                    if (
+                        value.get("type")
+                        == NodeType.EXPLICIT_CONVERSION_EXPRESSION.value
+                    ):
+                        target_type_str = value.get("target_type")
+                        if target_type_str:
+                            from .type_util import parse_type as parse_type_util
+
+                            conversion_target_type = parse_type_util(target_type_str)
+                            if conversion_target_type != var_type:
+                                self._error(
+                                    f"Type annotation must match variable type: variable '{name}' is {var_type.value}, but conversion specifies {conversion_target_type.value}",
+                                    node,
+                                )
+                                return
+
+                    # Explicit conversions are handled in _analyze_expression
                     # If we get here without errors, the operation was either safe or acknowledged
 
                     # Check for precision loss operations that require acknowledgment
                     if is_precision_loss_operation(value_type, var_type):
-                        # For non-type-annotated expressions, require acknowledgment
+                        # For non-explicit-conversion expressions, require acknowledgment
                         if (
                             value.get("type")
                             != NodeType.EXPLICIT_CONVERSION_EXPRESSION.value

@@ -93,11 +93,25 @@ class AssignmentAnalyzer:
 
         # Check type compatibility with coercion
         if value_type != HexenType.UNKNOWN:
-            # Type annotations are handled in _analyze_expression, so if we get here
+            # Check for explicit conversion type mismatch
+            if value.get("type") == "explicit_conversion_expression":
+                target_type_str = value.get("target_type")
+                if target_type_str:
+                    from .type_util import parse_type as parse_type_util
+
+                    conversion_target_type = parse_type_util(target_type_str)
+                    if conversion_target_type != symbol.type:
+                        self._error(
+                            f"Type annotation must match variable type: variable '{target_name}' is {symbol.type.value}, but conversion specifies {conversion_target_type.value}",
+                            node,
+                        )
+                        return
+
+            # Explicit conversions are handled in _analyze_expression, so if we get here
             # without errors, either it's a safe operation or it was acknowledged
 
-            # Only check precision loss if NOT a type_annotated_expression
-            if value.get("type") != "type_annotated_expression":
+            # Only check precision loss if NOT an explicit_conversion_expression
+            if value.get("type") != "explicit_conversion_expression":
                 # For complex expressions (like binary operations), check what the natural type would be
                 # without target type influence to detect precision loss scenarios
                 if value.get("type") == "binary_operation":
