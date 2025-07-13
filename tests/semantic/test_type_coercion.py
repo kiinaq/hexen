@@ -110,14 +110,14 @@ class TestFloatWidening(StandardTestBase):
         assert errors == []
 
     def test_mixed_float_expressions(self):
-        """Test expressions mixing f32 and f64 with explicit context"""
+        """Test expressions mixing f32 and f64 with explicit conversions"""
         source = """
         func test() : void = {
             val single:f32 = 3.14
             val double:f64 = 2.718
             
-            // ✅ Mixed expressions require explicit context
-            val result_f64:f64 = single + double
+            // ✅ Mixed concrete expressions require explicit conversions
+            val result_f64:f64 = single:f64 + double
             val result_f32:f32 = single + double:f32
         }
         """
@@ -303,9 +303,9 @@ class TestComplexCoercionScenarios(StandardTestBase):
             val int_val:i32 = 10
             val float_val:f64 = 3.14
             
-            // ✅ Mixed expressions with explicit result type
-            val result_f64:f64 = int_val + float_val  // i32 + f64 → f64
-            val result_i64:i64 = int_val + int_val    // i32 + i32 → i64
+            // ✅ Mixed expressions with explicit conversions
+            val result_f64:f64 = int_val:f64 + float_val  // i32:f64 + f64 → f64
+            val result_i64:i64 = (int_val + int_val):i64    // i32 + i32 → i32, then i32:i64
         }
         """
         ast = self.parser.parse(source)
@@ -320,9 +320,9 @@ class TestComplexCoercionScenarios(StandardTestBase):
             val b:i32 = 20
             val c:f32 = 3.14
             
-            // ✅ Nested expressions with context-guided coercion
-            val result1:f64 = (a + b) * 2    // (i32 + i32) * i32 → f64
-            val result2:f64 = a + (b * c)    // i32 + (i32 * f32) → f64
+            // ✅ Nested expressions with explicit conversions
+            val result1:f64 = ((a + b) * 2):f64    // (i32 + i32) * comptime_int → i32, then i32:f64
+            val result2:f64 = a:f64 + (b:f32 * c)    // i32:f64 + (i32:f32 * f32) → f64
         }
         """
         ast = self.parser.parse(source)
@@ -454,7 +454,7 @@ class TestCoercionErrorMessages(StandardTestBase):
 
         for error in errors:
             assert (
-                "requires explicit result type" in error.message
-                or "Mixed-type operation" in error.message
+                "requires target type context" in error.message
+                or "Mixed concrete type operation" in error.message
                 or "ambiguous" in error.message.lower()
             )

@@ -101,7 +101,7 @@ class TestUnaryMinusSemantics:
             in str(e)
             for e in errors
         )
-        assert any("Mixed-type operation" in str(e) for e in errors)
+        assert any("Mixed concrete type operation" in str(e) for e in errors)
 
 
 class TestNegativeNumberLiterals:
@@ -323,7 +323,7 @@ class TestUnaryOperatorIntegration:
             val y:f64 = 3.14
             val a:i32 = -x * 2           // i32 → i32
             val b:i32 = 2 * -x           // i32 → i32
-            val c:f64 = -x + -y          // i32 → f64, f64 → f64
+            val c:f64 = (-x):f64 + -y    // i32:f64 + f64 → f64
             val d:f64 = -2.5 * -3.5      // comptime_float → f64
 
             // Logical not in boolean expressions

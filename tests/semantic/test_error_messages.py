@@ -69,8 +69,10 @@ class TestExplicitConversionErrorMessages:
         errors = self.analyzer.analyze(ast)
         assert len(errors) >= 1
 
-        # Should have mixed-type operation error
-        mixed_errors = [e for e in errors if "Mixed-type operation" in e.message]
+        # Should have mixed concrete type operation error
+        mixed_errors = [
+            e for e in errors if "Mixed concrete type operation" in e.message
+        ]
         assert len(mixed_errors) >= 1
 
     def test_explicit_conversion_guidance_consistency(self):
@@ -119,8 +121,7 @@ class TestPrecisionLossErrorMessages:
         # Check for consistent error message format
         assert "Potential truncation" in error_msg
         assert "i32" in error_msg
-        assert "Add ': i32'" in error_msg
-        assert "explicitly acknowledge" in error_msg
+        assert "Use explicit conversion: 'value:i32'" in error_msg
 
     def test_precision_loss_error_message_format(self):
         """Test that precision loss error messages have consistent format"""
@@ -140,8 +141,7 @@ class TestPrecisionLossErrorMessages:
         # Check for consistent error message format
         assert "Potential precision loss" in error_msg
         assert "f32" in error_msg
-        assert "Add ': f32'" in error_msg
-        assert "explicitly acknowledge" in error_msg
+        assert "Use explicit conversion: 'value:f32'" in error_msg
 
     def test_mixed_type_precision_loss_messages(self):
         """Test error messages for mixed-type precision loss scenarios"""
@@ -273,41 +273,33 @@ class TestMixedTypeErrorMessages:
         assert len(errors) >= 1
 
         error_msg = errors[0].message
-        assert "Mixed-type operation" in error_msg
+        assert "Mixed concrete type operation" in error_msg
         assert "i32" in error_msg and "i64" in error_msg
-        assert "explicit result type" in error_msg
+        assert "Use:" in error_msg
 
     def test_ambiguous_comptime_expression_messages(self):
-        """Test error messages for ambiguous comptime expressions"""
+        """Test that comptime expressions work correctly (no errors for comptime + comptime)"""
         source = """
         func test() : void = {
-            val result = 42 + 3.14
+            val result = 42 + 3.14  // comptime_int + comptime_float → comptime_float (valid!)
         }
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        assert len(errors) >= 1
-
-        error_msg = errors[0].message
-        assert "Mixed-type operation" in error_msg
-        assert "comptime_int" in error_msg and "comptime_float" in error_msg
-        assert "explicit result type" in error_msg
+        # This should NOT be an error according to BINARY_OPS.md - comptime + comptime is valid
+        assert len(errors) == 0
 
     def test_mixed_type_error_guidance_consistency(self):
         """Test mixed-type error messages provide consistent guidance"""
+        # Only concrete mixed-type scenarios should have errors
         test_cases = [
-            # Different mixed-type scenarios should have similar guidance
             (
                 "val a:i32 = 10\n            val b:i64 = 20\n            val x = a + b",
-                "explicit result type",
+                "Use:",
             ),
             (
                 "val c:f32 = 3.14\n            val d:f64 = 2.5\n            val y = c * d",
-                "explicit result type",
-            ),
-            (
-                "val e = 42\n            val f = 3.14\n            val z = e - f",
-                "explicit result type",
+                "Use:",
             ),
         ]
 
@@ -321,8 +313,20 @@ class TestMixedTypeErrorMessages:
             errors = self.analyzer.analyze(ast)
             assert len(errors) >= 1
 
-            error_msg = errors[0].message.lower()
-            assert expected_guidance.lower() in error_msg
+            error_msg = errors[0].message
+            assert expected_guidance in error_msg
+
+        # Test that comptime + comptime works correctly (no errors)
+        comptime_source = """
+        func test() : void = {
+            val e = 42        // comptime_int
+            val f = 3.14      // comptime_float  
+            val z = e - f     // comptime_int - comptime_float → comptime_float (valid!)
+        }
+        """
+        ast = self.parser.parse(comptime_source)
+        errors = self.analyzer.analyze(ast)
+        assert len(errors) == 0  # Should be no errors for comptime operations
 
 
 class TestComptimeTypeErrorMessages:
@@ -491,7 +495,7 @@ class TestHelpfulErrorMessages:
                     small = large
                 }
                 """,
-                "expected_suggestions": [": i32", "explicit"],
+                "expected_suggestions": ["value:i32", "explicit"],
             },
             # Mixed types - should suggest explicit result type
             {
@@ -502,7 +506,7 @@ class TestHelpfulErrorMessages:
                     val result = a + b
                 }
                 """,
-                "expected_suggestions": ["explicit result type", "Mixed-type"],
+                "expected_suggestions": ["Use:", "Mixed concrete type"],
             },
             # val + undef - should suggest mut
             {
@@ -542,7 +546,7 @@ class TestHelpfulErrorMessages:
                     approx = precise
                 }
                 """,
-                "should_explain": ["precision loss", "acknowledge"],
+                "should_explain": ["precision loss", "explicit conversion"],
             },
             # Explain val vs mut distinction
             {
@@ -554,15 +558,7 @@ class TestHelpfulErrorMessages:
                 """,
                 "should_explain": ["immutable", "once at declaration"],
             },
-            # Explain mixed-type operation ambiguity
-            {
-                "source": """
-                func test() : void = {
-                    val result = 42 + 3.14
-                }
-                """,
-                "should_explain": ["Mixed-type", "explicit result type"],
-            },
+            # This case removed - 42 + 3.14 is valid (comptime + comptime)
         ]
 
         for case in educational_cases:

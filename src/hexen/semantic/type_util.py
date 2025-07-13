@@ -295,30 +295,38 @@ def is_mixed_type_operation(left_type: HexenType, right_type: HexenType) -> bool
     """
     Check if an operation involves mixed types that require explicit handling.
 
-    Returns True if:
-    - Operation is between float and non-float concrete types
-    - Operation is between different concrete integer types (e.g. i32 + i64)
-    - Operation is between different concrete float types (e.g. f32 + f64)
+    Returns True ONLY for Pattern 3 (Mixed Concrete → Explicit Required):
+    - Operation between different concrete integer types (e.g. i32 + i64)
+    - Operation between different concrete float types (e.g. f32 + f64)
+    - Operation between concrete float and concrete integer types
 
-    Note: comptime_int + comptime_float is NOT considered mixed - it promotes to comptime_float
-    per BINARY_OPS.md Pattern 1 (Comptime + Comptime = Comptime).
+    Returns False for all other patterns:
+    - Pattern 1: Comptime + Comptime → Comptime (e.g. comptime_int + comptime_float)
+    - Pattern 2: Comptime + Concrete → Concrete (e.g. i64 + comptime_int, f32 + comptime_float)
+    - Pattern 4: Same Concrete → Same Concrete (e.g. i32 + i32)
     """
+    # Pattern 1 & 2: Any operation involving comptime types should be handled elsewhere (not mixed)
+    if left_type in {
+        HexenType.COMPTIME_INT,
+        HexenType.COMPTIME_FLOAT,
+    } or right_type in {HexenType.COMPTIME_INT, HexenType.COMPTIME_FLOAT}:
+        return False
+
+    # Pattern 4: Same concrete types are not mixed
+    if left_type == right_type:
+        return False
+
+    # Pattern 3: Mixed concrete types - require explicit conversions
     return (
-        # Skip comptime_int + comptime_float - this promotes to comptime_float per Pattern 1
-        # (left_type == HexenType.COMPTIME_INT and right_type == HexenType.COMPTIME_FLOAT)
-        # or (left_type == HexenType.COMPTIME_FLOAT and right_type == HexenType.COMPTIME_INT)
-        (is_float_type(left_type) and not is_float_type(right_type))
-        or (not is_float_type(left_type) and is_float_type(right_type))
-        or (
-            is_integer_type(left_type)
-            and is_integer_type(right_type)
-            and left_type != right_type
-        )
-        or (
-            is_float_type(left_type)
-            and is_float_type(right_type)
-            and left_type != right_type
-        )
+        # Different concrete integer types
+        (is_integer_type(left_type) and is_integer_type(right_type))
+        or
+        # Different concrete float types
+        (is_float_type(left_type) and is_float_type(right_type))
+        or
+        # Concrete float + concrete integer (either direction)
+        (is_float_type(left_type) and is_integer_type(right_type))
+        or (is_integer_type(left_type) and is_float_type(right_type))
     )
 
 

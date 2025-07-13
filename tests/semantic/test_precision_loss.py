@@ -37,7 +37,7 @@ class TestIntegerPrecisionLoss(StandardTestBase):
         error_msg = errors[0].message
         assert "Potential truncation" in error_msg
         assert "i32" in error_msg
-        assert "Add ': i32'" in error_msg
+        assert "Use explicit conversion: 'value:i32'" in error_msg
 
     def test_i64_to_i32_truncation_with_acknowledgment(self):
         """Test that explicit acknowledgment allows i64 to i32 conversion"""
@@ -121,7 +121,7 @@ class TestFloatPrecisionLoss(StandardTestBase):
         error_msg = errors[0].message
         assert "Potential precision loss" in error_msg
         assert "f32" in error_msg
-        assert "Add ': f32'" in error_msg
+        assert "Use explicit conversion: 'value:f32'" in error_msg
 
     def test_f64_to_f32_precision_loss_with_acknowledgment(self):
         """Test that explicit acknowledgment allows f64 to f32 conversion"""
@@ -514,8 +514,8 @@ class TestPrecisionLossErrorMessages(StandardTestBase):
 
         error_msg = errors[0].message
         assert "Potential truncation" in error_msg
-        assert "Add ': i32'" in error_msg
-        assert "acknowledge" in error_msg.lower()
+        assert "Use explicit conversion: 'value:i32'" in error_msg
+        # Message should contain guidance for explicit conversion
 
     def test_precision_loss_error_message_guidance(self):
         """Test that precision loss errors provide clear guidance"""
@@ -533,8 +533,8 @@ class TestPrecisionLossErrorMessages(StandardTestBase):
 
         error_msg = errors[0].message
         assert "Potential precision loss" in error_msg
-        assert "Add ': f32'" in error_msg
-        assert "acknowledge" in error_msg.lower()
+        assert "Use explicit conversion: 'value:f32'" in error_msg
+        # Message should contain guidance for explicit conversion
 
     def test_multiple_precision_loss_errors_detected(self):
         """Test that multiple precision loss scenarios are all detected"""
@@ -556,22 +556,22 @@ class TestPrecisionLossErrorMessages(StandardTestBase):
         assert len(errors) == 2
 
         error_messages = [e.message for e in errors]
-        assert any(": i32" in msg for msg in error_messages)
-        assert any(": f32" in msg for msg in error_messages)
+        assert any("value:i32" in msg for msg in error_messages)
+        assert any("value:f32" in msg for msg in error_messages)
         assert all(
             "truncation" in msg.lower() or "precision" in msg.lower()
             for msg in error_messages
         )
 
     def test_type_annotation_mismatch_error_guidance(self):
-        """Test clear error messages when type annotations don't match variable type"""
+        """Test error messages for explicit conversion with precision loss"""
         source = """
         func test() : void = {
             val large:i64 = 9223372036854775807
             
             mut small:i32 = 0
-            // ❌ Type annotation must match variable's declared type
-            small = large:i64    // Error: annotation should be i32, not i64
+            // ❌ Wrong explicit conversion causes precision loss
+            small = large:i64    // large:i64 → i64, then i64 → i32 (precision loss)
         }
         """
         ast = self.parser.parse(source)
@@ -579,9 +579,8 @@ class TestPrecisionLossErrorMessages(StandardTestBase):
         assert len(errors) == 1
 
         error_msg = errors[0].message
-        assert "Type annotation must match" in error_msg
-        assert "i32" in error_msg
-        assert "i64" in error_msg
+        assert "Potential truncation" in error_msg
+        assert "value:i32" in error_msg
 
 
 class TestBoundaryConditions(StandardTestBase):
@@ -654,20 +653,20 @@ class TestTypeAnnotationConsistency(StandardTestBase):
     """Test type annotation consistency rules with precision loss (consolidates with test_type_annotations)"""
 
     def test_type_annotation_must_match_variable_type(self):
-        """Test that type annotations must exactly match the target variable's type"""
+        """Test that explicit conversions work correctly with precision loss detection"""
         source = """
         func test() : void = {
             val large:i64 = 9223372036854775807
             
-            // ✅ Correct: annotation matches variable type
+            // ✅ Correct: explicit conversion to target type
             val correct_val:i32 = large:i32
             mut correct_mut:i32 = 0
             correct_mut = large:i32
             
-            // ❌ Wrong: annotation doesn't match variable type
-            val wrong_val:i32 = large:i64    // Error: left i32, annotation i64
+            // ❌ Wrong: explicit conversion to wrong type (causes precision loss)
+            val wrong_val:i32 = large:i64    // large:i64 → i64, then i64 → i32 (precision loss)
             mut wrong_mut:i32 = 0
-            wrong_mut = large:i64              // Error: left i32, annotation i64
+            wrong_mut = large:i64              // large:i64 → i64, then i64 → i32 (precision loss)
         }
         """
         ast = self.parser.parse(source)
@@ -675,8 +674,9 @@ class TestTypeAnnotationConsistency(StandardTestBase):
         assert len(errors) == 2
 
         for error in errors:
-            assert "Type annotation must match" in error.message
-            assert "i32" in error.message and "i64" in error.message
+            # Should be precision loss errors, not type annotation errors
+            assert "Potential truncation" in error.message
+            assert "Use explicit conversion: 'value:i32'" in error.message
 
     def test_precision_loss_annotation_positioning(self):
         """Test that precision loss annotations must be at rightmost end of expressions"""
