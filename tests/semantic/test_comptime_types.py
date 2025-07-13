@@ -475,22 +475,22 @@ class TestComptimeWithConcreteTypes(StandardTestBase):
 
         error_messages = [str(error) for error in errors]
         assert any(
-            "Mixed-type operation" in msg or "explicit" in msg.lower()
+            "Mixed concrete type operation" in msg or "explicit" in msg.lower()
             for msg in error_messages
         )
 
-    def test_concrete_types_with_explicit_context(self):
-        """Test mixed concrete types with explicit context"""
+    def test_concrete_types_with_explicit_conversions(self):
+        """Test mixed concrete types with explicit conversions (no assignment context shortcuts)"""
         source = """
         func test() : void = {
             val int32_val : i32 = 10
             val int64_val : i64 = 20
             val float_val : f32 = 3.14
             
-            // ✅ Explicit context resolves mixed concrete types
-            val mixed1 : i64 = int32_val + int64_val    // i32 + i64 → i64
-            val mixed2 : f64 = int32_val + float_val    // i32 + f32 → f64
-            val mixed3 : f32 = int32_val + float_val    // i32 + f32 → f32 (precision choice)
+            // ✅ Mixed concrete types require explicit conversions (transparent costs)
+            val mixed1 : i64 = int32_val:i64 + int64_val    // i64 + i64 → i64
+            val mixed2 : f64 = int32_val:f64 + float_val:f64    // f64 + f64 → f64
+            val mixed3 : f32 = int32_val:f32 + float_val    // f32 + f32 → f32
         }
         """
         ast = self.parser.parse(source)

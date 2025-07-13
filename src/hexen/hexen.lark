@@ -24,7 +24,7 @@ return_stmt: "return" expression?
 
 assignment_stmt: IDENTIFIER "=" expression
 
-expression: logical_or (CONVERSION_OP type)?
+expression: logical_or
 
 logical_or: logical_and (OR_OP logical_and)*
 logical_and: equality (AND_OP equality)*
@@ -33,7 +33,8 @@ relational: additive (REL_OP additive)*
 additive: multiplicative (ADD_OP multiplicative)*
 multiplicative: unary (MUL_OP unary)*
 unary: UNARY_OP unary
-     | primary
+     | conversion
+conversion: primary (CONVERSION_OP type)?
 primary: NUMBER | STRING | BOOLEAN | IDENTIFIER | block | "(" expression ")"
 
 OR_OP: "||"

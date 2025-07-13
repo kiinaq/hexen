@@ -156,20 +156,20 @@ class TestMixedTypeOperations:
         self.analyzer = SemanticAnalyzer()
 
     def test_mixed_integer_types(self):
-        """Test operations between different integer types"""
+        """Test operations between different integer types require explicit conversions"""
         source = """
         func test() : i64 = {
             val a:i32 = 10
             val b:i64 = 20
             
-            // Mixed integer types require explicit result type
-            val add:i64 = a + b           // i32 + i64 -> comptime_int (adapts to i64)
-            val sub:i64 = a - b           // i32 - i64 -> comptime_int (adapts to i64)
-            val mul:i64 = a * b           // i32 * i64 -> comptime_int (adapts to i64)
-            val idiv:i64 = a \ b          // i32 \ i64 -> comptime_int (adapts to i64)
+            // Mixed integer types require explicit conversions (transparent costs)
+            val add:i64 = a:i64 + b       // i64 + i64 -> i64 (explicit conversion applied)
+            val sub:i64 = a:i64 - b       // i64 - i64 -> i64 (explicit conversion applied)
+            val mul:i64 = a:i64 * b       // i64 + i64 -> i64 (explicit conversion applied)
+            val idiv:i64 = a:i64 \ b      // i64 \ i64 -> i64 (explicit conversion applied)
             
-            // Can use f64 for full precision
-            val fdiv:f64 = a / b          // i32 / i64 -> f64 (float division)
+            // Float division with explicit conversions
+            val fdiv:f64 = a:f64 / b:f64  // f64 / f64 -> f64 (explicit conversions applied)
             
             return add
         }
@@ -186,13 +186,13 @@ class TestMixedTypeOperations:
             val b:f64 = 2.71
 
             // Mixed float types require explicit conversions per BINARY_OPS.md Pattern 4
-            val add:f64 = (a:f64) + b     // f32 → f64 + f64 (explicit conversion)
-            val sub:f64 = (a:f64) - b     // f32 → f64 - f64 (explicit conversion)
-            val mul:f64 = (a:f64) * b     // f32 → f64 * f64 (explicit conversion)
-            val div:f64 = (a:f64) / b     // f32 → f64 / f64 (explicit conversion)
+            val add:f64 = a:f64 + b     // f32 → f64 + f64 (explicit conversion)
+            val sub:f64 = a:f64 - b     // f32 → f64 - f64 (explicit conversion)
+            val mul:f64 = a:f64 * b     // f32 → f64 * f64 (explicit conversion)
+            val div:f64 = a:f64 / b     // f32 → f64 / f64 (explicit conversion)
 
             // Can use f32 for reduced precision with explicit conversions
-            val single:f32 = a + (b:f32)  // f32 + f64 → f32 (explicit conversion)
+            val single:f32 = a + b:f32  // f32 + f64 → f32 (explicit conversion)
 
             return add
         }
@@ -215,7 +215,7 @@ class TestMixedTypeOperations:
             val div:f64 = (a:f64) / b     // i32 → f64 / f64 (explicit conversion)
 
             // Can use f32 for reduced precision with explicit conversions
-            val single:f32 = a + (b:f32)  // i32 + f64 → f32 (explicit conversion)
+            val single:f32 = a:f32 + b:f32  // f32 + f32 → f32 (explicit conversions applied)
 
             return add
         }
@@ -243,35 +243,24 @@ class TestBinaryOperationErrors:
             // Float division requires explicit type
             val div1 = 10 / 3              // Error: Float division requires explicit result type
 
-            // Mixed comptime types require explicit type
-            val add1 = 42 + 3.14           // Error: Mixed comptime types require explicit result type
-
             // Mixed concrete types require explicit type
             val a:i32 = 10
             val b:i64 = 20
-            val add2 = a + b               // Error: Mixed concrete types require explicit result type
-
-            // Float operations require explicit type
-            val add3 = 3.14 + 2.71         // Error: comptime_float operations require explicit result type
+            val add2 = a + b               // Error: Mixed concrete types require explicit conversions
         }
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         print("[DEBUG] Errors:", [e.message for e in errors])
-        assert len(errors) == 4, "Expected 4 errors (granular errors only)"
+        assert len(errors) == 2, (
+            "Expected 2 errors (only concrete issues need explicit handling)"
+        )
         assert any(
             "Float division requires explicit result type" in e.message for e in errors
         ), "Missing granular error for div1"
-        assert any("Mixed-type operation" in e.message for e in errors), (
-            "Missing granular error for add1"
-        )
-        assert any("Mixed-type operation" in e.message for e in errors), (
+        assert any("Mixed concrete type operation" in e.message for e in errors), (
             "Missing granular error for add2"
         )
-        assert any(
-            "comptime_float operations require explicit result type" in e.message
-            for e in errors
-        ), "Missing granular error for add3"
 
     def test_invalid_integer_division(self):
         """Test invalid integer division operations"""
@@ -452,8 +441,8 @@ class TestComparisonOperations:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         # Should have warnings about mixed numeric type comparisons
-        assert len(errors) == 3, (
-            "Expected 3 warnings about mixed numeric type comparisons"
+        assert len(errors) == 2, (
+            "Expected 2 warnings about mixed numeric type comparisons (comptime types mix freely)"
         )
         assert all(
             "Comparison between different numeric types may have unexpected results"

@@ -182,7 +182,7 @@ class TestExplicitConversionErrors:
             assert len(ast["functions"]) == 1
 
     def test_explicit_conversion_precedence(self):
-        """Test that explicit conversion has correct precedence in expressions"""
+        """Test that explicit conversion has high precedence (binds tightly to operands)"""
         source = """
         func main() : i32 = {
             val result : i32 = 10 + 20:i32
@@ -191,22 +191,29 @@ class TestExplicitConversionErrors:
         """
 
         # This tests whether the explicit conversion applies to just "20" or to "10 + 20"
-        # Based on the spec, it should apply to the entire expression
+        # With high precedence, it should apply only to "20": 10 + (20:i32)
         ast = self.parser.parse(source)
         statements = ast["functions"][0]["body"]["statements"]
 
         val_decl = statements[0]
         expr = val_decl["value"]
 
-        # The explicit conversion should wrap the entire binary operation
-        # (This confirms explicit conversions have LOW precedence - they apply to whole expressions)
-        assert expr["type"] == NodeType.EXPLICIT_CONVERSION_EXPRESSION.value
-        assert expr["target_type"] == "i32"
+        # The top-level expression should be the binary operation
+        # (This confirms explicit conversions have HIGH precedence - they bind tightly)
+        assert expr["type"] == NodeType.BINARY_OPERATION.value
+        assert expr["operator"] == "+"
 
-        # The inner expression should be the binary operation
-        inner_expr = expr["expression"]
-        assert inner_expr["type"] == NodeType.BINARY_OPERATION.value
-        assert inner_expr["operator"] == "+"
+        # The left operand should be the number 10
+        left = expr["left"]
+        assert left["type"] == NodeType.COMPTIME_INT.value
+        assert left["value"] == 10
+
+        # The right operand should be the explicit conversion of 20 to i32
+        right = expr["right"]
+        assert right["type"] == NodeType.EXPLICIT_CONVERSION_EXPRESSION.value
+        assert right["target_type"] == "i32"
+        assert right["expression"]["type"] == NodeType.COMPTIME_INT.value
+        assert right["expression"]["value"] == 20
 
     def test_multiple_explicit_conversions_error(self):
         """Test that multiple explicit conversions on same expression cause error"""

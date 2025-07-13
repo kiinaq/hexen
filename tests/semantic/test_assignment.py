@@ -606,7 +606,7 @@ class TestAssignmentWithContextGuidance(StandardTestBase):
         assert errors == []
 
     def test_assignment_with_mixed_concrete_type_context(self):
-        """Test assignment provides context for mixed concrete type operations"""
+        """Test mixed concrete type operations require explicit conversions (no assignment context shortcuts)"""
         source = """
         func test() : void = {
             val small:i32 = 10
@@ -617,10 +617,10 @@ class TestAssignmentWithContextGuidance(StandardTestBase):
             mut target_i64:i64 = 0
             mut target_f64:f64 = 0.0
             
-            // ✅ Assignment context resolves mixed concrete types
-            target_i64 = small + large        // i32 + i64 → i64 (assignment context)
-            target_f64 = single + double      // f32 + f64 → f64 (assignment context)
-            target_f64 = small + single       // i32 + f32 → f64 (assignment context)
+            // ✅ Mixed concrete types require explicit conversions (transparent costs)
+            target_i64 = small:i64 + large        // i64 + i64 → i64 (explicit conversion applied)
+            target_f64 = single:f64 + double      // f64 + f64 → f64 (explicit conversion applied)
+            target_f64 = small:f64 + single:f64   // f64 + f64 → f64 (explicit conversions applied)
         }
         """
         ast = self.parser.parse(source)
@@ -628,16 +628,16 @@ class TestAssignmentWithContextGuidance(StandardTestBase):
         assert errors == []
 
     def test_assignment_context_prevents_ambiguity(self):
-        """Test assignment context prevents type ambiguity in complex expressions"""
+        """Test explicit conversions prevent type ambiguity in complex expressions"""
         source = """
         func test() : void = {
             val a:i32 = 10
             val b:i64 = 20
             mut result:f64 = 0.0
             
-            // ✅ Assignment context resolves complex mixed-type expressions
-            result = (a + b) * 2              // (i32 + i64) * comptime_int → f64 (context)
-            result = a * 3.14 + b / 2         // Complex mixed expression → f64 (context)
+            // ✅ Explicit conversions resolve complex mixed-type expressions
+            result = a:f64 + b:f64 * 2.0       // f64 + (f64 * comptime_float) → f64
+            result = a:f64 * 3.14 + b:f64 / 2.0  // Complex mixed expression with explicit conversions
         }
         """
         ast = self.parser.parse(source)

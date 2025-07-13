@@ -91,7 +91,11 @@ class HexenTransformer(Transformer):
         }
 
     def expression(self, children):
-        # Handle: expression [CONVERSION_OP type]
+        # Handle: logical_or
+        return children[0]
+
+    def conversion(self, children):
+        # Handle: primary [CONVERSION_OP type]
         if len(children) == 1:
             return children[0]
         elif len(children) == 3:

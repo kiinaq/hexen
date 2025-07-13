@@ -80,7 +80,8 @@ class TestBasicLanguageIntegration:
         func process_data() : f64 = {
             val count:i64 = 1000
             val rate:f32 = 2.5
-            val result:f64 = count * rate
+            // Mixed concrete types require explicit conversions (transparent costs)
+            val result:f64 = count:f64 * rate:f64
             return result
         }
         
@@ -216,7 +217,7 @@ class TestBlockSystemIntegration:
             mut mutable:i32 = 100
             
             {
-                val scoped = immutable + mutable
+                val scoped:i32 = immutable + mutable  // comptime_int adapts to i32 context
                 mutable = scoped
             }
             
@@ -346,8 +347,8 @@ class TestComprehensiveIntegration:
         func calculate_result() : f64 = {
             val base:i32 = 10
             val multiplier:f32 = 3.14
-            val converted_base:f64 = base     // Type coercion: i32 → f64
-            val result:f64 = converted_base * multiplier
+            // Mixed concrete types require explicit conversions (transparent costs)
+            val result:f64 = base:f64 * multiplier:f64
             return result
         }
         
