@@ -25,7 +25,7 @@ class ReturnAnalyzer:
     - Statement block context: Returns allowed, match function signature
     - Bare returns: Only allowed in void functions or statement blocks
     - Type checking: Return values must be coercible to function return type
-    - Precision loss: Dangerous conversions require explicit acknowledgment
+    - Precision loss: Dangerous conversions require explicit conversion
     """
 
     def __init__(
@@ -140,9 +140,9 @@ class ReturnAnalyzer:
             # Void functions cannot have return values
             self._error("Void function cannot return a value", node)
         elif return_type != HexenType.UNKNOWN:
-            # Check for precision loss operations that require acknowledgment
+            # Check for precision loss operations that require explicit conversion
             if is_precision_loss_operation(return_type, expected_return_type):
-                # For non-explicit-conversion expressions, require acknowledgment
+                # For non-explicit-conversion expressions, require explicit conversion
                 if value.get("type") != "explicit_conversion_expression":
                     self._generate_precision_loss_error(
                         return_type, expected_return_type, node

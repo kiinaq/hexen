@@ -4,9 +4,9 @@ Hexen Assignment Analyzer
 Handles analysis of assignment statements including:
 - Mutable variable assignment validation
 - Type compatibility checking with coercion
-- Precision loss detection and acknowledgment
+- Precision loss detection and explicit conversion
 - Symbol table integration (lookup, usage tracking, initialization)
-- Type annotation support for explicit acknowledgment
+- Explicit conversion support for precision loss operations
 """
 
 from typing import Dict, Optional, Callable
@@ -25,7 +25,7 @@ class AssignmentAnalyzer:
 
     Implements the "Explicit Danger, Implicit Safety" philosophy:
     - Safe assignments work seamlessly with implicit coercion
-    - Dangerous assignments (precision loss) require explicit acknowledgment
+    - Dangerous assignments (precision loss) require explicit conversion
     - Clear error messages guide developers to correct syntax
     - Integration with symbol table for mutability and initialization tracking
     """
@@ -56,7 +56,7 @@ class AssignmentAnalyzer:
         - Target must be a declared variable
         - Target must be mutable (mut, not val)
         - Value type must be coercible to target type (using coercion)
-        - Type annotations enable precision loss operations (acknowledgment)
+        - Explicit conversions enable precision loss operations (value:type syntax)
         - Supports self-assignment (x = x)
         - No chained assignment (a = b = c)
 
@@ -151,7 +151,7 @@ class AssignmentAnalyzer:
                         self._check_precision_loss_in_binary_op(value, symbol, node)
             else:
                 # For non-binary operations, use the existing logic
-                # Check for precision loss operations that require acknowledgment
+                # Check for precision loss operations that require explicit conversion
                 if is_precision_loss_operation(value_type, symbol.type):
                     # Generate appropriate error message based on operation type
                     self._generate_precision_loss_error(value_type, symbol.type, node)
@@ -181,7 +181,7 @@ class AssignmentAnalyzer:
         # Analyze the expression without target context to get its natural type
         natural_type = self._analyze_expression(value, None)
 
-        # If the natural type is different and would cause precision loss, require acknowledgment
+        # If the natural type is different and would cause precision loss, require explicit conversion
         if (
             natural_type != HexenType.UNKNOWN
             and natural_type != symbol.type

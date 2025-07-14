@@ -25,7 +25,7 @@ class ExpressionAnalyzer:
     Specialized analyzer for expression analysis.
 
     Implements the "Explicit Danger, Implicit Safety" principle for:
-    - Type annotated expressions with precision loss acknowledgment
+    - Explicit conversion expressions with precision loss handling
     - Context-guided type resolution
     - Symbol lookup and validation
     - Comptime type inference

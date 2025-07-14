@@ -230,9 +230,9 @@ class DeclarationAnalyzer:
                 value_type = self._analyze_expression(value, var_type)
                 if value_type != HexenType.UNKNOWN:
                     # Explicit conversions are handled in _analyze_expression using value:type syntax
-                    # If we get here without errors, the operation was either safe or acknowledged
+                    # If we get here without errors, the operation was either safe or explicitly converted
 
-                    # Check for precision loss operations that require acknowledgment
+                    # Check for precision loss operations that require explicit conversion
                     if is_precision_loss_operation(value_type, var_type):
                         self._generate_precision_loss_error(value_type, var_type, node)
                         return

@@ -342,9 +342,9 @@ def is_boolean_type(type_: HexenType) -> bool:
 
 def is_precision_loss_operation(from_type: HexenType, to_type: HexenType) -> bool:
     """
-    Check if an operation represents precision loss that requires acknowledgment.
+    Check if an operation represents precision loss that requires explicit conversion.
 
-    These are the "dangerous" operations that require explicit acknowledgment:
+    These are the "dangerous" operations that require explicit conversion:
     - i64 → i32 (truncation)
     - f64 → f32 (precision loss)
     - float → integer (truncation + precision loss)
@@ -358,7 +358,7 @@ def is_precision_loss_operation(from_type: HexenType, to_type: HexenType) -> boo
         to_type: The target type
 
     Returns:
-        True if the operation could lose precision and requires explicit acknowledgment
+        True if the operation could lose precision and requires explicit conversion
     """
     return (
         # Integer truncation
