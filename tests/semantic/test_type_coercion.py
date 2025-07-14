@@ -127,7 +127,7 @@ class TestFloatWidening(StandardTestBase):
 
 
 class TestSafeConversions(StandardTestBase):
-    """Test all safe type conversions that don't require explicit acknowledgment"""
+    """Test all safe type conversions that don't require explicit conversion"""
 
     def test_comprehensive_safe_conversions(self):
         """Test all safe conversion patterns"""

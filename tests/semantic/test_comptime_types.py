@@ -12,7 +12,7 @@ The comptime type system enables "Explicit Danger, Implicit Safety" through:
 - comptime_int: Integer literals that adapt to context (42 → i32, i64, f32, f64)
 - comptime_float: Float literals that adapt to context (3.14 → f32, f64)
 - Safe implicit coercion within allowed type tables
-- Explicit acknowledgment required for unsafe conversions
+- Explicit conversion required for unsafe conversions
 """
 
 from tests.semantic import (
@@ -183,7 +183,7 @@ class TestComptimeFloatCoercion(StandardTestBase):
 
 
 class TestComptimeUnsafeCoercions(StandardTestBase):
-    """Test that unsafe comptime coercions require explicit acknowledgment"""
+    """Test that unsafe comptime coercions require explicit conversion"""
 
     def test_comptime_int_to_bool_forbidden(self):
         """Test comptime_int cannot coerce to bool (type safety)"""
@@ -215,11 +215,11 @@ class TestComptimeUnsafeCoercions(StandardTestBase):
         assert_error_contains(errors, "string")
         assert_error_contains(errors, "comptime_int")
 
-    def test_comptime_float_to_int_requires_acknowledgment(self):
+    def test_comptime_float_to_int_requires_conversion(self):
         """Test comptime_float cannot implicitly coerce to integer types"""
         source = """
         func test() : i32 = {
-            val x : i32 = 3.14  // Should fail - precision loss requires acknowledgment
+            val x : i32 = 3.14  // Should fail - precision loss requires conversion
             return 42           // Return a valid value to avoid undefined variable error
         }
         """
@@ -229,11 +229,11 @@ class TestComptimeUnsafeCoercions(StandardTestBase):
         assert len(errors) >= 1
         assert_error_contains(errors, "truncation")
 
-    def test_comptime_float_to_int_with_acknowledgment(self):
-        """Test comptime_float can coerce to integer with explicit acknowledgment"""
+    def test_comptime_float_to_int_with_conversion(self):
+        """Test comptime_float can coerce to integer with explicit conversion"""
         source = """
         func test() : i32 = {
-            val x : i32 = 3.14:i32  // Explicit acknowledgment
+            val x : i32 = 3.14:i32  // Explicit conversion
             return x
         }
         """
@@ -479,7 +479,7 @@ class TestComptimeWithConcreteTypes(StandardTestBase):
             for msg in error_messages
         )
 
-    def test_concrete_types_with_explicit_conversions(self):
+    def test_concrete_types_with_conversions(self):
         """Test mixed concrete types with explicit conversions (no assignment context shortcuts)"""
         source = """
         func test() : void = {

@@ -40,7 +40,7 @@ class TestExplicitConversionErrorMessages:
         self.parser = HexenParser()
         self.analyzer = SemanticAnalyzer()
 
-    def test_explicit_conversion_precision_loss_message(self):
+    def test_conversion_precision_loss_message(self):
         """Test clear error messages for precision loss in assignment"""
         source = """
         func test() : void = {
@@ -75,7 +75,7 @@ class TestExplicitConversionErrorMessages:
         ]
         assert len(mixed_errors) >= 1
 
-    def test_explicit_conversion_guidance_consistency(self):
+    def test_conversion_guidance_consistency(self):
         """Test explicit conversion error messages provide consistent guidance"""
         source = """
         func test() : void = {
@@ -180,8 +180,8 @@ class TestPrecisionLossErrorMessages:
                 keyword in error_msg.lower()
                 for keyword in ["precision", "truncation", "loss"]
             )
-            # Should suggest explicit acknowledgment
-            assert ":" in error_msg  # Type annotation suggestion
+            # Should suggest explicit conversion
+            assert ":" in error_msg  # Explicit conversion suggestion
 
 
 class TestMutabilityErrorMessages:
@@ -380,7 +380,7 @@ class TestComptimeTypeErrorMessages:
         error_msg = undef_errors[0].message
         assert (
             "explicit type" in error_msg.lower()
-            or "type annotation" in error_msg.lower()
+            or "explicit conversion" in error_msg.lower()
         )
 
 
@@ -435,9 +435,9 @@ class TestErrorMessageConsistency:
 
         # Should have consistent patterns
         assert len(error_patterns) >= 2
-        # All should mention explicit acknowledgment
+        # All should mention explicit conversion
         for pattern in error_patterns:
-            assert ":" in pattern  # Type annotation suggestion
+            assert ":" in pattern  # Explicit conversion suggestion
 
     def test_type_mismatch_consistency(self):
         """Test type mismatch error messages are consistent"""
@@ -486,7 +486,7 @@ class TestHelpfulErrorMessages:
     def test_error_messages_suggest_solutions(self):
         """Test that error messages suggest concrete solutions"""
         test_cases = [
-            # Precision loss - should suggest type annotation
+            # Precision loss - should suggest explicit conversion
             {
                 "source": """
                 func test() : void = {
@@ -586,7 +586,10 @@ class TestHelpfulErrorMessages:
 
         error_msg = errors[0].message
         # Check that error message includes guidance
-        assert "truncation" in error_msg.lower() or "acknowledge" in error_msg.lower()
+        assert (
+            "truncation" in error_msg.lower()
+            or "explicit conversion" in error_msg.lower()
+        )
 
 
 class TestErrorMessageEdgeCases:

@@ -2,8 +2,8 @@
 Test suite for precision loss detection in Hexen
 
 Tests the "Explicit Danger, Implicit Safety" principle:
-- Safe operations are implicit (no explicit acknowledgment needed)
-- Dangerous operations require explicit acknowledgment via type annotations
+- Safe operations are implicit (no explicit conversion needed)
+- Dangerous operations require explicit conversion via value:type syntax
 - Precision loss scenarios and their detection
 - Comprehensive error messages guiding users to solutions
 
@@ -26,7 +26,7 @@ class TestIntegerPrecisionLoss(StandardTestBase):
             val large:i64 = 9223372036854775807  // Max i64 value
             mut small:i32 = 0
             
-            // ❌ Should require explicit acknowledgment
+            // ❌ Should require explicit conversion
             small = large
         }
         """
@@ -39,14 +39,14 @@ class TestIntegerPrecisionLoss(StandardTestBase):
         assert "i32" in error_msg
         assert "Use explicit conversion: 'value:i32'" in error_msg
 
-    def test_i64_to_i32_truncation_with_acknowledgment(self):
-        """Test that explicit acknowledgment allows i64 to i32 conversion"""
+    def test_i64_to_i32_truncation_with_conversion(self):
+        """Test that explicit conversion allows i64 to i32 conversion"""
         source = """
         func test() : void = {
             val large:i64 = 9223372036854775807  // Max i64 value
             mut small:i32 = 0
             
-            // ✅ Explicit acknowledgment of truncation
+            // ✅ Explicit conversion of truncation
             small = large:i32
         }
         """
@@ -58,7 +58,7 @@ class TestIntegerPrecisionLoss(StandardTestBase):
         """Test truncation of large integer literals"""
         source = """
         func test() : void = {
-            // ❌ Large literal that may not fit in i32 without acknowledgment
+            // ❌ Large literal that may not fit in i32 without conversion
             val truncated:i32 = 4294967296  // 2^32, too large for i32
         }
         """
@@ -69,13 +69,13 @@ class TestIntegerPrecisionLoss(StandardTestBase):
         # May or may not produce errors depending on implementation
         assert isinstance(errors, list)  # Ensure errors is a list
 
-    def test_val_integer_truncation_acknowledgment(self):
-        """Test val variables support integer truncation acknowledgment"""
+    def test_val_integer_truncation_conversion(self):
+        """Test val variables support integer truncation conversion"""
         source = """
         func test() : void = {
             val large:i64 = 9223372036854775807
             
-            // ✅ val variables support precision loss acknowledgment
+            // ✅ val variables support precision loss conversion
             val truncated:i32 = large:i32    // Acknowledge truncation
         }
         """
@@ -84,15 +84,15 @@ class TestIntegerPrecisionLoss(StandardTestBase):
         assert errors == []
 
     def test_mut_integer_truncation_in_reassignment(self):
-        """Test mut variables support integer truncation acknowledgment in reassignments"""
+        """Test mut variables support integer truncation conversion in reassignments"""
         source = """
         func test() : void = {
             val large:i64 = 9223372036854775807
             mut small:i32 = 0
             
-            // ✅ mut reassignment supports truncation acknowledgment
+            // ✅ mut reassignment supports truncation conversion
             small = large:i32      // Acknowledge truncation
-            small = (large * 2):i32 // Complex expression with acknowledgment
+            small = (large * 2):i32 // Complex expression with conversion
         }
         """
         ast = self.parser.parse(source)
@@ -110,7 +110,7 @@ class TestFloatPrecisionLoss(StandardTestBase):
             val precise:f64 = 3.141592653589793  // High precision π
             mut single:f32 = 0.0
             
-            // ❌ Should require explicit acknowledgment of precision loss
+            // ❌ Should require explicit conversion of precision loss
             single = precise
         }
         """
@@ -123,14 +123,14 @@ class TestFloatPrecisionLoss(StandardTestBase):
         assert "f32" in error_msg
         assert "Use explicit conversion: 'value:f32'" in error_msg
 
-    def test_f64_to_f32_precision_loss_with_acknowledgment(self):
-        """Test that explicit acknowledgment allows f64 to f32 conversion"""
+    def test_f64_to_f32_precision_loss_with_conversion(self):
+        """Test that explicit conversion allows f64 to f32 conversion"""
         source = """
         func test() : void = {
             val precise:f64 = 3.141592653589793  // High precision π
             mut single:f32 = 0.0
             
-            // ✅ Explicit acknowledgment of precision loss
+            // ✅ Explicit conversion of precision loss
             single = precise:f32
         }
         """
@@ -145,23 +145,23 @@ class TestFloatPrecisionLoss(StandardTestBase):
             // ✅ comptime_float can safely coerce to f32
             val single:f32 = 3.141592653589793  // Safe comptime coercion
             
-            // But concrete f64 to f32 requires acknowledgment
+            // But concrete f64 to f32 requires conversion
             val double:f64 = 3.141592653589793
             mut target:f32 = 0.0
-            target = double:f32                   // ✅ Explicit acknowledgment
+            target = double:f32                   // ✅ Explicit conversion
         }
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         assert errors == []
 
-    def test_val_float_precision_loss_acknowledgment(self):
-        """Test val variables work with float precision loss acknowledgments"""
+    def test_val_float_precision_loss_conversion(self):
+        """Test val variables work with float precision loss conversions"""
         source = """
         func test() : void = {
             val precise:f64 = 3.141592653589793
             
-            // ✅ val variables support precision loss acknowledgment
+            // ✅ val variables support precision loss conversion
             val reduced:f32 = precise:f32     // Acknowledge precision loss
         }
         """
@@ -170,15 +170,15 @@ class TestFloatPrecisionLoss(StandardTestBase):
         assert errors == []
 
     def test_mut_float_precision_loss_in_reassignment(self):
-        """Test mut variables support float precision loss acknowledgment in reassignments"""
+        """Test mut variables support float precision loss conversion in reassignments"""
         source = """
         func test() : void = {
             val precise:f64 = 3.141592653589793
             mut single:f32 = 0.0
             
-            // ✅ mut reassignment supports precision loss acknowledgment
+            // ✅ mut reassignment supports precision loss conversion
             single = precise:f32   // Acknowledge precision loss
-            single = (precise + 1.0):f32 // Complex expression with acknowledgment
+            single = (precise + 1.0):f32 // Complex expression with conversion
         }
         """
         ast = self.parser.parse(source)
@@ -203,7 +203,7 @@ class TestMixedTypePrecisionLoss(StandardTestBase):
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         # This test depends on implementation - some may allow this as "safe widening"
-        # while others may require acknowledgment for very large integers
+        # while others may require conversion for very large integers
         # May or may not produce errors depending on implementation
         assert isinstance(errors, list)  # Ensure errors is a list
 
@@ -214,7 +214,7 @@ class TestMixedTypePrecisionLoss(StandardTestBase):
             val float_val:f64 = 3.14159
             mut int_val:i32 = 0
             
-            // ❌ Float to integer truncation requires explicit acknowledgment
+            // ❌ Float to integer truncation requires explicit conversion
             int_val = float_val
         }
         """
@@ -229,14 +229,14 @@ class TestMixedTypePrecisionLoss(StandardTestBase):
             or "Type mismatch" in error_msg
         )
 
-    def test_float_to_integer_with_acknowledgment(self):
-        """Test float to integer conversion with explicit acknowledgment"""
+    def test_float_to_integer_with_conversion(self):
+        """Test float to integer conversion with explicit conversion"""
         source = """
         func test() : void = {
             val float_val:f64 = 3.14159
             mut int_val:i32 = 0
             
-            // ✅ Explicit acknowledgment of truncation
+            // ✅ Explicit conversion of truncation
             int_val = float_val:i32
         }
         """
@@ -253,11 +253,11 @@ class TestMixedTypePrecisionLoss(StandardTestBase):
             mut int32_var:i32 = 0
             mut int64_var:i64 = 0
             
-            // ✅ Explicit acknowledgment allows all truncations
-            int32_var = float_val:i32   // f32 → i32 with acknowledgment
-            int32_var = double_val:i32  // f64 → i32 with acknowledgment
-            int64_var = float_val:i64   // f32 → i64 with acknowledgment
-            int64_var = double_val:i64  // f64 → i64 with acknowledgment
+            // ✅ Explicit conversion allows all truncations
+            int32_var = float_val:i32   // f32 → i32 with conversion
+            int32_var = double_val:i32  // f64 → i32 with conversion
+            int64_var = float_val:i64   // f32 → i64 with conversion
+            int64_var = double_val:i64  // f64 → i64 with conversion
         }
         """
         ast = self.parser.parse(source)
@@ -265,16 +265,16 @@ class TestMixedTypePrecisionLoss(StandardTestBase):
         assert errors == []
 
 
-class TestSafeOperationsNoAcknowledgment(StandardTestBase):
-    """Test that safe operations don't require explicit acknowledgment"""
+class TestSafeOperationsNoConversion(StandardTestBase):
+    """Test that safe operations don't require explicit conversion"""
 
     def test_safe_integer_widening(self):
-        """Test that safe integer widening doesn't require acknowledgment"""
+        """Test that safe integer widening doesn't require conversion"""
         source = """
         func test() : void = {
             val small:i32 = 42
             
-            // ✅ Safe widening - no acknowledgment required
+            // ✅ Safe widening - no conversion required
             val wide:i64 = small          // i32 → i64 (safe)
             val as_float:f32 = small      // i32 → f32 (safe)
             val as_double:f64 = small     // i32 → f64 (safe)
@@ -290,12 +290,12 @@ class TestSafeOperationsNoAcknowledgment(StandardTestBase):
         assert errors == []
 
     def test_safe_float_widening(self):
-        """Test that safe float widening doesn't require acknowledgment"""
+        """Test that safe float widening doesn't require conversion"""
         source = """
         func test() : void = {
             val single:f32 = 3.14
             
-            // ✅ Safe widening - no acknowledgment required  
+            // ✅ Safe widening - no conversion required  
             val double:f64 = single       // f32 → f64 (safe)
             
             mut double_mut:f64 = 0.0
@@ -346,7 +346,7 @@ class TestBinaryOperationsPrecisionLoss(StandardTestBase):
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        # Implementation dependent - may require acknowledgment
+        # Implementation dependent - may require conversion
         assert isinstance(errors, list)
 
     def test_binary_operation_with_mixed_types_precision_loss(self):
@@ -357,7 +357,7 @@ class TestBinaryOperationsPrecisionLoss(StandardTestBase):
             val float_val:f64 = 3.14
             mut result:i32 = 0
             
-            // ❌ Mixed operation result needs truncation acknowledgment
+            // ❌ Mixed operation result needs truncation conversion
             result = int_val + float_val
         }
         """
@@ -365,21 +365,21 @@ class TestBinaryOperationsPrecisionLoss(StandardTestBase):
         errors = self.analyzer.analyze(ast)
         assert len(errors) >= 1  # Should require explicit handling
 
-    def test_binary_operation_precision_loss_with_acknowledgment(self):
-        """Test binary operations with explicit precision loss acknowledgment"""
+    def test_binary_operation_precision_loss_with_conversion(self):
+        """Test binary operations with explicit precision loss conversion"""
         source = """
         func test() : void = {
             val int_val:i32 = 10
             val float_val:f64 = 3.14
             mut result:i32 = 0
             
-            // ✅ Explicit acknowledgment for mixed operation result
+            // ✅ Explicit conversion for mixed operation result
             result = (int_val + float_val):i32
         }
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        # Should work with explicit acknowledgment
+        # Should work with explicit conversion
         # May have other errors but not precision loss
         precision_errors = [
             e
@@ -398,11 +398,11 @@ class TestComplexPrecisionLossScenarios(StandardTestBase):
         func test() : void = {
             val start:f64 = 3.141592653589793   // High precision
             
-            // Chain involving precision loss - requires acknowledgment
+            // Chain involving precision loss - requires conversion
             mut intermediate:f32 = 0.0
             mut final:i32 = 0
             
-            // ❌ Each step with potential precision loss needs acknowledgment
+            // ❌ Each step with potential precision loss needs conversion
             intermediate = start       // f64 → f32 precision loss
             final = intermediate       // f32 → i32 truncation
         }
@@ -411,8 +411,8 @@ class TestComplexPrecisionLossScenarios(StandardTestBase):
         errors = self.analyzer.analyze(ast)
         assert len(errors) >= 2  # At least two precision loss errors
 
-    def test_chained_precision_loss_with_acknowledgments(self):
-        """Test that explicit acknowledgments resolve chained precision loss"""
+    def test_chained_precision_loss_with_conversions(self):
+        """Test that explicit conversions resolve chained precision loss"""
         source = """
         func test() : void = {
             val start:f64 = 3.141592653589793
@@ -420,7 +420,7 @@ class TestComplexPrecisionLossScenarios(StandardTestBase):
             mut intermediate:f32 = 0.0
             mut final:i32 = 0
             
-            // ✅ Explicit acknowledgment at each step
+            // ✅ Explicit conversion at each step
             intermediate = start:f32         // Acknowledge f64 → f32 precision loss
             final = intermediate:i32         // Acknowledge f32 → i32 truncation
         }
@@ -447,8 +447,8 @@ class TestComplexPrecisionLossScenarios(StandardTestBase):
         errors = self.analyzer.analyze(ast)
         assert len(errors) >= 1
 
-    def test_expression_precision_loss_with_acknowledgment(self):
-        """Test complex expressions with precision loss acknowledgment"""
+    def test_expression_precision_loss_with_conversion(self):
+        """Test complex expressions with precision loss conversion"""
         source = """
         func test() : void = {
             val a:f64 = 1.23456789
@@ -457,7 +457,7 @@ class TestComplexPrecisionLossScenarios(StandardTestBase):
             
             mut result:i32 = 0
             
-            // ✅ Explicit acknowledgment for entire complex expression
+            // ✅ Explicit conversion for entire complex expression
             result = (a * b + c):i32
         }
         """
@@ -479,14 +479,14 @@ class TestComplexPrecisionLossScenarios(StandardTestBase):
             mut single:f32 = 0.0
             mut integer:i32 = 0
             
-            // ✅ Complex nested expressions with proper acknowledgments
+            // ✅ Complex nested expressions with proper conversions
             single = (precise * 2.0 + 1.0):f32  // Nested f64 operations → f32
             integer = (precise * single):i32     // Mixed f64 * f32 → i32
         }
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        # Should work with proper type annotations
+        # Should work with proper explicit conversions
         precision_errors = [
             e
             for e in errors
@@ -597,7 +597,7 @@ class TestBoundaryConditions(StandardTestBase):
             mut target_i32:i32 = 0
             mut target_f32:f32 = 0.0
 
-            // These should definitely require acknowledgment
+            // These should definitely require conversion
             target_i32 = max_i64:i32    // ✅ Acknowledge truncation
             target_f32 = max_f64:f32    // ✅ Acknowledge precision loss
         }
@@ -616,10 +616,10 @@ class TestBoundaryConditions(StandardTestBase):
             mut target_i32:i32 = 0
             mut target_f32:f32 = 0.0
             
-            // ❌ Still requires acknowledgment due to type difference
+            // ❌ Still requires conversion due to type difference
             // Implementation may vary - some allow small values, others require consistency
-            target_i32 = small_i64     // May or may not require acknowledgment
-            target_f32 = small_f64     // May or may not require acknowledgment
+            target_i32 = small_i64     // May or may not require conversion
+            target_f32 = small_f64     // May or may not require conversion
         }
         """
         ast = self.parser.parse(source)
@@ -637,7 +637,7 @@ class TestBoundaryConditions(StandardTestBase):
             mut target_i32:i32 = 0
             mut target_f32:f32 = 0.0
             
-            // ❌ Even exact values may require acknowledgment for type consistency
+            // ❌ Even exact values may require conversion for type consistency
             // (Implementation choice - some systems require it, others allow it)
             target_i32 = exact_int      // May require:i32
             target_f32 = exact_float    // May require:f32
@@ -645,7 +645,7 @@ class TestBoundaryConditions(StandardTestBase):
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        # Test documents behavior - may or may not require acknowledgment
+        # Test documents behavior - may or may not require conversion
         assert isinstance(errors, list)
 
 
@@ -674,7 +674,7 @@ class TestTypeAnnotationConsistency(StandardTestBase):
         assert len(errors) == 2
 
         for error in errors:
-            # Should be precision loss errors, not type annotation errors
+            # Should be precision loss errors, not explicit conversion errors
             assert "Potential truncation" in error.message
             assert "Use explicit conversion: 'value:i32'" in error.message
 

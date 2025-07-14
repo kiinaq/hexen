@@ -19,7 +19,7 @@ Related but tested elsewhere:
 - test_type_coercion.py: Regular type coercion rules (how types convert)
 - test_binary_ops.py: Mixed-type binary operations (what requires context)
 - test_assignment.py: Assignment validation (how assignments use context)
-- test_precision_loss.py: Explicit acknowledgment (when context isn't enough)
+- test_precision_loss.py: Explicit conversion (when context isn't enough)
 
 This file focuses on the context propagation mechanisms themselves.
 """

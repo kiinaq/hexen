@@ -327,7 +327,7 @@ class TestAssignmentWithExplicitTypes(StandardTestBase):
             mut target:i32 = 0
             val large_source:i64 = 1000
             
-            // ✅ Assignment with explicit type annotation (precision loss acknowledgment)
+            // ✅ Assignment with explicit type annotation (precision loss via explicit conversion)
             target = large_source:i32
         }
         """

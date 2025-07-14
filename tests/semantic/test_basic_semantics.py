@@ -162,8 +162,8 @@ class TestTypeSystemIntegration:
 
         assert len(errors) == 0
 
-    def test_explicit_acknowledgment_integration(self):
-        """Test explicit acknowledgment pattern works across features"""
+    def test_explicit_conversion_integration(self):
+        """Test explicit conversion pattern works across features"""
         source = """
         func test() : void = {
             val large:i64 = 9223372036854775807
@@ -172,9 +172,9 @@ class TestTypeSystemIntegration:
             mut small:i32 = 0
             mut single:f32 = 0.0
             
-            small = large:i32               // Explicit acknowledgment of truncation
-            single = precise:f32            // Explicit acknowledgment of precision loss
-            single = large:f32              // Explicit acknowledgment of mixed-type conversion
+            small = large:i32               // Explicit conversion of truncation
+            single = precise:f32            // Explicit conversion of precision loss
+            single = large:f32              // Explicit conversion of mixed-type conversion
         }
         """
 
@@ -368,7 +368,7 @@ class TestComprehensiveIntegration:
                 return adjusted
             }
             
-            // Complex expression with explicit acknowledgment
+            // Complex expression with explicit conversion
             val final_result:i32 = computed:i32
             
             return final_result
@@ -418,7 +418,7 @@ class TestComprehensiveIntegration:
             val var5:f64 = var1           // i32 → f64 (conversion)
             val var6:f64 = var2           // i64 → f64 (conversion)
             
-            // Same explicit acknowledgment rules everywhere
+            // Same explicit conversion rules everywhere
             val var7:i32 = var2:i32     // i64 → i32 (explicit)
             val var8:f32 = var6:f32     // f64 → f32 (explicit)
         }

@@ -237,7 +237,7 @@ class TestBinaryOperationErrors:
         self.analyzer = SemanticAnalyzer()
 
     def test_missing_type_annotation(self):
-        """Test missing type annotations for operations requiring them"""
+        """Test missing explicit conversions for operations requiring them"""
         source = """
         func test() : void = {
             // Float division requires explicit type
