@@ -205,9 +205,9 @@ class BinaryOpsAnalyzer:
             )
             return HexenType.UNKNOWN
 
-        # Handle equality operators (==, !=) - allow more flexibility for now
+        # Handle equality operators (==, !=) - follow BINARY_OPS.md exactly
         if operator in EQUALITY_OPERATORS:
-            # For numeric types, allow mixed comparisons with warnings
+            # For numeric types, follow same rules as arithmetic operations
             if is_numeric_type(left_type) and is_numeric_type(right_type):
                 if is_mixed_type_operation(left_type, right_type):
                     # Check if both are comptime types (should work naturally)
@@ -220,11 +220,14 @@ class BinaryOpsAnalyzer:
                     }
 
                     if not both_comptime:
-                        # Mixed concrete or mixed comptime/concrete - emit warning but allow
+                        # Mixed concrete types require explicit conversions (BINARY_OPS.md rule)
                         self._error(
-                            f"Comparison between different numeric types may have unexpected results: {left_type.value} {operator} {right_type.value}",
+                            f"Mixed-type comparison '{left_type.value} {operator} {right_type.value}' requires explicit conversions. "
+                            f"Use explicit conversions like: 'left_val:{right_type.value} {operator} right_val' "
+                            f"or 'left_val:f64 {operator} right_val:f64'",
                             node,
                         )
+                        return HexenType.UNKNOWN
                 return HexenType.BOOL
 
             # For non-numeric types, types must be exactly the same
@@ -245,7 +248,7 @@ class BinaryOpsAnalyzer:
             )
             return HexenType.UNKNOWN
 
-        # For numeric comparisons, follow BINARY_OPS.md but allow with warnings for now
+        # For numeric comparisons, follow BINARY_OPS.md exactly (same rules as arithmetic)
         if is_mixed_type_operation(left_type, right_type):
             # Check if both are comptime types (should work naturally)
             both_comptime = left_type in {
@@ -254,13 +257,14 @@ class BinaryOpsAnalyzer:
             } and right_type in {HexenType.COMPTIME_INT, HexenType.COMPTIME_FLOAT}
 
             if not both_comptime:
-                # Mixed concrete or mixed comptime/concrete - emit warning but allow
+                # Mixed concrete types require explicit conversions (BINARY_OPS.md rule)
                 self._error(
-                    f"Comparison between different numeric types may have unexpected results: {left_type.value} {operator} {right_type.value}",
+                    f"Mixed-type comparison '{left_type.value} {operator} {right_type.value}' requires explicit conversions. "
+                    f"Use explicit conversions like: 'left_val:{right_type.value} {operator} right_val' "
+                    f"or 'left_val:f64 {operator} right_val:f64'",
                     node,
                 )
-            # Always return boolean for comparison operations (allow the comparison)
-            return HexenType.BOOL
+                return HexenType.UNKNOWN
 
         # For same-type numeric comparisons, result is boolean
         return HexenType.BOOL

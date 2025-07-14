@@ -428,9 +428,9 @@ class TestComparisonOperations:
             val result3:bool = a <= b             // i32 <= i32 -> bool
             val result4:bool = c >= d             // f64 >= f64 -> bool
             
-            // Mixed numeric type comparisons
-            val result5:bool = a < c              // i32 < f64 -> bool (with warning)
-            val result6:bool = c > a              // f64 > i32 -> bool (with warning)
+            // Mixed numeric type comparisons require explicit conversions
+            val result5:bool = a:f64 < c          // i32:f64 < f64 -> bool (explicit conversion)
+            val result6:bool = c > a:f64          // f64 > i32:f64 -> bool (explicit conversion)
             
             // Comptime numeric comparisons
             val result7:bool = 42 < 100           // comptime_int < comptime_int -> bool
@@ -440,14 +440,9 @@ class TestComparisonOperations:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        # Should have warnings about mixed numeric type comparisons
-        assert len(errors) == 2, (
-            "Expected 2 warnings about mixed numeric type comparisons (comptime types mix freely)"
-        )
-        assert all(
-            "Comparison between different numeric types may have unexpected results"
-            in str(e)
-            for e in errors
+        # Should have no errors - explicit conversions make mixed comparisons valid
+        assert len(errors) == 0, (
+            f"Expected no errors with explicit conversions, got: {[str(e) for e in errors]}"
         )
 
     def test_equality_comparisons(self):
