@@ -13,14 +13,7 @@ Focuses on:
 import pytest
 from src.hexen.parser import HexenParser
 from src.hexen.ast_nodes import NodeType
-
-
-def verify_binary_operation_ast(ast, expected_operator, expected_left, expected_right):
-    """Helper to verify binary operation AST structure."""
-    assert ast["type"] == NodeType.BINARY_OPERATION.value
-    assert ast["operator"] == expected_operator
-    assert ast["left"] == expected_left
-    assert ast["right"] == expected_right
+from .test_utils import verify_binary_operation_ast, create_comptime_int_ast
 
 
 def test_basic_arithmetic_operators():
@@ -45,36 +38,36 @@ def test_basic_arithmetic_operators():
     verify_binary_operation_ast(
         statements[0]["value"],
         "+",
-        {"type": NodeType.COMPTIME_INT.value, "value": 10},
-        {"type": NodeType.COMPTIME_INT.value, "value": 20},
+        create_comptime_int_ast(10),
+        create_comptime_int_ast(20),
     )
 
     verify_binary_operation_ast(
         statements[1]["value"],
         "-",
-        {"type": NodeType.COMPTIME_INT.value, "value": 10},
-        {"type": NodeType.COMPTIME_INT.value, "value": 20},
+        create_comptime_int_ast(10),
+        create_comptime_int_ast(20),
     )
 
     verify_binary_operation_ast(
         statements[2]["value"],
         "*",
-        {"type": NodeType.COMPTIME_INT.value, "value": 10},
-        {"type": NodeType.COMPTIME_INT.value, "value": 20},
+        create_comptime_int_ast(10),
+        create_comptime_int_ast(20),
     )
 
     verify_binary_operation_ast(
         statements[3]["value"],
         "/",
-        {"type": NodeType.COMPTIME_INT.value, "value": 10},
-        {"type": NodeType.COMPTIME_INT.value, "value": 20},
+        create_comptime_int_ast(10),
+        create_comptime_int_ast(20),
     )
 
     verify_binary_operation_ast(
         statements[4]["value"],
         "\\",
-        {"type": NodeType.COMPTIME_INT.value, "value": 10},
-        {"type": NodeType.COMPTIME_INT.value, "value": 20},
+        create_comptime_int_ast(10),
+        create_comptime_int_ast(20),
     )
 
 

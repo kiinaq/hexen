@@ -17,28 +17,11 @@ Moved from:
 import pytest
 from src.hexen.parser import HexenParser
 from src.hexen.ast_nodes import NodeType
+from .test_utils import verify_binary_operation_ast, BaseParserTest
 
 
-def verify_binary_operation_ast(ast, expected_operator, expected_left, expected_right):
-    """Helper to verify binary operation AST structure."""
-    assert ast["type"] == NodeType.BINARY_OPERATION.value
-    assert ast["operator"] == expected_operator
-    assert ast["left"] == expected_left
-    assert ast["right"] == expected_right
-
-
-def verify_unary_operation_ast(node, expected_operator, expected_operand):
-    """Helper function to verify unary operation AST structure."""
-    assert node["type"] == NodeType.UNARY_OPERATION.value
-    assert node["operator"] == expected_operator
-    assert node["operand"] == expected_operand
-
-
-class TestBasicParentheses:
+class TestBasicParentheses(BaseParserTest):
     """Test basic parentheses functionality"""
-
-    def setup_method(self):
-        self.parser = HexenParser()
 
     def test_simple_parenthesized_number(self):
         """Test simple parenthesized number literal"""
