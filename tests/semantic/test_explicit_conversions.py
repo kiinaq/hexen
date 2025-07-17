@@ -8,17 +8,14 @@ Tests the conversion analyzer implementation following TYPE_SYSTEM.md rules:
 - Integration with expression analysis
 """
 
-from src.hexen.semantic.analyzer import SemanticAnalyzer
-from src.hexen.parser import HexenParser
+from tests.semantic import (
+    StandardTestBase,
+    assert_no_errors,
+)
 
 
-class TestExplicitConversionSemantics:
+class TestExplicitConversionSemantics(StandardTestBase):
     """Test semantic analysis of explicit conversions per TYPE_SYSTEM.md"""
-
-    def setup_method(self):
-        """Set up parser and analyzer for each test"""
-        self.parser = HexenParser()
-        self.analyzer = SemanticAnalyzer()
 
     def _analyze_source(self, source: str):
         """Helper to parse and analyze source code"""
@@ -44,9 +41,7 @@ class TestExplicitConversionSemantics:
             }}
             """
             errors = self._analyze_source(source)
-            assert len(errors) == 0, (
-                f"Conversion {expr} to {target_type} should be valid but got errors: {[e.message for e in errors]}"
-            )
+            assert_no_errors(errors)
 
     def test_valid_comptime_float_conversions(self):
         """Test valid comptime_float conversions per TYPE_SYSTEM.md"""
@@ -67,9 +62,7 @@ class TestExplicitConversionSemantics:
             }}
             """
             errors = self._analyze_source(source)
-            assert len(errors) == 0, (
-                f"Conversion {expr} to {target_type} should be valid but got errors: {[e.message for e in errors]}"
-            )
+            assert_no_errors(errors)
 
     def test_valid_concrete_conversions(self):
         """Test valid concrete type conversions per TYPE_SYSTEM.md"""
@@ -85,9 +78,7 @@ class TestExplicitConversionSemantics:
         }
         """
         errors = self._analyze_source(source)
-        assert len(errors) == 0, (
-            f"All concrete conversions should be valid but got errors: {[e.message for e in errors]}"
-        )
+        assert_no_errors(errors)
 
     def test_invalid_conversions_to_bool(self):
         """Test that conversions to bool are forbidden with clear guidance"""
@@ -279,13 +270,8 @@ class TestExplicitConversionSemantics:
         )
 
 
-class TestConversionIntegration:
+class TestConversionIntegration(StandardTestBase):
     """Test conversion analyzer integration with the broader semantic analysis"""
-
-    def setup_method(self):
-        """Set up parser and analyzer for each test"""
-        self.parser = HexenParser()
-        self.analyzer = SemanticAnalyzer()
 
     def _analyze_source(self, source: str):
         """Helper to parse and analyze source code"""

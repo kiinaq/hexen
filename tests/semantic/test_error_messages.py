@@ -29,16 +29,15 @@ Related but tested elsewhere:
 This file focuses specifically on the quality and consistency of error messages.
 """
 
-from src.hexen.parser import HexenParser
-from src.hexen.semantic import SemanticAnalyzer
+from tests.semantic import (
+    StandardTestBase,
+    assert_no_errors,
+    assert_error_count,
+)
 
 
-class TestExplicitConversionErrorMessages:
+class TestExplicitConversionErrorMessages(StandardTestBase):
     """Test error messages for explicit conversion issues"""
-
-    def setup_method(self):
-        self.parser = HexenParser()
-        self.analyzer = SemanticAnalyzer()
 
     def test_conversion_precision_loss_message(self):
         """Test clear error messages for precision loss in assignment"""
@@ -51,7 +50,7 @@ class TestExplicitConversionErrorMessages:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        assert len(errors) == 1
+        assert_error_count(errors, 1)
 
         error_msg = errors[0].message
         assert "truncation" in error_msg.lower() or "explicit" in error_msg.lower()
@@ -96,12 +95,8 @@ class TestExplicitConversionErrorMessages:
                 assert "explicit" in error.message.lower()
 
 
-class TestPrecisionLossErrorMessages:
+class TestPrecisionLossErrorMessages(StandardTestBase):
     """Test error messages for precision loss scenarios"""
-
-    def setup_method(self):
-        self.parser = HexenParser()
-        self.analyzer = SemanticAnalyzer()
 
     def test_truncation_error_message_format(self):
         """Test that truncation error messages have consistent format"""
@@ -115,7 +110,7 @@ class TestPrecisionLossErrorMessages:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        assert len(errors) == 1
+        assert_error_count(errors, 1)
 
         error_msg = errors[0].message
         # Check for consistent error message format
@@ -135,7 +130,7 @@ class TestPrecisionLossErrorMessages:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        assert len(errors) == 1
+        assert_error_count(errors, 1)
 
         error_msg = errors[0].message
         # Check for consistent error message format
@@ -184,12 +179,8 @@ class TestPrecisionLossErrorMessages:
             assert ":" in error_msg  # Explicit conversion suggestion
 
 
-class TestMutabilityErrorMessages:
+class TestMutabilityErrorMessages(StandardTestBase):
     """Test error messages for mutability violations"""
-
-    def setup_method(self):
-        self.parser = HexenParser()
-        self.analyzer = SemanticAnalyzer()
 
     def test_val_reassignment_error_message(self):
         """Test error message for val variable reassignment"""
@@ -201,7 +192,7 @@ class TestMutabilityErrorMessages:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        assert len(errors) == 1
+        assert_error_count(errors, 1)
 
         error_msg = errors[0].message
         assert "Cannot assign to immutable variable 'immutable'" in error_msg
@@ -216,7 +207,7 @@ class TestMutabilityErrorMessages:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        assert len(errors) == 1
+        assert_error_count(errors, 1)
 
         error_msg = errors[0].message
         assert "val variable" in error_msg
@@ -252,12 +243,8 @@ class TestMutabilityErrorMessages:
             assert expected_pattern in error_msg
 
 
-class TestMixedTypeErrorMessages:
+class TestMixedTypeErrorMessages(StandardTestBase):
     """Test error messages for mixed-type operations"""
-
-    def setup_method(self):
-        self.parser = HexenParser()
-        self.analyzer = SemanticAnalyzer()
 
     def test_mixed_type_binary_operation_messages(self):
         """Test error messages for mixed-type binary operations"""
@@ -287,7 +274,7 @@ class TestMixedTypeErrorMessages:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         # This should NOT be an error according to BINARY_OPS.md - comptime + comptime is valid
-        assert len(errors) == 0
+        assert_no_errors(errors)
 
     def test_mixed_type_error_guidance_consistency(self):
         """Test mixed-type error messages provide consistent guidance"""
@@ -326,15 +313,11 @@ class TestMixedTypeErrorMessages:
         """
         ast = self.parser.parse(comptime_source)
         errors = self.analyzer.analyze(ast)
-        assert len(errors) == 0  # Should be no errors for comptime operations
+        assert_no_errors(errors)  # Should be no errors for comptime operations
 
 
-class TestComptimeTypeErrorMessages:
+class TestComptimeTypeErrorMessages(StandardTestBase):
     """Test error messages for comptime type issues"""
-
-    def setup_method(self):
-        self.parser = HexenParser()
-        self.analyzer = SemanticAnalyzer()
 
     def test_comptime_to_invalid_type_messages(self):
         """Test error messages for invalid comptime type conversions"""
@@ -384,12 +367,8 @@ class TestComptimeTypeErrorMessages:
         )
 
 
-class TestErrorMessageConsistency:
+class TestErrorMessageConsistency(StandardTestBase):
     """Test error message consistency across all features"""
-
-    def setup_method(self):
-        self.parser = HexenParser()
-        self.analyzer = SemanticAnalyzer()
 
     def test_precision_loss_consistency_across_contexts(self):
         """Test precision loss error messages are consistent across contexts"""
@@ -476,12 +455,8 @@ class TestErrorMessageConsistency:
             assert "i32" in pattern and "string" in pattern
 
 
-class TestHelpfulErrorMessages:
+class TestHelpfulErrorMessages(StandardTestBase):
     """Test that error messages provide helpful, actionable guidance"""
-
-    def setup_method(self):
-        self.parser = HexenParser()
-        self.analyzer = SemanticAnalyzer()
 
     def test_error_messages_suggest_solutions(self):
         """Test that error messages suggest concrete solutions"""
@@ -592,12 +567,8 @@ class TestHelpfulErrorMessages:
         )
 
 
-class TestErrorMessageEdgeCases:
+class TestErrorMessageEdgeCases(StandardTestBase):
     """Test error messages in edge cases and complex scenarios"""
-
-    def setup_method(self):
-        self.parser = HexenParser()
-        self.analyzer = SemanticAnalyzer()
 
     def test_multiple_errors_clarity(self):
         """Test that multiple errors are reported clearly"""

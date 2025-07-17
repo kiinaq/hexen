@@ -2,16 +2,16 @@
 Test bool type semantic analysis in Hexen
 """
 
-from src.hexen.parser import HexenParser
-from src.hexen.semantic import SemanticAnalyzer
+from tests.semantic import (
+    StandardTestBase,
+    assert_no_errors,
+    assert_error_count,
+    assert_error_contains,
+)
 
 
-class TestBoolTypeSemantics:
+class TestBoolTypeSemantics(StandardTestBase):
     """Test semantic analysis of bool type"""
-
-    def setup_method(self):
-        self.parser = HexenParser()
-        self.analyzer = SemanticAnalyzer()
 
     def test_bool_type_inference(self):
         """Test type inference for boolean literals"""
@@ -23,7 +23,7 @@ class TestBoolTypeSemantics:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        assert len(errors) == 0
+        assert_no_errors(errors)
 
     def test_bool_explicit_type_annotation(self):
         """Test explicit bool type annotation"""
@@ -35,7 +35,7 @@ class TestBoolTypeSemantics:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        assert len(errors) == 0
+        assert_no_errors(errors)
 
     def test_bool_function_return_type(self):
         """Test function returning bool type"""
@@ -46,7 +46,7 @@ class TestBoolTypeSemantics:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        assert len(errors) == 0
+        assert_no_errors(errors)
 
     def test_bool_mut_variable_assignment(self):
         """Test mutable bool variable assignment"""
@@ -59,7 +59,7 @@ class TestBoolTypeSemantics:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        assert len(errors) == 0
+        assert_no_errors(errors)
 
     def test_bool_undef_declaration(self):
         """Test bool variable with undef value"""
@@ -72,15 +72,11 @@ class TestBoolTypeSemantics:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        assert len(errors) == 0
+        assert_no_errors(errors)
 
 
-class TestBoolTypeErrors:
+class TestBoolTypeErrors(StandardTestBase):
     """Test error cases for bool type"""
-
-    def setup_method(self):
-        self.parser = HexenParser()
-        self.analyzer = SemanticAnalyzer()
 
     def test_bool_type_mismatch_assignment(self):
         """Test type mismatch when assigning non-bool to bool variable"""
@@ -93,10 +89,10 @@ class TestBoolTypeErrors:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        assert len(errors) == 1
-        assert "Type mismatch in assignment" in errors[0].message
-        assert "bool" in errors[0].message
-        assert "i32" in errors[0].message
+        assert_error_count(errors, 1)
+        assert_error_contains(errors, "Type mismatch in assignment")
+        assert_error_contains(errors, "bool")
+        assert_error_contains(errors, "i32")
 
     def test_bool_type_mismatch_declaration(self):
         """Test type mismatch in bool variable declaration"""
@@ -108,10 +104,10 @@ class TestBoolTypeErrors:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        assert len(errors) == 1
-        assert "Type mismatch" in errors[0].message
-        assert "bool" in errors[0].message
-        assert "comptime_int" in errors[0].message
+        assert_error_count(errors, 1)
+        assert_error_contains(errors, "Type mismatch")
+        assert_error_contains(errors, "bool")
+        assert_error_contains(errors, "comptime_int")
 
     def test_bool_return_type_mismatch(self):
         """Test return type mismatch with bool function"""
@@ -122,10 +118,10 @@ class TestBoolTypeErrors:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        assert len(errors) == 1
-        assert "Return type mismatch" in errors[0].message
-        assert "bool" in errors[0].message
-        assert "comptime_int" in errors[0].message
+        assert_error_count(errors, 1)
+        assert_error_contains(errors, "Return type mismatch")
+        assert_error_contains(errors, "bool")
+        assert_error_contains(errors, "comptime_int")
 
     def test_bool_assignment_to_immutable(self):
         """Test assignment to immutable bool variable"""
@@ -138,8 +134,8 @@ class TestBoolTypeErrors:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        assert len(errors) == 1
-        assert "Cannot assign to immutable variable" in errors[0].message
+        assert_error_count(errors, 1)
+        assert_error_contains(errors, "Cannot assign to immutable variable")
 
     def test_bool_undef_usage_error(self):
         """Test using uninitialized bool variable"""
@@ -151,5 +147,5 @@ class TestBoolTypeErrors:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        assert len(errors) == 1
-        assert "Use of uninitialized variable" in errors[0].message
+        assert_error_count(errors, 1)
+        assert_error_contains(errors, "Use of uninitialized variable")

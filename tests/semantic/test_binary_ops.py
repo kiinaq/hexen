@@ -23,16 +23,15 @@ MUTABILITY semantics are covered in test_mutability.py.
 See TYPE_SYSTEM.md and BINARY_OPS.md for detailed specifications.
 """
 
-from src.hexen.parser import HexenParser
-from src.hexen.semantic import SemanticAnalyzer
+from tests.semantic import (
+    StandardTestBase,
+    assert_no_errors,
+    assert_error_count,
+)
 
 
-class TestComptimeBinaryOperations:
+class TestComptimeBinaryOperations(StandardTestBase):
     """Test binary operations with comptime types"""
-
-    def setup_method(self):
-        self.parser = HexenParser()
-        self.analyzer = SemanticAnalyzer()
 
     def test_comptime_int_operations(self):
         """Test operations between comptime_int values"""
@@ -55,7 +54,7 @@ class TestComptimeBinaryOperations:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        assert errors == []
+        assert_no_errors(errors)
 
     def test_comptime_float_operations(self):
         """Test operations between comptime_float values"""
@@ -75,7 +74,7 @@ class TestComptimeBinaryOperations:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        assert errors == []
+        assert_no_errors(errors)
 
     def test_mixed_comptime_operations(self):
         """Test operations between mixed comptime types"""
@@ -95,15 +94,11 @@ class TestComptimeBinaryOperations:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        assert errors == []
+        assert_no_errors(errors)
 
 
-class TestDivisionOperators:
+class TestDivisionOperators(StandardTestBase):
     """Test float vs integer division operators"""
-
-    def setup_method(self):
-        self.parser = HexenParser()
-        self.analyzer = SemanticAnalyzer()
 
     def test_float_division(self):
         """Test float division operator (/)"""
@@ -122,7 +117,7 @@ class TestDivisionOperators:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        assert errors == []
+        assert_no_errors(errors)
 
     def test_integer_division(self):
         """Test integer division operator (\)"""
@@ -145,15 +140,11 @@ class TestDivisionOperators:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        assert errors == []
+        assert_no_errors(errors)
 
 
-class TestMixedTypeOperations:
+class TestMixedTypeOperations(StandardTestBase):
     """Test operations between mixed concrete types"""
-
-    def setup_method(self):
-        self.parser = HexenParser()
-        self.analyzer = SemanticAnalyzer()
 
     def test_mixed_integer_types(self):
         """Test operations between different integer types require explicit conversions"""
@@ -176,7 +167,7 @@ class TestMixedTypeOperations:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        assert errors == []
+        assert_no_errors(errors)
 
     def test_mixed_float_types(self):
         """Test operations between different float types with explicit conversions"""
@@ -199,7 +190,7 @@ class TestMixedTypeOperations:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        assert errors == []
+        assert_no_errors(errors)
 
     def test_mixed_numeric_types(self):
         """Test operations between mixed numeric types"""
@@ -222,19 +213,15 @@ class TestMixedTypeOperations:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        assert errors == []
+        assert_no_errors(errors)
 
 
 # Assignment context testing moved to test_assignment.py
 # This file focuses on pure binary operations without assignment overlap
 
 
-class TestBinaryOperationErrors:
+class TestBinaryOperationErrors(StandardTestBase):
     """Test error cases for binary operations"""
-
-    def setup_method(self):
-        self.parser = HexenParser()
-        self.analyzer = SemanticAnalyzer()
 
     def test_missing_type_annotation(self):
         """Test missing explicit conversions for operations requiring them"""
@@ -252,9 +239,9 @@ class TestBinaryOperationErrors:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         print("[DEBUG] Errors:", [e.message for e in errors])
-        assert len(errors) == 2, (
-            "Expected 2 errors (only concrete issues need explicit handling)"
-        )
+        assert_error_count(
+            errors, 2
+        )  # Expected 2 errors (only concrete issues need explicit handling)
         assert any(
             "Float division requires explicit result type" in e.message for e in errors
         ), "Missing granular error for div1"
@@ -279,7 +266,7 @@ class TestBinaryOperationErrors:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         print("[DEBUG] Errors:", [e.message for e in errors])
-        assert len(errors) == 3  # 3 integer division errors only
+        assert_error_count(errors, 3)  # 3 integer division errors only
 
         # Check for integer division errors
         division_errors = [e for e in errors if "Integer division" in e.message]
@@ -292,12 +279,8 @@ class TestBinaryOperationErrors:
         # Type inference errors are not generated for these cases
 
 
-class TestLogicalOperations:
+class TestLogicalOperations(StandardTestBase):
     """Test logical operations (&&, ||)"""
-
-    def setup_method(self):
-        self.parser = HexenParser()
-        self.analyzer = SemanticAnalyzer()
 
     def test_basic_logical_operations(self):
         """Test basic logical operations with boolean operands"""
@@ -321,7 +304,7 @@ class TestLogicalOperations:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        assert errors == []
+        assert_no_errors(errors)
 
     def test_logical_operation_errors(self):
         """Test error cases for logical operations"""
@@ -350,7 +333,7 @@ class TestLogicalOperations:
 
         # Check for logical operation errors
         logical_errors = [e for e in errors if "Logical operator" in e.message]
-        assert len(logical_errors) == 7, "Expected 7 logical operation errors"
+        assert len(logical_errors) == 7  # Expected 7 logical operation errors
         assert all(
             "Logical operator" in e.message
             and "requires boolean operands" in e.message
@@ -383,7 +366,7 @@ class TestLogicalOperations:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        assert errors == []
+        assert_no_errors(errors)
 
     def test_logical_operation_with_unary_not(self):
         """Test logical operations with unary NOT operator"""
@@ -403,15 +386,11 @@ class TestLogicalOperations:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        assert errors == []
+        assert_no_errors(errors)
 
 
-class TestComparisonOperations:
+class TestComparisonOperations(StandardTestBase):
     """Test comparison operations semantic analysis"""
-
-    def setup_method(self):
-        self.parser = HexenParser()
-        self.analyzer = SemanticAnalyzer()
 
     def test_numeric_comparisons(self):
         """Test numeric type comparisons"""
@@ -441,9 +420,7 @@ class TestComparisonOperations:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         # Should have no errors - explicit conversions make mixed comparisons valid
-        assert len(errors) == 0, (
-            f"Expected no errors with explicit conversions, got: {[str(e) for e in errors]}"
-        )
+        assert_no_errors(errors)  # Expected no errors with explicit conversions
 
     def test_equality_comparisons(self):
         """Test equality operator comparisons"""
@@ -474,7 +451,7 @@ class TestComparisonOperations:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        assert len(errors) == 3, "Expected 3 errors for invalid type comparisons"
+        assert_error_count(errors, 3)  # Expected 3 errors for invalid type comparisons
         assert all("Cannot compare different types with ==" in str(e) for e in errors)
 
     def test_relational_operator_restrictions(self):
@@ -495,9 +472,9 @@ class TestComparisonOperations:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        assert len(errors) == 4, (
-            "Expected 4 errors for invalid relational operator usage"
-        )
+        assert_error_count(
+            errors, 4
+        )  # Expected 4 errors for invalid relational operator usage
         assert all(
             "Relational operator" in str(e)
             and "can only be used with numeric types" in str(e)
@@ -524,7 +501,7 @@ class TestComparisonOperations:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        assert len(errors) == 3, "Expected 3 errors for invalid target types"
+        assert_error_count(errors, 3)  # Expected 3 errors for invalid target types
         assert all(
             "Comparison operation" in str(e)
             and "always produces boolean result" in str(e)

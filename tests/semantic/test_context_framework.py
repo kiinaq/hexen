@@ -24,15 +24,17 @@ Related but tested elsewhere:
 This file focuses on the context propagation mechanisms themselves.
 """
 
-from src.hexen.semantic import SemanticAnalyzer, HexenType
+from tests.semantic import (
+    StandardTestBase,
+    assert_no_errors,
+    assert_error_count,
+)
+from src.hexen.semantic import HexenType
 from src.hexen.ast_nodes import NodeType
 
 
-class TestContextPropagationMechanisms:
+class TestContextPropagationMechanisms(StandardTestBase):
     """Test core context propagation mechanisms"""
-
-    def setup_method(self):
-        self.analyzer = SemanticAnalyzer()
 
     def test_context_parameter_exists(self):
         """Test that _analyze_expression accepts target_type parameter"""
@@ -73,7 +75,7 @@ class TestContextPropagationMechanisms:
         }
 
         errors = self.analyzer.analyze(ast)
-        assert len(errors) == 0
+        assert_no_errors(errors)
 
     def test_assignment_context_propagation(self):
         """Test context propagation to assignment statement expressions"""
@@ -106,7 +108,7 @@ class TestContextPropagationMechanisms:
         }
 
         errors = self.analyzer.analyze(ast)
-        assert len(errors) == 0
+        assert_no_errors(errors)
 
     def test_return_statement_context_propagation(self):
         """Test context propagation to return statement expressions"""
@@ -132,14 +134,11 @@ class TestContextPropagationMechanisms:
         }
 
         errors = self.analyzer.analyze(ast)
-        assert len(errors) == 0
+        assert_no_errors(errors)
 
 
-class TestContextPropagationDepth:
+class TestContextPropagationDepth(StandardTestBase):
     """Test context propagation through complex nested structures"""
-
-    def setup_method(self):
-        self.analyzer = SemanticAnalyzer()
 
     def test_nested_expression_context_propagation(self):
         """Test context propagates through nested expressions"""
@@ -170,7 +169,7 @@ class TestContextPropagationDepth:
         }
 
         errors = self.analyzer.analyze(ast)
-        assert len(errors) == 0
+        assert_no_errors(errors)
 
     def test_deep_nesting_context_propagation(self):
         """Test context propagation through deeply nested structures"""
@@ -201,7 +200,7 @@ class TestContextPropagationDepth:
         }
 
         errors = self.analyzer.analyze(ast)
-        assert len(errors) == 0
+        assert_no_errors(errors)
 
     def test_context_through_variable_references(self):
         """Test context propagation works with variable references"""
@@ -238,14 +237,11 @@ class TestContextPropagationDepth:
         }
 
         errors = self.analyzer.analyze(ast)
-        assert len(errors) == 0
+        assert_no_errors(errors)
 
 
-class TestBlockContextPropagation:
+class TestBlockContextPropagation(StandardTestBase):
     """Test context propagation through block expressions"""
-
-    def setup_method(self):
-        self.analyzer = SemanticAnalyzer()
 
     def test_expression_block_context_propagation(self):
         """Test context propagates through expression blocks"""
@@ -276,7 +272,7 @@ class TestBlockContextPropagation:
         }
 
         errors = self.analyzer.analyze(ast)
-        assert len(errors) == 0
+        assert_no_errors(errors)
 
     def test_nested_blocks_context_propagation(self):
         """Test context propagation through nested structures"""
@@ -307,14 +303,11 @@ class TestBlockContextPropagation:
         }
 
         errors = self.analyzer.analyze(ast)
-        assert len(errors) == 0
+        assert_no_errors(errors)
 
 
-class TestContextGuidedResolution:
+class TestContextGuidedResolution(StandardTestBase):
     """Test context-guided type resolution for specific scenarios"""
-
-    def setup_method(self):
-        self.analyzer = SemanticAnalyzer()
 
     def test_comptime_type_context_resolution(self):
         """Test context-guided resolution of comptime types"""
@@ -360,7 +353,7 @@ class TestContextGuidedResolution:
         }
 
         errors = self.analyzer.analyze(ast)
-        assert len(errors) == 0
+        assert_no_errors(errors)
 
     def test_regular_type_coercion_context_resolution(self):
         """Test context-guided resolution for regular type coercion"""
@@ -407,14 +400,11 @@ class TestContextGuidedResolution:
         }
 
         errors = self.analyzer.analyze(ast)
-        assert len(errors) == 0
+        assert_no_errors(errors)
 
 
-class TestContextPropagationLimits:
+class TestContextPropagationLimits(StandardTestBase):
     """Test scenarios where context propagation has limits"""
-
-    def setup_method(self):
-        self.analyzer = SemanticAnalyzer()
 
     def test_context_cannot_fix_invalid_coercion(self):
         """Test that context cannot enable invalid type coercion"""
@@ -454,7 +444,7 @@ class TestContextPropagationLimits:
         }
 
         errors = self.analyzer.analyze(ast)
-        assert len(errors) == 1
+        assert_error_count(errors, 1)
 
     def test_context_preserves_existing_error_detection(self):
         """Test that context framework doesn't mask existing errors"""
@@ -485,7 +475,7 @@ class TestContextPropagationLimits:
         }
 
         errors = self.analyzer.analyze(ast)
-        assert len(errors) == 1
+        assert_error_count(errors, 1)
         assert "Undefined variable" in errors[0].message
 
     def test_context_with_uninitialized_variables(self):
@@ -523,7 +513,7 @@ class TestContextPropagationLimits:
         }
 
         errors = self.analyzer.analyze(ast)
-        assert len(errors) == 0
+        assert_no_errors(errors)
 
     def test_function_parameter_context_propagation(self):
         """Test context propagation in function context"""
@@ -552,14 +542,11 @@ class TestContextPropagationLimits:
         }
 
         errors = self.analyzer.analyze(ast)
-        assert len(errors) == 0
+        assert_no_errors(errors)
 
 
-class TestContextFrameworkIntegration:
+class TestContextFrameworkIntegration(StandardTestBase):
     """Test context framework integration with other language features"""
-
-    def setup_method(self):
-        self.analyzer = SemanticAnalyzer()
 
     def test_function_parameter_context_propagation(self):
         """Test context propagation in basic function scenarios"""
@@ -597,7 +584,7 @@ class TestContextFrameworkIntegration:
         }
 
         errors = self.analyzer.analyze(ast)
-        assert len(errors) == 0
+        assert_no_errors(errors)
 
     def test_context_propagation_consistency(self):
         """Test context propagation is consistent across all usage patterns"""
@@ -652,4 +639,4 @@ class TestContextFrameworkIntegration:
         }
 
         errors = self.analyzer.analyze(ast)
-        assert len(errors) == 0
+        assert_no_errors(errors)

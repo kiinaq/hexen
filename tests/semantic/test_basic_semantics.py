@@ -20,16 +20,16 @@ More specific features are tested in their dedicated test files:
 This file focuses on integration scenarios that require multiple features working together.
 """
 
-from src.hexen.parser import HexenParser
-from src.hexen.semantic import SemanticAnalyzer
+from tests.semantic import (
+    StandardTestBase,
+    assert_no_errors,
+    assert_error_count,
+    assert_error_contains,
+)
 
 
-class TestBasicLanguageIntegration:
+class TestBasicLanguageIntegration(StandardTestBase):
     """Test fundamental language integration scenarios"""
-
-    def setup_method(self):
-        self.parser = HexenParser()
-        self.analyzer = SemanticAnalyzer()
 
     def test_minimal_valid_program(self):
         """Test minimal valid Hexen program passes semantic analysis"""
@@ -43,9 +43,7 @@ class TestBasicLanguageIntegration:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
 
-        assert len(errors) == 0, (
-            f"Expected no errors, got: {[e.message for e in errors]}"
-        )
+        assert_no_errors(errors)
 
     def test_multiple_functions_with_different_features(self):
         """Test multiple functions using different language features"""
@@ -72,7 +70,7 @@ class TestBasicLanguageIntegration:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
 
-        assert len(errors) == 0
+        assert_no_errors(errors)
 
     def test_function_calls_with_type_system_integration(self):
         """Test function declarations work with the type system"""
@@ -95,15 +93,11 @@ class TestBasicLanguageIntegration:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
 
-        assert len(errors) == 0
+        assert_no_errors(errors)
 
 
-class TestTypeSystemIntegration:
+class TestTypeSystemIntegration(StandardTestBase):
     """Test integration between different type system features"""
-
-    def setup_method(self):
-        self.parser = HexenParser()
-        self.analyzer = SemanticAnalyzer()
 
     def test_comptime_types_with_mutability(self):
         """Test comptime types work with val/mut declarations"""
@@ -123,7 +117,7 @@ class TestTypeSystemIntegration:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
 
-        assert len(errors) == 0
+        assert_no_errors(errors)
 
     def test_type_coercion_with_assignments(self):
         """Test type coercion works with assignment statements"""
@@ -142,7 +136,7 @@ class TestTypeSystemIntegration:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
 
-        assert len(errors) == 0
+        assert_no_errors(errors)
 
     def test_context_guided_resolution_integration(self):
         """Test context-guided type resolution works across features"""
@@ -160,7 +154,7 @@ class TestTypeSystemIntegration:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
 
-        assert len(errors) == 0
+        assert_no_errors(errors)
 
     def test_explicit_conversion_integration(self):
         """Test explicit conversion pattern works across features"""
@@ -181,15 +175,11 @@ class TestTypeSystemIntegration:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
 
-        assert len(errors) == 0
+        assert_no_errors(errors)
 
 
-class TestBlockSystemIntegration:
+class TestBlockSystemIntegration(StandardTestBase):
     """Test integration between block system and other features"""
-
-    def setup_method(self):
-        self.parser = HexenParser()
-        self.analyzer = SemanticAnalyzer()
 
     def test_blocks_with_type_system(self):
         """Test blocks work correctly with the type system"""
@@ -207,7 +197,7 @@ class TestBlockSystemIntegration:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
 
-        assert len(errors) == 0
+        assert_no_errors(errors)
 
     def test_blocks_with_mutability(self):
         """Test blocks work with val/mut variables"""
@@ -228,7 +218,7 @@ class TestBlockSystemIntegration:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
 
-        assert len(errors) == 0
+        assert_no_errors(errors)
 
     def test_blocks_with_complex_expressions(self):
         """Test blocks with complex expressions and type coercion"""
@@ -247,15 +237,11 @@ class TestBlockSystemIntegration:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
 
-        assert len(errors) == 0
+        assert_no_errors(errors)
 
 
-class TestErrorIntegrationScenarios:
+class TestErrorIntegrationScenarios(StandardTestBase):
     """Test error detection across multiple integrated features"""
-
-    def setup_method(self):
-        self.parser = HexenParser()
-        self.analyzer = SemanticAnalyzer()
 
     def test_multiple_semantic_errors_detected(self):
         """Test that multiple different semantic errors are all detected"""
@@ -301,7 +287,7 @@ class TestErrorIntegrationScenarios:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
 
-        assert len(errors) == 3
+        assert_error_count(errors, 3)
 
         error_messages = [e.message for e in errors]
 
@@ -330,16 +316,12 @@ class TestErrorIntegrationScenarios:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
 
-        assert len(errors) == 1
-        assert "Undefined variable: 'inner'" in errors[0].message
+        assert_error_count(errors, 1)
+        assert_error_contains(errors, "Undefined variable: 'inner'")
 
 
-class TestComprehensiveIntegration:
+class TestComprehensiveIntegration(StandardTestBase):
     """Test comprehensive scenarios using multiple features together"""
-
-    def setup_method(self):
-        self.parser = HexenParser()
-        self.analyzer = SemanticAnalyzer()
 
     def test_full_feature_integration(self):
         """Test a comprehensive scenario using most language features"""
@@ -378,7 +360,7 @@ class TestComprehensiveIntegration:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
 
-        assert len(errors) == 0
+        assert_no_errors(errors)
 
     def test_error_recovery_in_complex_scenarios(self):
         """Test error recovery works in complex integration scenarios"""
@@ -427,4 +409,4 @@ class TestComprehensiveIntegration:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
 
-        assert len(errors) == 0
+        assert_no_errors(errors)

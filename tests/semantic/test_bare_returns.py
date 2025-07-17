@@ -11,11 +11,10 @@ They should be rejected in:
 - Non-void functions (without statement block context)
 """
 
-from src.hexen.parser import HexenParser
-from src.hexen.semantic import SemanticAnalyzer
+from tests.semantic import StandardTestBase
 
 
-class TestBareReturnsInVoidFunctions:
+class TestBareReturnsInVoidFunctions(StandardTestBase):
     """Test bare return statements in void functions"""
 
     def test_bare_return_in_void_function(self):
@@ -26,13 +25,8 @@ class TestBareReturnsInVoidFunctions:
             return
         }
         """
-
-        parser = HexenParser()
-        ast = parser.parse(source)
-
-        analyzer = SemanticAnalyzer()
-        errors = analyzer.analyze(ast)
-
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
         assert errors == []
 
     def test_multiple_bare_returns_in_void_function(self):
@@ -45,13 +39,8 @@ class TestBareReturnsInVoidFunctions:
             return
         }
         """
-
-        parser = HexenParser()
-        ast = parser.parse(source)
-
-        analyzer = SemanticAnalyzer()
-        errors = analyzer.analyze(ast)
-
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
         assert errors == []
 
     def test_bare_return_with_variables_void_function(self):
@@ -64,11 +53,8 @@ class TestBareReturnsInVoidFunctions:
         }
         """
 
-        parser = HexenParser()
-        ast = parser.parse(source)
-
-        analyzer = SemanticAnalyzer()
-        errors = analyzer.analyze(ast)
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
 
         assert errors == []
 
@@ -81,16 +67,13 @@ class TestBareReturnsInVoidFunctions:
         }
         """
 
-        parser = HexenParser()
-        ast = parser.parse(source)
-
-        analyzer = SemanticAnalyzer()
-        errors = analyzer.analyze(ast)
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
 
         assert errors == []
 
 
-class TestBareReturnsInStatementBlocks:
+class TestBareReturnsInStatementBlocks(StandardTestBase):
     """Test bare return statements in statement blocks"""
 
     def test_bare_return_in_statement_block_void_function(self):
@@ -106,11 +89,8 @@ class TestBareReturnsInStatementBlocks:
         }
         """
 
-        parser = HexenParser()
-        ast = parser.parse(source)
-
-        analyzer = SemanticAnalyzer()
-        errors = analyzer.analyze(ast)
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
 
         assert errors == []
 
@@ -127,11 +107,8 @@ class TestBareReturnsInStatementBlocks:
         }
         """
 
-        parser = HexenParser()
-        ast = parser.parse(source)
-
-        analyzer = SemanticAnalyzer()
-        errors = analyzer.analyze(ast)
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
 
         assert len(errors) >= 1
         assert any(
@@ -153,16 +130,13 @@ class TestBareReturnsInStatementBlocks:
         }
         """
 
-        parser = HexenParser()
-        ast = parser.parse(source)
-
-        analyzer = SemanticAnalyzer()
-        errors = analyzer.analyze(ast)
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
 
         assert errors == []
 
 
-class TestBareReturnErrors:
+class TestBareReturnErrors(StandardTestBase):
     """Test error cases for bare return statements"""
 
     def test_bare_return_in_expression_block(self):
@@ -178,11 +152,8 @@ class TestBareReturnErrors:
         }
         """
 
-        parser = HexenParser()
-        ast = parser.parse(source)
-
-        analyzer = SemanticAnalyzer()
-        errors = analyzer.analyze(ast)
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
 
         assert len(errors) >= 1
         assert any(
@@ -199,11 +170,8 @@ class TestBareReturnErrors:
         }
         """
 
-        parser = HexenParser()
-        ast = parser.parse(source)
-
-        analyzer = SemanticAnalyzer()
-        errors = analyzer.analyze(ast)
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
 
         assert len(errors) == 1
         assert "cannot have bare return statement" in errors[0].message
@@ -217,11 +185,8 @@ class TestBareReturnErrors:
         }
         """
 
-        parser = HexenParser()
-        ast = parser.parse(source)
-
-        analyzer = SemanticAnalyzer()
-        errors = analyzer.analyze(ast)
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
 
         assert len(errors) >= 1
         assert any(
@@ -229,7 +194,7 @@ class TestBareReturnErrors:
         )
 
 
-class TestMixedReturnStatements:
+class TestMixedReturnStatements(StandardTestBase):
     """Test mixing bare returns with value returns"""
 
     def test_void_function_mixed_returns_error(self):
@@ -242,11 +207,8 @@ class TestMixedReturnStatements:
         }
         """
 
-        parser = HexenParser()
-        ast = parser.parse(source)
-
-        analyzer = SemanticAnalyzer()
-        errors = analyzer.analyze(ast)
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
 
         # Should have error for the value return
         assert len(errors) >= 1
@@ -271,11 +233,8 @@ class TestMixedReturnStatements:
         }
         """
 
-        parser = HexenParser()
-        ast = parser.parse(source)
-
-        analyzer = SemanticAnalyzer()
-        errors = analyzer.analyze(ast)
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
 
         # Should reject the bare return in non-void function
         assert len(errors) >= 1
@@ -284,7 +243,7 @@ class TestMixedReturnStatements:
         )
 
 
-class TestBareReturnIntegration:
+class TestBareReturnIntegration(StandardTestBase):
     """Test bare returns with other language features"""
 
     def test_bare_return_with_undef_variables(self):
@@ -297,11 +256,8 @@ class TestBareReturnIntegration:
         }
         """
 
-        parser = HexenParser()
-        ast = parser.parse(source)
-
-        analyzer = SemanticAnalyzer()
-        errors = analyzer.analyze(ast)
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
 
         assert errors == []
 
@@ -316,10 +272,7 @@ class TestBareReturnIntegration:
         }
         """
 
-        parser = HexenParser()
-        ast = parser.parse(source)
-
-        analyzer = SemanticAnalyzer()
-        errors = analyzer.analyze(ast)
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
 
         assert errors == []

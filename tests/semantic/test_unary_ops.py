@@ -9,16 +9,15 @@ Tests semantic analysis of:
 - Error cases and edge cases
 """
 
-from src.hexen.parser import HexenParser
-from src.hexen.semantic import SemanticAnalyzer
+from tests.semantic import (
+    StandardTestBase,
+    assert_no_errors,
+    assert_error_count,
+)
 
 
-class TestUnaryMinusSemantics:
+class TestUnaryMinusSemantics(StandardTestBase):
     """Test semantic analysis of unary minus operator (-)"""
-
-    def setup_method(self):
-        self.parser = HexenParser()
-        self.analyzer = SemanticAnalyzer()
 
     def test_unary_minus_with_comptime_types(self):
         """Test unary minus with comptime types"""
@@ -41,7 +40,7 @@ class TestUnaryMinusSemantics:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        assert errors == []
+        assert_no_errors(errors)
 
     def test_unary_minus_with_concrete_types(self):
         """Test unary minus with concrete numeric types"""
@@ -68,7 +67,7 @@ class TestUnaryMinusSemantics:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        assert errors == []
+        assert_no_errors(errors)
 
     def test_unary_minus_errors(self):
         """Test error cases for unary minus"""
@@ -94,7 +93,7 @@ class TestUnaryMinusSemantics:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        assert len(errors) == 6  # Updated to expect 6 errors
+        assert_error_count(errors, 6)  # Updated to expect 6 errors
         assert any("Unary minus (-) requires numeric operand" in str(e) for e in errors)
         assert any(
             "Type mismatch: variable 'neg_x' declared as string but assigned value of type i32"
@@ -104,12 +103,8 @@ class TestUnaryMinusSemantics:
         assert any("Mixed concrete type operation" in str(e) for e in errors)
 
 
-class TestNegativeNumberLiterals:
+class TestNegativeNumberLiterals(StandardTestBase):
     """Test negative number literals (merged from test_negative_numbers.py)"""
-
-    def setup_method(self):
-        self.parser = HexenParser()
-        self.analyzer = SemanticAnalyzer()
 
     def test_negative_integer_literals(self):
         """Test basic negative integer parsing and semantic analysis"""
@@ -123,7 +118,7 @@ class TestNegativeNumberLiterals:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        assert errors == []
+        assert_no_errors(errors)
 
     def test_negative_integer_type_coercion(self):
         """Test negative integer coercion to different types"""
@@ -138,7 +133,7 @@ class TestNegativeNumberLiterals:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        assert errors == []
+        assert_no_errors(errors)
 
     def test_negative_float_literals(self):
         """Test basic negative float parsing and semantic analysis"""
@@ -152,7 +147,7 @@ class TestNegativeNumberLiterals:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        assert errors == []
+        assert_no_errors(errors)
 
     def test_negative_float_type_coercion(self):
         """Test negative float coercion to different float types"""
@@ -165,7 +160,7 @@ class TestNegativeNumberLiterals:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        assert errors == []
+        assert_no_errors(errors)
 
     def test_mixed_positive_negative_numbers(self):
         """Test mixing positive and negative numbers"""
@@ -184,7 +179,7 @@ class TestNegativeNumberLiterals:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        assert errors == []
+        assert_no_errors(errors)
 
     def test_negative_numbers_in_assignments(self):
         """Test assignments with negative values"""
@@ -204,7 +199,7 @@ class TestNegativeNumberLiterals:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        assert errors == []
+        assert_no_errors(errors)
 
     def test_negative_numbers_with_undef(self):
         """Test negative numbers work correctly with undef variables"""
@@ -221,7 +216,7 @@ class TestNegativeNumberLiterals:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        assert errors == []
+        assert_no_errors(errors)
 
     def test_negative_number_ast_structure(self):
         """Test that negative numbers are parsed correctly into AST"""
@@ -234,19 +229,15 @@ class TestNegativeNumberLiterals:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        assert errors == []
+        assert_no_errors(errors)
 
         # Verify AST structure contains unary operations
         assert isinstance(ast, dict)
         assert "functions" in ast
 
 
-class TestLogicalNotSemantics:
+class TestLogicalNotSemantics(StandardTestBase):
     """Test semantic analysis of logical not operator (!)"""
-
-    def setup_method(self):
-        self.parser = HexenParser()
-        self.analyzer = SemanticAnalyzer()
 
     def test_logical_not_with_booleans(self):
         """Test logical not with boolean values"""
@@ -298,7 +289,7 @@ class TestLogicalNotSemantics:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         # Only 7 errors should be produced (not 8)
-        assert len(errors) == 7
+        assert_error_count(errors, 7)
         assert any("Logical not (!) requires boolean operand" in str(e) for e in errors)
         assert any("Cannot infer type for variable 'not_int'" in str(e) for e in errors)
         assert any(
@@ -307,12 +298,8 @@ class TestLogicalNotSemantics:
         assert any("Cannot infer type for variable 'not_str'" in str(e) for e in errors)
 
 
-class TestUnaryOperatorIntegration:
+class TestUnaryOperatorIntegration(StandardTestBase):
     """Test integration of unary operators with other language features"""
-
-    def setup_method(self):
-        self.parser = HexenParser()
-        self.analyzer = SemanticAnalyzer()
 
     def test_unary_operators_in_expressions(self):
         """Test unary operators in complex expressions"""
@@ -343,7 +330,7 @@ class TestUnaryOperatorIntegration:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        assert errors == []
+        assert_no_errors(errors)
 
     def test_unary_operators_with_undef(self):
         """Test unary operators with undef variables"""
@@ -363,7 +350,7 @@ class TestUnaryOperatorIntegration:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        assert errors == []
+        assert_no_errors(errors)
 
     def test_negative_literals_in_complex_expressions(self):
         """Test negative literals integrated with complex expressions"""
@@ -388,4 +375,4 @@ class TestUnaryOperatorIntegration:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        assert errors == []
+        assert_no_errors(errors)
