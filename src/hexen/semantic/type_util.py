@@ -55,15 +55,6 @@ COMPTIME_FLOAT_TARGETS: FrozenSet[HexenType] = frozenset(
     }
 )
 
-# Regular numeric widening coercion rules
-WIDENING_RULES: Dict[HexenType, FrozenSet[HexenType]] = {
-    HexenType.I32: frozenset({HexenType.I64, HexenType.F32, HexenType.F64}),
-    HexenType.I64: frozenset(
-        {HexenType.F32, HexenType.F64}
-    ),  # Note: may lose precision
-    HexenType.F32: frozenset({HexenType.F64}),
-}
-
 # Type conversion maps
 TO_FLOAT_TYPE_MAP: Dict[HexenType, HexenType] = {
     HexenType.COMPTIME_INT: HexenType.F64,
