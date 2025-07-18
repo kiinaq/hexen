@@ -99,20 +99,20 @@ class TestIntegerPrecisionLoss(StandardTestBase):
         assert errors == []
 
     def test_safe_integer_widening(self):
-        """Test that safe integer widening doesn't require conversion"""
+        """Test that concrete type conversions require explicit syntax per TYPE_SYSTEM.md"""
         source = """
         func test() : void = {
             val small:i32 = 42
             
-            // ✅ Safe widening - no conversion required
-            val wide:i64 = small          // i32 → i64 (safe)
-            val as_float:f32 = small      // i32 → f32 (safe)
-            val as_double:f64 = small     // i32 → f64 (safe)
+            // 🔧 All concrete conversions require explicit syntax per TYPE_SYSTEM.md
+            val wide:i64 = small:i64       // i32 → i64 (explicit required)
+            val as_float:f32 = small:f32   // i32 → f32 (explicit required)
+            val as_double:f64 = small:f64  // i32 → f64 (explicit required)
             
             mut wide_mut:i64 = 0
             mut float_mut:f32 = 0.0
-            wide_mut = small                // i32 → i64 (safe reassignment)
-            float_mut = small               // i32 → f32 (safe reassignment)
+            wide_mut = small:i64            // i32 → i64 (explicit required)
+            float_mut = small:f32           // i32 → f32 (explicit required)
         }
         """
         ast = self.parser.parse(source)

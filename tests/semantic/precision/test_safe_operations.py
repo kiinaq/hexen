@@ -19,20 +19,20 @@ class TestSafeOperationsNoConversion(StandardTestBase):
     """Test that safe operations don't require explicit conversion"""
 
     def test_safe_integer_widening(self):
-        """Test that safe integer widening doesn't require conversion"""
+        """Test that concrete type conversions require explicit syntax per TYPE_SYSTEM.md"""
         source = """
         func test() : void = {
             val small:i32 = 42
             
-            // ✅ Safe widening - no conversion required
-            val wide:i64 = small          // i32 → i64 (safe)
-            val as_float:f32 = small      // i32 → f32 (safe)
-            val as_double:f64 = small     // i32 → f64 (safe)
+            // 🔧 All concrete conversions require explicit syntax per TYPE_SYSTEM.md
+            val wide:i64 = small:i64       // i32 → i64 (explicit required)
+            val as_float:f32 = small:f32   // i32 → f32 (explicit required)
+            val as_double:f64 = small:f64  // i32 → f64 (explicit required)
             
             mut wide_mut:i64 = 0
             mut float_mut:f32 = 0.0
-            wide_mut = small                // i32 → i64 (safe reassignment)
-            float_mut = small               // i32 → f32 (safe reassignment)
+            wide_mut = small:i64            // i32 → i64 (explicit required)
+            float_mut = small:f32           // i32 → f32 (explicit required)
         }
         """
         ast = self.parser.parse(source)
@@ -40,16 +40,16 @@ class TestSafeOperationsNoConversion(StandardTestBase):
         assert errors == []
 
     def test_safe_float_widening(self):
-        """Test that safe float widening doesn't require conversion"""
+        """Test that concrete type conversions require explicit syntax per TYPE_SYSTEM.md"""
         source = """
         func test() : void = {
             val single:f32 = 3.14
             
-            // ✅ Safe widening - no conversion required  
-            val double:f64 = single       // f32 → f64 (safe)
+            // 🔧 All concrete conversions require explicit syntax per TYPE_SYSTEM.md
+            val double:f64 = single:f64   // f32 → f64 (explicit required)
             
             mut double_mut:f64 = 0.0
-            double_mut = single             // f32 → f64 (safe reassignment)
+            double_mut = single:f64         // f32 → f64 (explicit required)
         }
         """
         ast = self.parser.parse(source)
@@ -136,16 +136,16 @@ class TestSafeOperationsNoConversion(StandardTestBase):
         assert errors == []
 
     def test_precision_loss_annotation_positioning_safe(self):
-        """Test that safe annotation positioning doesn't cause precision loss"""
+        """Test explicit conversions with no precision loss"""
         source = """
         func test() : void = {
             val a:i32 = 10
             val b:i32 = 20
             mut result:i64 = 0
             
-            // ✅ Safe: annotation to wider type at rightmost end
-            result = (a + b):i64            // i32 + i32 → i32, then i32:i64 → i64 (safe)
-            result = (a * b * 2):i64        // All i32 ops → i32, then i32:i64 → i64 (safe)
+            // 🔧 Explicit conversions required per TYPE_SYSTEM.md
+            result = (a + b):i64            // i32 + i32 → i32, then i32:i64 → i64 (explicit)
+            result = (a * b * 2):i64        // All i32 ops → i32, then i32:i64 → i64 (explicit)
         }
         """
         ast = self.parser.parse(source)
@@ -172,19 +172,19 @@ class TestSafeOperationsNoConversion(StandardTestBase):
         assert errors == []
 
     def test_safe_assignment_chains(self):
-        """Test that safe assignment chains don't require conversion"""
+        """Test that concrete type conversions require explicit syntax per TYPE_SYSTEM.md"""
         source = """
         func test() : void = {
             val start:i32 = 42
             
-            // ✅ Safe assignment chain - no precision loss
-            val intermediate:i64 = start    // i32 → i64 (safe)
-            val final:f64 = intermediate    // i64 → f64 (safe)
+            // 🔧 All concrete conversions require explicit syntax per TYPE_SYSTEM.md
+            val intermediate:i64 = start:i64     // i32 → i64 (explicit required)
+            val final:f64 = intermediate:f64     // i64 → f64 (explicit required)
             
             mut chain_mut:i64 = 0
             mut final_mut:f64 = 0.0
-            chain_mut = start               // i32 → i64 (safe reassignment)
-            final_mut = chain_mut           // i64 → f64 (safe reassignment)
+            chain_mut = start:i64                // i32 → i64 (explicit required)
+            final_mut = chain_mut:f64            // i64 → f64 (explicit required)
         }
         """
         ast = self.parser.parse(source)

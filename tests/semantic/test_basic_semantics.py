@@ -120,16 +120,16 @@ class TestTypeSystemIntegration(StandardTestBase):
         assert_no_errors(errors)
 
     def test_type_coercion_with_assignments(self):
-        """Test type coercion works with assignment statements"""
+        """Test concrete type conversions require explicit syntax per TYPE_SYSTEM.md"""
         source = """
         func test() : void = {
             val small:i32 = 100
             mut large:i64 = 0
             mut precise:f64 = 0.0
             
-            large = small                 // i32 → i64 (widening)
-            precise = small               // i32 → f64 (conversion)
-            precise = large               // i64 → f64 (conversion)
+            large = small:i64             // i32 → i64 (explicit required)
+            precise = small:f64           // i32 → f64 (explicit required)
+            precise = large:f64           // i64 → f64 (explicit required)
         }
         """
 
@@ -306,7 +306,7 @@ class TestErrorIntegrationScenarios(StandardTestBase):
         func test() : i32 = {
             val outer = 42
             {
-                val inner:i64 = outer    // OK: i32 → i64 widening
+                val inner:i64 = outer:i64 // OK: i32 → i64 explicit conversion
                 mut temp:i64 = inner     // OK: explicit type for mut
             }
             return inner                   // Error: inner is out of scope
@@ -395,10 +395,10 @@ class TestComprehensiveIntegration(StandardTestBase):
             val var3:f32 = 42             // comptime_int → f32
             val var4:f64 = 42             // comptime_int → f64
             
-            // Same coercion rules everywhere
-            var2 = var1                     // i32 → i64 (widening)
-            val var5:f64 = var1           // i32 → f64 (conversion)
-            val var6:f64 = var2           // i64 → f64 (conversion)
+            // 🔧 All concrete conversions require explicit syntax per TYPE_SYSTEM.md
+            var2 = var1:i64               // i32 → i64 (explicit required)
+            val var5:f64 = var1:f64       // i32 → f64 (explicit required)
+            val var6:f64 = var2:f64       // i64 → f64 (explicit required)
             
             // Same explicit conversion rules everywhere
             val var7:i32 = var2:i32     // i64 → i32 (explicit)

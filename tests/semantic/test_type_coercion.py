@@ -18,16 +18,16 @@ class TestIntegerWidening(StandardTestBase):
     """Test safe integer widening coercions"""
 
     def test_i32_to_i64_widening(self):
-        """Test i32 to i64 widening is always safe"""
+        """Test concrete type conversions require explicit syntax per TYPE_SYSTEM.md"""
         source = """
         func test() : void = {
             val small:i32 = 42
             
-            // ✅ i32 → i64 widening is always safe
-            val wide:i64 = small
+            // 🔧 All concrete conversions require explicit syntax per TYPE_SYSTEM.md
+            val wide:i64 = small:i64
             
             mut wide_mut:i64 = 0
-            wide_mut = small                // Safe in reassignment too
+            wide_mut = small:i64            // Explicit conversion required
         }
         """
         ast = self.parser.parse(source)
@@ -35,19 +35,19 @@ class TestIntegerWidening(StandardTestBase):
         assert errors == []
 
     def test_i32_to_f32_conversion(self):
-        """Test i32 to f32 conversion"""
+        """Test concrete type conversions require explicit syntax per TYPE_SYSTEM.md"""
         source = """
         func test() : void = {
             val integer:i32 = 42
             
-            // ✅ i32 → f32 conversion is safe for typical values
-            val as_float:f32 = integer
+            // 🔧 All concrete conversions require explicit syntax per TYPE_SYSTEM.md
+            val as_float:f32 = integer:f32
             
             mut float_mut:f32 = 0.0
-            float_mut = integer
+            float_mut = integer:f32
             
-            // Complex expressions maintain safety
-            val computed:f32 = integer + 3.14
+            // Complex expressions with comptime type adaptation
+            val computed:f32 = integer:f32 + 3.14
         }
         """
         ast = self.parser.parse(source)
@@ -55,16 +55,16 @@ class TestIntegerWidening(StandardTestBase):
         assert errors == []
 
     def test_i32_to_f64_conversion(self):
-        """Test i32 to f64 conversion"""
+        """Test concrete type conversions require explicit syntax per TYPE_SYSTEM.md"""
         source = """
         func test() : void = {
             val integer:i32 = 42
             
-            // ✅ i32 → f64 conversion is always safe (double precision)
-            val as_double:f64 = integer
+            // 🔧 All concrete conversions require explicit syntax per TYPE_SYSTEM.md
+            val as_double:f64 = integer:f64
             
             mut double_mut:f64 = 0.0
-            double_mut = integer
+            double_mut = integer:f64
         }
         """
         ast = self.parser.parse(source)
@@ -72,16 +72,16 @@ class TestIntegerWidening(StandardTestBase):
         assert errors == []
 
     def test_i64_to_float_conversions(self):
-        """Test i64 to float conversions"""
+        """Test concrete type conversions require explicit syntax per TYPE_SYSTEM.md"""
         source = """
         func test() : void = {
             val large:i64 = 1000
             
-            // ✅ i64 → f64 is generally safe
-            val as_double:f64 = large
+            // 🔧 All concrete conversions require explicit syntax per TYPE_SYSTEM.md
+            val as_double:f64 = large:f64
             
             mut target_f64:f64 = 0.0
-            target_f64 = large
+            target_f64 = large:f64
         }
         """
         ast = self.parser.parse(source)
@@ -93,16 +93,16 @@ class TestFloatWidening(StandardTestBase):
     """Test safe float widening coercions"""
 
     def test_f32_to_f64_widening(self):
-        """Test f32 to f64 widening is always safe"""
+        """Test concrete type conversions require explicit syntax per TYPE_SYSTEM.md"""
         source = """
         func test() : void = {
             val single:f32 = 3.14
             
-            // ✅ f32 → f64 widening is always safe
-            val double:f64 = single
+            // 🔧 All concrete conversions require explicit syntax per TYPE_SYSTEM.md
+            val double:f64 = single:f64
             
             mut double_mut:f64 = 0.0
-            double_mut = single
+            double_mut = single:f64
         }
         """
         ast = self.parser.parse(source)
@@ -130,7 +130,7 @@ class TestSafeConversions(StandardTestBase):
     """Test all safe type conversions that don't require explicit conversion"""
 
     def test_comprehensive_safe_conversions(self):
-        """Test all safe conversion patterns"""
+        """Test all concrete type conversions require explicit syntax per TYPE_SYSTEM.md"""
         source = """
         func test() : void = {
             val small_int:i32 = 42
@@ -138,12 +138,12 @@ class TestSafeConversions(StandardTestBase):
             val small_float:f32 = 3.14
             val large_float:f64 = 2.718
             
-            // ✅ All safe widening conversions
-            val i32_to_i64:i64 = small_int
-            val i32_to_f32:f32 = small_int  
-            val i32_to_f64:f64 = small_int
-            val i64_to_f64:f64 = large_int
-            val f32_to_f64:f64 = small_float
+            // 🔧 All concrete conversions require explicit syntax per TYPE_SYSTEM.md
+            val i32_to_i64:i64 = small_int:i64
+            val i32_to_f32:f32 = small_int:f32
+            val i32_to_f64:f64 = small_int:f64
+            val i64_to_f64:f64 = large_int:f64
+            val f32_to_f64:f64 = small_float:f64
         }
         """
         ast = self.parser.parse(source)
@@ -151,21 +151,21 @@ class TestSafeConversions(StandardTestBase):
         assert errors == []
 
     def test_safe_conversions_in_assignments(self):
-        """Test safe conversions work in assignment contexts"""
+        """Test concrete type conversions require explicit syntax per TYPE_SYSTEM.md"""
         source = """
         func test() : void = {
             val source_i32:i32 = 42
             val source_f32:f32 = 3.14
             
-            // ✅ Safe conversions in assignments
+            // 🔧 All concrete conversions require explicit syntax per TYPE_SYSTEM.md
             mut target_i64:i64 = 0
             mut target_f32:f32 = 0.0
             mut target_f64:f64 = 0.0
             
-            target_i64 = source_i32     // i32 → i64
-            target_f32 = source_i32     // i32 → f32
-            target_f64 = source_i32     // i32 → f64
-            target_f64 = source_f32     // f32 → f64
+            target_i64 = source_i32:i64 // i32 → i64
+            target_f32 = source_i32:f32 // i32 → f32
+            target_f64 = source_i32:f64 // i32 → f64
+            target_f64 = source_f32:f64 // f32 → f64
         }
         """
         ast = self.parser.parse(source)
@@ -180,20 +180,20 @@ class TestContextGuidedCoercion(StandardTestBase):
     """Test context-guided type coercion in complex scenarios"""
 
     def test_assignment_context_guides_coercion(self):
-        """Test that assignment target type guides coercion"""
+        """Test concrete type conversions require explicit syntax per TYPE_SYSTEM.md"""
         source = """
         func test() : void = {
             val source_i32:i32 = 42
             val source_f32:f32 = 3.14
             
-            // Assignment target type provides context for safe coercion
+            // 🔧 All concrete conversions require explicit syntax per TYPE_SYSTEM.md
             mut target_i64:i64 = 0
             mut target_f64:f64 = 0.0
             
-            // ✅ Context-guided safe coercion
-            target_i64 = source_i32     // i32 → i64 (safe, context-guided)
-            target_f64 = source_i32     // i32 → f64 (safe, context-guided)
-            target_f64 = source_f32     // f32 → f64 (safe, context-guided)
+            // 🔧 Explicit conversions required
+            target_i64 = source_i32:i64 // i32 → i64 (explicit required)
+            target_f64 = source_i32:f64 // i32 → f64 (explicit required)
+            target_f64 = source_f32:f64 // f32 → f64 (explicit required)
         }
         """
         ast = self.parser.parse(source)
@@ -201,21 +201,21 @@ class TestContextGuidedCoercion(StandardTestBase):
         assert errors == []
 
     def test_function_return_context_guides_coercion(self):
-        """Test that function return type provides context for coercion"""
+        """Test concrete type conversions require explicit syntax per TYPE_SYSTEM.md"""
         source = """
         func return_widened_i32() : i64 = {
             val value:i32 = 42
-            return value    // i32 → i64 (return context guides coercion)
+            return value:i64    // i32 → i64 (explicit required)
         }
         
         func return_widened_f32() : f64 = {
             val value:f32 = 3.14
-            return value    // f32 → f64 (return context guides coercion)
+            return value:f64    // f32 → f64 (explicit required)
         }
         
         func return_converted_int() : f64 = {
             val value:i32 = 42
-            return value    // i32 → f64 (return context guides coercion)
+            return value:f64    // i32 → f64 (explicit required)
         }
         """
         ast = self.parser.parse(source)
@@ -223,15 +223,15 @@ class TestContextGuidedCoercion(StandardTestBase):
         assert errors == []
 
     def test_variable_declaration_context_guides_coercion(self):
-        """Test that variable declaration type provides context"""
+        """Test concrete type conversions require explicit syntax per TYPE_SYSTEM.md"""
         source = """
         func test() : void = {
             val source:i32 = 42
             
-            // Variable declaration type provides context for widening
-            val widened_i64:i64 = source     // i32 → i64 (declaration context)
-            val converted_f32:f32 = source   // i32 → f32 (declaration context)
-            val converted_f64:f64 = source   // i32 → f64 (declaration context)
+            // 🔧 All concrete conversions require explicit syntax per TYPE_SYSTEM.md
+            val widened_i64:i64 = source:i64  // i32 → i64 (explicit required)
+            val converted_f32:f32 = source:f32 // i32 → f32 (explicit required)
+            val converted_f64:f64 = source:f64 // i32 → f64 (explicit required)
         }
         """
         ast = self.parser.parse(source)
@@ -239,16 +239,16 @@ class TestContextGuidedCoercion(StandardTestBase):
         assert errors == []
 
     def test_expression_context_propagation(self):
-        """Test that context propagates through expressions"""
+        """Test concrete type conversions require explicit syntax per TYPE_SYSTEM.md"""
         source = """
         func test() : void = {
             val a:i32 = 10
             val b:i32 = 20
             
-            // ✅ Expression context guides result type
-            val sum_i64:i64 = a + b           // i32 + i32 → i64 (context)
-            val sum_f64:f64 = a + b           // i32 + i32 → f64 (context)
-            val complex:f64 = (a * b) + 100  // Complex expression → f64 (context)
+            // 🔧 All concrete conversions require explicit syntax per TYPE_SYSTEM.md
+            val sum_i64:i64 = (a + b):i64     // i32 + i32 → i32, then i32:i64
+            val sum_f64:f64 = (a + b):f64     // i32 + i32 → i32, then i32:f64
+            val complex:f64 = ((a * b) + 100):f64 // Complex expression → i32, then i32:f64
         }
         """
         ast = self.parser.parse(source)
@@ -260,17 +260,17 @@ class TestComplexCoercionScenarios(StandardTestBase):
     """Test complex coercion scenarios and edge cases"""
 
     def test_chained_safe_coercions(self):
-        """Test chained safe coercions work correctly"""
+        """Test concrete type conversions require explicit syntax per TYPE_SYSTEM.md"""
         source = """
         func test() : void = {
             val start:i32 = 42
             
-            // Chained safe coercions
-            val step1:i64 = start         // i32 → i64
-            val step2:f64 = step1         // i64 → f64
+            // 🔧 All concrete conversions require explicit syntax per TYPE_SYSTEM.md
+            val step1:i64 = start:i64     // i32 → i64 (explicit required)
+            val step2:f64 = step1:f64     // i64 → f64 (explicit required)
             
             // Direct multi-step coercion
-            val direct:f64 = start        // i32 → f64 (direct)
+            val direct:f64 = start:f64    // i32 → f64 (explicit required)
         }
         """
         ast = self.parser.parse(source)
@@ -294,16 +294,16 @@ class TestComplexCoercionScenarios(StandardTestBase):
         assert errors == []
 
     def test_nested_expression_coercion(self):
-        """Test coercion in nested expressions"""
+        """Test concrete type conversions require explicit syntax per TYPE_SYSTEM.md"""
         source = """
         func test() : void = {
             val a:i32 = 10
             val b:i32 = 20
             val c:f32 = 3.14
             
-            // ✅ Nested expressions with explicit conversions
+            // 🔧 All concrete conversions require explicit syntax per TYPE_SYSTEM.md
             val result1:f64 = ((a + b) * 2):f64    // (i32 + i32) * comptime_int → i32, then i32:f64
-            val result2:f64 = a:f64 + (b:f32 * c)    // i32:f64 + (i32:f32 * f32) → f64
+            val result2:f64 = a:f64 + (b:f32 * c):f64 // i32:f64 + (i32:f32 * f32):f64 → f64
         }
         """
         ast = self.parser.parse(source)
@@ -341,7 +341,7 @@ class TestCoercionEdgeCases(StandardTestBase):
         assert errors == []
 
     def test_zero_and_small_values_coercion(self):
-        """Test coercion with zero and small values"""
+        """Test concrete type conversions require explicit syntax per TYPE_SYSTEM.md"""
         source = """
         func test() : void = {
             val zero_i32:i32 = 0
@@ -349,13 +349,13 @@ class TestCoercionEdgeCases(StandardTestBase):
             val zero_f32:f32 = 0.0
             val small_f32:f32 = 0.1
             
-            // ✅ Safe coercion works for all values
-            val zero_i64:i64 = zero_i32
-            val small_i64:i64 = small_i32
-            val zero_f64:f64 = zero_f32
-            val small_f64:f64 = small_f32
-            val zero_float:f64 = zero_i32
-            val small_float:f64 = small_i32
+            // 🔧 All concrete conversions require explicit syntax per TYPE_SYSTEM.md
+            val zero_i64:i64 = zero_i32:i64
+            val small_i64:i64 = small_i32:i64
+            val zero_f64:f64 = zero_f32:f64
+            val small_f64:f64 = small_f32:f64
+            val zero_float:f64 = zero_i32:f64
+            val small_float:f64 = small_i32:f64
         }
         """
         ast = self.parser.parse(source)

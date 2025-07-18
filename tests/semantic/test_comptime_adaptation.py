@@ -112,8 +112,8 @@ class TestComptimeAdaptationInExpressions(StandardTestBase):
         errors = self.analyzer.analyze(ast)
         assert_no_errors(errors)
 
-    def test_concrete_type_explicit_conversion_requirement(self):
-        """Test that concrete types require explicit conversions (not adaptation)"""
+    def test_concrete_type_safe_widening_allowed(self):
+        """Test that concrete type conversions require explicit syntax per TYPE_SYSTEM.md"""
         source = """
         func test() : void = {
             val source : i32 = 42
@@ -122,6 +122,7 @@ class TestComptimeAdaptationInExpressions(StandardTestBase):
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
+        # All concrete conversions require explicit syntax per TYPE_SYSTEM.md
         assert_no_errors(errors)
 
 
@@ -168,8 +169,22 @@ class TestExplicitTypeAnnotationResolution(StandardTestBase):
         errors = self.analyzer.analyze(ast)
         assert_no_errors(errors)
 
-    def test_concrete_type_requires_explicit_conversion(self):
-        """Test that concrete types require explicit conversion syntax (not adaptation)"""
+    def test_concrete_type_safe_widening_conversions(self):
+        """Test that concrete type conversions require explicit syntax per TYPE_SYSTEM.md"""
+        source = """
+        func test() : void = {
+            val source : i32 = 42
+            val widened : i64 = source:i64
+            val converted : f64 = source:f64
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+        # All concrete conversions require explicit syntax per TYPE_SYSTEM.md
+        assert_no_errors(errors)
+
+    def test_explicit_conversion_syntax_also_works(self):
+        """Test that explicit conversion syntax also works for concrete types"""
         source = """
         func test() : void = {
             val source : i32 = 42

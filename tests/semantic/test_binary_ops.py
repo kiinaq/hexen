@@ -44,7 +44,7 @@ class TestComptimeBinaryOperations(StandardTestBase):
             val idiv = 100 \ 3          // comptime_int \ comptime_int -> comptime_int
             
             // Integer division with explicit type
-            val explicit_idiv:i64 = 100 \ 3  // comptime_int \ comptime_int -> i64
+            val explicit_idiv:i64 = (100 \ 3):i64  // comptime_int \ comptime_int -> i32, then i32:i64 (explicit conversion)
             
             // Float division requires explicit type
             val explicit_fdiv:f64 = 100 / 3  // comptime_int / comptime_int -> f64
@@ -128,12 +128,12 @@ class TestDivisionOperators(StandardTestBase):
             val div2 = 7 \ 2                // comptime_int \ comptime_int -> comptime_int
             
             // Integer division with explicit type
-            val div3:i64 = 22 \ 7         // comptime_int \ comptime_int -> i64
+            val div3:i64 = (22 \ 7):i64   // comptime_int \ comptime_int -> i32, then i32:i64 (explicit conversion)
             
-            // Integer division with concrete types
+            // Integer division with concrete types requires explicit type
             val a:i32 = 10
             val b:i32 = 3
-            val div4 = a \ b                // i32 \ i32 -> comptime_int
+            val div4:i32 = a \ b            // i32 \ i32 -> i32 (explicit type required)
             
             return div1
         }

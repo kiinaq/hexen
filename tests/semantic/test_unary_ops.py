@@ -58,9 +58,9 @@ class TestUnaryMinusSemantics(StandardTestBase):
             val neg_a:f32 = -a           // f32 → f32
             val neg_b:f64 = -b           // f64 → f64
 
-            // Mixed type operations
-            val mixed1:f64 = -x          // i32 → f64
-            val mixed2:f64 = -a          // f32 → f64
+            // Mixed type operations require explicit conversions
+            val mixed1:f64 = (-x):f64    // i32 → f64 (explicit required)
+            val mixed2:f64 = (-a):f64    // f32 → f64 (explicit required)
 
             return 0
         }

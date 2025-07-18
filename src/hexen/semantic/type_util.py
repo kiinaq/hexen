@@ -145,19 +145,17 @@ def can_coerce(from_type: HexenType, to_type: HexenType) -> bool:
     """
     Check if from_type can be automatically coerced to to_type.
 
-    Implements context-dependent coercion rules:
+    Implements TYPE_SYSTEM.md coercion rules:
 
-    1. Comptime types:
+    1. Comptime types (ergonomic literals):
        - comptime_int can coerce to any integer or float type
        - comptime_float can coerce to any float type
 
-    2. Regular widening coercion:
-       - i32 can widen to i64 and f64/f32
-       - i64 can widen to f64/f32
-       - f32 can widen to f64
-
-    3. Identity coercion:
+    2. Identity coercion:
        - Any type can coerce to itself
+
+    3. NO automatic widening for concrete types:
+       - All concrete type conversions require explicit syntax per TYPE_SYSTEM.md
 
     Args:
         from_type: The source type
@@ -170,15 +168,16 @@ def can_coerce(from_type: HexenType, to_type: HexenType) -> bool:
     if from_type == to_type:
         return True
 
-    # comptime type coercion
+    # comptime type coercion (ergonomic literals)
     if from_type == HexenType.COMPTIME_INT:
         return to_type in COMPTIME_INT_TARGETS
 
     if from_type == HexenType.COMPTIME_FLOAT:
         return to_type in COMPTIME_FLOAT_TARGETS
 
-    # Regular numeric widening coercion
-    return to_type in WIDENING_RULES.get(from_type, frozenset())
+    # NO automatic widening for concrete types per TYPE_SYSTEM.md
+    # All concrete conversions require explicit syntax: value:type
+    return False
 
 
 def resolve_comptime_type(
