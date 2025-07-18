@@ -8,7 +8,7 @@ Tests expression block behavior:
 - Allow access to outer scope variables
 - Support variable shadowing
 - Support nested blocks with proper scope management
-- Type inference from return statements
+- Comptime type default resolution from return statements
 
 Part of the unified block system described in UNIFIED_BLOCK_SYSTEM.md:
 - Single { } syntax for all contexts with context-driven behavior
@@ -142,21 +142,21 @@ class TestExpressionBlocks(StandardTestBase):
         errors = self.analyzer.analyze(ast)
         assert errors == []
 
-    def test_expression_block_type_inference(self):
-        """Test expression blocks infer type from return statement"""
+    def test_expression_block_comptime_type_defaults(self):
+        """Test expression blocks with comptime type default resolution"""
         source = """
         func test() : i32 = {
-            // Expression block type inferred from return
+            // Expression block with comptime type default resolution
             val int_result = {
-                return 42              // Inferred as i32
+                return 42              // comptime_int → i32 (default)
             }
             
             val string_result = {
-                return "hello"         // Inferred as string
+                return "hello"         // string (concrete)
             }
             
             val bool_result = {
-                return true            // Inferred as bool
+                return true            // bool (concrete)
             }
             
             return int_result
