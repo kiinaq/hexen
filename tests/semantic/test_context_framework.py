@@ -23,10 +23,9 @@ Related but tested elsewhere:
 
 This file focuses on the context propagation mechanisms themselves.
 
-NOTE: This file contains manual AST constructions that should be converted to
-use the parser like other test files. Several tests have been converted as
-examples, but ~10 tests still use manual AST construction and should be
-simplified for better maintainability.
+NOTE: This file has been updated to use the parser for all test cases,
+replacing manual AST constructions with cleaner, more maintainable
+parser-based test code following the same pattern as other test files.
 """
 
 from tests.semantic import (
@@ -67,60 +66,24 @@ class TestContextPropagationMechanisms(StandardTestBase):
 
     def test_assignment_context_propagation(self):
         """Test context propagation to assignment statement expressions"""
-        ast = {
-            "type": NodeType.PROGRAM.value,
-            "functions": [
-                {
-                    "type": NodeType.FUNCTION.value,
-                    "name": "test",
-                    "return_type": "void",
-                    "body": {
-                        "type": NodeType.BLOCK.value,
-                        "statements": [
-                            {
-                                "type": NodeType.MUT_DECLARATION.value,
-                                "name": "flexible",
-                                "type_annotation": "f64",
-                                "value": {"type": NodeType.LITERAL.value, "value": 0.0},
-                            },
-                            # Context: f64 type guides comptime_int resolution
-                            {
-                                "type": NodeType.ASSIGNMENT_STATEMENT.value,
-                                "target": "flexible",
-                                "value": {"type": NodeType.LITERAL.value, "value": 42},
-                            },
-                        ],
-                    },
-                }
-            ],
+        source = """
+        func test() : void = {
+            mut flexible : f64 = 0.0
+            flexible = 42
         }
-
+        """
+        ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         assert_no_errors(errors)
 
     def test_return_statement_context_propagation(self):
         """Test context propagation to return statement expressions"""
-        ast = {
-            "type": NodeType.PROGRAM.value,
-            "functions": [
-                {
-                    "type": NodeType.FUNCTION.value,
-                    "name": "test",
-                    "return_type": "f32",  # Context: f32 return type
-                    "body": {
-                        "type": NodeType.BLOCK.value,
-                        "statements": [
-                            # Context guides comptime_int → f32
-                            {
-                                "type": NodeType.RETURN_STATEMENT.value,
-                                "value": {"type": NodeType.LITERAL.value, "value": 42},
-                            }
-                        ],
-                    },
-                }
-            ],
+        source = """
+        func test() : f32 = {
+            return 42
         }
-
+        """
+        ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         assert_no_errors(errors)
 
@@ -130,32 +93,12 @@ class TestContextPropagationDepth(StandardTestBase):
 
     def test_nested_expression_context_propagation(self):
         """Test context propagates through nested expressions"""
-        ast = {
-            "type": NodeType.PROGRAM.value,
-            "functions": [
-                {
-                    "type": NodeType.FUNCTION.value,
-                    "name": "test",
-                    "return_type": "void",
-                    "body": {
-                        "type": NodeType.BLOCK.value,
-                        "statements": [
-                            # Context: i64 propagates through parentheses
-                            {
-                                "type": NodeType.VAL_DECLARATION.value,
-                                "name": "result",
-                                "type_annotation": "i64",
-                                "value": {
-                                    "type": NodeType.LITERAL.value,  # Represents (42) after parsing
-                                    "value": 42,
-                                },
-                            }
-                        ],
-                    },
-                }
-            ],
+        source = """
+        func test() : void = {
+            val result : i64 = 42
         }
-
+        """
+        ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         assert_no_errors(errors)
 
@@ -188,63 +131,23 @@ class TestBlockContextPropagation(StandardTestBase):
 
     def test_expression_block_context_propagation(self):
         """Test context propagates through expression blocks"""
-        # This test focuses on basic context propagation rather than complex AST structures
-        ast = {
-            "type": NodeType.PROGRAM.value,
-            "functions": [
-                {
-                    "type": NodeType.FUNCTION.value,
-                    "name": "test",
-                    "return_type": "void",
-                    "body": {
-                        "type": NodeType.BLOCK.value,
-                        "statements": [
-                            {
-                                "type": NodeType.VAL_DECLARATION.value,
-                                "name": "result",
-                                "type_annotation": "f64",  # Context: f64
-                                "value": {
-                                    "type": NodeType.LITERAL.value,
-                                    "value": 42.0,
-                                },  # Direct value instead of complex block
-                            }
-                        ],
-                    },
-                }
-            ],
+        source = """
+        func test() : void = {
+            val result : f64 = 42.0
         }
-
+        """
+        ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         assert_no_errors(errors)
 
     def test_nested_blocks_context_propagation(self):
         """Test context propagation through nested structures"""
-        # Simplified test using direct value assignment
-        ast = {
-            "type": NodeType.PROGRAM.value,
-            "functions": [
-                {
-                    "type": NodeType.FUNCTION.value,
-                    "name": "test",
-                    "return_type": "void",
-                    "body": {
-                        "type": NodeType.BLOCK.value,
-                        "statements": [
-                            {
-                                "type": NodeType.VAL_DECLARATION.value,
-                                "name": "outer_result",
-                                "type_annotation": "i64",  # Context: i64
-                                "value": {
-                                    "type": NodeType.LITERAL.value,
-                                    "value": 42,
-                                },  # comptime_int should become i64 via context
-                            }
-                        ],
-                    },
-                }
-            ],
+        source = """
+        func test() : void = {
+            val outer_result : i64 = 42
         }
-
+        """
+        ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         assert_no_errors(errors)
 
@@ -254,94 +157,28 @@ class TestContextGuidedResolution(StandardTestBase):
 
     def test_comptime_type_context_resolution(self):
         """Test context-guided resolution of comptime types"""
-        ast = {
-            "type": NodeType.PROGRAM.value,
-            "functions": [
-                {
-                    "type": NodeType.FUNCTION.value,
-                    "name": "test",
-                    "return_type": "void",
-                    "body": {
-                        "type": NodeType.BLOCK.value,
-                        "statements": [
-                            # Each should resolve based on target type context
-                            {
-                                "type": NodeType.VAL_DECLARATION.value,
-                                "name": "as_i32",
-                                "type_annotation": "i32",
-                                "value": {"type": NodeType.LITERAL.value, "value": 42},
-                            },
-                            {
-                                "type": NodeType.VAL_DECLARATION.value,
-                                "name": "as_i64",
-                                "type_annotation": "i64",
-                                "value": {"type": NodeType.LITERAL.value, "value": 42},
-                            },
-                            {
-                                "type": NodeType.VAL_DECLARATION.value,
-                                "name": "as_f32",
-                                "type_annotation": "f32",
-                                "value": {"type": NodeType.LITERAL.value, "value": 42},
-                            },
-                            {
-                                "type": NodeType.VAL_DECLARATION.value,
-                                "name": "as_f64",
-                                "type_annotation": "f64",
-                                "value": {"type": NodeType.LITERAL.value, "value": 42},
-                            },
-                        ],
-                    },
-                }
-            ],
+        source = """
+        func test() : void = {
+            val as_i32 : i32 = 42
+            val as_i64 : i64 = 42
+            val as_f32 : f32 = 42
+            val as_f64 : f64 = 42
         }
-
+        """
+        ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         assert_no_errors(errors)
 
     def test_regular_type_coercion_context_resolution(self):
         """Test context-guided resolution for regular type coercion"""
-        ast = {
-            "type": NodeType.PROGRAM.value,
-            "functions": [
-                {
-                    "type": NodeType.FUNCTION.value,
-                    "name": "test",
-                    "return_type": "void",
-                    "body": {
-                        "type": NodeType.BLOCK.value,
-                        "statements": [
-                            {
-                                "type": NodeType.VAL_DECLARATION.value,
-                                "name": "source",
-                                "type_annotation": "i32",
-                                "value": {"type": NodeType.LITERAL.value, "value": 42},
-                            },
-                            # Context enables widening coercion
-                            {
-                                "type": NodeType.VAL_DECLARATION.value,
-                                "name": "widened",
-                                "type_annotation": "i64",
-                                "value": {
-                                    "type": NodeType.IDENTIFIER.value,
-                                    "name": "source",
-                                },
-                            },
-                            # Context enables int-to-float conversion
-                            {
-                                "type": NodeType.VAL_DECLARATION.value,
-                                "name": "converted",
-                                "type_annotation": "f64",
-                                "value": {
-                                    "type": NodeType.IDENTIFIER.value,
-                                    "name": "source",
-                                },
-                            },
-                        ],
-                    },
-                }
-            ],
+        source = """
+        func test() : void = {
+            val source : i32 = 42
+            val widened : i64 = source
+            val converted : f64 = source
         }
-
+        """
+        ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         assert_no_errors(errors)
 
@@ -351,139 +188,48 @@ class TestContextPropagationLimits(StandardTestBase):
 
     def test_context_cannot_fix_invalid_coercion(self):
         """Test that context cannot enable invalid type coercion"""
-        ast = {
-            "type": NodeType.PROGRAM.value,
-            "functions": [
-                {
-                    "type": NodeType.FUNCTION.value,
-                    "name": "test",
-                    "return_type": "void",
-                    "body": {
-                        "type": NodeType.BLOCK.value,
-                        "statements": [
-                            {
-                                "type": NodeType.VAL_DECLARATION.value,
-                                "name": "string_val",
-                                "type_annotation": "string",
-                                "value": {
-                                    "type": NodeType.LITERAL.value,
-                                    "value": "hello",
-                                },
-                            },
-                            # Context cannot make string → i32 valid
-                            {
-                                "type": NodeType.VAL_DECLARATION.value,
-                                "name": "invalid",
-                                "type_annotation": "i32",
-                                "value": {
-                                    "type": NodeType.IDENTIFIER.value,
-                                    "name": "string_val",
-                                },
-                            },
-                        ],
-                    },
-                }
-            ],
+        source = """
+        func test() : void = {
+            val string_val : string = "hello"
+            val invalid : i32 = string_val
         }
-
+        """
+        ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         assert_error_count(errors, 1)
 
     def test_context_preserves_existing_error_detection(self):
         """Test that context framework doesn't mask existing errors"""
-        ast = {
-            "type": NodeType.PROGRAM.value,
-            "functions": [
-                {
-                    "type": NodeType.FUNCTION.value,
-                    "name": "test",
-                    "return_type": "void",
-                    "body": {
-                        "type": NodeType.BLOCK.value,
-                        "statements": [
-                            # Undefined variable should still be detected
-                            {
-                                "type": NodeType.VAL_DECLARATION.value,
-                                "name": "invalid",
-                                "type_annotation": "i32",
-                                "value": {
-                                    "type": NodeType.IDENTIFIER.value,
-                                    "name": "undefined_var",
-                                },
-                            }
-                        ],
-                    },
-                }
-            ],
+        source = """
+        func test() : void = {
+            val invalid : i32 = undefined_var
         }
-
+        """
+        ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         assert_error_count(errors, 1)
         assert "Undefined variable" in errors[0].message
 
     def test_context_with_uninitialized_variables(self):
-        """Test context propagation with undef variables"""
-        # Use a simpler test that doesn't depend on specific undef AST handling
-        ast = {
-            "type": NodeType.PROGRAM.value,
-            "functions": [
-                {
-                    "type": NodeType.FUNCTION.value,
-                    "name": "test",
-                    "return_type": "void",
-                    "body": {
-                        "type": NodeType.BLOCK.value,
-                        "statements": [
-                            # Test basic context propagation
-                            {
-                                "type": NodeType.MUT_DECLARATION.value,
-                                "name": "pending",
-                                "type_annotation": "i32",
-                                "value": {
-                                    "type": NodeType.LITERAL.value,
-                                    "value": 0,
-                                },  # Use valid literal instead of undef
-                            },
-                            {
-                                "type": NodeType.ASSIGNMENT_STATEMENT.value,
-                                "target": "pending",
-                                "value": {"type": NodeType.LITERAL.value, "value": 42},
-                            },
-                        ],
-                    },
-                }
-            ],
+        """Test context propagation with mutable variables"""
+        source = """
+        func test() : void = {
+            mut pending : i32 = 0
+            pending = 42
         }
-
+        """
+        ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         assert_no_errors(errors)
 
     def test_function_parameter_context_propagation(self):
         """Test context propagation in function context"""
-        # Since function parameters aren't supported, test basic function declaration context
-        ast = {
-            "type": NodeType.PROGRAM.value,
-            "functions": [
-                {
-                    "type": NodeType.FUNCTION.value,
-                    "name": "test",
-                    "return_type": "i64",  # Function return type provides context
-                    "body": {
-                        "type": NodeType.BLOCK.value,
-                        "statements": [
-                            {
-                                "type": NodeType.RETURN_STATEMENT.value,
-                                "value": {
-                                    "type": NodeType.LITERAL.value,
-                                    "value": 42,
-                                },  # comptime_int → i64 via return context
-                            }
-                        ],
-                    },
-                }
-            ],
+        source = """
+        func test() : i64 = {
+            return 42
         }
-
+        """
+        ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         assert_no_errors(errors)
 
@@ -491,95 +237,31 @@ class TestContextPropagationLimits(StandardTestBase):
 class TestContextFrameworkIntegration(StandardTestBase):
     """Test context framework integration with other language features"""
 
-    def test_function_parameter_context_propagation(self):
+    def test_function_return_context_propagation(self):
         """Test context propagation in basic function scenarios"""
-        # Since function parameters and calls aren't supported, test basic context propagation
-        ast = {
-            "type": NodeType.PROGRAM.value,
-            "functions": [
-                {
-                    "type": NodeType.FUNCTION.value,
-                    "name": "test",
-                    "return_type": "i64",  # Function return type provides context
-                    "body": {
-                        "type": NodeType.BLOCK.value,
-                        "statements": [
-                            {
-                                "type": NodeType.VAL_DECLARATION.value,
-                                "name": "value",
-                                "type_annotation": "i64",
-                                "value": {
-                                    "type": NodeType.LITERAL.value,
-                                    "value": 42,
-                                },  # comptime_int → i64 via context
-                            },
-                            {
-                                "type": NodeType.RETURN_STATEMENT.value,
-                                "value": {
-                                    "type": NodeType.IDENTIFIER.value,
-                                    "name": "value",
-                                },
-                            },
-                        ],
-                    },
-                }
-            ],
+        source = """
+        func test() : i64 = {
+            val value : i64 = 42
+            return value
         }
-
+        """
+        ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         assert_no_errors(errors)
 
     def test_context_propagation_consistency(self):
         """Test context propagation is consistent across all usage patterns"""
-        ast = {
-            "type": NodeType.PROGRAM.value,
-            "functions": [
-                {
-                    "type": NodeType.FUNCTION.value,
-                    "name": "test",
-                    "return_type": "void",
-                    "body": {
-                        "type": NodeType.BLOCK.value,
-                        "statements": [
-                            # Variable declaration context
-                            {
-                                "type": NodeType.VAL_DECLARATION.value,
-                                "name": "var_context",
-                                "type_annotation": "f32",
-                                "value": {"type": NodeType.LITERAL.value, "value": 42},
-                            },
-                            {
-                                "type": NodeType.MUT_DECLARATION.value,
-                                "name": "mut_var",
-                                "type_annotation": "f32",
-                                "value": {"type": NodeType.LITERAL.value, "value": 0.0},
-                            },
-                            # Assignment context
-                            {
-                                "type": NodeType.ASSIGNMENT_STATEMENT.value,
-                                "target": "mut_var",
-                                "value": {"type": NodeType.LITERAL.value, "value": 42},
-                            },
-                        ],
-                    },
-                },
-                {
-                    "type": NodeType.FUNCTION.value,
-                    "name": "return_context",
-                    "return_type": "f32",
-                    "body": {
-                        "type": NodeType.BLOCK.value,
-                        "statements": [
-                            # Return context
-                            {
-                                "type": NodeType.RETURN_STATEMENT.value,
-                                "value": {"type": NodeType.LITERAL.value, "value": 42},
-                            }
-                        ],
-                    },
-                },
-            ],
+        source = """
+        func test() : void = {
+            val var_context : f32 = 42
+            mut mut_var : f32 = 0.0
+            mut_var = 42
         }
-
+        
+        func return_context() : f32 = {
+            return 42
+        }
+        """
+        ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         assert_no_errors(errors)
