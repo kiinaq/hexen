@@ -8,7 +8,7 @@ Tests the comprehensive type coercion system described in TYPE_SYSTEM.md:
 - Integration with assignment and return contexts
 
 This file focuses on SAFE COERCION (widening), not precision loss scenarios.
-Precision loss testing is comprehensively covered in test_precision_loss.py.
+Precision loss testing is comprehensively covered in precision/ directory.
 """
 
 from tests.semantic import StandardTestBase
@@ -172,27 +172,8 @@ class TestSafeConversions(StandardTestBase):
         errors = self.analyzer.analyze(ast)
         assert errors == []
 
-    def test_comptime_type_safety(self):
-        """Test that comptime types safely coerce to all appropriate concrete types"""
-        source = """
-        func test() : void = {
-            // ✅ Comptime int can safely become any numeric type
-            val as_i32:i32 = 42
-            val as_i64:i64 = 42
-            val as_f32:f32 = 42
-            val as_f64:f64 = 42
-            
-            // ✅ Comptime float can safely become any float type
-            val float_f32:f32 = 3.14
-            val float_f64:f64 = 3.14
-            
-            // ✅ Mixed comptime operations with context
-            val mixed_result:f64 = 42 + 3.14
-        }
-        """
-        ast = self.parser.parse(source)
-        errors = self.analyzer.analyze(ast)
-        assert errors == []
+    # NOTE: Comptime type coercion testing is comprehensively covered in test_comptime_types.py
+    # This test was removed to avoid duplication
 
 
 class TestContextGuidedCoercion(StandardTestBase):
@@ -381,26 +362,8 @@ class TestCoercionEdgeCases(StandardTestBase):
         errors = self.analyzer.analyze(ast)
         assert errors == []
 
-    def test_comptime_type_default_resolution(self):
-        """Test comptime type default resolution behavior"""
-        source = """
-        func test() : void = {
-            // ✅ Comptime types use sensible defaults
-            val default_int = 42        // comptime_int → i32 (default)
-            val default_float = 3.14    // comptime_float → f64 (default)
-            
-            // ✅ Context overrides defaults
-            val explicit_i64:i64 = 42    // comptime_int → i64 (context)
-            val explicit_f32:f32 = 3.14  // comptime_float → f32 (context)
-            
-            // ✅ Mixed comptime operations with explicit types (as required by analyzer)
-            val mixed_explicit:f64 = 42 + 3.14  // comptime_int + comptime_float → f64 (explicit)
-            val mixed_f32:f32 = 42 + 3.14       // comptime_int + comptime_float → f32 (explicit)
-        }
-        """
-        ast = self.parser.parse(source)
-        errors = self.analyzer.analyze(ast)
-        assert errors == []
+    # NOTE: Comptime type default resolution testing is comprehensively covered in test_comptime_types.py
+    # This test was removed to avoid duplication
 
 
 class TestCoercionErrorMessages(StandardTestBase):

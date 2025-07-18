@@ -113,8 +113,8 @@ class TestSafeOperationsNoConversion(StandardTestBase):
         errors = self.analyzer.analyze(ast)
         assert errors == []
 
-    def test_type_annotation_consistency_safe(self):
-        """Test that correct type annotations don't cause precision loss"""
+    def test_type_declaration_consistency_safe(self):
+        """Test that correct type declarations don't cause precision loss"""
         source = """
         func test() : void = {
             val source:i32 = 42

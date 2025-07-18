@@ -11,7 +11,7 @@ This file focuses on ASSIGNMENT STATEMENT VALIDATION:
 - Integration with language scoping rules
 
 MUTABILITY SEMANTICS (val/mut lifecycle) are covered in test_mutability.py.
-PRECISION LOSS scenarios are covered in test_precision_loss.py.
+PRECISION LOSS scenarios are covered in precision/ directory.
 TYPE COERCION rules are covered in test_type_coercion.py.
 
 Key Assignment Rules:
@@ -318,16 +318,16 @@ class TestAssignmentInBlockContexts(StandardTestBase):
 
 
 class TestAssignmentWithExplicitTypes(StandardTestBase):
-    """Test assignment statements with explicit type annotations"""
+    """Test assignment statements with explicit type declarations"""
 
-    def test_assignment_with_type_annotations(self):
-        """Test assignment with type annotations (for precision loss cases)"""
+    def test_assignment_with_explicit_conversions(self):
+        """Test assignment with explicit conversions (for precision loss cases)"""
         source = """
         func test() : void = {
             mut target:i32 = 0
             val large_source:i64 = 1000
             
-            // ✅ Assignment with explicit type annotation (precision loss via explicit conversion)
+            // ✅ Assignment with explicit conversion (precision loss via explicit conversion)
             target = large_source:i32
         }
         """
@@ -335,27 +335,8 @@ class TestAssignmentWithExplicitTypes(StandardTestBase):
         errors = self.analyzer.analyze(ast)
         assert errors == []
 
-    def test_assignment_type_annotation_mismatch(self):
-        """Test assignment requiring explicit conversion for precision loss"""
-        source = """
-        func test() : void = {
-            mut target_i32:i32 = 0
-            mut target_f64:f64 = 0.0
-            val source = 100
-            
-            // ❌ Conversion to f64 then assignment to i32 requires explicit conversion
-            target_i32 = source:f64      // f64 → i32 requires explicit conversion
-            
-            // ✅ Conversion to i32 then assignment to f64 is fine (no precision loss)
-            target_f64 = source:i32      // i32 → f64 is safe
-        }
-        """
-        ast = self.parser.parse(source)
-        errors = self.analyzer.analyze(ast)
-        assert len(errors) == 1
-
-        # Should be precision loss error requiring explicit conversion
-        assert "truncation" in errors[0].message or "explicit" in errors[0].message
+    # NOTE: Precision loss error detection is comprehensively covered in precision/ directory
+    # This test was removed to avoid duplication - see test_mixed_precision.py
 
 
 class TestAssignmentWithUndef(StandardTestBase):

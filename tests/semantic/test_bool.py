@@ -25,8 +25,8 @@ class TestBoolTypeSemantics(StandardTestBase):
         errors = self.analyzer.analyze(ast)
         assert_no_errors(errors)
 
-    def test_bool_explicit_type_annotation(self):
-        """Test explicit bool type annotation"""
+    def test_bool_explicit_type_declaration(self):
+        """Test explicit bool type declaration"""
         source = """
         func test() : bool = {
             val flag:bool = true

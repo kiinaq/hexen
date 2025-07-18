@@ -17,7 +17,7 @@ This file focuses on PURE BINARY OPERATIONS:
 - Error detection for invalid operations
 
 ASSIGNMENT CONTEXT is covered in test_assignment.py.
-PRECISION LOSS scenarios are covered in test_precision_loss.py.
+PRECISION LOSS scenarios are covered in precision/ directory.
 MUTABILITY semantics are covered in test_mutability.py.
 
 See TYPE_SYSTEM.md and BINARY_OPS.md for detailed specifications.
@@ -223,7 +223,7 @@ class TestMixedTypeOperations(StandardTestBase):
 class TestBinaryOperationErrors(StandardTestBase):
     """Test error cases for binary operations"""
 
-    def test_missing_type_annotation(self):
+    def test_missing_explicit_type(self):
         """Test missing explicit conversions for operations requiring them"""
         source = """
         func test() : void = {

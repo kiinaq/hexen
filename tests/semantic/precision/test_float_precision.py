@@ -167,21 +167,5 @@ class TestFloatPrecisionLoss(StandardTestBase):
         # Test documents behavior - may or may not require conversion
         assert isinstance(errors, list)
 
-    def test_precision_loss_error_message_guidance(self):
-        """Test that precision loss errors provide clear guidance"""
-        source = """
-        func test() : void = {
-            val precise:f64 = 3.141592653589793
-            mut single:f32 = 0.0
-            
-            single = precise   // Error with guidance
-        }
-        """
-        ast = self.parser.parse(source)
-        errors = self.analyzer.analyze(ast)
-        assert len(errors) == 1
-
-        error_msg = errors[0].message
-        assert "Potential precision loss" in error_msg
-        assert "Use explicit conversion: 'value:f32'" in error_msg
-        # Message should contain guidance for explicit conversion
+    # NOTE: Error message format testing is centralized in test_error_messages.py
+    # This test was removed to avoid duplication - see test_precision_loss_error_message_format

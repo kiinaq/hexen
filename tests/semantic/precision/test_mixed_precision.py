@@ -223,7 +223,7 @@ class TestMixedTypePrecisionLoss(StandardTestBase):
             for msg in error_messages
         )
 
-    def test_type_annotation_mismatch_error_guidance(self):
+    def test_explicit_conversion_mismatch_error_guidance(self):
         """Test error messages for explicit conversion with precision loss"""
         source = """
         func test() : void = {

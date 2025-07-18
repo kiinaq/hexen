@@ -369,28 +369,8 @@ class TestMutabilityIntegration(StandardTestBase):
             "Cannot assign to immutable variable" in msg for msg in error_messages
         )
 
-    def test_mutability_error_message_consistency(self):
-        """Test consistent error messages across mutability scenarios"""
-        source = """
-        func test() : void = {
-            val immutable1 = 42
-            val immutable2 = "hello"
-            
-            immutable1 = 100
-            immutable2 = "world"
-        }
-        """
-        ast = self.parser.parse(source)
-        errors = self.analyzer.analyze(ast)
-        assert len(errors) == 2
-
-        # Both errors should have consistent messaging
-        for error in errors:
-            assert "Cannot assign to immutable variable" in error.message
-            assert (
-                "val variables can only be assigned once at declaration"
-                in error.message
-            )
+    # NOTE: Error message consistency testing is centralized in test_error_messages.py
+    # This test was removed to avoid duplication - see test_mutability_error_message_consistency
 
 
 class TestMutabilityTypeSystemIntegration(StandardTestBase):

@@ -169,21 +169,5 @@ class TestIntegerPrecisionLoss(StandardTestBase):
         # Test documents behavior - may or may not require conversion
         assert isinstance(errors, list)
 
-    def test_truncation_error_message_guidance(self):
-        """Test that truncation errors provide clear guidance"""
-        source = """
-        func test() : void = {
-            val large:i64 = 9223372036854775807
-            mut small:i32 = 0
-            
-            small = large   // Error with guidance
-        }
-        """
-        ast = self.parser.parse(source)
-        errors = self.analyzer.analyze(ast)
-        assert len(errors) == 1
-
-        error_msg = errors[0].message
-        assert "Potential truncation" in error_msg
-        assert "Use explicit conversion: 'value:i32'" in error_msg
-        # Message should contain guidance for explicit conversion
+    # NOTE: Error message format testing is centralized in test_error_messages.py
+    # This test was removed to avoid duplication - see test_truncation_error_message_format

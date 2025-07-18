@@ -19,9 +19,14 @@ Related but tested elsewhere:
 - test_type_coercion.py: Regular type coercion rules (how types convert)
 - test_binary_ops.py: Mixed-type binary operations (what requires context)
 - test_assignment.py: Assignment validation (how assignments use context)
-- test_precision_loss.py: Explicit conversion (when context isn't enough)
+- precision/ directory: Explicit conversion (when context isn't enough)
 
 This file focuses on the context propagation mechanisms themselves.
+
+NOTE: This file contains manual AST constructions that should be converted to
+use the parser like other test files. Several tests have been converted as
+examples, but ~10 tests still use manual AST construction and should be
+simplified for better maintainability.
 """
 
 from tests.semantic import (
@@ -51,29 +56,12 @@ class TestContextPropagationMechanisms(StandardTestBase):
 
     def test_variable_declaration_context_propagation(self):
         """Test context propagation to variable declaration expressions"""
-        ast = {
-            "type": NodeType.PROGRAM.value,
-            "functions": [
-                {
-                    "type": NodeType.FUNCTION.value,
-                    "name": "test",
-                    "return_type": "void",
-                    "body": {
-                        "type": NodeType.BLOCK.value,
-                        "statements": [
-                            # Context: i64 type guides comptime_int resolution
-                            {
-                                "type": NodeType.VAL_DECLARATION.value,
-                                "name": "explicit",
-                                "type_annotation": "i64",
-                                "value": {"type": NodeType.LITERAL.value, "value": 42},
-                            }
-                        ],
-                    },
-                }
-            ],
+        source = """
+        func test() : void = {
+            val explicit : i64 = 42
         }
-
+        """
+        ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         assert_no_errors(errors)
 
@@ -173,69 +161,24 @@ class TestContextPropagationDepth(StandardTestBase):
 
     def test_deep_nesting_context_propagation(self):
         """Test context propagation through deeply nested structures"""
-        ast = {
-            "type": NodeType.PROGRAM.value,
-            "functions": [
-                {
-                    "type": NodeType.FUNCTION.value,
-                    "name": "test",
-                    "return_type": "void",
-                    "body": {
-                        "type": NodeType.BLOCK.value,
-                        "statements": [
-                            # Context: f32 propagates through multiple levels
-                            {
-                                "type": NodeType.VAL_DECLARATION.value,
-                                "name": "nested",
-                                "type_annotation": "f32",
-                                "value": {
-                                    "type": NodeType.LITERAL.value,  # Represents (((3.14))) after parsing
-                                    "value": 3.14,
-                                },
-                            }
-                        ],
-                    },
-                }
-            ],
+        source = """
+        func test() : void = {
+            val nested : f32 = 3.14
         }
-
+        """
+        ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         assert_no_errors(errors)
 
     def test_context_through_variable_references(self):
         """Test context propagation works with variable references"""
-        ast = {
-            "type": NodeType.PROGRAM.value,
-            "functions": [
-                {
-                    "type": NodeType.FUNCTION.value,
-                    "name": "test",
-                    "return_type": "void",
-                    "body": {
-                        "type": NodeType.BLOCK.value,
-                        "statements": [
-                            {
-                                "type": NodeType.VAL_DECLARATION.value,
-                                "name": "source",
-                                "type_annotation": "i32",
-                                "value": {"type": NodeType.LITERAL.value, "value": 42},
-                            },
-                            # Context: i64 type should accept i32 variable (widening)
-                            {
-                                "type": NodeType.VAL_DECLARATION.value,
-                                "name": "target",
-                                "type_annotation": "i64",
-                                "value": {
-                                    "type": NodeType.IDENTIFIER.value,
-                                    "name": "source",
-                                },
-                            },
-                        ],
-                    },
-                }
-            ],
+        source = """
+        func test() : void = {
+            val source : i32 = 42
+            val target : i64 = source
         }
-
+        """
+        ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         assert_no_errors(errors)
 
