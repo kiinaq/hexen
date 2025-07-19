@@ -17,7 +17,11 @@ Moved from:
 import pytest
 from src.hexen.parser import HexenParser
 from src.hexen.ast_nodes import NodeType
-from .test_utils import verify_binary_operation_ast, BaseParserTest
+from .test_utils import (
+    verify_binary_operation_ast,
+    BaseParserTest,
+    create_comptime_int_ast,
+)
 
 
 class TestBasicParentheses(BaseParserTest):
@@ -304,13 +308,13 @@ class TestOperatorPrecedence:
         mul_op = {
             "type": NodeType.BINARY_OPERATION.value,
             "operator": "*",
-            "left": {"type": NodeType.COMPTIME_INT.value, "value": 20},
-            "right": {"type": NodeType.COMPTIME_INT.value, "value": 2},
+            "left": create_comptime_int_ast(20),
+            "right": create_comptime_int_ast(2),
         }
         verify_binary_operation_ast(
             statements[0]["value"],
             "+",
-            {"type": NodeType.COMPTIME_INT.value, "value": 10},
+            create_comptime_int_ast(10),
             mul_op,
         )
 
@@ -319,14 +323,14 @@ class TestOperatorPrecedence:
         add_op = {
             "type": NodeType.BINARY_OPERATION.value,
             "operator": "+",
-            "left": {"type": NodeType.COMPTIME_INT.value, "value": 10},
-            "right": {"type": NodeType.COMPTIME_INT.value, "value": 20},
+            "left": create_comptime_int_ast(10),
+            "right": create_comptime_int_ast(20),
         }
         verify_binary_operation_ast(
             statements[1]["value"],
             "*",
             add_op,
-            {"type": NodeType.COMPTIME_INT.value, "value": 2},
+            create_comptime_int_ast(2),
         )
 
     def test_unary_minus_precedence(self):
@@ -346,25 +350,25 @@ class TestOperatorPrecedence:
         neg_two = {
             "type": NodeType.UNARY_OPERATION.value,
             "operator": "-",
-            "operand": {"type": NodeType.COMPTIME_INT.value, "value": 2},
+            "operand": create_comptime_int_ast(2),
         }
         verify_binary_operation_ast(
             statements[0]["value"],
             "*",
             neg_two,
-            {"type": NodeType.COMPTIME_INT.value, "value": 3},
+            create_comptime_int_ast(3),
         )
 
         # Test 2 * -3
         neg_three = {
             "type": NodeType.UNARY_OPERATION.value,
             "operator": "-",
-            "operand": {"type": NodeType.COMPTIME_INT.value, "value": 3},
+            "operand": create_comptime_int_ast(3),
         }
         verify_binary_operation_ast(
             statements[1]["value"],
             "*",
-            {"type": NodeType.COMPTIME_INT.value, "value": 2},
+            create_comptime_int_ast(2),
             neg_three,
         )
 
@@ -372,12 +376,12 @@ class TestOperatorPrecedence:
         neg_two = {
             "type": NodeType.UNARY_OPERATION.value,
             "operator": "-",
-            "operand": {"type": NodeType.COMPTIME_INT.value, "value": 2},
+            "operand": create_comptime_int_ast(2),
         }
         neg_three = {
             "type": NodeType.UNARY_OPERATION.value,
             "operator": "-",
-            "operand": {"type": NodeType.COMPTIME_INT.value, "value": 3},
+            "operand": create_comptime_int_ast(3),
         }
         verify_binary_operation_ast(statements[2]["value"], "+", neg_two, neg_three)
 
@@ -405,14 +409,14 @@ class TestComplexExpressions:
         add_op = {
             "type": NodeType.BINARY_OPERATION.value,
             "operator": "+",
-            "left": {"type": NodeType.COMPTIME_INT.value, "value": 10},
-            "right": {"type": NodeType.COMPTIME_INT.value, "value": 20},
+            "left": create_comptime_int_ast(10),
+            "right": create_comptime_int_ast(20),
         }
         sub_op = {
             "type": NodeType.BINARY_OPERATION.value,
             "operator": "-",
-            "left": {"type": NodeType.COMPTIME_INT.value, "value": 30},
-            "right": {"type": NodeType.COMPTIME_INT.value, "value": 40},
+            "left": create_comptime_int_ast(30),
+            "right": create_comptime_int_ast(40),
         }
         verify_binary_operation_ast(statements[0]["value"], "*", add_op, sub_op)
 
@@ -435,20 +439,20 @@ class TestComplexExpressions:
         mul_op = {
             "type": NodeType.BINARY_OPERATION.value,
             "operator": "*",
-            "left": {"type": NodeType.COMPTIME_INT.value, "value": 20},
-            "right": {"type": NodeType.COMPTIME_INT.value, "value": 30},
+            "left": create_comptime_int_ast(20),
+            "right": create_comptime_int_ast(30),
         }
         first_add = {
             "type": NodeType.BINARY_OPERATION.value,
             "operator": "+",
-            "left": {"type": NodeType.COMPTIME_INT.value, "value": 10},
+            "left": create_comptime_int_ast(10),
             "right": mul_op,
         }
         div_op = {
             "type": NodeType.BINARY_OPERATION.value,
             "operator": "/",
-            "left": {"type": NodeType.COMPTIME_INT.value, "value": 40},
-            "right": {"type": NodeType.COMPTIME_INT.value, "value": 50},
+            "left": create_comptime_int_ast(40),
+            "right": create_comptime_int_ast(50),
         }
         verify_binary_operation_ast(statements[0]["value"], "-", first_add, div_op)
 

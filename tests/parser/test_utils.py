@@ -170,7 +170,11 @@ def create_comptime_int_ast(value):
     Returns:
         AST node for comptime integer literal
     """
-    return {"type": NodeType.COMPTIME_INT.value, "value": value}
+    return {
+        "type": NodeType.COMPTIME_INT.value,
+        "value": value,
+        "source_text": str(value),
+    }
 
 
 def create_comptime_float_ast(value):
@@ -183,7 +187,11 @@ def create_comptime_float_ast(value):
     Returns:
         AST node for comptime float literal
     """
-    return {"type": NodeType.COMPTIME_FLOAT.value, "value": value}
+    return {
+        "type": NodeType.COMPTIME_FLOAT.value,
+        "value": value,
+        "source_text": str(value),
+    }
 
 
 def create_bool_ast(value):

@@ -318,16 +318,122 @@ class HexenTransformer(Transformer):
         return {"type": NodeType.IDENTIFIER.value, "name": str(token)}
 
     def NUMBER(self, token):
-        # Parse number literals as comptime types that adapt to context
-        # 42 -> {type: "comptime_int", value: 42} (comptime_int)
-        # 3.14 -> {type: "comptime_float", value: 3.14} (comptime_float)
-        token_str = str(token)
-        if "." in token_str:
-            # Float literal → comptime_float
-            return {"type": NodeType.COMPTIME_FLOAT.value, "value": float(token_str)}
+        """Enhanced number parser supporting all literal formats with overflow detection"""
+        token_str = str(token).strip()
+
+        try:
+            # Handle negative sign
+            is_negative = token_str.startswith("-")
+            if is_negative or token_str.startswith("+"):
+                token_str = token_str[1:]
+
+            # Determine literal type and parse
+            if token_str.startswith(("0x", "0X")):
+                # Hexadecimal literal
+                value = self._parse_hex_literal(token_str[2:], is_negative)
+                return self._create_comptime_int(
+                    value, f"{'-' if is_negative else ''}{token_str}"
+                )
+
+            elif token_str.startswith(("0b", "0B")):
+                # Binary literal
+                value = self._parse_binary_literal(token_str[2:], is_negative)
+                return self._create_comptime_int(
+                    value, f"{'-' if is_negative else ''}{token_str}"
+                )
+
+            elif "e" in token_str.lower():
+                # Scientific notation
+                value = self._parse_scientific_literal(token_str, is_negative)
+                return self._create_comptime_number(
+                    value, f"{'-' if is_negative else ''}{token_str}"
+                )
+
+            elif "." in token_str:
+                # Decimal float
+                full_token = f"{'-' if is_negative else ''}{token_str}"
+                value = float(full_token)
+                return self._create_comptime_float(value, full_token)
+
+            else:
+                # Integer
+                full_token = f"{'-' if is_negative else ''}{token_str}"
+                value = int(full_token)
+                return self._create_comptime_int(value, full_token)
+
+        except (ValueError, OverflowError) as e:
+            raise SyntaxError(f"Invalid number literal '{str(token)}': {e}")
+
+    def _parse_hex_literal(self, hex_str: str, is_negative: bool) -> int:
+        """Parse hexadecimal literal with validation"""
+        try:
+            value = int(hex_str, 16)
+            if is_negative:
+                value = -value
+            return value
+        except ValueError:
+            raise SyntaxError(f"Invalid hexadecimal literal: 0x{hex_str}")
+
+    def _parse_binary_literal(self, bin_str: str, is_negative: bool) -> int:
+        """Parse binary literal with validation"""
+        try:
+            value = int(bin_str, 2)
+            if is_negative:
+                value = -value
+            return value
+        except ValueError:
+            raise SyntaxError(f"Invalid binary literal: 0b{bin_str}")
+
+    def _parse_scientific_literal(self, sci_str: str, is_negative: bool):
+        """Parse scientific notation with validation"""
+        try:
+            value = float(f"{'-' if is_negative else ''}{sci_str}")
+            # Determine if result should be comptime_int or comptime_float
+            if value.is_integer() and abs(value) <= 2**63 - 1:
+                return int(value)
+            return value
+        except (ValueError, OverflowError):
+            raise SyntaxError(f"Invalid scientific literal: {sci_str}")
+
+    def _create_comptime_int(self, value: int, source_text: str) -> dict:
+        """Create comptime_int with overflow detection"""
+        # Check against absolute bounds for any integer type
+        MAX_SAFE_INT = 2**63 - 1  # Largest safe integer (i64 max)
+        MIN_SAFE_INT = -(2**63)  # Smallest safe integer (i64 min)
+
+        if not (MIN_SAFE_INT <= value <= MAX_SAFE_INT):
+            raise SyntaxError(
+                f"Integer literal {source_text} exceeds maximum safe range for any integer type"
+            )
+
+        return {
+            "type": NodeType.COMPTIME_INT.value,
+            "value": value,
+            "source_text": source_text,  # Preserve original format for error messages
+        }
+
+    def _create_comptime_float(self, value: float, source_text: str) -> dict:
+        """Create comptime_float with overflow detection"""
+        # Check against f64 bounds (largest float type)
+        import sys
+
+        if not (-sys.float_info.max <= value <= sys.float_info.max):
+            raise SyntaxError(
+                f"Float literal {source_text} exceeds maximum safe range for any float type"
+            )
+
+        return {
+            "type": NodeType.COMPTIME_FLOAT.value,
+            "value": value,
+            "source_text": source_text,  # Preserve original format for error messages
+        }
+
+    def _create_comptime_number(self, value, source_text: str) -> dict:
+        """Create appropriate comptime type for scientific notation"""
+        if isinstance(value, int):
+            return self._create_comptime_int(value, source_text)
         else:
-            # Integer literal → comptime_int
-            return {"type": NodeType.COMPTIME_INT.value, "value": int(token_str)}
+            return self._create_comptime_float(value, source_text)
 
     def BOOLEAN(self, token):
         # Parse boolean literals: true -> {type: "literal", value: true}

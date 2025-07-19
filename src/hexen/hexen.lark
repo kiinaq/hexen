@@ -66,9 +66,19 @@ MUT: /mut\b/
 
 // Terminals
 IDENTIFIER: /(?!val\b|mut\b|true\b|false\b)[a-zA-Z_][a-zA-Z0-9_]*/
-NUMBER: /-?[0-9]+(\.[0-9]+)?/
+NUMBER: SIGN? (SCIENTIFIC | HEXADECIMAL | BINARY | DECIMAL | INTEGER)
 STRING: /\"[^\"]*\"/
 BOOLEAN: "true" | "false"
+
+// Enhanced number format definitions
+SCIENTIFIC: (DIGITS "." DIGITS | DIGITS) ("e"|"E") SIGN? DIGITS
+HEXADECIMAL: "0" ("x"|"X") /[0-9a-fA-F]+/
+BINARY: "0" ("b"|"B") /[01]+/
+DECIMAL: DIGITS "." DIGITS
+INTEGER: DIGITS
+
+DIGITS: /[0-9]+/
+SIGN: /[+-]/
 
 // Conversion operator (tight binding, high priority)
 CONVERSION_OP.10: /:(?=i32|i64|f32|f64|string|bool|void)/
