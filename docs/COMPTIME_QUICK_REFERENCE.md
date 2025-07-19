@@ -13,6 +13,8 @@ val x = 42   // Still comptime_int (preserved!)
 val y : i32 = 42   // NOW becomes i32 (context forces resolution)
 ```
 
+**⚠️ Overflow Safety**: Large literals that exceed type ranges trigger compile-time errors. See **[LITERAL_OVERFLOW_BEHAVIOR.md](LITERAL_OVERFLOW_BEHAVIOR.md)** for safety guarantees.
+
 ## 📊 The Three Type Categories
 
 | Category | Examples | Behavior |

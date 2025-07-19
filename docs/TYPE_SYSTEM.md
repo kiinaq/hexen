@@ -96,12 +96,16 @@ Now that you understand `val` and `mut`, let's explore how they interact with He
 | `bool` | Boolean value | 1 byte | `true` or `false` |
 | `void` | No value (functions only) | 0 bytes | N/A |
 
+**⚠️ Overflow Protection**: Literals that exceed these ranges trigger compile-time errors. See **[LITERAL_OVERFLOW_BEHAVIOR.md](LITERAL_OVERFLOW_BEHAVIOR.md)** for details.
+
 ### Comptime Types (Compile-Time Only)
 
 | Type | Description | Purpose |
 |------|-------------|---------|
 | `comptime_int` | Integer literals | Context-dependent coercion to any numeric type |
 | `comptime_float` | Float literals | Context-dependent coercion to float types |
+
+**📋 Important**: For detailed information about literal overflow behavior and compile-time safety guarantees, see **[LITERAL_OVERFLOW_BEHAVIOR.md](LITERAL_OVERFLOW_BEHAVIOR.md)**.
 
 ### Special Types (Internal)
 
@@ -139,6 +143,8 @@ This creates three problems:
 ### Our Experimental Solution: Adaptive Literals with Explicit Concrete Conversions
 
 Hexen explores solving this with **comptime types** - special types that literals have initially, which adapt to context. For concrete types, all conversions are explicit:
+
+**📋 Overflow Safety**: Hexen follows Zig's approach for literal overflow detection. See **[LITERAL_OVERFLOW_BEHAVIOR.md](LITERAL_OVERFLOW_BEHAVIOR.md)** for complete safety guarantees.
 
 ```hexen
 // ✨ Comptime literals adapt seamlessly (ergonomic)
