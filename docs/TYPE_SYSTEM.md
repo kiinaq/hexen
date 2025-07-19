@@ -144,7 +144,7 @@ This creates three problems:
 
 Hexen explores solving this with **comptime types** - special types that literals have initially, which adapt to context. For concrete types, all conversions are explicit:
 
-**📋 Overflow Safety**: Hexen follows Zig's approach for literal overflow detection. See **[LITERAL_OVERFLOW_BEHAVIOR.md](LITERAL_OVERFLOW_BEHAVIOR.md)** for complete safety guarantees.
+**📋 Overflow Safety**: Hexen uses compile-time overflow detection for literal safety. See **[LITERAL_OVERFLOW_BEHAVIOR.md](LITERAL_OVERFLOW_BEHAVIOR.md)** for complete safety guarantees.
 
 ```hexen
 // ✨ Comptime literals adapt seamlessly (ergonomic)

@@ -16,6 +16,8 @@ from .type_util import (
     resolve_comptime_type,
     can_coerce,
     is_precision_loss_operation,
+    validate_comptime_literal_coercion,
+    extract_literal_info,
 )
 
 
@@ -156,6 +158,18 @@ class AssignmentAnalyzer:
                     # Generate appropriate error message based on operation type
                     self._generate_precision_loss_error(value_type, symbol.type, node)
                     return
+
+            # Check for literal overflow before type coercion
+            if value_type in {HexenType.COMPTIME_INT, HexenType.COMPTIME_FLOAT}:
+                literal_value, source_text = extract_literal_info(value)
+                if literal_value is not None:
+                    try:
+                        validate_comptime_literal_coercion(
+                            literal_value, value_type, symbol.type, source_text
+                        )
+                    except TypeError as e:
+                        self._error(str(e), node)
+                        return
 
             # Check type compatibility with coercion for non-precision-loss cases
             if not can_coerce(value_type, symbol.type):

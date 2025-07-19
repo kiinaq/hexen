@@ -2,7 +2,7 @@
 
 ## Philosophy
 
-Hexen follows Zig's philosophy of compile-time safety and the "Transparent Costs" principle when handling literal overflow. The language is designed to:
+Hexen follows a philosophy of compile-time safety and the "Transparent Costs" principle when handling literal overflow. The language is designed to:
 
 - **Detect overflow at compile time** for comptime literals
 - **Prevent silent data loss** through explicit conversion requirements
@@ -113,7 +113,7 @@ Error: Literal 3.5e+38 overflows f32 range
 
 ### Rationale for Hexen's Approach
 
-Hexen follows the **modern systems programming language approach** (Zig, Rust) rather than the legacy C/C++ approach:
+Hexen follows the **modern systems programming language approach** (similar to Rust and other safety-focused languages) rather than the legacy C/C++ approach:
 
 - **Compile-time safety** prevents runtime surprises
 - **Explicit conversion syntax** makes truncation intentional and visible
@@ -203,7 +203,7 @@ val legacy_compat:i32 = some_large_value:i32
 
 Hexen's literal overflow behavior prioritizes **compile-time safety** and **explicit intent** over convenience. This approach prevents entire classes of bugs while maintaining the language's core principle of transparent costs.
 
-By following Zig's proven model, Hexen ensures that:
+By following this proven safety model, Hexen ensures that:
 - **No data is lost silently**
 - **Programmer intent is explicit** 
 - **Errors are caught early** in the development cycle

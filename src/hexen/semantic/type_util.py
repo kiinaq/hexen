@@ -6,8 +6,9 @@ Provides type checking, coercion, and resolution utilities used across
 the semantic analysis phase.
 """
 
-from typing import Optional, Dict, FrozenSet
+from typing import Optional, Dict, FrozenSet, Union
 from .types import HexenType
+from ..ast_nodes import NodeType
 
 
 # Module-level constants for type sets and maps
@@ -77,6 +78,14 @@ TYPE_STRING_TO_HEXEN_TYPE: Dict[str, HexenType] = {
     "void": HexenType.VOID,
     "comptime_int": HexenType.COMPTIME_INT,
     "comptime_float": HexenType.COMPTIME_FLOAT,
+}
+
+# Type range constants for overflow detection per LITERAL_OVERFLOW_BEHAVIOR.md
+TYPE_RANGES: Dict[HexenType, tuple[Union[int, float], Union[int, float]]] = {
+    HexenType.I32: (-2147483648, 2147483647),
+    HexenType.I64: (-9223372036854775808, 9223372036854775807),
+    HexenType.F32: (-3.4028235e38, 3.4028235e38),
+    HexenType.F64: (-1.7976931348623157e308, 1.7976931348623157e308),
 }
 
 
@@ -367,3 +376,111 @@ def is_precision_loss_operation(from_type: HexenType, to_type: HexenType) -> boo
         (from_type == HexenType.I64 and to_type == HexenType.F32)
         or (from_type == HexenType.F64 and to_type == HexenType.I32)
     )
+
+
+def validate_literal_range(
+    value: Union[int, float], target_type: HexenType, source_text: str = None
+) -> None:
+    """
+    Validate literal fits in target type range per LITERAL_OVERFLOW_BEHAVIOR.md.
+
+    Raises TypeError with detailed message if literal overflows target type range.
+    This implements the compile-time safety guarantees specified in the documentation.
+
+    Args:
+        value: The literal value to check
+        target_type: The target type to validate against
+        source_text: Original literal text for error messages (e.g., "0xFF", "1e6")
+
+    Raises:
+        TypeError: If literal overflows target type range with detailed error message
+
+    Returns:
+        None if validation passes
+    """
+    if target_type not in TYPE_RANGES:
+        return  # Unknown type, let other validation handle it
+
+    min_val, max_val = TYPE_RANGES[target_type]
+
+    if not (min_val <= value <= max_val):
+        display_text = source_text or str(value)
+        type_name = target_type.value
+
+        # Format error message per LITERAL_OVERFLOW_BEHAVIOR.md specification
+        if target_type in {HexenType.F32, HexenType.F64}:
+            error_msg = (
+                f"Literal {display_text} overflows {type_name} range\n"
+                f"  Expected: approximately ±{max_val}\n"
+                f"  Suggestion: Use explicit conversion if truncation is intended: {display_text}:{type_name}"
+            )
+        else:
+            error_msg = (
+                f"Literal {display_text} overflows {type_name} range\n"
+                f"  Expected: {min_val} to {max_val}\n"
+                f"  Suggestion: Use explicit conversion if truncation is intended: {display_text}:{type_name}"
+            )
+
+        raise TypeError(error_msg)
+
+
+def validate_comptime_literal_coercion(
+    value: Union[int, float],
+    from_type: HexenType,
+    to_type: HexenType,
+    source_text: str = None,
+) -> None:
+    """
+    Validate comptime literal can be safely coerced to target type.
+
+    This function implements the overflow detection during comptime type coercion
+    as specified in LITERAL_OVERFLOW_BEHAVIOR.md. It should be called when
+    comptime_int or comptime_float literals are being coerced to concrete types.
+
+    Args:
+        value: The literal value from the AST node
+        from_type: The source comptime type (COMPTIME_INT or COMPTIME_FLOAT)
+        to_type: The target concrete type
+        source_text: Original literal text for error messages
+
+    Raises:
+        TypeError: If literal overflows target type range
+
+    Returns:
+        None if coercion is safe
+    """
+    # Only validate comptime type coercions to concrete types
+    if from_type not in {HexenType.COMPTIME_INT, HexenType.COMPTIME_FLOAT}:
+        return
+
+    if to_type not in TYPE_RANGES:
+        return
+
+    # Special handling for comptime_float → integer coercion
+    if from_type == HexenType.COMPTIME_FLOAT and to_type in {
+        HexenType.I32,
+        HexenType.I64,
+    }:
+        # This should require explicit conversion per TYPE_SYSTEM.md
+        # But if we get here, validate the conversion is at least in range
+        validate_literal_range(int(value), to_type, source_text)
+    else:
+        # Standard range validation
+        validate_literal_range(value, to_type, source_text)
+
+
+def extract_literal_info(node: Dict) -> tuple[Union[int, float], str]:
+    """
+    Extract literal value and source text from AST node.
+
+    Args:
+        node: AST node representing a literal (comptime_int, comptime_float, etc.)
+
+    Returns:
+        Tuple of (value, source_text) or (None, None) if not a literal
+    """
+    if node.get("type") in {NodeType.COMPTIME_INT.value, NodeType.COMPTIME_FLOAT.value}:
+        value = node.get("value")
+        source_text = node.get("source_text", str(value) if value is not None else None)
+        return value, source_text
+    return None, None

@@ -149,6 +149,26 @@ class ReturnAnalyzer:
                     )
                     return
 
+            # Check for literal overflow before type coercion
+            if return_type in {HexenType.COMPTIME_INT, HexenType.COMPTIME_FLOAT}:
+                from .type_util import (
+                    extract_literal_info,
+                    validate_comptime_literal_coercion,
+                )
+
+                literal_value, source_text = extract_literal_info(value)
+                if literal_value is not None:
+                    try:
+                        validate_comptime_literal_coercion(
+                            literal_value,
+                            return_type,
+                            expected_return_type,
+                            source_text,
+                        )
+                    except TypeError as e:
+                        self._error(str(e), node)
+                        return
+
             # Use coercion for return type checking
             from .type_util import can_coerce
 
