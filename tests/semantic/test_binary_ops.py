@@ -276,7 +276,7 @@ class TestBinaryOperationErrors(StandardTestBase):
             for e in division_errors
         )
 
-        # Type inference errors are not generated for these cases
+        # Additional type resolution errors are not generated for these cases
 
 
 class TestLogicalOperations(StandardTestBase):
@@ -341,7 +341,7 @@ class TestLogicalOperations(StandardTestBase):
             for e in logical_errors
         ), "Missing or incorrect error message for logical operations"
 
-        # Type inference errors are not generated for these cases
+        # Additional type resolution errors are not generated for these cases
 
     def test_logical_operation_precedence(self):
         """Test operator precedence in logical operations"""

@@ -37,7 +37,7 @@ class TestValVariableSemantics(StandardTestBase):
             val flag:bool = true
             val precise:f64 = 3.14159
             
-            // ✅ Val with type inference (comptime type defaults)
+            // ✅ Val with comptime type defaults
             val inferred_int = 42        // comptime_int → i32 (default)
             val inferred_float = 3.14    // comptime_float → f64 (default)
             val inferred_string = "test" // string
@@ -235,10 +235,10 @@ class TestMutVariableSemantics(StandardTestBase):
         assert errors == []
 
     def test_mut_undef_requires_explicit_type(self):
-        """Test that mut with undef requires explicit type (cannot infer from undef)"""
+        """Test that mut with undef requires explicit type (cannot resolve from undef)"""
         source = """
         func test() : void = {
-            // ❌ Cannot infer type from undef
+            // ❌ Cannot resolve type from undef
             mut pending:i32 = undef
             mut unknown:string = undef
         }

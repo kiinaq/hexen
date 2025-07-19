@@ -13,8 +13,8 @@ from tests.semantic import (
 class TestBoolTypeSemantics(StandardTestBase):
     """Test semantic analysis of bool type"""
 
-    def test_bool_type_inference(self):
-        """Test type inference for boolean literals"""
+    def test_bool_concrete_type(self):
+        """Test boolean literals are concrete types"""
         source = """
         func test() : bool = {
             val flag = true
