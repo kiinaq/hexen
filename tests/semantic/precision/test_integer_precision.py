@@ -53,20 +53,22 @@ class TestIntegerPrecisionLoss(StandardTestBase):
         errors = self.analyzer.analyze(ast)
         assert errors == []
 
-    def test_large_integer_literal_truncation(self):
-        """Test truncation of large integer literals"""
+    def test_large_integer_literal_overflow_detection(self):
+        """Test overflow detection for large integer literals per LITERAL_OVERFLOW_BEHAVIOR.md"""
         source = """
         func test() : void = {
-            // ❌ Large literal that may not fit in i32 without conversion
-            val truncated:i32 = 4294967296  // 2^32, too large for i32
+            // ❌ Large literal that overflows i32 range - should trigger overflow error
+            val truncated:i32 = 4294967296  // 2^32, exceeds i32 max (2147483647)
         }
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        # Note: This depends on implementation - comptime_int may handle this differently
-        # The test verifies behavior is consistent with type system design
-        # May or may not produce errors depending on implementation
-        assert isinstance(errors, list)  # Ensure errors is a list
+
+        # Per LITERAL_OVERFLOW_BEHAVIOR.md: compile-time overflow detection should catch this
+        assert len(errors) >= 1, (
+            "Expected overflow error for literal exceeding i32 range"
+        )
+        assert "overflows i32 range" in errors[0].message
 
     def test_val_integer_truncation_conversion(self):
         """Test val variables support integer truncation conversion"""
