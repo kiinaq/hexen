@@ -136,38 +136,38 @@ class TestIntegerPrecisionLoss(StandardTestBase):
         assert errors == []
 
     def test_zero_and_small_values(self):
-        """Test that small values don't trigger false precision loss warnings"""
+        """Test that ALL concrete conversions require explicit syntax per TYPE_SYSTEM.md"""
         source = """
         func test() : void = {
             val small_i64:i64 = 42      // Small value, fits in i32
             mut target_i32:i32 = 0
             
-            // ❌ Still requires conversion due to type difference
-            // Implementation may vary - some allow small values, others require consistency
-            target_i32 = small_i64     // May or may not require conversion
+            // ❌ ALL concrete conversions require explicit syntax per TYPE_SYSTEM.md
+            target_i32 = small_i64     // Error: requires explicit conversion
         }
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        # Implementation dependent - test ensures no crashes
-        assert isinstance(errors, list)
+        # Per TYPE_SYSTEM.md: ALL concrete conversions require explicit syntax
+        assert len(errors) == 1
+        assert "Potential truncation" in errors[0].message
 
     def test_exact_representable_values(self):
-        """Test values that are exactly representable across types"""
+        """Test that ALL concrete conversions require explicit syntax per TYPE_SYSTEM.md"""
         source = """
         func test() : void = {
             val exact_int:i64 = 42          // Exactly representable in i32
             mut target_i32:i32 = 0
             
-            // ❌ Even exact values may require conversion for type consistency
-            // (Implementation choice - some systems require it, others allow it)
-            target_i32 = exact_int      // May require:i32
+            // ❌ ALL concrete conversions require explicit syntax per TYPE_SYSTEM.md
+            target_i32 = exact_int      // Error: requires exact_int:i32
         }
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        # Test documents behavior - may or may not require conversion
-        assert isinstance(errors, list)
+        # Per TYPE_SYSTEM.md: ALL concrete conversions require explicit syntax
+        assert len(errors) == 1
+        assert "Potential truncation" in errors[0].message
 
     # NOTE: Error message format testing is centralized in test_error_messages.py
     # This test was removed to avoid duplication - see test_truncation_error_message_format

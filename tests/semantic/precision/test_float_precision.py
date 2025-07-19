@@ -134,38 +134,38 @@ class TestFloatPrecisionLoss(StandardTestBase):
         assert errors == []
 
     def test_zero_and_small_values(self):
-        """Test that small values don't trigger false precision loss warnings"""
+        """Test that ALL concrete conversions require explicit syntax per TYPE_SYSTEM.md"""
         source = """
         func test() : void = {
             val small_f64:f64 = 3.14    // Small value, fits in f32
             mut target_f32:f32 = 0.0
             
-            // ❌ Still requires conversion due to type difference
-            // Implementation may vary - some allow small values, others require consistency
-            target_f32 = small_f64     // May or may not require conversion
+            // ❌ ALL concrete conversions require explicit syntax per TYPE_SYSTEM.md
+            target_f32 = small_f64     // Error: requires explicit conversion
         }
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        # Implementation dependent - test ensures no crashes
-        assert isinstance(errors, list)
+        # Per TYPE_SYSTEM.md: ALL concrete conversions require explicit syntax
+        assert len(errors) == 1
+        assert "Potential precision loss" in errors[0].message
 
     def test_exact_representable_values(self):
-        """Test values that are exactly representable across types"""
+        """Test that ALL concrete conversions require explicit syntax per TYPE_SYSTEM.md"""
         source = """
         func test() : void = {
             val exact_float:f64 = 2.0       // Exactly representable in f32
             mut target_f32:f32 = 0.0
             
-            // ❌ Even exact values may require conversion for type consistency
-            // (Implementation choice - some systems require it, others allow it)
-            target_f32 = exact_float    // May require:f32
+            // ❌ ALL concrete conversions require explicit syntax per TYPE_SYSTEM.md
+            target_f32 = exact_float    // Error: requires exact_float:f32
         }
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        # Test documents behavior - may or may not require conversion
-        assert isinstance(errors, list)
+        # Per TYPE_SYSTEM.md: ALL concrete conversions require explicit syntax
+        assert len(errors) == 1
+        assert "Potential precision loss" in errors[0].message
 
     # NOTE: Error message format testing is centralized in test_error_messages.py
     # This test was removed to avoid duplication - see test_precision_loss_error_message_format
