@@ -270,7 +270,7 @@ class TestMutabilityScoping(StandardTestBase):
             val check3 = outer         // 42 (original)
             
             // ❌ Cannot access inner (out of scope)
-            val check4:i32 = inner   // Error: undefined variable (explicit type to avoid inference issues)
+            val check4:i32 = inner   // Error: undefined variable (explicit type provided)
         }
         """
         ast = self.parser.parse(source)
