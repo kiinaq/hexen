@@ -133,39 +133,31 @@ class TestFloatPrecisionLoss(StandardTestBase):
         errors = self.analyzer.analyze(ast)
         assert errors == []
 
-    def test_zero_and_small_values(self):
-        """Test that ALL concrete conversions require explicit syntax per TYPE_SYSTEM.md"""
-        source = """
-        func test() : void = {
-            val small_f64:f64 = 3.14    // Small value, fits in f32
-            mut target_f32:f32 = 0.0
-            
-            // ❌ ALL concrete conversions require explicit syntax per TYPE_SYSTEM.md
-            target_f32 = small_f64     // Error: requires explicit conversion
-        }
-        """
-        ast = self.parser.parse(source)
-        errors = self.analyzer.analyze(ast)
-        # Per TYPE_SYSTEM.md: ALL concrete conversions require explicit syntax
-        assert len(errors) == 1
-        assert "Potential precision loss" in errors[0].message
+    def test_concrete_float_conversions_require_explicit_syntax(self):
+        """Test that ALL f64→f32 conversions require explicit syntax per TYPE_SYSTEM.md"""
+        test_cases = [
+            ("3.14", "Small value that fits in f32"),
+            ("2.0", "Exactly representable value"),
+            ("1.0", "Simple exact value"),
+            ("0.5", "Simple fractional value"),
+        ]
 
-    def test_exact_representable_values(self):
-        """Test that ALL concrete conversions require explicit syntax per TYPE_SYSTEM.md"""
-        source = """
-        func test() : void = {
-            val exact_float:f64 = 2.0       // Exactly representable in f32
-            mut target_f32:f32 = 0.0
-            
-            // ❌ ALL concrete conversions require explicit syntax per TYPE_SYSTEM.md
-            target_f32 = exact_float    // Error: requires exact_float:f32
-        }
-        """
-        ast = self.parser.parse(source)
-        errors = self.analyzer.analyze(ast)
-        # Per TYPE_SYSTEM.md: ALL concrete conversions require explicit syntax
-        assert len(errors) == 1
-        assert "Potential precision loss" in errors[0].message
+        for value, description in test_cases:
+            source = f"""
+            func test() : void = {{
+                val source_f64:f64 = {value}    // {description}
+                mut target_f32:f32 = 0.0
+                
+                // ❌ ALL concrete conversions require explicit syntax per TYPE_SYSTEM.md
+                target_f32 = source_f64     // Error: requires source_f64:f32
+            }}
+            """
+            ast = self.parser.parse(source)
+            errors = self.analyzer.analyze(ast)
+
+            # Per TYPE_SYSTEM.md: ALL concrete conversions require explicit syntax
+            assert len(errors) == 1, f"Expected error for {description} ({value})"
+            assert "Potential precision loss" in errors[0].message
 
     # NOTE: Error message format testing is centralized in test_error_messages.py
     # This test was removed to avoid duplication - see test_precision_loss_error_message_format
