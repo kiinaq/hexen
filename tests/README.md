@@ -4,11 +4,11 @@ Comprehensive test coverage for the Hexen programming language compiler. This te
 
 ## 📊 Test Overview
 
-**Total Coverage**: **415 tests** across 2 main categories
-- **Parser Tests**: 113 tests validating syntax and AST generation
-- **Semantic Tests**: 302 tests validating type checking and program semantics
+**Total Coverage**: **449 tests** across 2 main categories
+- **Parser Tests**: 158 tests validating syntax and AST generation
+- **Semantic Tests**: 291 tests validating type checking and program semantics
 
-**Success Rate**: ✅ **415/415 passing** (100% success rate)
+**Success Rate**: ✅ **449/449 passing** (100% success rate)
 
 ## 🏗️ Test Architecture
 
@@ -16,12 +16,12 @@ The test suite follows a clean separation between parsing (syntax) and semantic 
 
 ```
 tests/
-├── parser/          # Syntax validation & AST generation (113 tests)
-├── semantic/        # Type checking & semantic analysis (302 tests) 
+├── parser/          # Syntax validation & AST generation (158 tests)
+├── semantic/        # Type checking & semantic analysis (291 tests) 
 └── README.md        # This documentation
 ```
 
-### 🔍 Parser Tests (113 tests)
+### 🔍 Parser Tests (158 tests)
 *Validates syntax parsing and Abstract Syntax Tree (AST) generation*
 
 ```
@@ -54,52 +54,66 @@ tests/parser/
 - ✅ Type annotation positioning and syntax
 - ✅ Syntax error detection and reporting
 
-### 🧠 Semantic Tests (302 tests - **FULLY REFACTORED**)
+### 🧠 Semantic Tests (291 tests - **COMPLETELY REORGANIZED**)
 *Validates type checking, scope management, and program semantics*
 
-**🎯 Refactored in 7-Session Project - Zero Overlap, Complete Coverage**
+**🎯 Organized by Purpose - Zero Overlap, Complete Coverage**
 
 ```
 tests/semantic/
-├── test_comptime_types.py        # Comprehensive comptime type system (38 tests)
-├── test_precision_loss.py        # "Explicit Danger, Implicit Safety" (36 tests)
-├── test_unified_blocks.py        # Unified block system (34 tests)
-├── test_assignment.py            # Assignment validation & context (31 tests)
-├── test_error_messages.py        # Error message consistency (24 tests)
-├── test_type_annotations.py      # Type annotation syntax & rules (23 tests)
-├── test_type_coercion.py         # Concrete type coercion (23 tests)
-├── test_binary_ops.py            # Binary operations (20 tests)
-├── test_context_framework.py     # Context-guided resolution (19 tests)
-├── test_basic_semantics.py       # Cross-feature integration (18 tests)
-├── test_mutability.py            # val/mut variable system (18 tests)
-├── test_unary_ops.py             # Unary operations (18 tests)
-├── test_bare_returns.py          # Bare return handling (16 tests)
-└── test_bool.py                  # Boolean type semantics (12 tests)
+├── integration/                       # Cross-feature integration tests (4 files)
+│   ├── test_basic_semantics.py        # Language integration scenarios (16 tests)
+│   ├── test_binary_ops.py            # Multi-operator + type system integration (32 tests)
+│   ├── test_comptime_adaptation.py   # Comptime across multiple contexts (27 tests)
+│   └── test_error_messages.py        # Error consistency across features (21 tests)
+├── blocks/                           # Block system features (4 files)
+│   ├── test_block_scoping.py         # Universal scoping rules (10 tests)
+│   ├── test_expression_blocks.py     # Expression blocks (15 tests)
+│   ├── test_function_blocks.py       # Function body blocks (8 tests)
+│   └── test_statement_blocks.py      # Statement blocks (7 tests)
+├── precision/                        # Numeric precision features (4 files)
+│   ├── test_integer_precision.py     # Integer overflow/precision (14 tests)
+│   ├── test_float_precision.py       # Float precision handling (10 tests)
+│   ├── test_mixed_precision.py       # Mixed-type precision (8 tests)
+│   └── test_safe_operations.py       # Safe numeric operations (6 tests)
+├── test_assignment.py               # Assignment statement validation (31 tests)
+├── test_bare_returns.py            # Bare return handling (16 tests)
+├── test_bool.py                     # Boolean type semantics (12 tests)
+├── test_comptime_types.py           # Comptime type system (38 tests)
+├── test_explicit_conversions.py     # Explicit type conversions (16 tests)
+├── test_literal_overflow.py         # Literal overflow detection (11 tests)
+├── test_mutability.py               # val/mut variable system (15 tests)
+├── test_unary_ops.py                # Unary operations (16 tests)
+└── test_utils.py                    # Testing utilities and mixins
 ```
 
-**Core Type System Tests:**
-- **test_comptime_types.py**: Complete Zig-style comptime type system with context-dependent coercion
-- **test_type_coercion.py**: Concrete type coercion and safe widening rules  
-- **test_precision_loss.py**: "Explicit Danger, Implicit Safety" enforcement with acknowledgment patterns
-- **test_type_annotations.py**: Type annotation syntax, positioning, and validation rules
+**🎯 Integration Tests (integration/):**
+- **test_basic_semantics.py**: Cross-feature language integration scenarios
+- **test_binary_ops.py**: Multi-operator integration with type system (arithmetic, comparison, logical)
+- **test_comptime_adaptation.py**: Comptime type adaptation across multiple contexts
+- **test_error_messages.py**: Error message consistency across all language features
 
-**Operation Tests:**
-- **test_binary_ops.py**: Binary operations, mixed-type expressions, division operators
-- **test_unary_ops.py**: Unary operations and negative literals (consolidated from deleted files)
+**🧱 Block System Tests (blocks/):**
+- **test_block_scoping.py**: Universal scoping and shadowing rules
+- **test_expression_blocks.py**: Blocks that compute and return values
+- **test_function_blocks.py**: Function body validation and contexts
+- **test_statement_blocks.py**: Scoped execution blocks without returns
 
-**Language Feature Tests:**
-- **test_mutability.py**: val (immutable) vs mut (mutable) variable system semantics
-- **test_assignment.py**: Assignment statement validation and context-guided resolution
-- **test_unified_blocks.py**: Universal block system (statement/expression/function bodies)
+**🔢 Precision Tests (precision/):**
+- **test_integer_precision.py**: Integer overflow detection and validation
+- **test_float_precision.py**: Floating-point precision handling
+- **test_mixed_precision.py**: Mixed-type precision loss scenarios
+- **test_safe_operations.py**: Safe numeric operations validation
 
-**Integration & Quality Tests:**
-- **test_basic_semantics.py**: Cross-feature integration scenarios
-- **test_context_framework.py**: Context propagation mechanisms throughout the language
-- **test_error_messages.py**: Comprehensive error message consistency and helpfulness
-
-**Specialized Tests:**
+**⚙️ Core Feature Tests:**
+- **test_comptime_types.py**: Complete comptime type system with context-dependent adaptation
+- **test_explicit_conversions.py**: Explicit type conversion syntax and validation (`:type`)
+- **test_mutability.py**: val (immutable) vs mut (mutable) variable semantics
+- **test_assignment.py**: Assignment statement validation and type compatibility
+- **test_unary_ops.py**: Unary operations and negative literals
 - **test_bool.py**: Boolean type semantics and validation
 - **test_bare_returns.py**: Bare return statement handling in void functions
+- **test_literal_overflow.py**: Literal overflow detection at parse time
 
 ## 🎯 Key Features Tested
 
@@ -134,7 +148,7 @@ tests/semantic/
 
 ### Run All Tests
 ```bash
-# Complete test suite (415 tests)
+# Complete test suite (449 tests)
 uv run pytest tests/ -v
 
 # Quick summary 
@@ -143,11 +157,20 @@ uv run pytest tests/
 
 ### Run Specific Test Categories  
 ```bash
-# Parser tests only (113 tests)
+# Parser tests only (158 tests)
 uv run pytest tests/parser/ -v
 
-# Semantic tests only (302 tests) 
+# Semantic tests only (291 tests) 
 uv run pytest tests/semantic/ -v
+
+# Integration tests only
+uv run pytest tests/semantic/integration/ -v
+
+# Block system tests only
+uv run pytest tests/semantic/blocks/ -v
+
+# Precision tests only
+uv run pytest tests/semantic/precision/ -v
 ```
 
 ### Run Individual Test Files
@@ -155,9 +178,12 @@ uv run pytest tests/semantic/ -v
 # Test specific features
 uv run pytest tests/parser/test_minimal.py -v
 uv run pytest tests/semantic/test_comptime_types.py -v
+uv run pytest tests/semantic/integration/test_basic_semantics.py -v
+uv run pytest tests/semantic/blocks/test_expression_blocks.py -v
+uv run pytest tests/semantic/precision/test_integer_precision.py -v
 
 # Test with detailed output
-uv run pytest tests/semantic/test_precision_loss.py -v --tb=short
+uv run pytest tests/semantic/test_explicit_conversions.py -v --tb=short
 ```
 
 ### Test Performance
