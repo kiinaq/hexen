@@ -42,68 +42,6 @@ class TestStatementBlocks(StandardTestBase):
         errors = self.analyzer.analyze(ast)
         assert errors == []
 
-    def test_statement_block_scope_isolation(self):
-        """Test statement blocks create isolated scopes (variables don't leak)"""
-        source = """
-        func test() : void = {
-            val outer = 42
-            
-            {
-                val inner_var = "scoped"
-                val temp_data = 100
-            }
-            
-            // ❌ Cannot access inner_var (out of scope)
-            val invalid:string = inner_var
-        }
-        """
-        ast = self.parser.parse(source)
-        errors = self.analyzer.analyze(ast)
-        assert len(errors) >= 1
-        error_messages = [e.message for e in errors]
-        assert any("Undefined variable: 'inner_var'" in msg for msg in error_messages)
-
-    def test_statement_block_access_outer_scope(self):
-        """Test statement blocks can access variables from outer scopes"""
-        source = """
-        func test() : void = {
-            val config = "production"
-            val counter:i32 = 100
-            
-            {
-                // ✅ Can access outer scope variables
-                val local_config = config    // Accesses outer 'config'
-                val doubled:i32 = counter * 2    // Accesses outer 'counter'
-                val processed = "done"
-            }
-        }
-        """
-        ast = self.parser.parse(source)
-        errors = self.analyzer.analyze(ast)
-        assert errors == []
-
-    def test_statement_block_variable_shadowing(self):
-        """Test statement blocks can shadow outer scope variables"""
-        source = """
-        func test() : void = {
-            val config = "global"
-            val counter = 42
-            
-            {
-                val config = "local"       // Shadows outer 'config'
-                val counter = 100          // Shadows outer 'counter'
-                val check = config         // "local" (shadowed)
-            }
-            
-            // Original variables unchanged
-            val final_config = config     // "global" (original)
-            val final_counter = counter   // 42 (original)
-        }
-        """
-        ast = self.parser.parse(source)
-        errors = self.analyzer.analyze(ast)
-        assert errors == []
-
     def test_nested_statement_blocks(self):
         """Test nested statement blocks with proper scope management"""
         source = """

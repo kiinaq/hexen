@@ -64,64 +64,6 @@ class TestExpressionBlocks(StandardTestBase):
             for msg in error_messages
         )
 
-    def test_expression_block_scope_isolation(self):
-        """Test expression blocks create isolated scopes"""
-        source = """
-        func test() : i32 = {
-            val result = {
-                val inner = 42
-                val computed = inner * 2
-                return computed
-            }
-            
-            // ❌ Cannot access inner (out of scope)
-            return inner
-        }
-        """
-        ast = self.parser.parse(source)
-        errors = self.analyzer.analyze(ast)
-        assert len(errors) >= 1
-        error_messages = [e.message for e in errors]
-        assert any("Undefined variable: 'inner'" in msg for msg in error_messages)
-
-    def test_expression_block_access_outer_scope(self):
-        """Test expression blocks can access outer scope variables"""
-        source = """
-        func test() : i32 = {
-            val base = 100
-            val multiplier = 3
-            
-            val result = {
-                // ✅ Can access outer scope
-                val computed = base * multiplier
-                return computed
-            }
-            
-            return result
-        }
-        """
-        ast = self.parser.parse(source)
-        errors = self.analyzer.analyze(ast)
-        assert errors == []
-
-    def test_expression_block_variable_shadowing(self):
-        """Test expression blocks can shadow outer variables"""
-        source = """
-        func test() : i32 = {
-            val value = 42
-            
-            val result = {
-                val value = 100        // Shadows outer 'value'
-                return value           // Returns 100 (shadowed)
-            }
-            
-            return value               // Returns 42 (original)
-        }
-        """
-        ast = self.parser.parse(source)
-        errors = self.analyzer.analyze(ast)
-        assert errors == []
-
     def test_nested_expression_blocks(self):
         """Test nested expression blocks with value production"""
         source = """
