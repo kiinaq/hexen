@@ -4,17 +4,17 @@ Complete implementation of the Hexen programming language compiler. This directo
 
 ## 📊 Implementation Overview
 
-**Total Implementation**: **3,028 lines** across 16 specialized components  
+**Total Implementation**: **3,510 lines** across 17 specialized components  
 **Language**: Python 3.12+ with complete typing and modern architecture  
 **Dependencies**: [Lark](https://lark-parser.readthedocs.io/) for PEG parsing, standard library only  
-**Test Coverage**: 415 comprehensive tests validating all language features
+**Test Coverage**: 449 comprehensive tests validating all language features
 
 ### **Core Components**
-- **🔍 Parser**: 356 lines - Syntax analysis with clean AST generation
-- **🧠 Semantic Analysis**: 2,580+ lines - Advanced modular semantic analysis system
+- **🔍 Parser**: 474 lines - Syntax analysis with clean AST generation
+- **🧠 Semantic Analysis**: 2,898 lines - Advanced modular semantic analysis system
 - **🎛️ CLI Interface**: 75 lines - User-friendly command-line tools
-- **📝 Grammar**: 76 lines - Precise PEG grammar definition
-- **🏗️ Supporting Infrastructure**: 73+ lines - AST nodes, package organization
+- **📝 Grammar**: 89 lines - Precise PEG grammar definition
+- **🏗️ Supporting Infrastructure**: 51+ lines - AST nodes, package organization
 
 ## 🏗️ Sophisticated Architecture
 
@@ -22,23 +22,24 @@ Hexen implements a **production-quality compiler architecture** with advanced la
 
 ```
 src/hexen/
-├── hexen.lark              # ─┐ Syntax Analysis (432 lines)
-├── parser.py               #  ├─ PEG grammar + AST generation
-├── ast_nodes.py            # ─┘ Clean AST node definitions
-├── semantic/               # ─┐ Advanced Semantic Analysis (2,580+ lines)
-│   ├── analyzer.py         #  ├─ Main semantic orchestrator (262 lines)
-│   ├── expression_analyzer.py    # ├─ Expression & type annotation analysis (210 lines)
-│   ├── binary_ops_analyzer.py    # ├─ Binary operations with dual division (376 lines)
-│   ├── declaration_analyzer.py   # ├─ Unified declaration framework (344 lines)
-│   ├── assignment_analyzer.py    # ├─ Context-guided assignments (235 lines)
-│   ├── return_analyzer.py        # ├─ Return statement validation (196 lines)
+├── hexen.lark              # ─┐ Syntax Analysis (563 lines)
+├── parser.py               #  ├─ PEG grammar + AST generation (474 lines)
+├── ast_nodes.py            # ─┘ Clean AST node definitions (51 lines)
+├── semantic/               # ─┐ Advanced Semantic Analysis (2,898 lines)
+│   ├── type_util.py        #  ├─ Advanced type system utilities (486 lines)
+│   ├── binary_ops_analyzer.py    # ├─ Binary operations with dual division (441 lines)
+│   ├── declaration_analyzer.py   # ├─ Unified declaration framework (355 lines)
+│   ├── analyzer.py         #  ├─ Main semantic orchestrator (270 lines)
+│   ├── assignment_analyzer.py    # ├─ Context-guided assignments (242 lines)
+│   ├── return_analyzer.py        # ├─ Return statement validation (216 lines)
+│   ├── conversion_analyzer.py    # ├─ Explicit type conversion analysis (189 lines)
 │   ├── block_analyzer.py         # ├─ Unified block system (186 lines)
-│   ├── unary_ops_analyzer.py     # ├─ Unary operations (102 lines)
-│   ├── type_util.py        #  ├─ Advanced type system utilities (371 lines)
+│   ├── expression_analyzer.py    # ├─ Expression & identifier analysis (155 lines)
 │   ├── symbol_table.py     #  ├─ Lexical scoping & symbol management (130 lines)
+│   ├── unary_ops_analyzer.py     # ├─ Unary operations (102 lines)
 │   ├── types.py            #  ├─ Comptime type system (65 lines)
-│   ├── errors.py           #  ├─ Structured error reporting (29 lines)
-│   └── __init__.py         # ─┘ Clean public API (32 lines)
+│   ├── __init__.py         #  ├─ Clean public API (32 lines)
+│   └── errors.py           # ─┘ Structured error reporting (29 lines)
 ├── cli.py                  # ─── Command-line interface (75 lines)
 └── __init__.py             # ─── Package metadata (12 lines)
 ```
@@ -59,7 +60,7 @@ val precise : f64 = 3.14    // comptime_float → f64 (precision default)
 val truncated : i32 = large_value : i32  // Explicit truncation
 ```
 
-**Implementation**: 371 lines of sophisticated type coercion logic with context-guided resolution
+**Implementation**: 486 lines of sophisticated type system utilities with context-guided resolution
 
 ### **⚡ Dual Division Operators** (BINARY_OPS.md)  
 *Transparent cost model with clear computational semantics*
@@ -73,7 +74,7 @@ val efficient = 10 \ 3      // Integer division → 3 (truncated, efficient)
 val result : f64 = int_val + float_val  // Context resolves type ambiguity
 ```
 
-**Implementation**: 376 lines handling complex binary operations with operator-specific semantics
+**Implementation**: 441 lines handling complex binary operations with operator-specific semantics
 
 ### **🏗️ Unified Block System** (UNIFIED_BLOCK_SYSTEM.md)
 *Single syntax, context-driven behavior for all code blocks*
@@ -112,7 +113,7 @@ mut counter : i32 = 0               // Explicit mutability declaration
 counter = 100                       // ✅ Allowed: explicit mut
 ```
 
-**Implementation**: Comprehensive type checking across 210 lines of expression analysis
+**Implementation**: Comprehensive type checking across 155 lines of expression analysis
 
 ### **🎨 Sophisticated Error Recovery**
 *Production-quality error reporting with batch collection*
@@ -135,13 +136,15 @@ The semantic analyzer is **architecturally sophisticated** with clean separation
 
 | Analyzer | Responsibility | Lines | Key Features |
 |----------|---------------|--------|--------------|
-| **Main Analyzer** | Orchestration & error collection | 262 | Pure coordination logic |
-| **Expression Analyzer** | Type annotations & identifiers | 210 | "Explicit Danger, Implicit Safety" |
-| **Binary Ops Analyzer** | Arithmetic & dual division | 376 | Context-guided resolution |
-| **Declaration Analyzer** | Functions, val, mut declarations | 344 | Unified declaration framework |
-| **Assignment Analyzer** | Variable assignments | 235 | Context-aware type validation |
-| **Return Analyzer** | Return statement validation | 196 | Context-specific rules |
+| **Type Utilities** | Advanced type system operations | 486 | Context-guided resolution & coercion |
+| **Binary Ops Analyzer** | Arithmetic & dual division | 441 | Transparent cost model |
+| **Declaration Analyzer** | Functions, val, mut declarations | 355 | Unified declaration framework |
+| **Main Analyzer** | Orchestration & error collection | 270 | Pure coordination logic |
+| **Assignment Analyzer** | Variable assignments | 242 | Context-aware type validation |
+| **Return Analyzer** | Return statement validation | 216 | Context-specific rules |
+| **Conversion Analyzer** | Explicit type conversions | 189 | "Explicit Danger, Implicit Safety" |
 | **Block Analyzer** | Unified block system | 186 | Expression vs statement blocks |
+| **Expression Analyzer** | Identifiers & type annotations | 155 | Symbol resolution |
 | **Unary Ops Analyzer** | Unary operations | 102 | Negative literals, logical NOT |
 
 ### **🔄 Callback-Based Architecture**
@@ -181,7 +184,7 @@ expression: logical_or (":" type)?  // Type annotation support
 
 ## 🧪 Comprehensive Testing
 
-### **Test Coverage: 415 Tests Across 28 Test Files**
+### **Test Coverage: 449 Tests Across 30+ Test Files**
 
 **Test Categories**:
 - **Parser Tests**: Syntax validation and AST generation
@@ -209,7 +212,7 @@ uv run hexen parse examples/hello_world.hxn    # Parse and show AST
 uv run hexen check examples/comprehensive_demo.hxn  # Full semantic analysis
 
 # Development workflow  
-uv run pytest tests/                      # Run 415 comprehensive tests
+uv run pytest tests/                      # Run 449 comprehensive tests
 uv run hexen check myfile.hxn             # Validate Hexen source code
 ```
 
@@ -245,10 +248,10 @@ else:
 - **🎯 Precision Control**: Type annotations for explicit precision loss acknowledgment
 
 ### **Compiler Architecture Excellence**  
-- **🧩 Modular Design**: 8 specialized analyzers with clean separation of concerns
+- **🧩 Modular Design**: 9 specialized analyzers with clean separation of concerns
 - **🔄 Callback Architecture**: Dependency injection enables focused testing
 - **🛡️ Error Recovery**: Batch error collection with comprehensive context
-- **📊 Comprehensive Testing**: 415 tests validating all language features
+- **📊 Comprehensive Testing**: 449 tests validating all language features
 - **🎨 Clean APIs**: Well-designed interfaces for external integration
 
 ### **Implementation Quality**
