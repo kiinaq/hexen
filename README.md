@@ -34,7 +34,16 @@ This is not just an academic exercise, but a practical exploration of what progr
 - **[Comptime Quick Reference →](docs/COMPTIME_QUICK_REFERENCE.md)** - Essential patterns for the comptime type system ⚡
 - **[Examples →](examples/README.md)** - Comprehensive learning examples organized by difficulty
 - **[Source Code →](src/README.md)** - Complete compiler architecture and implementation details  
-- **[Tests →](tests/README.md)** - Testing strategy and validation approach (164 tests)
+- **[Tests →](tests/README.md)** - Testing strategy and validation approach (449 tests)
+
+### 📚 Comprehensive Design Documentation
+Beyond examples and implementation details, Hexen provides extensive specification documents for language designers and advanced users:
+
+- **[TYPE_SYSTEM.md](docs/TYPE_SYSTEM.md)** - Complete comptime type system specification
+- **[BINARY_OPS.md](docs/BINARY_OPS.md)** - Binary operations with dual division operators
+- **[UNIFIED_BLOCK_SYSTEM.md](docs/UNIFIED_BLOCK_SYSTEM.md)** - Context-driven block behavior specification
+
+These documents provide the foundational design philosophy and detailed behavioral specifications that guide Hexen's implementation.
 
 ## Quick Start
 
@@ -94,7 +103,7 @@ func main() : i32 = {
 
 ### Run Tests
 ```bash
-# Run the complete test suite (164 comprehensive tests)
+# Run the complete test suite (449 comprehensive tests)
 uv run pytest tests/ -v
 ```
 
@@ -107,7 +116,7 @@ uv run pytest tests/ -v
 - ✅ **Variable System**: `val`/`mut` declarations with `undef` support and assignment tracking
 - ✅ **Return Statements**: Both value returns and bare returns (`return;`)
 - ✅ **CLI Interface**: `hexen parse` with JSON AST output and error reporting
-- ✅ **Comprehensive Tests**: 164 tests covering all language features including comptime types
+- ✅ **Comprehensive Tests**: 449 tests covering all language features including comptime types
 - ✅ **Error Handling**: Detailed semantic error reporting with context
 
 ### 📚 Explore Further
@@ -213,8 +222,8 @@ Source Code (.hxn)     ← Hexen source files with .hxn extension
 
 ```
 hexen/
-├── src/hexen/              # Core compiler implementation (1,219 lines)
-├── tests/                  # Comprehensive test suite (164 tests)
+├── src/hexen/              # Core compiler implementation (3,510 lines across 17 specialized components)
+├── tests/                  # Comprehensive test suite (449 tests)
 ├── examples/              # Sample Hexen programs showcasing all features
 └── docs/                  # Documentation & design notes
 ```
@@ -224,7 +233,7 @@ hexen/
 ### 🎯 Current Status
 
 - **Phase I: Language Foundation** 🚧 In Progress - Full parser and semantic analyzer
-- **164 Tests Passing** - Comprehensive validation of all language features  
+- **449 Tests Passing** - Comprehensive validation of all language features  
 - **Production Ready** - Clean architecture prepared for LLVM backend integration
 
 *For detailed implementation information, see the component-specific documentation linked above.*
