@@ -100,23 +100,6 @@ class TestFloatPrecisionLoss(StandardTestBase):
         errors = self.analyzer.analyze(ast)
         assert errors == []
 
-    def test_safe_float_widening(self):
-        """Test that concrete type conversions require explicit syntax per TYPE_SYSTEM.md"""
-        source = """
-        func test() : void = {
-            val single:f32 = 3.14
-            
-            // 🔧 All concrete conversions require explicit syntax per TYPE_SYSTEM.md
-            val double:f64 = single:f64   // f32 → f64 (explicit required)
-            
-            mut double_mut:f64 = 0.0
-            double_mut = single:f64         // f32 → f64 (explicit required)
-        }
-        """
-        ast = self.parser.parse(source)
-        errors = self.analyzer.analyze(ast)
-        assert errors == []
-
     def test_max_value_assignments(self):
         """Test precision loss at maximum values"""
         source = """

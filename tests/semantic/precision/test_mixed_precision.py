@@ -183,7 +183,7 @@ class TestMixedTypePrecisionLoss(StandardTestBase):
             
             // ✅ Complex nested expressions with proper conversions
             single = (precise * 2.0 + 1.0):f32  // Nested f64 operations → f32
-            integer = (precise * single):i32     // Mixed f64 * f32 → i32
+            integer = (precise:f32 * single):i32     // Explicit conversion: f64 → f32, then f32 * f32 → i32
         }
         """
         ast = self.parser.parse(source)
@@ -195,6 +195,41 @@ class TestMixedTypePrecisionLoss(StandardTestBase):
             if "precision" in e.message.lower() or "truncation" in e.message.lower()
         ]
         assert len(precision_errors) == 0
+
+    def test_mixed_concrete_types_require_explicit_conversions(self):
+        """Test that mixed concrete types fail without explicit conversions (negative case)"""
+        source = """
+        func test() : void = {
+            val precise:f64 = 3.141592653589793
+            val single:f32 = 2.5
+            mut integer:i32 = 0
+            
+            // ❌ Mixed concrete types require explicit conversions
+            integer = (precise * single):i32     // f64 * f32 should fail
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        # Should produce error for mixed concrete types
+        assert len(errors) >= 1
+
+        # Check that error mentions mixed concrete types
+        mixed_type_errors = [
+            e
+            for e in errors
+            if "mixed concrete" in e.message.lower()
+            or "mixed-type" in e.message.lower()
+        ]
+        assert len(mixed_type_errors) >= 1
+
+        # Verify error suggests explicit conversions
+        error_msg = mixed_type_errors[0].message
+        assert (
+            "explicit conversion" in error_msg.lower()
+            or "f64" in error_msg
+            and "f32" in error_msg
+        )
 
     def test_multiple_precision_loss_errors_detected(self):
         """Test that multiple precision loss scenarios are all detected"""

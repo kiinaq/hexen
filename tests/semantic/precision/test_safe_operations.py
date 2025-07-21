@@ -1,25 +1,34 @@
 """
-Test suite for safe operations requiring no explicit conversion in Hexen
+Test suite for valid operations with proper explicit conversions in Hexen
 
-Tests operations that don't require explicit conversion:
-- Safe type widening (i32 → i64, f32 → f64)
-- Comptime type safe coercions
-- Binary operations with safe results
-- Type annotation consistency rules
+Tests operations that work correctly with explicit conversions:
+- Concrete type conversions with explicit syntax (i32:i64, f32:f64)
+- Comptime type implicit coercions (comptime_int → i32)
+- Binary operations with same concrete types
+- Proper explicit conversion syntax validation
 
-Part of the "Explicit Danger, Implicit Safety" principle:
-- Safe operations are implicit (no explicit conversion needed)
-- Dangerous operations require explicit conversion via value:type syntax
+Part of the "Ergonomic Literals + Transparent Costs" principle:
+- Comptime types adapt implicitly (ergonomic for literals)
+- All concrete conversions require explicit syntax (transparent costs)
 """
 
 from tests.semantic import StandardTestBase
 
 
-class TestSafeOperationsNoConversion(StandardTestBase):
-    """Test that safe operations don't require explicit conversion"""
+class TestValidOperationsWithExplicitConversions(StandardTestBase):
+    """
+    Test that valid operations work correctly with proper explicit conversions.
 
-    def test_safe_integer_widening(self):
-        """Test that concrete type conversions require explicit syntax per TYPE_SYSTEM.md"""
+    This test suite validates the positive cases where operations should succeed:
+    - Comptime types implicitly coercing to concrete types (ergonomic)
+    - Explicit conversions with proper syntax (transparent costs)
+    - Same-type operations requiring no conversions (identity)
+
+    Complements test_mixed_precision.py which focuses on error cases.
+    """
+
+    def test_concrete_integer_conversions_with_explicit_syntax(self):
+        """Test that concrete type conversions work with explicit syntax per TYPE_SYSTEM.md"""
         source = """
         func test() : void = {
             val small:i32 = 42
@@ -39,8 +48,8 @@ class TestSafeOperationsNoConversion(StandardTestBase):
         errors = self.analyzer.analyze(ast)
         assert errors == []
 
-    def test_safe_float_widening(self):
-        """Test that concrete type conversions require explicit syntax per TYPE_SYSTEM.md"""
+    def test_concrete_float_conversions_with_explicit_syntax(self):
+        """Test that concrete float conversions work with explicit syntax per TYPE_SYSTEM.md"""
         source = """
         func test() : void = {
             val single:f32 = 3.14
@@ -56,8 +65,8 @@ class TestSafeOperationsNoConversion(StandardTestBase):
         errors = self.analyzer.analyze(ast)
         assert errors == []
 
-    def test_comptime_type_safe_coercions(self):
-        """Test that comptime type coercions are always safe and implicit"""
+    def test_comptime_type_implicit_coercions(self):
+        """Test that comptime type coercions are always implicit (ergonomic literals)"""
         source = """
         func test() : void = {
             // ✅ All comptime type coercions are safe and implicit
@@ -78,8 +87,8 @@ class TestSafeOperationsNoConversion(StandardTestBase):
         errors = self.analyzer.analyze(ast)
         assert errors == []
 
-    def test_binary_operation_result_safe_assignment(self):
-        """Test binary operation results that don't require precision loss conversion"""
+    def test_same_concrete_type_binary_operations(self):
+        """Test binary operations with same concrete types (no conversion needed)"""
         source = """
         func test() : void = {
             val a:i32 = 10
@@ -96,8 +105,8 @@ class TestSafeOperationsNoConversion(StandardTestBase):
         errors = self.analyzer.analyze(ast)
         assert errors == []
 
-    def test_binary_operation_with_comptime_safe(self):
-        """Test binary operations with comptime types are safe"""
+    def test_comptime_concrete_mixed_binary_operations(self):
+        """Test binary operations with comptime types adapting to concrete context"""
         source = """
         func test() : void = {
             val concrete:i32 = 100
@@ -113,8 +122,8 @@ class TestSafeOperationsNoConversion(StandardTestBase):
         errors = self.analyzer.analyze(ast)
         assert errors == []
 
-    def test_type_declaration_consistency_safe(self):
-        """Test that correct type declarations don't cause precision loss"""
+    def test_explicit_conversions_with_no_precision_loss(self):
+        """Test explicit conversions that preserve or increase precision"""
         source = """
         func test() : void = {
             val source:i32 = 42
@@ -135,8 +144,8 @@ class TestSafeOperationsNoConversion(StandardTestBase):
         errors = self.analyzer.analyze(ast)
         assert errors == []
 
-    def test_precision_loss_annotation_positioning_safe(self):
-        """Test explicit conversions with no precision loss"""
+    def test_explicit_expression_conversions_no_precision_loss(self):
+        """Test explicit conversions of expressions with no precision loss"""
         source = """
         func test() : void = {
             val a:i32 = 10
@@ -152,8 +161,8 @@ class TestSafeOperationsNoConversion(StandardTestBase):
         errors = self.analyzer.analyze(ast)
         assert errors == []
 
-    def test_function_return_safe_coercion(self):
-        """Test that function returns can safely return comptime types"""
+    def test_function_return_comptime_coercion(self):
+        """Test that function returns can implicitly coerce comptime types"""
         source = """
         func get_int() : i32 = {
             return 42                       // comptime_int → i32 (safe)
@@ -171,8 +180,8 @@ class TestSafeOperationsNoConversion(StandardTestBase):
         errors = self.analyzer.analyze(ast)
         assert errors == []
 
-    def test_safe_assignment_chains(self):
-        """Test that concrete type conversions require explicit syntax per TYPE_SYSTEM.md"""
+    def test_explicit_conversion_chains_no_precision_loss(self):
+        """Test chained explicit conversions that preserve or increase precision"""
         source = """
         func test() : void = {
             val start:i32 = 42
