@@ -9,6 +9,7 @@ block: "{" statement* "}"
 
 statement: var_declaration
          | return_stmt
+         | assign_stmt
          | block
          | assignment_stmt
 
@@ -21,6 +22,8 @@ val_declaration: VAL IDENTIFIER ":" type "=" (expression | "undef")
 mut_declaration: MUT IDENTIFIER ":" type "=" (expression | "undef")
 
 return_stmt: "return" expression?
+
+assign_stmt: "assign" expression
 
 assignment_stmt: IDENTIFIER "=" expression
 

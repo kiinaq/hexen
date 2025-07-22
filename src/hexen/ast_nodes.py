@@ -33,6 +33,7 @@ class NodeType(Enum):
 
     # Statements
     RETURN_STATEMENT = "return_statement"
+    ASSIGN_STATEMENT = "assign_statement"
     ASSIGNMENT_STATEMENT = "assignment_statement"
 
     # Expressions

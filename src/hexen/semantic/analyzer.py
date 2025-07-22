@@ -218,6 +218,8 @@ class SemanticAnalyzer:
             self.declaration_analyzer.analyze_declaration(node)
         elif stmt_type == NodeType.RETURN_STATEMENT.value:
             self.return_analyzer.analyze_return_statement(node)
+        elif stmt_type == NodeType.ASSIGN_STATEMENT.value:
+            self._analyze_assign_statement(node)
         elif stmt_type == NodeType.ASSIGNMENT_STATEMENT.value:
             self.assignment_analyzer.analyze_assignment_statement(node)
         elif stmt_type == NodeType.BLOCK.value:
@@ -255,6 +257,26 @@ class SemanticAnalyzer:
         Analyze a unary operation by delegating to UnaryOpsAnalyzer.
         """
         return self.unary_ops.analyze_unary_operation(node, target_type)
+
+    def _analyze_assign_statement(self, node: Dict) -> None:
+        """
+        Analyze assign statement - validates context and expression type.
+
+        Assign statements are only valid in expression blocks and assign
+        the expression value to the block's target.
+        """
+        # Check if we're in an expression block context
+        if not self.block_context or self.block_context[-1] != "expression":
+            self._error("'assign' statement only valid in expression blocks", node)
+            return
+
+        # Analyze the expression being assigned
+        value = node.get("value")
+        if value:
+            # No specific target type since expression blocks adapt to context
+            self._analyze_expression(value)
+        else:
+            self._error("'assign' statement requires an expression", node)
 
     def _set_function_context(self, name: str, return_type: HexenType) -> None:
         """Set the current function context for return type validation."""

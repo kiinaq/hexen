@@ -114,73 +114,131 @@ class BlockAnalyzer:
         self, statements: List[Dict], context: str, node: Dict
     ) -> Optional[HexenType]:
         """
-        Analyze statements with context-specific return validation.
+        Analyze statements with context-specific assign/return validation.
 
-        Implements context-driven behavior from UNIFIED_BLOCK_SYSTEM.md:
-        - Expression blocks: Return must be last statement
-        - Statement blocks: Function returns allowed anywhere
+        NEW UNIFIED_BLOCK_SYSTEM.md semantics:
+        - Expression blocks: Must end with 'assign' OR 'return' (dual capability)
+        - Statement blocks: Allow 'return' for function exits, no 'assign' statements
         - Function blocks: Returns allowed anywhere, type validation applied
         """
         is_expression_block = context == "expression"
         is_statement_block = context == "statement"
-        is_void_function = self._get_current_function_return_type() == HexenType.VOID
-        last_return_stmt = None
+        last_statement = None
+        has_assign = False
+        has_return = False
 
-        # Analyze all statements with context-specific return rules
+        # Analyze all statements with context-specific rules
         for i, stmt in enumerate(statements):
-            if stmt.get("type") == "return_statement":
-                if is_void_function:
-                    # Let return_analyzer handle void function validation
-                    # to avoid duplicate error reporting
-                    pass
-                elif is_statement_block:
-                    # Statement blocks can have returns that match function signature
-                    # This allows returning from the function within a statement block
-                    pass  # Will be validated by return_analyzer
-                elif is_expression_block:
-                    # Expression blocks: return must be last statement
-                    if i == len(statements) - 1:
-                        last_return_stmt = stmt
+            stmt_type = stmt.get("type")
+            is_last_statement = i == len(statements) - 1
+
+            if stmt_type == "assign_statement":
+                if is_expression_block:
+                    # Expression blocks: assign must be last statement
+                    if is_last_statement:
+                        has_assign = True
+                        last_statement = stmt
                     else:
                         self._error(
-                            "Return statement must be the last statement in expression block",
+                            "'assign' statement must be the last statement in expression block",
                             stmt,
                         )
-                # Non-void function blocks: returns allowed anywhere (no restriction)
+                elif is_statement_block:
+                    # Statement blocks: assign statements not allowed
+                    self._error(
+                        "'assign' statement only valid in expression blocks",
+                        stmt,
+                    )
+                # Function blocks: assign statements not allowed
+                elif context is None:
+                    self._error(
+                        "'assign' statement only valid in expression blocks",
+                        stmt,
+                    )
+
+            elif stmt_type == "return_statement":
+                if is_expression_block:
+                    # Expression blocks: return must be last statement (alternative to assign)
+                    if is_last_statement:
+                        has_return = True
+                        last_statement = stmt
+                    else:
+                        self._error(
+                            "'return' statement must be the last statement in expression block",
+                            stmt,
+                        )
+                # Statement blocks and function blocks: returns allowed anywhere
+                # (will be validated by return_analyzer)
 
             # Delegate to main analyzer for statement analysis
             self._analyze_statement(stmt)
 
-        # Context-specific return validation and type computation
+        # Context-specific final validation and type computation
         if is_expression_block:
-            return self._finalize_expression_block(last_return_stmt, node)
+            return self._finalize_expression_block(
+                has_assign, has_return, last_statement, node
+            )
 
         # Statement blocks and function blocks don't produce values
         return None
 
     def _finalize_expression_block(
-        self, last_return_stmt: Optional[Dict], node: Dict
+        self,
+        has_assign: bool,
+        has_return: bool,
+        last_statement: Optional[Dict],
+        node: Dict,
     ) -> HexenType:
         """
-        Finalize expression block analysis following UNIFIED_BLOCK_SYSTEM.md rules.
+        Finalize expression block analysis following NEW UNIFIED_BLOCK_SYSTEM.md rules.
 
-        Expression blocks must:
-        - End with a return statement (required for value production)
-        - Return type matches the expression type
-        - Context provides type validation (function return type)
+        Expression blocks must end with EITHER:
+        - 'assign expression' (produces block value)
+        - 'return expression' (early function exit with value)
+
+        Dual capability: assign = block value, return = function exit
         """
-        if not last_return_stmt:
-            self._error("Expression block must end with a return statement", node)
+        if not (has_assign or has_return):
+            self._error(
+                "Expression block must end with 'assign' statement or 'return' statement",
+                node,
+            )
             return HexenType.UNKNOWN
 
-        # Get the type from the return statement's value
-        return_value = last_return_stmt.get("value")
-        if return_value:
-            # Use current function return type as context for expression analysis
-            # This implements context-guided type resolution
-            return self._analyze_expression(
-                return_value, self._get_current_function_return_type()
-            )
-        else:
-            # Bare return in expression block (shouldn't happen, but handle gracefully)
+        if not last_statement:
+            self._error("Expression block is empty", node)
             return HexenType.UNKNOWN
+
+        # Handle assign statement (block value production)
+        if has_assign and last_statement.get("type") == "assign_statement":
+            assign_value = last_statement.get("value")
+            if assign_value:
+                # Use current function return type as context for expression analysis
+                # This implements context-guided type resolution for comptime types
+                return self._analyze_expression(
+                    assign_value, self._get_current_function_return_type()
+                )
+            else:
+                self._error("'assign' statement requires an expression", last_statement)
+                return HexenType.UNKNOWN
+
+        # Handle return statement (function exit)
+        elif has_return and last_statement.get("type") == "return_statement":
+            # Return statements in expression blocks exit the function
+            # The return_analyzer will handle type validation
+            return_value = last_statement.get("value")
+            if return_value:
+                # Analyze the expression being returned
+                return self._analyze_expression(
+                    return_value, self._get_current_function_return_type()
+                )
+            else:
+                # Bare return in expression block - error (should have been caught earlier)
+                self._error(
+                    "Expression block 'return' statement must have a value",
+                    last_statement,
+                )
+                return HexenType.UNKNOWN
+
+        # Should not reach here
+        return HexenType.UNKNOWN

@@ -1,12 +1,14 @@
 """
-Hexen Return Statement Analyzer
+Hexen Return Statement Analyzer - UNIFIED SEMANTICS
 
-Handles analysis of return statements including:
-- Context-aware return validation (function vs expression block)
-- Bare return statement handling (return;)
+Implements UNIFIED_BLOCK_SYSTEM.md return semantics:
+- return ALWAYS means "exit the function" (consistent everywhere)
+- Expression blocks: return exits function (alternative to assign)
+- Statement blocks: return exits function
+- Function blocks: return exits function
+- Bare return statement handling for void functions
 - Return value type checking and coercion
 - Precision loss detection for return values
-- Function return type compatibility
 """
 
 from typing import Dict, List, Optional, Callable
@@ -17,13 +19,14 @@ from .type_util import is_precision_loss_operation
 
 class ReturnAnalyzer:
     """
-    Analyzes return statements with context-aware validation.
+    Analyzes return statements with UNIFIED semantics (UNIFIED_BLOCK_SYSTEM.md).
 
-    Implements comprehensive return statement validation:
-    - Function context: Returns must match function signature
-    - Expression block context: Returns determine block type (must have value)
-    - Statement block context: Returns allowed, match function signature
-    - Bare returns: Only allowed in void functions or statement blocks
+    NEW unified return semantics:
+    - return ALWAYS means "exit the function" (consistent meaning everywhere)
+    - Expression blocks: return exits function (alternative to assign, dual capability)
+    - Statement blocks: return exits function
+    - Function blocks: return exits function
+    - Bare returns: Only allowed in void functions
     - Type checking: Return values must be coercible to function return type
     - Precision loss: Dangerous conversions require explicit conversion
     """
@@ -81,13 +84,25 @@ class ReturnAnalyzer:
         current_function_return_type: Optional[HexenType],
         block_context: List[str],
     ) -> None:
-        """Analyze bare return statements (return;)."""
-        # Bare returns are only valid in void functions or statement blocks
+        """
+        Analyze bare return statements (return;) with UNIFIED semantics.
+
+        NEW UNIFIED_BLOCK_SYSTEM.md semantics:
+        - return ALWAYS means "exit the function" (consistent everywhere)
+        - Expression blocks: bare return not allowed (must have value for function exit)
+        - Statement blocks: bare return allowed for void functions only
+        - Function blocks: bare return allowed for void functions only
+        """
+        # Expression blocks cannot have bare returns (need value for function exit)
         if block_context and block_context[-1] == "expression":
-            # Expression blocks must return a value
-            self._error("Expression block return statement must have a value", node)
+            self._error(
+                "Expression block 'return' statement must have a value for function exit",
+                node,
+            )
             return
-        elif current_function_return_type == HexenType.VOID:
+
+        # All other contexts: bare return only valid for void functions
+        if current_function_return_type == HexenType.VOID:
             # Void functions can have bare returns
             return
         elif current_function_return_type:
@@ -110,17 +125,21 @@ class ReturnAnalyzer:
         current_function_return_type: Optional[HexenType],
         block_context: List[str],
     ) -> None:
-        """Analyze return statements with values (return expression;)."""
+        """
+        Analyze return statements with values (return expression;) with UNIFIED semantics.
+
+        NEW UNIFIED_BLOCK_SYSTEM.md semantics:
+        - return ALWAYS means "exit the function with value" (consistent everywhere)
+        - All contexts: validate return value against function signature
+        - Expression blocks: return exits function (skips assign, dual capability)
+        - Statement blocks: return exits function
+        - Function blocks: return exits function
+        """
         # Analyze the return value expression
         return_type = self._analyze_expression(value, current_function_return_type)
 
-        # Simplified context-aware validation
-        if block_context and block_context[-1] == "expression":
-            # We're in an expression block context - return type determines block type
-            # No additional validation needed here, the block will handle it
-            pass
-        elif current_function_return_type:
-            # We're in default context (function body) - validate against function signature
+        # UNIFIED validation: return always exits function, so validate against function signature
+        if current_function_return_type:
             self._validate_function_return(
                 node, value, return_type, current_function_return_type
             )

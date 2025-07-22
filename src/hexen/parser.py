@@ -81,6 +81,18 @@ class HexenTransformer(Transformer):
             # Return with expression
             return {"type": NodeType.RETURN_STATEMENT.value, "value": args[0]}
 
+    def assign_stmt(self, args):
+        # Handle: "assign" expression
+        if len(args) == 1:
+            # Just the expression after "assign" keyword
+            return {
+                "type": NodeType.ASSIGN_STATEMENT.value,
+                "value": args[0],
+            }
+        else:
+            # Error case - should not happen with correct grammar
+            raise SyntaxError(f"Invalid assign statement structure: {args}")
+
     @v_args(inline=True)
     def assignment_stmt(self, target, value):
         # Handle: IDENTIFIER "=" expression
