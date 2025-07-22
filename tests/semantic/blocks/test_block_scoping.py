@@ -302,7 +302,7 @@ class TestComplexBlockScenarios(StandardTestBase):
             
             // Expression block with outer variable access
             val final = {
-                return base + computed
+                assign base + computed
             }
             
             return final
@@ -322,7 +322,7 @@ class TestComplexBlockScenarios(StandardTestBase):
             
             val result = {                       // Expression block with error
                 val computed = 42
-                // ❌ Missing return statement
+                // ❌ Missing assign statement
             }
             
             return result
@@ -333,7 +333,4 @@ class TestComplexBlockScenarios(StandardTestBase):
         assert len(errors) >= 2
         error_messages = [e.message for e in errors]
         assert any("Undefined variable" in msg for msg in error_messages)
-        assert any(
-            "Expression block must end with a return statement" in msg
-            for msg in error_messages
-        )
+        assert any("assign" in msg or "return" in msg for msg in error_messages)

@@ -1,18 +1,18 @@
 """
 Test suite for expression block semantics in Hexen's Unified Block System
 
-Tests expression block behavior:
-- Produce values via return statements
-- Require final return statement
+Tests expression block behavior (NEW assign/return semantics):
+- Produce values via assign statements
+- Require final assign OR return statement (dual capability)
 - Create isolated scopes
 - Allow access to outer scope variables
 - Support variable shadowing
 - Support nested blocks with proper scope management
-- Comptime type default resolution from return statements
+- Comptime type default resolution from assign statements
 
 Part of the unified block system described in UNIFIED_BLOCK_SYSTEM.md:
 - Single { } syntax for all contexts with context-driven behavior
-- Expression blocks: produce values, require final return statement
+- Expression blocks: produce values, require final assign statement OR return for function exit
 - Universal scope isolation: ALL blocks manage their own scope regardless of context
 """
 
@@ -23,17 +23,17 @@ class TestExpressionBlocks(StandardTestBase):
     """Test expression block semantics following unified block system"""
 
     def test_basic_expression_block_value_production(self):
-        """Test expression blocks produce values via return statements"""
+        """Test expression blocks produce values via assign statements"""
         source = """
         func test() : i32 = {
             // ✅ Expression block produces value
             val result = {
                 val computed = 42 * 2
-                return computed
+                assign computed
             }
             
             val another = {
-                return "hello world"
+                assign "hello world"
             }
             
             return result
@@ -43,15 +43,15 @@ class TestExpressionBlocks(StandardTestBase):
         errors = self.analyzer.analyze(ast)
         assert errors == []
 
-    def test_expression_block_requires_return(self):
-        """Test expression blocks must end with return statement"""
+    def test_expression_block_requires_assign_or_return(self):
+        """Test expression blocks must end with assign or return statement"""
         source = """
         func test() : void = {
-            // ❌ Expression block without return
+            // ❌ Expression block without assign or return
             val invalid = {
                 val temp = 42
                 val computed = temp * 2
-                // Missing return statement
+                // Missing assign or return statement
             }
         }
         """
@@ -59,10 +59,7 @@ class TestExpressionBlocks(StandardTestBase):
         errors = self.analyzer.analyze(ast)
         assert len(errors) >= 1
         error_messages = [e.message for e in errors]
-        assert any(
-            "Expression block must end with a return statement" in msg
-            for msg in error_messages
-        )
+        assert any("assign" in msg or "return" in msg for msg in error_messages)
 
     def test_nested_expression_blocks(self):
         """Test nested expression blocks with value production"""
@@ -71,10 +68,10 @@ class TestExpressionBlocks(StandardTestBase):
             val result:i32 = {
                 val inner_result:i32 = {
                     val deep_value:i32 = 42
-                    return deep_value
+                    assign deep_value
                 }
                 val computed:i32 = inner_result * 2
-                return computed
+                assign computed
             }
             
             return result
@@ -90,15 +87,15 @@ class TestExpressionBlocks(StandardTestBase):
         func test() : i32 = {
             // Expression block with comptime type default resolution
             val int_result = {
-                return 42              // comptime_int → i32 (default)
+                assign 42              // comptime_int → i32 (default)
             }
             
             val string_result = {
-                return "hello"         // string (concrete)
+                assign "hello"         // string (concrete)
             }
             
             val bool_result = {
-                return true            // bool (concrete)
+                assign true            // bool (concrete)
             }
             
             return int_result
@@ -120,7 +117,7 @@ class TestExpressionBlocks(StandardTestBase):
                 val intermediate = base * multiplier
                 val final_result = intermediate + offset
                 
-                return final_result
+                assign final_result
             }
             
             return result

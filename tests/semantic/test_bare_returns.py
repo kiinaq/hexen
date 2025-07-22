@@ -157,7 +157,7 @@ class TestBareReturnErrors(StandardTestBase):
 
         assert len(errors) >= 1
         assert any(
-            "Expression block return statement must have a value" in error.message
+            "Expression block 'return' statement must have a value" in error.message
             for error in errors
         )
 
