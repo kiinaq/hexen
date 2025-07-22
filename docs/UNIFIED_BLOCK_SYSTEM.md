@@ -14,7 +14,7 @@ Hexen's **Unified Block System** represents one of the language's most elegant d
 
 All Hexen constructs use the same block syntax `{ statements }`, but context determines their specific behavior:
 
-- **Expression blocks**: Produce values, require final return statement
+- **Expression blocks**: Produce values using `assign`, support function `return` for control flow
 - **Statement blocks**: Execute code, allow function returns, no value production
 - **Function bodies**: Unified with all other blocks, context provides return type validation
 - **Scope isolation**: ALL blocks manage their own scope regardless of context
@@ -32,41 +32,53 @@ The unified block system embodies Hexen's core principles:
 
 ### 1. Expression Blocks
 
-**Purpose**: Compute and return a value  
+**Purpose**: Compute and assign a value to target  
 **Context**: Used in expressions where a value is expected  
 **Scope**: Isolated (variables don't leak)  
-**Return Requirements**: Must end with `return` statement
+**Assignment Requirements**: Must end with `assign` statement for value production  
+**Control Flow**: Support `return` statements for function exits
 
 ```hexen
 // Expression block in variable assignment
 val result = {
     val temp = 42
     val computed = temp * 2
-    return computed        // Required: must return a value
+    assign computed        // Required: assigns computed to result
 }
 
 // Expression block in function return
 func calculate() : i32 = {
     return {
         val intermediate = 10 + 20
-        return intermediate * 2    // Nested expression block
+        assign intermediate * 2    // Nested expression block assigns value
     }
 }
 
 // Expression block in complex expressions
 val complex = ({
     val base = 100
-    return base / 2
+    assign base / 2        // Assigns value to left operand
 } + {
     val other = 50
-    return other * 3
+    assign other * 3       // Assigns value to right operand
 }) / 4
+
+// Expression block with control flow
+val validated_input = {
+    val raw_input = get_user_input()
+    if raw_input < 0 {
+        return -1          // Early function exit - invalid input
+    }
+    assign raw_input       // Valid input assigned to validated_input
+}
 ```
 
 **Key Characteristics:**
-- **Value Production**: Always produces a value via return statement
-- **Final Return Required**: Last statement must be `return expression`
-- **Type Inference**: Block type determined by return expression type
+- **Value Assignment**: Produces value via `assign` statement (assigns to target variable)
+- **Control Flow**: Supports `return` statements for function exits (early returns, error handling)
+- **Dual Capability**: Can either assign a value OR exit the function
+- **Final Statement**: Must end with `assign expression` for value production
+- **Type Inference**: Block type determined by assign expression type
 - **Scope Isolation**: Inner variables not accessible outside block
 
 ### 2. Statement Blocks
@@ -161,6 +173,128 @@ func process_data() : string = {
 - **Scope Management**: Managed identically to other block types
 - **Context Integration**: Function context provides return type information
 
+## Dual Capability: `assign` + `return` in Expression Blocks
+
+### Design Rationale: Maximum Expressiveness with Semantic Clarity
+
+Expression blocks support **both** statement types to provide maximum flexibility while maintaining clear semantics:
+
+- **`assign`**: Assigns the computed value to the expression block's target (variable, function parameter, etc.)
+- **`return`**: Exits the containing function early (control flow, error handling, optimization)
+
+This dual capability enables natural patterns for validation, error handling, and performance optimization within expression contexts.
+
+### Semantic Consistency: `return` Always Means "Function Exit"
+
+The `return` keyword has **consistent semantics everywhere** in Hexen:
+- **Function bodies**: `return value` exits function with value
+- **Statement blocks**: `return` exits function (early return)  
+- **Expression blocks**: `return value` exits function with value (skips assign)
+
+The `assign` keyword is **expression-block specific**:
+- **Expression blocks only**: `assign value` produces the block's value
+- **Clear purpose**: Assigns computed value to the expression's target
+
+### Powerful Usage Patterns
+
+#### **1. Validation with Early Returns**
+```hexen
+func process_user_data() : string = {
+    val validated_input = {
+        val raw_input = get_user_input()
+        if raw_input == "" {
+            return "ERROR: Empty input"    // Early function exit
+        }
+        if raw_input.length > 1000 {
+            return "ERROR: Input too long" // Early function exit
+        }
+        assign sanitize(raw_input)         // Success: assign sanitized input
+    }
+    
+    // This code only runs if validation succeeded
+    return format_output(validated_input)
+}
+```
+
+#### **2. Performance Optimization with Caching**
+```hexen
+func expensive_calculation(key: string) : f64 = {
+    val result = {
+        val cached_value = lookup_cache(key)
+        if cached_value != null {
+            return cached_value        // Early function exit with cached result
+        }
+        
+        val computed = very_expensive_operation(key)
+        save_to_cache(key, computed)
+        assign computed                // Cache miss: assign computed value
+    }
+    
+    // This logging only happens for cache misses
+    log_cache_miss(key)
+    return result
+}
+```
+
+#### **3. Error Handling with Fallbacks**
+```hexen
+func load_configuration() : Config = {
+    val config = {
+        val primary_config = try_load_primary_config()
+        if primary_config != null {
+            assign primary_config      // Success: use primary config
+        }
+        
+        val fallback_config = try_load_fallback_config()
+        if fallback_config != null {
+            assign fallback_config     // Fallback: use backup config
+        }
+        
+        return get_default_config()   // Complete failure: function exit with defaults
+    }
+    
+    // This validation only runs if we loaded a config file
+    validate_configuration(config)
+    return config
+}
+```
+
+#### **4. Complex Computations with Guards**
+```hexen
+func safe_divide(numerator: f64, denominator: f64) : f64 = {
+    val result = {
+        if denominator == 0.0 {
+            return 0.0                 // Early exit: division by zero
+        }
+        if numerator == 0.0 {
+            assign 0.0                 // Optimization: zero numerator
+        }
+        
+        val division = numerator / denominator
+        assign division                // Normal case
+    }
+    
+    return result
+}
+```
+
+### Benefits of Dual Capability
+
+1. **🎯 Natural Error Handling**: Guards and validation fit naturally within computation contexts
+2. **⚡ Performance Optimizations**: Caching and short-circuits work seamlessly  
+3. **🧠 Reduced Nesting**: Avoid deeply nested if-else structures
+4. **📖 Clear Intent**: `assign` = block value, `return` = function exit
+5. **🔄 Consistent Semantics**: `return` means the same thing everywhere
+6. **🛡️ Powerful Abstractions**: Complex logic encapsulated within expression contexts
+
+### Mental Model
+
+Think of expression blocks as "smart assignment operators" that can:
+- **Compute and assign** a value to their target (`assign`)
+- **Bypass assignment** and exit the function directly (`return`)
+
+This provides the expressiveness of full statement capabilities within assignment contexts, while maintaining clear semantic boundaries.
+
 ## Block System + Type System Integration
 
 ### Unified Design Philosophy
@@ -177,7 +311,7 @@ val flexible_computation = {
     val base = 42              // comptime_int
     val multiplier = 100       // comptime_int  
     val result = base * multiplier  // comptime_int * comptime_int → comptime_int (BINARY_OPS.md)
-    return result              // Block result: comptime_int (preserved!)
+    assign result              // Block assigns: comptime_int (preserved!)
 }
 
 // ✅ Same block result adapts to different contexts (TYPE_SYSTEM.md flexibility)
@@ -195,14 +329,14 @@ Expression blocks work naturally with both division operators from [BINARY_OPS.m
 val precise_calc = {
     val numerator = 22         // comptime_int
     val denominator = 7        // comptime_int
-    return numerator / denominator  // comptime_int / comptime_int → comptime_float (BINARY_OPS.md)
+    assign numerator / denominator  // comptime_int / comptime_int → comptime_float (BINARY_OPS.md)
 }
 
 // Integer division in expression blocks  
 val efficient_calc = {
     val total = 100            // comptime_int
     val parts = 3              // comptime_int
-    return total \ parts       // comptime_int \ comptime_int → comptime_int (BINARY_OPS.md)
+    assign total \ parts       // comptime_int \ comptime_int → comptime_int (BINARY_OPS.md)
 }
 
 // Same expressions, different target types
@@ -225,7 +359,7 @@ func demonstrate_mixed_types() : void = {
     val mixed_result : f64 = {
         val converted : f64 = int_val:f64 + float_val  // Explicit conversion required
         val scaled = converted * 2.5                   // f64 * comptime_float → f64
-        return scaled                                   // Block returns concrete f64, explicit type required
+        assign scaled                                   // Block assigns concrete f64, explicit type required
     }
     
     // Statement block for scoped conversions
@@ -247,7 +381,7 @@ func demonstrate_variable_context() : void = {
     val flexible_math = {
         val step1 = 42 + 100      // comptime_int + comptime_int → comptime_int
         val step2 = step1 * 3.14  // comptime_int * comptime_float → comptime_float
-        return step2              // Preserves comptime_float flexibility
+        assign step2              // Preserves comptime_float flexibility
     }
     
     // Statement block with mut (requires explicit type)
@@ -275,7 +409,7 @@ func demonstrate_function_integration() : void = {
     val computation = {
         val base = 42             // comptime_int
         val adjusted = base / 3   // comptime_int / comptime_int → comptime_float
-        return adjusted
+        assign adjusted
     }
     
     // Function parameter provides context (TYPE_SYSTEM.md pattern)
@@ -284,7 +418,7 @@ func demonstrate_function_integration() : void = {
     // Complex nested pattern
     val complex_result : f64 = process_data({
         val temp = 100 + 50      // comptime_int + comptime_int → comptime_int
-        return temp * 3.14       // comptime_int * comptime_float → comptime_float
+        assign temp * 3.14       // comptime_int * comptime_float → comptime_float
     })  // Expression block → comptime_float → f64 (parameter context), function returns concrete f64
 }
 ```
@@ -297,7 +431,7 @@ Following [TYPE_SYSTEM.md](TYPE_SYSTEM.md) safety rules, `mut` variables cannot 
 // ✅ val preserves expression block comptime types (maximum flexibility)
 val flexible_block = {
     val calc = 42 + 100 * 3    // All comptime operations
-    return calc / 2            // comptime_int / comptime_int → comptime_float
+    assign calc / 2            // comptime_int / comptime_int → comptime_float
 }
 val as_f32 : f32 = flexible_block  // comptime_float → f32 (preserved until now!)
 val as_f64 : f64 = flexible_block  // SAME source → f64 (different context!)
@@ -305,7 +439,7 @@ val as_f64 : f64 = flexible_block  // SAME source → f64 (different context!)
 // 🔴 mut cannot preserve expression block comptime types (safety over flexibility)
 mut concrete_result : f64 = {
     val calc = 42 + 100 * 3    // Same comptime operations
-    return calc / 2            // comptime_float → f64 (immediately resolved!)
+    assign calc / 2            // comptime_float → f64 (immediately resolved!)
 }
 // No flexibility preserved - concrete_result is concrete f64
 
@@ -370,31 +504,53 @@ The unified block system provides consistent scope behavior:
 
 ### Block Behavior Summary
 
-| Context | Scope Management | Return Requirements | Value Production | Function Returns |
-|---------|------------------|---------------------|------------------|------------------|
-| **Expression** | ✅ Isolated | ✅ Required (final) | ✅ Yes | ❌ Not allowed |
-| **Statement** | ✅ Isolated | ❌ Optional | ❌ No | ✅ Allowed |
-| **Function** | ✅ Isolated | 🔄 Type-dependent | 🔄 Type-dependent | ✅ Expected |
+| Context | Scope Management | Assignment Requirements | Value Production | Function Returns |
+|---------|------------------|------------------------|------------------|------------------|
+| **Expression** | ✅ Isolated | ✅ Required (`assign`) | ✅ Yes | ✅ Allowed (`return`) |
+| **Statement** | ✅ Isolated | ❌ None | ❌ No | ✅ Allowed (`return`) |
+| **Function** | ✅ Isolated | 🔄 Type-dependent | 🔄 Type-dependent | ✅ Expected (`return`) |
 
-### Return Statement Examples
+### Statement Examples by Context
 
-Return statements work differently based on block context:
+Hexen's unified block system provides two distinct statement types for different purposes:
 
+#### **Expression Blocks: `assign` and `return`**
 ```hexen
-// Expression block context
-val value = {
-    val temp = 42
-    return temp    // ✅ Required and valid
+// Normal case: assign value to target
+val computation = {
+    val base = 42
+    val multiplied = base * 2
+    assign multiplied    // ✅ Assigns multiplied to computation
 }
 
+// Control flow case: early function exit
+val validated_data = {
+    val raw_data = get_input()
+    if raw_data == null {
+        return null      // ✅ Exits function early with null
+    }
+    if !validate(raw_data) {
+        return null      // ✅ Exits function early with null  
+    }
+    assign process(raw_data)  // ✅ Success path assigns processed data
+}
+```
+
+#### **Statement Blocks: `return` only**
+```hexen
 // Statement block context  
 {
     val temp = 42
     val should_exit : bool = check_condition()  // Explicit type required for function result
-    return    // ✅ Function return (exits containing function)
-    // No return required for statement blocks in general
+    if should_exit {
+        return    // ✅ Function return (exits containing function)
+    }
+    // No assign statement - statement blocks don't produce values
 }
+```
 
+#### **Function Blocks: `return` for completion**
+```hexen
 // Function context (void)
 func work() : void = {
     val setup : string = initialize()  // Explicit type required for function result
@@ -419,7 +575,7 @@ func complex_computation() : f64 = {
         val raw_data = 42           // comptime_int
         val scale_factor = 2.5      // comptime_float
         val result = raw_data * scale_factor  // comptime_int * comptime_float → comptime_float (BINARY_OPS.md)
-        return result               // Preserves comptime_float flexibility
+        assign result               // Preserves comptime_float flexibility
     }
     
     // Statement block for scoped concrete operations
@@ -435,7 +591,7 @@ func complex_computation() : f64 = {
         val multiplier : f64 = get_multiplier()     // Explicit type required for function result
         val bias = 1.05                             // comptime_float
         val mixed : f64 = base_computation * multiplier + bias  // comptime_float * f64 + comptime_float → explicit f64 needed
-        return mixed                                // Block returns concrete f64, explicit type required
+        assign mixed                                // Block assigns concrete f64, explicit type required
     }
     
     return final_computation
@@ -467,7 +623,7 @@ val calculation_result : f64 = get_performance_calculation()  // Function return
 val flexible_calc = {
     val base = 50              // comptime_int
     val multiplier = 2.25      // comptime_float
-    return base * multiplier   // comptime_int * comptime_float → comptime_float (preserved!)
+    assign base * multiplier   // comptime_int * comptime_float → comptime_float (preserved!)
 }
 
 // Same comptime result adapts to different contexts (TYPE_SYSTEM.md flexibility)
@@ -532,10 +688,25 @@ func get_fallback_calculation() : f64 = {
 ### Context-Specific Error Messages
 
 ```hexen
-// Expression block without return
+// Expression block without assign
 val invalid = {
     val temp = 42
-    // Error: "Expression block must end with a return statement"
+    // Error: "Expression block must end with an assign statement"
+}
+
+// Expression block with return but no assign (function exit)
+val computation = {
+    val input = get_input()
+    if input < 0 {
+        return -1    // ✅ Valid: function exit with error value
+    }
+    // Error: "Expression block must end with assign statement or return from function"
+}
+
+// Using return for value assignment (semantic error)
+val wrong_usage = {
+    val temp = 42
+    return temp      // Error: "Use 'assign' to produce block value, 'return' exits function"
 }
 
 // Void function with return value
@@ -543,8 +714,11 @@ func work() : void = {
     return 42    // Error: "Void function cannot return a value"
 }
 
-// Return outside valid context
-return 42        // Error: "Return statement outside valid context"
+// assign outside expression block
+{
+    val temp = 42
+    assign temp      // Error: "assign statement only valid in expression blocks"
+}
 ```
 
 ### Scope-Related Errors
@@ -574,27 +748,67 @@ val access = scoped    // Error: "Undefined variable: 'scoped'"
 
 ## Conclusion
 
-The Unified Block System represents a fundamental design exploration in Hexen: taking the complexity of different execution contexts and providing a single, elegant syntax that adapts naturally to its usage. This system embodies the language's core philosophy of being "pedantic to write, but really easy to read" - developers must be explicit about context, but the resulting code is immediately understandable.
+The Unified Block System represents a fundamental design breakthrough in Hexen: taking the complexity of different execution contexts and providing a single, elegant syntax that adapts naturally to its usage while maintaining precise semantic control. The introduction of the `assign` keyword alongside `return` creates a system that is both **"pedantic to write"** (explicit about intent) and **"really easy to read"** (semantically clear).
+
+### The `assign` + `return` Innovation
+
+The dual capability system solves a critical cognitive load problem:
+
+**Before**: `return` had context-dependent meanings (block value vs function exit)
+**After**: `assign` = block value, `return` = function exit (consistent semantics everywhere)
+
+This creates **maximum expressiveness** within expression contexts while maintaining **crystal-clear intent** - developers can use expression blocks for complex validation, error handling, and optimization patterns while never being confused about what each statement accomplishes.
 
 ### Seamless Integration with Core Type System
 
-The unified block system works in perfect harmony with Hexen's type system features:
+The enhanced unified block system works in perfect harmony with Hexen's type system features:
 
-- **Comptime Type Preservation**: Expression blocks naturally preserve comptime types following [TYPE_SYSTEM.md](TYPE_SYSTEM.md) flexibility patterns
-- **Explicit Conversion Requirements**: Mixed concrete types in blocks require the same explicit conversion syntax established in the type system
+- **Comptime Type Preservation**: Expression blocks with `assign` naturally preserve comptime types following [TYPE_SYSTEM.md](TYPE_SYSTEM.md) flexibility patterns
+- **Explicit Conversion Requirements**: Mixed concrete types in blocks require the same explicit conversion syntax established in the type system  
 - **Variable Declaration Consistency**: The same `val`/`mut` rules apply within blocks, maintaining consistent behavior
 - **Binary Operations Integration**: Division operators and arithmetic work identically inside blocks as specified in [BINARY_OPS.md](BINARY_OPS.md)
+- **Control Flow Integration**: `return` statements work consistently across all block types for function exits
 
 ### Design Philosophy Coherence
 
-By unifying scope management across all contexts while allowing context-specific behaviors, Hexen achieves both design elegance and developer ergonomics. The system demonstrates how experimental language features can work together cohesively:
+The `assign` + `return` enhancement demonstrates Hexen's design philosophy in action:
 
-1. **"One Syntax, Context-Driven Behavior"** (blocks) + **"Ergonomic Literals + Transparent Costs"** (types) = **Consistent, Predictable Language**
-2. **Same Rules Everywhere**: No special cases or exceptions between different language features
-3. **Composable Design**: Blocks, types, and operations combine naturally without syntactic friction
+1. **🎯 Ergonomic**: "Pedantic to write, but really easy to read"
+   - `assign` makes value production explicit and pedantic
+   - `return` makes function exits clear and readable
+   - Dual capability provides expressiveness without ambiguity
 
-### Extensible Foundation
+2. **🧹 Clean**: "There is only one way to do a thing"  
+   - `assign` = block value production (only way)
+   - `return` = function exit (only way, consistent everywhere)
+   - No semantic overloading or context confusion
 
-The unified block system is not just a syntactic convenience - it's a fundamental architectural decision that influences how developers think about code organization, scope management, and expression composition in Hexen. This foundation integrates seamlessly with the type system.
+3. **🧠 Logic**: "No tricks to remember, only natural approaches"
+   - `assign` naturally maps to assignment semantics
+   - `return` has consistent meaning across all contexts
+   - Usage patterns emerge naturally from semantic clarity
 
-As we continue exploring these design patterns, the unified block system serves as a concrete example of how consistent design principles can create both design elegance and developer ergonomics - a key goal in our language design journey. 
+4. **⚡ Pragmatic**: "Focus on what works better"
+   - Enables powerful patterns (validation, caching, error handling)
+   - Reduces cognitive load through semantic consistency
+   - Eliminates artificial limitations in expression contexts
+
+### Architectural Excellence
+
+This system demonstrates how unified design principles create both elegance and power:
+
+1. **"One Syntax, Dual Semantics"** (blocks) + **"Ergonomic Literals + Transparent Costs"** (types) = **Expressive, Predictable Language**
+2. **Semantic Consistency**: `return` means the same thing everywhere, `assign` has clear purpose
+3. **Composable Design**: Expression blocks with dual capability integrate seamlessly with all language features
+4. **Cognitive Clarity**: No overloaded keywords, no context-dependent meanings
+
+### Extensible Foundation for Language Evolution
+
+The enhanced unified block system is not just a syntactic improvement - it's a fundamental architectural decision that demonstrates how thoughtful language design can:
+
+- **Solve Real Problems**: Eliminates cognitive load while adding expressiveness
+- **Maintain Consistency**: Same semantic rules across all language features  
+- **Enable Innovation**: Dual capability opens new patterns without complexity
+- **Guide Development**: Clear principles inform future language evolution
+
+This system serves as a concrete example of how consistent design principles can create both **design elegance** and **developer ergonomics** - proving that languages can be both powerful and simple when guided by clear philosophy rather than accumulated complexity. 
