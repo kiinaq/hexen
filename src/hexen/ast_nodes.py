@@ -27,6 +27,12 @@ class NodeType(Enum):
     FUNCTION = "function"
     BLOCK = "block"
 
+    # Function System
+    PARAMETER = "parameter"
+    PARAMETER_LIST = "parameter_list"
+    FUNCTION_CALL = "function_call"
+    ARGUMENT_LIST = "argument_list"
+
     # Declarations
     VAL_DECLARATION = "val_declaration"
     MUT_DECLARATION = "mut_declaration"

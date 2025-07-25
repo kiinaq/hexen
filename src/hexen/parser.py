@@ -14,14 +14,53 @@ from .ast_nodes import NodeType
 class HexenTransformer(Transformer):
     """Transform parse tree into meaningful AST nodes"""
 
-    @v_args(inline=True)
-    def function(self, name, return_type, body):
-        return {
-            "type": NodeType.FUNCTION.value,
-            "name": name["name"],  # Extract name from identifier dict
-            "return_type": return_type,
-            "body": body,
-        }
+    def function(self, args):
+        """Transform function: FUNC IDENTIFIER ( parameter_list? ) : type = block"""
+        if len(args) == 4:
+            # No parameters: func_token, name, return_type, body
+            func_token, name, return_type, body = args
+            return {
+                "type": NodeType.FUNCTION.value,
+                "name": name["name"],
+                "parameters": [],
+                "return_type": return_type,
+                "body": body,
+            }
+        else:
+            # With parameters: func_token, name, parameter_list, return_type, body
+            func_token, name, parameter_list, return_type, body = args
+            return {
+                "type": NodeType.FUNCTION.value,
+                "name": name["name"],
+                "parameters": parameter_list if parameter_list is not None else [],
+                "return_type": return_type,
+                "body": body,
+            }
+
+    def parameter_list(self, args):
+        """Transform parameter list"""
+        return list(args)
+
+    def parameter(self, args):
+        """Transform parameter: [MUT?] IDENTIFIER : type"""
+        if len(args) == 2:
+            # Regular parameter: IDENTIFIER : type
+            name, param_type = args
+            return {
+                "type": NodeType.PARAMETER.value,
+                "name": name["name"],
+                "param_type": param_type,
+                "is_mutable": False,
+            }
+        else:
+            # Mutable parameter: MUT IDENTIFIER : type
+            mut_token, name, param_type = args
+            return {
+                "type": NodeType.PARAMETER.value,
+                "name": name["name"],
+                "param_type": param_type,
+                "is_mutable": True,
+            }
 
     def val_declaration(self, args):
         # Handle: VAL IDENTIFIER [":" type] "=" expression
@@ -101,6 +140,29 @@ class HexenTransformer(Transformer):
             "target": target["name"],  # Extract name from identifier dict
             "value": value,
         }
+
+    def function_call(self, args):
+        """Transform function call: IDENTIFIER ( argument_list? )"""
+        if len(args) == 1:
+            # No arguments: function_name
+            function_name = args[0]
+            return {
+                "type": NodeType.FUNCTION_CALL.value,
+                "function_name": function_name["name"],
+                "arguments": [],
+            }
+        else:
+            # With arguments: function_name, argument_list
+            function_name, argument_list = args
+            return {
+                "type": NodeType.FUNCTION_CALL.value,
+                "function_name": function_name["name"],
+                "arguments": argument_list if argument_list is not None else [],
+            }
+
+    def argument_list(self, args):
+        """Transform argument list"""
+        return list(args)
 
     def expression(self, children):
         # Handle: logical_or
@@ -315,8 +377,21 @@ class HexenTransformer(Transformer):
         # Always return consistent block structure with statements array
         return {"type": NodeType.BLOCK.value, "statements": list(statements)}
 
-    def program(self, functions):
-        return {"type": NodeType.PROGRAM.value, "functions": list(functions)}
+    def program(self, items):
+        """Transform program: (function | statement)+"""
+        functions = []
+        statements = []
+
+        for item in items:
+            if item["type"] == NodeType.FUNCTION.value:
+                functions.append(item)
+            else:
+                statements.append(item)
+
+        result = {"type": NodeType.PROGRAM.value, "functions": functions}
+        if statements:
+            result["statements"] = statements
+        return result
 
     # Terminal handlers for new grammar elements (Phase 1 additions)
     def STRING(self, token):

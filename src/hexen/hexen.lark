@@ -1,9 +1,14 @@
 // Hexen grammar with unified declaration syntax
 // Philosophy: One declaration pattern for all - name : type = value
 
-program: function+
+program: (function | statement)+
 
-function: "func" IDENTIFIER "(" ")" ":" type "=" block
+function: FUNC IDENTIFIER "(" parameter_list? ")" ":" type "=" block
+
+parameter_list: parameter ("," parameter)*
+
+parameter: IDENTIFIER ":" type
+         | MUT IDENTIFIER ":" type
 
 block: "{" statement* "}"
 
@@ -38,7 +43,11 @@ multiplicative: unary (MUL_OP unary)*
 unary: UNARY_OP unary
      | conversion
 conversion: primary (CONVERSION_OP type)?
-primary: NUMBER | STRING | BOOLEAN | IDENTIFIER | block | "(" expression ")"
+primary: NUMBER | STRING | BOOLEAN | function_call | IDENTIFIER | block | "(" expression ")"
+
+function_call: IDENTIFIER "(" argument_list? ")"
+
+argument_list: expression ("," expression)*
 
 OR_OP: "||"
 AND_OP: "&&"
@@ -66,9 +75,10 @@ TYPE_VOID: "void"
 
 VAL: /val\b/
 MUT: /mut\b/
+FUNC: /func\b/
 
 // Terminals
-IDENTIFIER: /(?!val\b|mut\b|true\b|false\b)[a-zA-Z_][a-zA-Z0-9_]*/
+IDENTIFIER: /(?!val\b|mut\b|func\b|return\b|assign\b|true\b|false\b)[a-zA-Z_][a-zA-Z0-9_]*/
 NUMBER: SIGN? (SCIENTIFIC | HEXADECIMAL | BINARY | DECIMAL | INTEGER)
 STRING: /\"[^\"]*\"/
 BOOLEAN: "true" | "false"
