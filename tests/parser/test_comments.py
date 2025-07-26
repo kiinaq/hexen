@@ -272,7 +272,7 @@ class TestCommentEdgeCases:
         # Same program with and without comments should have same semantics
         source_with_comments = """
         // Function with comments
-        func test() : void = {
+        func test_with_comments() : void = {
             // Declare variable
             mut x : i32 = 42  // Initial value
             // Assign new value  
@@ -282,7 +282,7 @@ class TestCommentEdgeCases:
         """
 
         source_without_comments = """
-        func test() : void = {
+        func test_without_comments() : void = {
             mut x : i32 = 42
             x = 100
             return
