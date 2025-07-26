@@ -44,6 +44,9 @@ class ExpressionAnalyzer:
             [Dict, Optional[HexenType]], HexenType
         ],
         lookup_symbol_callback: Callable[[str], Optional[object]],
+        analyze_function_call_callback: Callable[
+            [Dict, Optional[HexenType]], HexenType
+        ],
         conversion_analyzer,
     ):
         """Initialize with callbacks to main analyzer functionality."""
@@ -52,6 +55,7 @@ class ExpressionAnalyzer:
         self._analyze_binary_operation = analyze_binary_operation_callback
         self._analyze_unary_operation = analyze_unary_operation_callback
         self._lookup_symbol = lookup_symbol_callback
+        self._analyze_function_call = analyze_function_call_callback
         self._conversion_analyzer = conversion_analyzer
 
     def analyze_expression(
@@ -86,6 +90,7 @@ class ExpressionAnalyzer:
         - BLOCK: Expression blocks (delegate to block analyzer)
         - BINARY_OPERATION: Delegate to binary ops analyzer
         - UNARY_OPERATION: Delegate to unary ops analyzer
+        - FUNCTION_CALL: Delegate to function call analyzer
         """
         if expr_type == NodeType.EXPLICIT_CONVERSION_EXPRESSION.value:
             # Handle explicit conversion expressions - implements TYPE_SYSTEM.md rules
@@ -111,6 +116,9 @@ class ExpressionAnalyzer:
         elif expr_type == NodeType.UNARY_OPERATION.value:
             # Unary operations - delegate to unary ops analyzer
             return self._analyze_unary_operation(node, target_type)
+        elif expr_type == NodeType.FUNCTION_CALL.value:
+            # Function calls - delegate to function call analyzer
+            return self._analyze_function_call(node, target_type)
         else:
             self._error(f"Unknown expression type: {expr_type}", node)
             return HexenType.UNKNOWN

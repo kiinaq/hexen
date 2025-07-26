@@ -20,6 +20,7 @@ from .return_analyzer import ReturnAnalyzer
 from .block_analyzer import BlockAnalyzer
 from .expression_analyzer import ExpressionAnalyzer
 from .conversion_analyzer import ConversionAnalyzer
+from .function_analyzer import FunctionAnalyzer
 
 
 class SemanticAnalyzer:
@@ -109,6 +110,13 @@ class SemanticAnalyzer:
             analyze_expression_callback=self._analyze_expression,
         )
 
+        # Initialize function analyzer with callbacks
+        self.function_analyzer = FunctionAnalyzer(
+            error_callback=self._error,
+            analyze_expression_callback=self._analyze_expression,
+            lookup_function_callback=self.symbol_table.lookup_function,
+        )
+
         # Initialize expression analyzer with callbacks
         self.expression_analyzer = ExpressionAnalyzer(
             error_callback=self._error,
@@ -116,6 +124,7 @@ class SemanticAnalyzer:
             analyze_binary_operation_callback=self._analyze_binary_operation,
             analyze_unary_operation_callback=self._analyze_unary_operation,
             lookup_symbol_callback=self.symbol_table.lookup_symbol,
+            analyze_function_call_callback=self._analyze_function_call,
             conversion_analyzer=self.conversion_analyzer,
         )
 
@@ -258,6 +267,14 @@ class SemanticAnalyzer:
         Analyze a unary operation by delegating to UnaryOpsAnalyzer.
         """
         return self.unary_ops.analyze_unary_operation(node, target_type)
+
+    def _analyze_function_call(
+        self, node: Dict, target_type: Optional[HexenType] = None
+    ) -> HexenType:
+        """
+        Analyze a function call by delegating to FunctionAnalyzer.
+        """
+        return self.function_analyzer.analyze_function_call(node, target_type)
 
     def _analyze_assign_statement(self, node: Dict) -> None:
         """
