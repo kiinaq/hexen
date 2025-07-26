@@ -345,7 +345,12 @@ process_multi(mixed_val:i32, 42, "test")     // ✅ Explicit conversion for argu
 
 ### Function Bodies as Unified Blocks
 
-Function bodies use the same unified block system as other Hexen constructs, with the function's return type providing context:
+Function bodies use the same unified block system as other Hexen constructs, with the function's return type providing context. Expression blocks within functions follow the dual capability model from UNIFIED_BLOCK_SYSTEM.md:
+
+- **`assign`**: Produces the block's value (assigns to target variable)
+- **`return`**: Early function exit (bypasses assignment, exits containing function)
+
+This dual capability enables powerful patterns for validation, error handling, and optimization within function contexts.
 
 ```hexen
 func simple_computation(input: i32, threshold: f64) : f64 = {
@@ -359,12 +364,52 @@ func simple_computation(input: i32, threshold: f64) : f64 = {
     val intermediate = {
         val scaled : i32 = input * 2      // ✅ Explicit type required for concrete result (i32 * comptime_int → i32)
         val adjusted : i32 = scaled + 10  // ✅ Explicit type required for concrete result (i32 + comptime_int → i32)
-        return adjusted       // Expression block requires return
+        assign adjusted       // Expression block assigns value to intermediate
     }
     
     // Function return (guided by f64 return type)
     // Return type context allows mixed concrete types without explicit conversion
     return intermediate:f64 * threshold + 1.5    // i32 → f64 * f64 + comptime_float → f64 (return type context)
+}
+```
+
+### Expression Block Dual Capability in Functions
+
+Expression blocks in function contexts support both `assign` and `return` following UNIFIED_BLOCK_SYSTEM.md patterns:
+
+```hexen
+// Expression blocks with validation and early returns
+func validate_and_process(input: i32) : i32 = {
+    val processed = {
+        if input < 0 {
+            return -1           // Early function exit with error code
+        }
+        if input > 1000 {
+            return -2           // Early function exit with different error
+        }
+        assign input * 2        // Success: assign processed value
+    }
+    
+    // This code only runs if validation succeeded
+    return processed + 10
+}
+
+// Expression blocks with performance optimization
+func cached_calculation(key: string) : f64 = {
+    val result = {
+        val cached = lookup_cache(key)
+        if cached != null {
+            return cached       // Early function exit with cached result
+        }
+        
+        val computed = expensive_operation(key)
+        save_to_cache(key, computed)
+        assign computed         // Cache miss: assign computed value
+    }
+    
+    // This logging only happens for cache misses
+    log_cache_miss(key)
+    return result
 }
 ```
 
@@ -386,7 +431,7 @@ func nested_scope_demo(base: i32, multiplier: f64) : f64 = {
     val final_result = {
         // Expression block - parameters accessible
         val result : f64 = base:f64 * multiplier  // ✅ Explicit type and conversion required (i32 → f64 * f64 → f64)
-        return result                   // Expression block return
+        assign result                   // Expression block assigns value to final_result
     }
     
     return final_result    // Function return

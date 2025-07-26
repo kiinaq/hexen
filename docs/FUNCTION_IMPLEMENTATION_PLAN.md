@@ -13,6 +13,8 @@ The function system implementation follows Hexen's core principles:
 - **Comptime Type Preservation**: Leverage comptime flexibility until parameter context forces resolution
 - **Transparent Costs**: All concrete type mixing requires explicit `value:type` syntax
 - **Consistent Safety**: Same `val`/`mut` semantics as variables
+- **Unified Block System**: Expression blocks use `assign` for value production, `return` for early function exits
+- **Dual Capability Integration**: Support validation, caching, and error handling patterns in function contexts
 
 ## Session Breakdown
 
@@ -229,6 +231,7 @@ The function system implementation follows Hexen's core principles:
    - Return type consistency validation
    - Parameter accessibility within body
    - Integration with unified block analysis
+   - Expression blocks with `assign` statements in function contexts
 
 4. **Error Case Tests**:
    - Duplicate function names
@@ -299,7 +302,8 @@ The function system implementation follows Hexen's core principles:
 3. **Complex Argument Tests**:
    - Complex expression arguments
    - Nested function calls
-   - Function calls with expression blocks
+   - Function calls with expression blocks using `assign`
+   - Dual capability patterns: validation and early returns in expression block arguments
    - Edge cases and boundary conditions
 
 4. **Error Case Tests**:
@@ -337,10 +341,11 @@ The function system implementation follows Hexen's core principles:
    - Void function consistency
    - Early return handling
 
-4. **Integration with Block System**:
-   - `return` in expression blocks (function exit)
-   - `return` in statement blocks (function exit)
-   - `return` in function body blocks
+4. **Integration with Unified Block System (`assign`/`return` dual capability)**:
+   - Expression blocks: `assign` for value production, `return` for early function exits
+   - Statement blocks: `return` for function exits only
+   - Function body blocks: `return` for function completion
+   - Dual capability patterns: validation, caching, error handling in expression blocks
 
 #### Deliverables:
 - Complete return statement analysis
@@ -404,9 +409,10 @@ The function system implementation follows Hexen's core principles:
 
 3. **Edge Case Testing**:
    - Complex nested function calls
-   - Functions with expression block bodies
-   - Mixed concrete type scenarios
+   - Functions with expression block bodies using `assign`/`return` dual capability
+   - Mixed concrete type scenarios with explicit conversions
    - Comptime type preservation edge cases
+   - Expression blocks with validation patterns and early returns in function contexts
 
 4. **Performance Validation**:
    - Ensure function analysis doesn't degrade compilation performance
@@ -425,9 +431,10 @@ The function system implementation follows Hexen's core principles:
 
 ### Prerequisites (Must be completed first):
 - Existing TYPE_SYSTEM.md implementation (✅ Complete)
-- Unified block system with `assign`/`return` (✅ Complete)
+- Unified block system with `assign`/`return` dual capability (✅ Complete)
 - Symbol table foundation (✅ Complete)
 - Expression analysis system (✅ Complete)
+- Expression blocks with `assign` for value production (✅ Complete)
 
 ### Session Dependencies:
 - **Session 1 → Session 2**: Grammar must exist before parser implementation

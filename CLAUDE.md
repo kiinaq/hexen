@@ -110,16 +110,25 @@ func void_func() : void = {
 
 ### Blocks
 ```hexen
-// Expression blocks (must return value)
+// Expression blocks (must assign value)
 val result = {
     val temp = 42
-    return temp * 2
+    assign temp * 2        // assign produces block value
+}
+
+// Expression blocks with control flow
+val validated = {
+    val input = get_input()
+    if input < 0 {
+        return -1          // return exits function early
+    }
+    assign input * 2       // assign produces block value
 }
 
 // Statement blocks (scoped execution)
 {
     val scoped = "local"
-    mut counter = 0
+    mut counter : i32 = 0  // explicit type required for mut
 }
 ```
 
@@ -287,6 +296,95 @@ config = "production"              // OK: first real assignment
 mut pending : i32 = undef         // OK: Type explicitly provided
 ```
 
+## Unified Block System Deep Dive
+
+### Core Philosophy: One Syntax, Context-Driven Behavior
+
+All Hexen constructs use the same `{}` block syntax, but context determines behavior:
+- **Expression blocks**: Produce values using `assign`, support `return` for function exits
+- **Statement blocks**: Execute code with scope isolation, no value production
+- **Function bodies**: Unified with other blocks, context provides return type validation
+
+### The `assign` + `return` Dual Capability
+
+Expression blocks support **both** statement types for maximum expressiveness:
+
+#### `assign` - Produces Block Value
+```hexen
+val computation = {
+    val base = 42
+    val result = base * 2
+    assign result              // Assigns result to computation
+}
+```
+
+#### `return` - Early Function Exit
+```hexen
+val validated_input = {
+    val raw_input = get_user_input()
+    if raw_input < 0 {
+        return -1              // Early function exit with error
+    }
+    if raw_input > 1000 {
+        return -2              // Early function exit with different error
+    }
+    assign sanitize(raw_input) // Success: assign sanitized input
+}
+```
+
+### Powerful Patterns Enabled
+
+#### Error Handling with Guards
+```hexen
+func safe_divide(a: f64, b: f64) : f64 = {
+    val result = {
+        if b == 0.0 {
+            return 0.0         // Early exit: division by zero
+        }
+        assign a / b           // Normal case: assign division result
+    }
+    return result
+}
+```
+
+#### Performance Optimization with Caching
+```hexen
+func expensive_calc(key: string) : f64 = {
+    val result = {
+        val cached = lookup_cache(key)
+        if cached != null {
+            return cached      // Early exit: cache hit
+        }
+        
+        val computed = very_expensive_operation(key)
+        save_to_cache(key, computed)
+        assign computed        // Cache miss: assign computed value
+    }
+    
+    log_cache_miss(key)        // Only executes on cache miss
+    return result
+}
+```
+
+### Block Types by Context
+
+#### Expression Blocks (Value Production)
+- **Must end with**: `assign expression` for value production
+- **Control flow**: `return value` for early function exits
+- **Scope**: Isolated variables
+- **Type**: Determined by `assign` expression type
+
+#### Statement Blocks (Code Execution)
+- **No value production**: Cannot use `assign`
+- **Control flow**: `return` for function exits allowed
+- **Scope**: Isolated variables
+- **Purpose**: Side effects and code organization
+
+#### Function Body Blocks
+- **Return requirements**: Type-dependent (`void` vs value-returning)
+- **Scope**: Function scope management
+- **Behavior**: Unified with other block types
+
 ---
 
 # Binary Operations Deep Dive
@@ -400,6 +498,15 @@ val final_f64 : f64 = step4       // NOW: comptime_float → f64
 val final_f32 : f32 = step4       // SAME source, different target
 val final_i32 : i32 = step4:i32   // Explicit conversion needed
 
+// ✅ Expression blocks preserve comptime flexibility
+val complex_calc = {
+    val base = 42 + 100           // comptime_int + comptime_int → comptime_int
+    val scaled = base * 3.14      // comptime_int * comptime_float → comptime_float
+    assign scaled / 2.0           // comptime_float / comptime_float → comptime_float (preserved!)
+}
+val as_f64 : f64 = complex_calc   // SAME source → f64
+val as_f32 : f32 = complex_calc   // SAME source → f32
+
 // 🔧 Mixed concrete types require explicit conversions
 val a : i32 = 10
 val b : i64 = 20
@@ -426,3 +533,56 @@ val result : f64 = a:f64 + (b:f64 * c:f64)  // All conversions explicit
 3. **Ergonomic Literals**: Comptime types adapt seamlessly with zero runtime cost
 4. **Predictable Behavior**: Division behavior determined by operator choice (`/` vs `\`)
 5. **Boolean Clarity**: Comparison operations always produce `bool`, no implicit coercion
+
+### Integration with Expression Blocks
+
+Expression blocks work seamlessly with the type system and binary operations:
+
+```hexen
+// ✅ Expression blocks + comptime type preservation
+val flexible_math = {
+    val base = 42 + 100 * 3       // All comptime operations
+    val scaled = base * 2.5       // comptime_int * comptime_float → comptime_float
+    assign scaled                 // Preserves comptime_float flexibility
+}
+val as_i32 : i32 = flexible_math:i32  // Explicit conversion needed
+val as_f32 : f32 = flexible_math      // Same source → f32
+val as_f64 : f64 = flexible_math      // Same source → f64
+
+// ✅ Expression blocks with control flow and validation
+func process_data(input: i32) : i32 = {
+    val validated = {
+        if input < 0 {
+            return -1             // Early function exit: invalid input
+        }
+        if input > 1000 {
+            return -2             // Early function exit: input too large
+        }
+        assign input * 2          // Success: assign processed input
+    }
+    
+    // This only executes if validation succeeded
+    return validated + 10
+}
+
+// 🔴 mut variables cannot preserve expression block comptime types
+mut concrete_result : f64 = {
+    val calc = 42 + 100 * 3       // Same comptime operations
+    assign calc / 2               // comptime_float → f64 (immediately resolved!)
+}
+// No flexibility preserved - concrete_result is concrete f64
+
+// ✅ Expression blocks with mixed concrete types (explicit conversions)
+func mixed_computation() : f64 = {
+    val int_val : i32 = 10
+    val float_val : f64 = 3.14
+    
+    val result : f64 = {
+        val converted = int_val:f64 + float_val  // Explicit conversion required
+        val scaled = converted * 2.5             // f64 * comptime_float → f64
+        assign scaled                            // Block assigns concrete f64
+    }
+    
+    return result
+}
+```
