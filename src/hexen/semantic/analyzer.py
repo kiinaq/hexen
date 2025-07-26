@@ -85,6 +85,7 @@ class SemanticAnalyzer:
             set_function_context_callback=self._set_function_context,
             clear_function_context_callback=self._clear_function_context,
             get_current_scope_callback=self._get_current_scope,
+            symbol_table=self.symbol_table,
         )
 
         # Initialize assignment analyzer with callbacks

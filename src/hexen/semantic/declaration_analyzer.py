@@ -13,7 +13,12 @@ from typing import Dict, Optional, Callable, Tuple
 
 from ..ast_nodes import NodeType
 from .types import HexenType, Mutability
-from .symbol_table import Symbol
+from .symbol_table import (
+    Symbol,
+    SymbolTable,
+    create_function_signature_from_ast,
+    validate_function_parameters,
+)
 from .type_util import (
     parse_type,
     can_coerce,
@@ -47,6 +52,7 @@ class DeclarationAnalyzer:
         set_function_context_callback: Callable[[str, HexenType], None],
         clear_function_context_callback: Callable[[], None],
         get_current_scope_callback: Callable[[], dict],
+        symbol_table: SymbolTable,
     ):
         """
         Initialize the declaration analyzer.
@@ -60,6 +66,7 @@ class DeclarationAnalyzer:
             set_function_context_callback: Function to set function context
             clear_function_context_callback: Function to clear function context
             get_current_scope_callback: Function to get current scope
+            symbol_table: Direct access to symbol table for function management
         """
         self._error = error_callback
         self._analyze_expression = analyze_expression_callback
@@ -69,6 +76,7 @@ class DeclarationAnalyzer:
         self._set_function_context = set_function_context_callback
         self._clear_function_context = clear_function_context_callback
         self._get_current_scope = get_current_scope_callback
+        self.symbol_table = symbol_table
 
     def analyze_declaration(self, node: Dict) -> None:
         """
@@ -166,23 +174,49 @@ class DeclarationAnalyzer:
         self, name: str, return_type_str: str, body: Dict, node: Dict
     ) -> None:
         """
-        Analyze function declaration with truly unified block behavior.
+        Analyze function declaration with symbol table registration and scope management.
 
         Handles function-specific logic:
-        - Function context setup for return type validation
-        - Block analysis (block manages its own scope and requires final return)
-        - No symbol table registration (functions are not variables)
+        1. Create and validate function signature
+        2. Register function in symbol table
+        3. Enter function scope with parameter declarations
+        4. Analyze function body with proper context
+        5. Exit function scope and clean up context
         """
-        # Set up function analysis context for return type validation
-        return_type = parse_type(return_type_str)
-        self._set_function_context(name, return_type)
+        try:
+            # Create function signature from AST node
+            signature = create_function_signature_from_ast(node)
 
-        # Analyze function body - block handles scope + return requirements
-        if body:
-            self._analyze_block(body, node)  # Block manages everything now!
+            # Validate function parameters
+            param_errors = validate_function_parameters(signature.parameters)
+            for error_msg in param_errors:
+                self._error(error_msg, node)
+                return
 
-        # Clean up function context
-        self._clear_function_context()
+            # Register function in symbol table
+            if not self.symbol_table.declare_function(signature):
+                self._error(f"Function '{name}' is already declared", node)
+                return
+
+            # Enter function scope with parameter declarations
+            if not self.symbol_table.enter_function_scope(name):
+                self._error(f"Failed to enter scope for function '{name}'", node)
+                return
+
+            # Set up function analysis context for return type validation
+            return_type = parse_type(return_type_str)
+            self._set_function_context(name, return_type)
+
+            # Analyze function body - block handles scope + return requirements
+            if body:
+                self._analyze_block(body, node)
+
+            # Clean up function context and exit scope
+            self._clear_function_context()
+            self.symbol_table.exit_function_scope()
+
+        except (KeyError, ValueError) as e:
+            self._error(f"Invalid function declaration: {e}", node)
 
     def _analyze_variable_declaration_unified(
         self,

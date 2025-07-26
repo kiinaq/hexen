@@ -34,9 +34,9 @@ class TestExplicitConversionSemantics(StandardTestBase):
             ("0:i64", "i64"),
         ]
 
-        for expr, target_type in test_cases:
+        for i, (expr, target_type) in enumerate(test_cases):
             source = f"""
-            func test() : void = {{
+            func test_{i}() : void = {{
                 val result : {target_type} = {expr}
             }}
             """
@@ -55,9 +55,9 @@ class TestExplicitConversionSemantics(StandardTestBase):
             ("3.14:i64", "i64"),
         ]
 
-        for expr, target_type in test_cases:
+        for i, (expr, target_type) in enumerate(test_cases):
             source = f"""
-            func test() : void = {{
+            func test_{i}() : void = {{
                 val result : {target_type} = {expr}
             }}
             """
@@ -89,9 +89,9 @@ class TestExplicitConversionSemantics(StandardTestBase):
             "float_val:bool",
         ]
 
-        for expr in invalid_cases:
+        for i, expr in enumerate(invalid_cases):
             source = f"""
-            func test() : void = {{
+            func test_{i}() : void = {{
                 val int_val:i32 = 10
                 val float_val:f32 = 3.14
                 val result:bool = {expr}
@@ -112,9 +112,9 @@ class TestExplicitConversionSemantics(StandardTestBase):
             "true:string",
         ]
 
-        for expr in invalid_cases:
+        for i, expr in enumerate(invalid_cases):
             source = f"""
-            func test() : void = {{
+            func test_{i}() : void = {{
                 val result:string = {expr}
             }}
             """
@@ -133,9 +133,9 @@ class TestExplicitConversionSemantics(StandardTestBase):
             ("flag:f32", "f32"),
         ]
 
-        for expr, target_type in invalid_cases:
+        for i, (expr, target_type) in enumerate(invalid_cases):
             source = f"""
-            func test() : void = {{
+            func test_{i}() : void = {{
                 val flag:bool = true
                 val result : {target_type} = {expr}
             }}
@@ -154,9 +154,9 @@ class TestExplicitConversionSemantics(StandardTestBase):
             ("text:bool", "bool"),
         ]
 
-        for expr, target_type in invalid_cases:
+        for i, (expr, target_type) in enumerate(invalid_cases):
             source = f"""
-            func test() : void = {{
+            func test_{i}() : void = {{
                 val text:string = "123"
                 val result : {target_type} = {expr}
             }}
@@ -182,10 +182,12 @@ class TestExplicitConversionSemantics(StandardTestBase):
             ("text", "string", "text:string", "string"),
         ]
 
-        for source_expr, source_type, conv_expr, target_type in test_cases:
+        for i, (source_expr, source_type, conv_expr, target_type) in enumerate(
+            test_cases
+        ):
             if source_type == "comptime_int":
                 source = f"""
-                func test() : void = {{
+                func test_{i}() : void = {{
                     val result : {target_type} = {conv_expr}
                 }}
                 """
@@ -201,7 +203,7 @@ class TestExplicitConversionSemantics(StandardTestBase):
                     var_decl = f"val {source_expr} : {source_type} = 42"
 
                 source = f"""
-                func test() : void = {{
+                func test_{i}() : void = {{
                     {var_decl}
                     val result : {target_type} = {conv_expr}
                 }}

@@ -125,9 +125,9 @@ class TestFloatPrecisionLoss(StandardTestBase):
             ("0.5", "Simple fractional value"),
         ]
 
-        for value, description in test_cases:
+        for i, (value, description) in enumerate(test_cases):
             source = f"""
-            func test() : void = {{
+            func test_{i}() : void = {{
                 val source_f64:f64 = {value}    // {description}
                 mut target_f32:f32 = 0.0
                 

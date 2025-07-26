@@ -157,9 +157,9 @@ class TestPrecisionLossErrorMessages(StandardTestBase):
             ("mut int_val:i32 = 0", "", "int_val = 3.14159"),
         ]
 
-        for setup1, setup2, assignment in test_cases:
+        for i, (setup1, setup2, assignment) in enumerate(test_cases):
             source = f"""
-            func test() : void = {{
+            func test_{i}() : void = {{
                 {setup1}
                 {setup2 if setup2 else ""}
                 {assignment}
@@ -229,9 +229,9 @@ class TestMutabilityErrorMessages(StandardTestBase):
             ("val z:f64 = 3.14\n            z = 2.5", "Cannot assign to immutable"),
         ]
 
-        for code_fragment, expected_pattern in test_cases:
+        for i, (code_fragment, expected_pattern) in enumerate(test_cases):
             source = f"""
-            func test() : void = {{
+            func test_{i}() : void = {{
                 {code_fragment}
             }}
             """
@@ -290,9 +290,9 @@ class TestMixedTypeErrorMessages(StandardTestBase):
             ),
         ]
 
-        for code_fragment, expected_guidance in test_cases:
+        for i, (code_fragment, expected_guidance) in enumerate(test_cases):
             source = f"""
-            func test() : void = {{
+            func test_{i}() : void = {{
                 {code_fragment}
             }}
             """
@@ -330,9 +330,9 @@ class TestComptimeTypeErrorMessages(StandardTestBase):
             ("val flag:bool = 3.14", "comptime_float", "bool"),
         ]
 
-        for code_fragment, from_type, to_type in test_cases:
+        for i, (code_fragment, from_type, to_type) in enumerate(test_cases):
             source = f"""
-            func test() : void = {{
+            func test_{i}() : void = {{
                 {code_fragment}
             }}
             """
@@ -464,7 +464,7 @@ class TestHelpfulErrorMessages(StandardTestBase):
             # Precision loss - should suggest explicit conversion
             {
                 "source": """
-                func test() : void = {
+                func test_precision() : void = {
                     val large:i64 = 1000000
                     mut small:i32 = 0
                     small = large
@@ -475,7 +475,7 @@ class TestHelpfulErrorMessages(StandardTestBase):
             # Mixed types - should suggest explicit result type
             {
                 "source": """
-                func test() : void = {
+                func test_mixed() : void = {
                     val a:i32 = 10
                     val b:i64 = 20
                     val result = a + b
@@ -486,7 +486,7 @@ class TestHelpfulErrorMessages(StandardTestBase):
             # val + undef - should suggest mut
             {
                 "source": """
-                func test() : void = {
+                func test_undef() : void = {
                     val pending:i32 = undef
                 }
                 """,
@@ -515,7 +515,7 @@ class TestHelpfulErrorMessages(StandardTestBase):
             # Explain precision loss concept
             {
                 "source": """
-                func test() : void = {
+                func test_precision_loss() : void = {
                     val precise:f64 = 3.141592653589793
                     mut approx:f32 = 0.0
                     approx = precise
@@ -526,7 +526,7 @@ class TestHelpfulErrorMessages(StandardTestBase):
             # Explain val vs mut distinction
             {
                 "source": """
-                func test() : void = {
+                func test_immutable() : void = {
                     val immutable = 42
                     immutable = 100
                 }

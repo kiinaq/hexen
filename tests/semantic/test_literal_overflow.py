@@ -45,7 +45,7 @@ class TestLiteralOverflowDetection:
         """Test exact boundary values for i32"""
         # Test maximum i32 value
         source_max = """
-        func test() : i32 = {
+        func test_max() : i32 = {
             val max_i32 : i32 = 2147483647
             return max_i32
         }
@@ -56,7 +56,7 @@ class TestLiteralOverflowDetection:
 
         # Test minimum i32 value
         source_min = """
-        func test() : i32 = {
+        func test_min() : i32 = {
             val min_i32 : i32 = -2147483648
             return min_i32
         }
@@ -67,7 +67,7 @@ class TestLiteralOverflowDetection:
 
         # Test overflow by one
         source_overflow = """
-        func test() : i32 = {
+        func test_overflow() : i32 = {
             val overflow : i32 = 2147483648
             return overflow
         }
@@ -81,7 +81,7 @@ class TestLiteralOverflowDetection:
         """Test i64 boundary values - max value should work"""
         # Test maximum i64 value (should work)
         source_max = """
-        func test() : i64 = {
+        func test_max() : i64 = {
             val max_i64 : i64 = 9223372036854775807
             return max_i64
         }
@@ -92,7 +92,7 @@ class TestLiteralOverflowDetection:
 
         # Test large negative i64 value (should work)
         source_min = """
-        func test() : i64 = {
+        func test_min() : i64 = {
             val min_i64 : i64 = -9223372036854775807
             return min_i64
         }
