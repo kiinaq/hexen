@@ -423,13 +423,13 @@ class TestErrorMessageConsistency(StandardTestBase):
         contexts = [
             # Variable declaration
             """
-            func test() : void = {
+            func test_declaration() : void = {
                 val number:i32 = "string"
             }
             """,
             # Assignment
             """
-            func test() : void = {
+            func test_assignment() : void = {
                 mut number:i32 = 0
                 number = "string"
             }
