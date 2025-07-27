@@ -37,6 +37,8 @@ class AssignmentAnalyzer:
         error_callback: Callable[[str, Optional[Dict]], None],
         analyze_expression_callback: Callable[[Dict, Optional[HexenType]], HexenType],
         lookup_symbol_callback: Callable[[str], Optional[object]],
+        is_parameter_callback: Optional[Callable[[str], bool]] = None,
+        get_parameter_info_callback: Optional[Callable[[str], Optional[object]]] = None,
     ):
         """
         Initialize the assignment analyzer.
@@ -45,10 +47,14 @@ class AssignmentAnalyzer:
             error_callback: Function to call when semantic errors are found
             analyze_expression_callback: Function to analyze expressions
             lookup_symbol_callback: Function to lookup symbols in symbol table
+            is_parameter_callback: Function to check if a name is a parameter
+            get_parameter_info_callback: Function to get parameter info
         """
         self._error = error_callback
         self._analyze_expression = analyze_expression_callback
         self._lookup_symbol = lookup_symbol_callback
+        self._is_parameter = is_parameter_callback
+        self._get_parameter_info = get_parameter_info_callback
 
     def analyze_assignment_statement(self, node: Dict) -> None:
         """
@@ -81,13 +87,21 @@ class AssignmentAnalyzer:
             self._error(f"Undefined variable: '{target_name}'", node)
             return
 
-        # Check mutability - only mut variables can be assigned to
+        # Check mutability - only mut variables/parameters can be assigned to
         if symbol.mutability == Mutability.IMMUTABLE:
-            self._error(
-                f"Cannot assign to immutable variable '{target_name}'. "
-                f"val variables can only be assigned once at declaration",
-                node,
-            )
+            # Check if this is a parameter for more specific error message
+            if self._is_parameter and self._is_parameter(target_name):
+                self._error(
+                    f"Cannot reassign immutable parameter '{target_name}'. "
+                    f"Parameters are immutable by default. Use 'mut {target_name}: {symbol.type.value}' for mutable parameters",
+                    node,
+                )
+            else:
+                self._error(
+                    f"Cannot assign to immutable variable '{target_name}'. "
+                    f"val variables can only be assigned once at declaration",
+                    node,
+                )
             return
 
         # Analyze the value expression with target type context

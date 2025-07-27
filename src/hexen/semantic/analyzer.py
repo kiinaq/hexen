@@ -94,6 +94,8 @@ class SemanticAnalyzer:
             error_callback=self._error,
             analyze_expression_callback=self._analyze_expression,
             lookup_symbol_callback=self.symbol_table.lookup_symbol,
+            is_parameter_callback=self.symbol_table.is_parameter,
+            get_parameter_info_callback=self.symbol_table.get_parameter_info,
         )
 
         # Initialize return analyzer with callbacks
