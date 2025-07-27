@@ -1,6 +1,6 @@
 # Hexen Function System 🦉
 
-*Design and Implementation Specification*
+*Design Exploration & Specification*
 
 ## Overview
 
@@ -166,10 +166,9 @@ func mixed_calculation(base: i32, multiplier: f64, precision: f32) : f64 = {
     return scaled * precision:f64                 // ✅ Explicit conversion: f32 → f64, then f64 * f64 → f64 (return type context)
  }
 
-// 🎯 Key Insight: Return statements have implicit target type context
-// The function's return type (f64) serves as context for the return expression,
-// enabling mixed concrete type operations (f64 * f32) to resolve to f64 automatically.
-// This is equivalent to: val temp : f64 = scaled * precision; return temp
+// 🎯 Key Insight: Mixed concrete types still require explicit conversions in return statements
+// Following TYPE_SYSTEM.md rules, all mixed concrete operations require explicit syntax
+// even in return statements to maintain transparent costs
 
 // ✨ Comptime literals adapt seamlessly to parameter contexts (ergonomic)
 val result1 : f64 = mixed_calculation(42, 3.14, 1.5)  // ✅ Explicit type required for concrete result (function returns f64)
@@ -367,9 +366,9 @@ func simple_computation(input: i32, threshold: f64) : f64 = {
         assign adjusted       // Expression block assigns value to intermediate
     }
     
-    // Function return (guided by f64 return type)
-    // Return type context allows mixed concrete types without explicit conversion
-    return intermediate:f64 * threshold + 1.5    // i32 → f64 * f64 + comptime_float → f64 (return type context)
+    // Function return (explicit conversions required for mixed concrete types)
+    // All mixed concrete operations require explicit conversions (TYPE_SYSTEM.md rule)
+    return intermediate:f64 * threshold + 1.5    // i32 → f64 (explicit) * f64 + comptime_float → f64
 }
 ```
 
@@ -565,28 +564,29 @@ complex_transform(
 )
 ```
 
-## Return Type Context: A Key Language Feature
+## Return Statement Type Rules
 
-**Return statements in Hexen have implicit target type context**, which is crucial for mixed concrete type operations:
+**Return statements in Hexen follow the same TYPE_SYSTEM.md conversion rules as all other contexts** - mixed concrete types require explicit conversions:
 
 ```hexen
-// The function's return type provides context for the return expression
-func demonstrate_return_context(a: i32, b: f64, c: f32) : f64 = {
-    // These return statements all use the function's return type (f64) as context:
+// Return statements require explicit conversions for mixed concrete types
+func demonstrate_return_rules(a: i32, b: f64, c: f32) : f64 = {
+    // Mixed concrete types require explicit conversions (TYPE_SYSTEM.md rule):
     
-    // return a + b                          // ✅ i32 + f64 → f64 (return type context)
-    // return b * c                          // ✅ f64 * f32 → f64 (return type context)  
-    // return a + b * c                      // ✅ Mixed expression → f64 (return type context)
+    // return a + b                          // ❌ Error: Mixed concrete types i32 + f64 require explicit conversion
+    // return b * c                          // ❌ Error: Mixed concrete types f64 * f32 require explicit conversion
+    // return a + b * c                      // ❌ Error: Mixed concrete types require explicit conversion
     
-    // This is equivalent to explicitly declaring the context:
-    val temp : f64 = a + b * c              // ✅ Explicit context: mixed types → f64
-    return temp                             // ✅ f64 → f64 (exact match)
+    // ✅ Explicit conversions required for mixed concrete types:
+    return a:f64 + b                        // ✅ Explicit conversion: i32 → f64 + f64 → f64
+    // return b * c:f64                     // ✅ Explicit conversion: f64 * (f32 → f64) → f64
+    // return a:f64 + b * c:f64             // ✅ All conversions explicit
 }
 
-// Without return type context, mixed concrete types would require explicit handling:
-func without_context(a: i32, b: f64) : void = {
-    // val result = a + b                   // ❌ Error: Mixed concrete types need explicit context
-    val result : f64 = a + b               // ✅ Explicit context required for assignment
+// Consistent with other contexts - explicit conversions always required:
+func consistent_rules(a: i32, b: f64) : void = {
+    // val result = a + b                   // ❌ Error: Mixed concrete types need explicit conversion
+    val result : f64 = a:f64 + b           // ✅ Explicit conversion required everywhere
     return
 }
 ```
@@ -603,8 +603,8 @@ func truncate_to_int(value: f64) : i32 = {
 }
 
 func process_chain(input: i32) : i32 = {
-    // Function composition with context propagation
-    val scaled : f64 = scale_value(input, 2.5)        // ✅ Explicit type required for concrete result (function returns f64)
+    // Function composition with explicit conversions
+    val scaled : f64 = scale_value(input:f64, 2.5)        // ✅ Explicit conversion: i32 → f64 for parameter
     val final : i32 = truncate_to_int(scaled)         // ✅ Explicit type required for concrete result (function returns i32)
     return final
 }
@@ -625,7 +625,7 @@ func calculate_quotient(dividend: i32, divisor: i32) : i32 = {
 
 // Mixed division operations
 func complex_calculation(base: i64, factor: f32) : f64 = {
-    val precise_result : f64 = base / factor    // ✅ Mixed concrete types: i64 / f32 → f64 (explicit context)
+    val precise_result : f64 = base:f64 / factor:f64    // ✅ Explicit conversions: i64 → f64 / f32 → f64 → f64
     // val truncated = base \ factor            // ❌ Error: Integer division requires integer operands
     return precise_result
 }

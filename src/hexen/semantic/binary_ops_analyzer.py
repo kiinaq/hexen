@@ -128,23 +128,14 @@ class BinaryOpsAnalyzer:
                 # This should work - let the resolve function handle it
                 pass
             elif not has_comptime:
-                # Pattern 3: Mixed concrete types require explicit conversions
-                if target_type is None:
-                    self._error(
-                        f"Mixed concrete type operation '{left_type.value} {operator} {right_type.value}' requires target type context. "
-                        f"Use: 'val result : target_type = left_val:target_type {operator} right_val:target_type'",
-                        node,
-                    )
-                    return HexenType.UNKNOWN
-                else:
-                    # Mixed concrete types ALWAYS require explicit conversions, even with target context
-                    # This enforces transparent costs and explicit conversion philosophy
-                    self._error(
-                        f"Mixed concrete type operation '{left_type.value} {operator} {right_type.value}' requires explicit conversions. "
-                        f"Use: 'left_val:{target_type.value} {operator} right_val:{target_type.value}'",
-                        node,
-                    )
-                    return HexenType.UNKNOWN
+                # Pattern 3: Mixed concrete types ALWAYS require explicit conversions
+                # This enforces transparent costs and explicit conversion philosophy
+                self._error(
+                    f"Mixed concrete type operation '{left_type.value} {operator} {right_type.value}' requires explicit conversions. "
+                    f"Use: 'left_val:{target_type.value if target_type else 'target_type'} {operator} right_val:{target_type.value if target_type else 'target_type'}'",
+                    node,
+                )
+                return HexenType.UNKNOWN
             elif target_type is None:
                 # Comptime types without target context - check if it's a valid comptime operation
                 if left_type in {
