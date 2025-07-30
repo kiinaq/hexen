@@ -1,4 +1,4 @@
-# Literal Overflow Behavior in Hexen
+# Literal Overflow Behavior in Hexen 🦉
 
 ## Philosophy
 

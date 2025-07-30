@@ -1,4 +1,4 @@
-# Comptime Types Quick Reference 🚀
+# Comptime Types Quick Reference 🦉
 
 *Essential patterns for Hexen's comptime type system*
 
