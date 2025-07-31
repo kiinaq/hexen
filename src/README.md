@@ -1,35 +1,36 @@
 # Hexen Compiler Source Code 🦉
 
-Complete implementation of the Hexen programming language compiler. This directory contains a sophisticated compiler pipeline from source code parsing to comprehensive semantic analysis, built with Python for rapid prototyping while maintaining production-quality architecture.
+Implementation of the Hexen programming language compiler. This directory contains a compiler pipeline from source code parsing to semantic analysis, built with Python for rapid prototyping.
 
 ## 📊 Implementation Overview
 
 **Total Implementation**: **3,510 lines** across 17 specialized components  
-**Language**: Python 3.12+ with complete typing and modern architecture  
+**Language**: Python 3.12+ with type hints  
 **Dependencies**: [Lark](https://lark-parser.readthedocs.io/) for PEG parsing, standard library only  
-**Test Coverage**: 449 comprehensive tests validating all language features
+**Test Coverage**: 682 tests covering language features
 
 ### **Core Components**
 - **🔍 Parser**: 474 lines - Syntax analysis with clean AST generation
-- **🧠 Semantic Analysis**: 2,898 lines - Advanced modular semantic analysis system
+- **🧠 Semantic Analysis**: 2,898 lines - Modular semantic analysis system
 - **🎛️ CLI Interface**: 75 lines - User-friendly command-line tools
 - **📝 Grammar**: 89 lines - Precise PEG grammar definition
 - **🏗️ Supporting Infrastructure**: 51+ lines - AST nodes, package organization
 
-## 🏗️ Sophisticated Architecture
+## 🏗️ Architecture
 
-Hexen implements a **production-quality compiler architecture** with advanced language features:
+Hexen implements a modular compiler architecture:
 
 ```
 src/hexen/
 ├── hexen.lark              # ─┐ Syntax Analysis (563 lines)
 ├── parser.py               #  ├─ PEG grammar + AST generation (474 lines)
 ├── ast_nodes.py            # ─┘ Clean AST node definitions (51 lines)
-├── semantic/               # ─┐ Advanced Semantic Analysis (2,898 lines)
-│   ├── type_util.py        #  ├─ Advanced type system utilities (486 lines)
+├── semantic/               # ─┐ Semantic Analysis (2,898 lines)
+│   ├── type_util.py        #  ├─ Type system utilities (486 lines)
 │   ├── binary_ops_analyzer.py    # ├─ Binary operations with dual division (441 lines)
 │   ├── declaration_analyzer.py   # ├─ Unified declaration framework (355 lines)
 │   ├── analyzer.py         #  ├─ Main semantic orchestrator (270 lines)
+│   ├── function_analyzer.py      # ├─ Function calls and parameter validation (250 lines)
 │   ├── assignment_analyzer.py    # ├─ Context-guided assignments (242 lines)
 │   ├── return_analyzer.py        # ├─ Return statement validation (216 lines)
 │   ├── conversion_analyzer.py    # ├─ Explicit type conversion analysis (189 lines)
@@ -44,7 +45,26 @@ src/hexen/
 └── __init__.py             # ─── Package metadata (12 lines)
 ```
 
-## 🎯 Advanced Language Features Implemented
+## 🎯 Language Features Implemented
+
+### **🚀 Complete Function System** (FUNCTION_SYSTEM.md)
+*Full function declarations, calls, parameters, and mutable parameter support*
+
+```hexen
+// Function declarations with parameter validation
+func calculate(a: i32, mut b: i32) : i64 = {
+    b = b * 2                           // Mutable parameters can be reassigned
+    return (a + b):i64                  // Explicit conversion for return type
+}
+
+// Function calls with comptime type adaptation
+func main() : i32 = {
+    val result = calculate(42, 100)     // comptime_int adapts to parameter types
+    return result:i32                   // Explicit conversion for return
+}
+```
+
+**Implementation**: 250 lines of function analysis with parameter type checking and symbol table integration
 
 ### **🧩 Comptime Type System** (TYPE_SYSTEM.md)
 *Zig-inspired compile-time type adaptation without literal suffixes*
@@ -60,7 +80,7 @@ val precise : f64 = 3.14    // comptime_float → f64 (precision default)
 val truncated : i32 = large_value : i32  // Explicit truncation
 ```
 
-**Implementation**: 486 lines of sophisticated type system utilities with context-guided resolution
+**Implementation**: 486 lines of type system utilities with context-guided resolution
 
 ### **⚡ Dual Division Operators** (BINARY_OPS.md)  
 *Transparent cost model with clear computational semantics*
@@ -81,9 +101,9 @@ val result : f64 = int_val + float_val  // Context resolves type ambiguity
 
 ```hexen
 func complex_computation() : i32 = {     // Function body block
-    val result = {                       // Expression block (returns value)
+    val result = {                       // Expression block (produces value)
         val temp = expensive_calc()
-        return temp * 2                  // Required return for value production
+        assign temp * 2                  // Required assign for value production
     }
     
     {                                    // Statement block (scoped execution)
@@ -97,8 +117,8 @@ func complex_computation() : i32 = {     // Function body block
 
 **Implementation**: 186 lines of context-aware block analysis with unified scope management
 
-### **🔒 Advanced Type Safety** (COMPARISON_OPS.md)
-*Compile-time prevention of type-related runtime errors*
+### **🔒 Type Safety** (COMPARISON_OPS.md)
+*Compile-time type checking*
 
 ```hexen
 // Strict comparison rules - only identical types can be compared
@@ -115,8 +135,8 @@ counter = 100                       // ✅ Allowed: explicit mut
 
 **Implementation**: Comprehensive type checking across 155 lines of expression analysis
 
-### **🎨 Sophisticated Error Recovery**
-*Production-quality error reporting with batch collection*
+### **🎨 Error Reporting**
+*Batch error collection*
 
 ```hexen
 // Multiple errors detected in single compilation pass
@@ -130,16 +150,17 @@ counter = 100                       // ✅ Allowed: explicit mut
 
 ## 🔧 Modular Semantic Analysis System
 
-The semantic analyzer is **architecturally sophisticated** with clean separation of concerns:
+The semantic analyzer uses modular design with separation of concerns:
 
-### **🎯 Specialized Analyzer Components**
+### **🎯 Analyzer Components**
 
 | Analyzer | Responsibility | Lines | Key Features |
 |----------|---------------|--------|--------------|
-| **Type Utilities** | Advanced type system operations | 486 | Context-guided resolution & coercion |
+| **Type Utilities** | Type system operations | 486 | Context-guided resolution & coercion |
 | **Binary Ops Analyzer** | Arithmetic & dual division | 441 | Transparent cost model |
 | **Declaration Analyzer** | Functions, val, mut declarations | 355 | Unified declaration framework |
 | **Main Analyzer** | Orchestration & error collection | 270 | Pure coordination logic |
+| **Function Analyzer** | Function calls & parameter validation | 250 | Parameter type checking & symbol integration |
 | **Assignment Analyzer** | Variable assignments | 242 | Context-aware type validation |
 | **Return Analyzer** | Return statement validation | 216 | Context-specific rules |
 | **Conversion Analyzer** | Explicit type conversions | 189 | "Explicit Danger, Implicit Safety" |
@@ -184,10 +205,11 @@ expression: logical_or (":" type)?  // Type annotation support
 
 ## 🧪 Comprehensive Testing
 
-### **Test Coverage: 449 Tests Across 30+ Test Files**
+### **Test Coverage: 682 Tests Across 30+ Test Files**
 
 **Test Categories**:
 - **Parser Tests**: Syntax validation and AST generation
+- **Function System Tests**: Function declarations, calls, parameters, mutable parameters
 - **Type System Tests**: Comptime types, coercion, precision loss
 - **Binary Operations**: Dual division, mixed types, context resolution
 - **Comparison Operations**: Type safety, boolean semantics
@@ -208,11 +230,10 @@ expression: logical_or (":" type)?  // Type annotation support
 ```bash
 # Install and run
 uv sync                                    # Install dependencies
-uv run hexen parse examples/hello_world.hxn    # Parse and show AST
-uv run hexen check examples/comprehensive_demo.hxn  # Full semantic analysis
+uv run hexen parse examples/literal_ergonomics.hxn    # Parse and show AST
 
 # Development workflow  
-uv run pytest tests/                      # Run 449 comprehensive tests
+uv run pytest tests/                      # Run 682 comprehensive tests
 uv run hexen check myfile.hxn             # Validate Hexen source code
 ```
 
@@ -238,20 +259,21 @@ else:
         print(f"❌ {error.message}")
 ```
 
-## 🎖️ Technical Achievements
+## 🎖️ Current Features
 
-### **Language Design Excellence**
+### **Language Design**
+- **🚀 Complete Function System**: Function declarations, calls, parameters, and mutable parameter support
 - **🧠 Comptime Types**: Eliminates literal suffixes while maintaining type safety
 - **⚡ Dual Division**: Transparent cost model with `/` (float) vs `\` (integer)  
 - **🏗️ Unified Blocks**: Single syntax adapts to context (expression/statement/function)
 - **🔒 Memory Safety**: Immutable-by-default with explicit mutability (`val` vs `mut`)
 - **🎯 Precision Control**: Type annotations for explicit precision loss acknowledgment
 
-### **Compiler Architecture Excellence**  
-- **🧩 Modular Design**: 9 specialized analyzers with clean separation of concerns
+### **Compiler Architecture**  
+- **🧩 Modular Design**: 10 analyzers with separation of concerns
 - **🔄 Callback Architecture**: Dependency injection enables focused testing
 - **🛡️ Error Recovery**: Batch error collection with comprehensive context
-- **📊 Comprehensive Testing**: 449 tests validating all language features
+- **📊 Testing**: 682 tests covering language features
 - **🎨 Clean APIs**: Well-designed interfaces for external integration
 
 ### **Implementation Quality**
@@ -270,7 +292,7 @@ Hexen's implementation closely follows its comprehensive specification documents
 - **✅ UNIFIED_BLOCK_SYSTEM.md**: Context-driven block behavior with unified syntax
 - **✅ COMPARISON_OPS.md**: Type-safe comparisons with strict boolean semantics
 
-**Implementation Status**: **Phase I Complete** - Sophisticated semantic analysis ready for code generation
+**Implementation Status**: **Phase I Complete** - Semantic analysis ready for code generation
 
 ## 🔮 Architecture Readiness
 
@@ -281,13 +303,13 @@ Hexen's implementation closely follows its comprehensive specification documents
 - **Error-Free Validation**: Semantically validated programs guaranteed
 
 ### **Phase III: Self-Hosting** (Foundation Ready)
-- **Robust Parser**: Production-quality syntax analysis
-- **Advanced Type System**: Sophisticated type safety and inference
+- **Parser**: Syntax analysis
+- **Type System**: Type safety and inference
 - **Modular Architecture**: Clean interfaces for gradual rewriting
-- **Comprehensive Testing**: Regression protection during migration
+- **Testing**: Regression protection during migration
 
 ---
 
-**Current Status**: ✅ **Production-Quality Semantic Analysis** | **Ready for Code Generation** | **Sophisticated Foundation Complete**
+**Current Status**: ✅ **Semantic Analysis Complete** | **Ready for Code Generation** | **Foundation Ready**
 
-*Hexen demonstrates that a language can be both sophisticated in design and elegant in implementation, providing advanced features through clean, well-architected code.* 🦉 
+*Hexen explores language design through clean, modular implementation.* 🦉 
