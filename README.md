@@ -34,7 +34,7 @@ This is not just an academic exercise, but a practical exploration of what progr
 - **[Comptime Quick Reference →](docs/COMPTIME_QUICK_REFERENCE.md)** - Essential patterns for the comptime type system ⚡
 - **[Examples →](examples/README.md)** - Comprehensive learning examples organized by difficulty
 - **[Source Code →](src/README.md)** - Complete compiler architecture and implementation details  
-- **[Tests →](tests/README.md)** - Testing strategy and validation approach (449 tests)
+- **[Tests →](tests/README.md)** - Testing strategy and validation approach (682 tests)
 
 ### 📚 Comprehensive Design Documentation
 Beyond examples and implementation details, Hexen provides extensive specification documents for language designers and advanced users:
@@ -109,20 +109,19 @@ uv run pytest tests/ -v
 ```
 
 ### What's Working
-- ✅ **Complete Parser**: Lark-based PEG parser with sophisticated syntax support
+- ✅ **Complete Parser**: Lark-based PEG parser with syntax support
 - ✅ **Semantic Analyzer**: Full type checking, symbol tables, scope management
 - ✅ **Unified Block System**: Expression blocks, statement blocks, and void functions  
-- ✅ **Advanced Type System**: i32, i64, f32, f64, string, bool, void with comptime type coercion
+- ✅ **Type System**: i32, i64, f32, f64, string, bool, void with comptime type coercion
 - ✅ **Comptime Types**: `comptime_int` and `comptime_float` for elegant context-dependent coercion
 - ✅ **Function System**: Complete function declarations, calls, parameters, and mutable parameter support
 - ✅ **Variable System**: `val`/`mut` declarations with `undef` support and assignment tracking
 - ✅ **Return Statements**: Both value returns and bare returns (`return;`)
 - ✅ **CLI Interface**: `hexen parse` with JSON AST output and error reporting
-- ✅ **Comprehensive Tests**: 682 tests covering all language features including functions and comptime types
+- ✅ **Tests**: 682 tests covering all language features including functions and comptime types
 - ✅ **Error Handling**: Detailed semantic error reporting with context
 
 ### 📚 Explore Further
-- **[Examples →](examples/README.md)** - Learn Hexen through comprehensive examples
 - **[Source Code →](src/README.md)** - Dive into the compiler architecture
 - **[Tests →](tests/README.md)** - Understand the validation strategy
 
@@ -158,16 +157,16 @@ Hexen source files use the **`.hxn`** extension, reflecting the language's clean
 
 ## Core Features
 
-Hexen's current implementation showcases a sophisticated foundation built around unified, powerful language constructs:
+Hexen's current implementation includes unified language constructs:
 
 ### 🎯 Unified Block System
 Every construct uses the same `{ }` block syntax but with context-appropriate behavior:
-- **Expression blocks**: `val x = { return 42 }` - produce values, require final return
+- **Expression blocks**: `val x = { assign 42 }` - produce values, require final assign
 - **Statement blocks**: `{ val temp = 100 }` - scoped execution, allow function returns  
 - **Function bodies**: Same syntax, unified scope management
 - **Void functions**: `func work() : void = { return }` - support bare returns
 
-### 🧠 Advanced Type System with Comptime Types
+### 🧠 Type System with Comptime Types
 - **Comptime type coercion**: `42` becomes i32, i64, f32, or f64 based on context
 - **No literal suffixes**: Write `42`, not `42i64` - context determines the type
 - **Type inference**: `val x = 42` automatically becomes `i32` (default)
@@ -175,7 +174,7 @@ Every construct uses the same `{ }` block syntax but with context-appropriate be
 - **Complete numeric types**: `i32`, `i64`, `f32`, `f64` with elegant coercion
 - **Additional types**: `string`, `bool`, `void` with full type safety
 - **`undef` support**: `val x : i32 = undef` for uninitialized variables
-- **Comprehensive validation**: Use-before-definition prevention, type mismatch detection
+- **Validation**: Use-before-definition prevention, type mismatch detection
 - **Context-dependent**: Same literal `3.14` can become `f32` or `f64`
 
 ### 🔒 Memory & Mutability Control
@@ -225,7 +224,7 @@ Source Code (.hxn)     ← Hexen source files with .hxn extension
 ```
 hexen/
 ├── src/hexen/              # Core compiler implementation (3,510 lines across 17 specialized components)
-├── tests/                  # Comprehensive test suite (682 tests)
+├── tests/                  # Test suite (682 tests)
 ├── examples/              # Sample Hexen programs showcasing all features
 └── docs/                  # Documentation & design notes
 ```
@@ -235,8 +234,8 @@ hexen/
 ### 🎯 Current Status
 
 - **Phase I: Language Foundation** 🚧 In Progress - Full parser and semantic analyzer with function system
-- **682 Tests Passing** - Comprehensive validation of all language features  
-- **Production Ready** - Clean architecture prepared for LLVM backend integration
+- **682 Tests Passing** - Validation of language features  
+- **LLVM Ready** - Architecture prepared for LLVM backend integration
 
 *For detailed implementation information, see the component-specific documentation linked above.*
 
