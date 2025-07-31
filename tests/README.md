@@ -1,14 +1,14 @@
 # Hexen Test Suite 🧪
 
-Comprehensive test coverage for the Hexen programming language compiler. This test suite validates every aspect of Hexen from syntax parsing to semantic analysis, ensuring language correctness and reliability.
+Test coverage for the Hexen programming language compiler. This test suite covers Hexen features from syntax parsing to semantic analysis.
 
 ## 📊 Test Overview
 
-**Total Coverage**: **449 tests** across 2 main categories
-- **Parser Tests**: 158 tests validating syntax and AST generation
-- **Semantic Tests**: 291 tests validating type checking and program semantics
+**Total Coverage**: **682 tests** across 2 main categories
+- **Parser Tests**: 250 tests covering syntax and AST generation
+- **Semantic Tests**: 432 tests covering type checking and program semantics
 
-**Success Rate**: ✅ **449/449 passing** (100% success rate)
+**Success Rate**: ✅ **682/682 passing**
 
 ## 🏗️ Test Architecture
 
@@ -16,13 +16,13 @@ The test suite follows a clean separation between parsing (syntax) and semantic 
 
 ```
 tests/
-├── parser/          # Syntax validation & AST generation (158 tests)
-├── semantic/        # Type checking & semantic analysis (291 tests) 
+├── parser/          # Syntax validation & AST generation (250 tests)
+├── semantic/        # Type checking & semantic analysis (432 tests) 
 └── README.md        # This documentation
 ```
 
-### 🔍 Parser Tests (158 tests)
-*Validates syntax parsing and Abstract Syntax Tree (AST) generation*
+### 🔍 Parser Tests (250 tests)
+*Covers syntax parsing and Abstract Syntax Tree (AST) generation*
 
 ```
 tests/parser/
@@ -54,13 +54,19 @@ tests/parser/
 - ✅ Type annotation positioning and syntax
 - ✅ Syntax error detection and reporting
 
-### 🧠 Semantic Tests (291 tests - **COMPLETELY REORGANIZED**)
-*Validates type checking, scope management, and program semantics*
-
-**🎯 Organized by Purpose - Zero Overlap, Complete Coverage**
+### 🧠 Semantic Tests (432 tests)
+*Covers type checking, scope management, and program semantics*
 
 ```
 tests/semantic/
+├── functions/                        # Function system features (7 files)
+│   ├── test_function_declarations.py # Function declaration validation (39 tests)
+│   ├── test_function_calls.py        # Function call resolution (36 tests)
+│   ├── test_return_type_context.py   # Return type validation (31 tests)
+│   ├── test_mutable_parameters.py    # Mutable parameter support (19 tests)
+│   ├── test_comprehensive_integration.py # Function integration testing (18 tests)
+│   ├── test_error_message_quality.py # Function error message quality (17 tests)
+│   └── test_performance_scalability.py # Function performance testing (9 tests)
 ├── integration/                       # Cross-feature integration tests (4 files)
 │   ├── test_basic_semantics.py        # Language integration scenarios (16 tests)
 │   ├── test_binary_ops.py            # Multi-operator + type system integration (32 tests)
@@ -84,8 +90,18 @@ tests/semantic/
 ├── test_literal_overflow.py         # Literal overflow detection (11 tests)
 ├── test_mutability.py               # val/mut variable system (15 tests)
 ├── test_unary_ops.py                # Unary operations (16 tests)
+├── test_unified_block_system.py     # Unified block system (additional tests)
 └── test_utils.py                    # Testing utilities and mixins
 ```
+
+**🚀 Function System Tests (functions/):**
+- **test_function_declarations.py**: Function declaration validation and error handling
+- **test_function_calls.py**: Function call resolution and parameter type checking
+- **test_return_type_context.py**: Return type validation and consistency
+- **test_mutable_parameters.py**: Mutable parameter support and reassignment validation
+- **test_comprehensive_integration.py**: Function integration with all language features
+- **test_error_message_quality.py**: Function-specific error message quality and consistency
+- **test_performance_scalability.py**: Function system performance and scalability testing
 
 **🎯 Integration Tests (integration/):**
 - **test_basic_semantics.py**: Cross-feature language integration scenarios
@@ -117,19 +133,25 @@ tests/semantic/
 
 ## 🎯 Key Features Tested
 
-### Advanced Type System
+### Type System
 - **Comptime Types**: `42` automatically becomes the right numeric type based on context
 - **Context-Guided Resolution**: Same literal works as `i32`, `i64`, `f32`, or `f64` based on usage
 - **"Explicit Danger, Implicit Safety"**: Precision loss requires explicit acknowledgment (`: type`)
 - **Type Safety**: Prevents invalid coercions while allowing safe ones
 - **No Suffixes Needed**: Write `42`, not `42i64` - context determines type
 
+### Function System
+- **Function Declarations**: Full function syntax with parameters and return types
+- **Function Calls**: Parameter type checking and argument resolution
+- **Mutable Parameters**: Support for `mut` parameters with reassignment validation
+- **Return Type Validation**: Type consistency checking for all return paths
+
 ### Unified Block System  
-- **Expression Blocks**: `val x = { return 42 }` - blocks that compute values
+- **Expression Blocks**: `val x = { assign 42 }` - blocks that compute values
 - **Statement Blocks**: `{ val temp = 100 }` - scoped execution without returns
 - **Function Bodies**: Same syntax for void and value-returning functions
 - **Context-Aware Validation**: Block behavior determined by usage context
-- **Universal Scoping**: Consistent scope and shadowing rules across all block types
+- **Scoping**: Consistent scope and shadowing rules across all block types
 
 ### Memory Safety & Mutability
 - **Immutable by Default**: `val` variables prevent accidental changes
@@ -138,17 +160,16 @@ tests/semantic/
 - **Use-Before-Init**: Prevents using `undef` variables
 - **Assignment Validation**: Type compatibility and mutability enforcement
 
-### Error Quality & Recovery
-- **Helpful Messages**: Clear, actionable error messages with context
+### Error Handling
+- **Error Messages**: Clear, actionable error messages with context
 - **Error Recovery**: Continued analysis after errors (doesn't stop at first error)
 - **Consistency**: Uniform error message format across all language features
-- **Educational**: Error messages teach users about the type system
 
 ## 🚀 Running Tests
 
 ### Run All Tests
 ```bash
-# Complete test suite (449 tests)
+# Complete test suite (682 tests)
 uv run pytest tests/ -v
 
 # Quick summary 
@@ -157,11 +178,14 @@ uv run pytest tests/
 
 ### Run Specific Test Categories  
 ```bash
-# Parser tests only (158 tests)
+# Parser tests only (250 tests)
 uv run pytest tests/parser/ -v
 
-# Semantic tests only (291 tests) 
+# Semantic tests only (432 tests) 
 uv run pytest tests/semantic/ -v
+
+# Function tests only
+uv run pytest tests/semantic/functions/ -v
 
 # Integration tests only
 uv run pytest tests/semantic/integration/ -v
@@ -176,7 +200,8 @@ uv run pytest tests/semantic/precision/ -v
 ### Run Individual Test Files
 ```bash
 # Test specific features
-uv run pytest tests/parser/test_minimal.py -v
+uv run pytest tests/parser/test_functions.py -v
+uv run pytest tests/semantic/functions/test_function_declarations.py -v
 uv run pytest tests/semantic/test_comptime_types.py -v
 uv run pytest tests/semantic/integration/test_basic_semantics.py -v
 uv run pytest tests/semantic/blocks/test_expression_blocks.py -v
