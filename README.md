@@ -63,7 +63,7 @@ cd hexen
 uv sync --extra dev
 
 # Parse and analyze a Hexen program
-uv run hexen parse examples/01_getting_started/hello_world.hxn
+uv run hexen parse examples/literal_ergonomics.hxn
 ```
 
 **Note**: Hexen source files use the `.hxn` extension.
@@ -80,15 +80,10 @@ func main() : i32 = {
     val precise : f64 = 3.14    // comptime_float -> f64 (default)
     val single : f32 = 3.14     // comptime_float -> f32 (coerced)
     
+    // Expression block with assign for value production
     val result = {
-        val computed = 42
-        return computed
-    }
-    
-    // Void function with early exit
-    func setup() : void = {
-        val config = "ready"
-        return  // Bare return in void function
+        val computed = 42 + 100
+        assign computed  // Expression blocks use assign
     }
     
     // Statement block for scoped computation
@@ -99,11 +94,17 @@ func main() : i32 = {
     
     return result  // comptime_int -> i32 (return type)
 }
+
+// Void function with early exit
+func setup() : void = {
+    val config = "ready"
+    return  // Bare return in void function
+}
 ```
 
 ### Run Tests
 ```bash
-# Run the complete test suite (449 comprehensive tests)
+# Run the complete test suite (682 comprehensive tests)
 uv run pytest tests/ -v
 ```
 
@@ -113,10 +114,11 @@ uv run pytest tests/ -v
 - ✅ **Unified Block System**: Expression blocks, statement blocks, and void functions  
 - ✅ **Advanced Type System**: i32, i64, f32, f64, string, bool, void with comptime type coercion
 - ✅ **Comptime Types**: `comptime_int` and `comptime_float` for elegant context-dependent coercion
+- ✅ **Function System**: Complete function declarations, calls, parameters, and mutable parameter support
 - ✅ **Variable System**: `val`/`mut` declarations with `undef` support and assignment tracking
 - ✅ **Return Statements**: Both value returns and bare returns (`return;`)
 - ✅ **CLI Interface**: `hexen parse` with JSON AST output and error reporting
-- ✅ **Comprehensive Tests**: 449 tests covering all language features including comptime types
+- ✅ **Comprehensive Tests**: 682 tests covering all language features including functions and comptime types
 - ✅ **Error Handling**: Detailed semantic error reporting with context
 
 ### 📚 Explore Further
@@ -223,7 +225,7 @@ Source Code (.hxn)     ← Hexen source files with .hxn extension
 ```
 hexen/
 ├── src/hexen/              # Core compiler implementation (3,510 lines across 17 specialized components)
-├── tests/                  # Comprehensive test suite (449 tests)
+├── tests/                  # Comprehensive test suite (682 tests)
 ├── examples/              # Sample Hexen programs showcasing all features
 └── docs/                  # Documentation & design notes
 ```
@@ -232,8 +234,8 @@ hexen/
 
 ### 🎯 Current Status
 
-- **Phase I: Language Foundation** 🚧 In Progress - Full parser and semantic analyzer
-- **449 Tests Passing** - Comprehensive validation of all language features  
+- **Phase I: Language Foundation** ✅ Complete - Full parser and semantic analyzer with function system
+- **682 Tests Passing** - Comprehensive validation of all language features  
 - **Production Ready** - Clean architecture prepared for LLVM backend integration
 
 *For detailed implementation information, see the component-specific documentation linked above.*
