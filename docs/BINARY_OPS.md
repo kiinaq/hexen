@@ -240,6 +240,77 @@ process(42 + 3.14 * 2.0)                // BOUNDARY: comptime_float resolves to 
 val result : f32 = 42 + 3.14 + 100 * 2.5  // BOUNDARY: developer requests f32, forces resolution
 ```
 
+#### **🚀 Critical Insight: Compile-Time Execution with High-Precision Arithmetic**
+
+**All comptime operations happen at compile time with maximum precision arithmetic**, which fundamentally changes the performance and accuracy analysis:
+
+```hexen
+// These calculations happen at COMPILE TIME, not runtime
+val complex_calc = ((3.14159265358979 * 10000000 - 31415926) > 1.0 ? 0 : 1)
+val as_f32 : f32 = complex_calc   // Runtime: load pre-computed f32 constant
+val as_f64 : f64 = complex_calc   // Runtime: load pre-computed f64 constant
+```
+
+**Understanding Comptime Type Behavior:**
+
+**`comptime_int` operations:**
+- Integer literals (`42`, `-100`, `1024`) start as `comptime_int`
+- Operations between `comptime_int` values stay `comptime_int` (except division `/`)  
+- Preserves flexibility until context forces resolution to `i32`, `i64`, `f32`, or `f64`
+- All arithmetic computed at compile time with full integer precision
+
+**`comptime_float` operations:**
+- Float literals (`3.14`, `-2.5`, `0.1`) start as `comptime_float`
+- Any operation involving `comptime_float` produces `comptime_float`
+- Division `/` between `comptime_int` values produces `comptime_float`
+- Preserves flexibility until context forces resolution to `f32` or `f64`
+- All arithmetic computed at compile time with high floating-point precision
+
+**Key Properties:**
+
+1. **High Precision Throughout**: All intermediate calculations use maximum available precision (similar to mathematical software like Mathematica)
+2. **Same Intermediate Results**: The expression `3.14159265358979 * 10000000 - 31415926` computes identical intermediate values regardless of final target type
+3. **Zero Runtime Cost**: No performance penalty for high-precision arithmetic - everything is pre-computed
+4. **Single Conversion Point**: Precision adjustment happens only at the final assignment, not throughout the calculation
+5. **Type Stability**: `comptime_int` operations stay integer until mixed with floats; `comptime_float` propagates through expressions
+
+**Addressing the "Type Propagation Concern":**
+
+The critical insight is that Hexen **does NOT propagate target types backward** into subexpressions. Instead:
+
+```hexen
+// High-precision comptime arithmetic (compile-time)
+val precise_calc = 3.14159265358979 * 10000000 - 31415926  // comptime_float
+
+// Same calculation, different target precisions (single runtime conversions)
+val as_f32 : f32 = precise_calc   // comptime_float → f32 (one conversion at end)
+val as_f64 : f64 = precise_calc   // comptime_float → f64 (one conversion at end)
+
+// The literal 3.14159265358979 is NEVER truncated to f32 during intermediate steps!
+// All arithmetic stays in high precision until the final assignment.
+```
+
+**Why This Matters:**
+- **Accuracy**: Maximum precision in intermediate steps provides the most accurate final results
+- **Predictability**: Same expression always computes same intermediate values, regardless of context
+- **Performance**: Zero runtime penalty since all computation is compile-time
+- **Consistency**: Eliminates "spooky action at a distance" where target type affects intermediate calculations
+- **Mathematical Honesty**: Comptime arithmetic behaves like mathematical software, not target-precision arithmetic
+
+```hexen
+// Complex example: All intermediate arithmetic uses high precision
+val math_expr = (42 + 100) * 3.14159265358979 + (50 / 7) - (25 \ 4)
+//              ↑comptime_int arithmetic   ↑comptime_float (from division)
+//              → All becomes comptime_float due to float mixing
+
+// Runtime: just load different pre-computed constants (zero arithmetic cost)
+val as_f32 : f32 = math_expr      // High precision → f32 (single conversion)
+val as_f64 : f64 = math_expr      // High precision → f64 (single conversion)  
+val as_i32 : i32 = math_expr:i32  // High precision → i32 (explicit conversion)
+```
+
+This approach prioritizes **accuracy and predictability** over target-type-native arithmetic, with zero performance cost due to compile-time execution.
+
 #### **An Interesting Design Property**
 This approach explores a flexibility pattern we're experimenting with:
 
