@@ -2,25 +2,26 @@
 
 *Design Exploration & Specification*
 
-> **Experimental Note**: This document describes our exploration into type system design. We're experimenting with different approaches to type coercion and literal handling, documenting our journey to share with the community and gather insights. These ideas are part of our learning process in language design.
+> **Design Note**: This document describes Hexen's comptime type system, following proven patterns from languages like Zig while focusing on runtime cost transparency and ergonomic literal usage.
 
 ## Overview
 
-Hexen's type system is designed around two core principles: **"Ergonomic Literals"** and **"Transparent Costs"** - making common literal usage seamless while keeping all computational costs visible. This philosophy aims to create a system where everyday coding feels natural, but performance-critical conversions are always explicit and visible.
+Hexen's type system is designed around two core principles: **"Ergonomic Literals"** and **"Transparent Runtime Costs"** - making common literal usage seamless while keeping all runtime computational costs visible. This philosophy aims to create a system where everyday coding feels natural, but runtime performance costs are always explicit and visible.
 
 ## Core Philosophy
 
-### Design Principle: Ergonomic Literals + Transparent Costs
+### Design Principle: Ergonomic Literals + Transparent Runtime Costs
 
-Hexen follows a simple, unified pattern that makes common cases ergonomic while keeping all costs visible:
+Hexen follows a simple, unified pattern that makes common cases ergonomic while keeping runtime costs visible:
 
-- **Ergonomic Literals**: Comptime types adapt seamlessly to context (no syntax burden)
-- **Transparent Costs**: All concrete type mixing requires explicit syntax (`value:type`)
+- **Ergonomic Literals**: Comptime types adapt seamlessly (zero runtime cost)
+- **Transparent Runtime Costs**: All runtime conversions require explicit syntax (`value:type`)
+- **Hidden Compile-Time Costs**: Acceptable because they don't affect runtime performance
 - **Natural Usage**: Common literal patterns work without ceremony (`42`, `3.14`)
-- **Visible Conversions**: Performance costs are always explicit in the code
+- **Visible Conversions**: Runtime performance costs are always explicit in the code
 - **Predictable Rules**: Same simple pattern everywhere (minimal cognitive load)
 
-This philosophy aims to ensure that **everyday coding feels natural**, while **performance-critical conversions** are always explicit and visible.
+This philosophy aims to ensure that **everyday coding feels natural**, while **runtime performance costs** are always explicit and visible.
 
 ## Variable Declaration Keywords
 
@@ -105,6 +106,15 @@ Now that you understand `val` and `mut`, let's explore how they interact with He
 | `comptime_int` | Integer literals | Context-dependent coercion to any numeric type |
 | `comptime_float` | Float literals | Context-dependent coercion to float types |
 
+**Why Only Numeric Comptime Types?**
+
+Following proven patterns from languages like Zig, Hexen provides comptime types only where meaningful flexibility exists:
+
+- **✅ Numeric literals need flexibility**: `42` can meaningfully become `u8`, `i32`, `i64`, `f32`, `f64` (different representations)
+- **✅ Float literals need precision control**: `3.14` can meaningfully become `f32`, `f64` (different precisions)  
+- **❌ String literals don't need flexibility**: `"hello"` has fixed size determined by content
+- **❌ Bool literals don't need flexibility**: `true`/`false` have only two values
+
 **📋 Important**: For detailed information about literal overflow behavior and compile-time safety guarantees, see **[LITERAL_OVERFLOW_BEHAVIOR.md](LITERAL_OVERFLOW_BEHAVIOR.md)**.
 
 ### Special Types (Internal)
@@ -118,9 +128,9 @@ Now that you understand `val` and `mut`, let's explore how they interact with He
 
 > **🚀 Quick Start**: New to comptime types? Check out the **[Comptime Quick Reference →](COMPTIME_QUICK_REFERENCE.md)** for essential patterns and mental models!
 
-### The Problem: Literal Type Ambiguity
+### The Core Problem: Ergonomics vs Runtime Cost Visibility
 
-In most systems programming languages, numeric literals face a fundamental problem:
+Systems programming languages face a fundamental tension between ergonomic literals and runtime cost visibility:
 
 ```c
 // C/C++ - requires explicit suffixes or casting
@@ -128,21 +138,18 @@ int32_t a = 42;        // OK, but what if we want i64?
 int64_t b = 42L;       // Requires suffix
 float c = 42.0f;       // Requires suffix
 double d = 42.0;       // OK, but inconsistent with int
-
-// Rust - requires explicit types or suffixes
-let a: i32 = 42;       // OK, but what if we want i64?
-let b = 42i64;         // Requires suffix
-let c = 42.0f32;       // Requires suffix
 ```
 
 This creates three problems:
 1. **Suffix Hell**: Remembering and typing suffixes for every literal
 2. **Inflexibility**: Hard to change types without updating all literals
-3. **Inconsistency**: Different rules for integers vs floats
+3. **Hidden Runtime Costs**: Automatic conversions can hide performance implications
 
-### Our Experimental Solution: Adaptive Literals with Explicit Concrete Conversions
+**The challenge**: How to get ergonomics WITHOUT hiding runtime costs?
 
-Hexen explores solving this with **comptime types** - special types that literals have initially, which adapt to context. For concrete types, all conversions are explicit:
+### Hexen's Solution: Comptime Types with Runtime Cost Transparency
+
+Hexen solves this with **comptime types** - special types that literals have initially, which adapt to context with zero runtime cost. For concrete types, all conversions are explicit:
 
 **📋 Overflow Safety**: Hexen uses compile-time overflow detection for literal safety. See **[LITERAL_OVERFLOW_BEHAVIOR.md](LITERAL_OVERFLOW_BEHAVIOR.md)** for complete safety guarantees.
 
@@ -190,6 +197,27 @@ func get_count() : i32 = {       // return type provides context
 }
 ```
 
+##### Safe vs Unsafe Adaptations
+
+Not all comptime type adaptations are automatic - some require explicit conversion to prevent data loss:
+
+```hexen
+// ✅ Safe adaptations (automatic)
+val int_as_i32 : i32 = 42    // comptime_int → i32 (safe, implicit)
+val int_as_f64 : f64 = 42    // comptime_int → f64 (safe, implicit)
+val float_as_f32 : f32 = 3.14 // comptime_float → f32 (safe, implicit)
+
+// ❌ Unsafe adaptations require explicit conversion
+// val truncated : i32 = 3.14        // Error: potential data loss
+// val truncated : i64 = 3.14        // Error: potential data loss
+
+// ✅ Explicit conversion for unsafe operations
+val truncated : i32 = 3.14:i32      // comptime_float → i32 (explicit truncation)
+val truncated : i64 = 3.14:i64      // comptime_float → i64 (explicit truncation)
+```
+
+**Rule**: `comptime_float` can adapt automatically to float types (`f32`, `f64`) but requires explicit conversion to integer types (`i32`, `i64`) because truncation loses data.
+
 #### Step 3: Comptime Type Preservation
 When there's **no explicit type context**, comptime types **preserve flexibility**:
 
@@ -212,19 +240,38 @@ mut pi : f64 = 3.14         // ✅ Explicit type required
 
 **Key Insight**: Comptime types **stay flexible until forced** - they don't automatically become concrete types!
 
-#### An Experimental Approach: Flexibility Preservation
+#### Compile-Time High-Precision Advantage
 
-We're exploring an approach that prioritizes **flexibility preservation over premature resolution**:
+All comptime arithmetic happens at compile-time with maximum precision, providing significant benefits:
+
+```hexen
+// All intermediate calculations use high precision
+val complex_calc = 3.14159265358979 * 10000000 - 31415926  // High precision comptime
+
+// Runtime: just load different pre-computed constants (zero arithmetic cost)
+val as_f32 : f32 = complex_calc   // High precision → f32 (single conversion)
+val as_f64 : f64 = complex_calc   // Same high precision → f64 (single conversion)
+```
+
+**Benefits**:
+- **Maximum accuracy**: No intermediate precision loss
+- **Zero runtime cost**: All computation at compile-time  
+- **Same source, multiple targets**: One calculation, many precisions
+- **Proven approach**: Following successful patterns from Zig
+
+#### Flexibility Preservation
+
+Comptime types prioritize **flexibility preservation over premature resolution**:
 
 **❌ Traditional Approach**: "Literals have default types"
-- `42` is always `int` (or requires suffixes like `42L`)
+- `42` becomes `int` immediately (or requires suffixes like `42L`)
 - Hard to change types without updating all literals
-- Rigid, requires explicit casting everywhere
+- Runtime arithmetic costs for each usage
 
-**✅ Our Experimental Approach**: "Literals preserve flexibility"
+**✅ Comptime Approach**: "Literals preserve flexibility"
 - `42` stays `comptime_int` until context forces resolution
 - Same literal adapts to any compatible context
-- Ergonomics with zero performance cost
+- Zero runtime cost (compile-time evaluation)
 
 **This enables interesting patterns:**
 ```hexen
@@ -250,11 +297,6 @@ While comptime types can adapt to any compatible concrete type, **the reverse is
 // ✅ Comptime → Concrete (Always Allowed)
 val flexible = 42           // comptime_int
 val concrete : i32 = flexible   // comptime_int → i32 (✅ context-driven)
-
-// ❌ Concrete → Comptime (Always Forbidden)
-val runtime_result : i32 = compute_value()  // Explicit type required for concrete values!
-// comptime val bad = runtime_result        // ❌ Error: Cannot use runtime value in comptime context
-// val bad : comptime_int = runtime_result  // ❌ Error: Cannot coerce concrete i32 to comptime_int
 
 // ✅ Concrete → Concrete (Explicit Types Required)
 val runtime_result : i32 = compute_value()  // ✅ Explicit type required for concrete values
