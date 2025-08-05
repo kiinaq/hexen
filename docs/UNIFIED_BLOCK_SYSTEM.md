@@ -2,7 +2,7 @@
 
 *Design Exploration & Specification*
 
-> **Experimental Note**: This document describes our exploration into unified block system design. We're experimenting with context-driven behavior patterns and documenting our journey to share with the community and gather insights. These ideas are part of our learning process in language design.
+> **Design Note**: This document describes Hexen's unified block system design, showcasing how a single syntax can provide context-driven behavior while maintaining semantic clarity and integrating seamlessly with the comptime type system.
 
 ## Overview
 
@@ -419,7 +419,7 @@ This provides the expressiveness of full statement capabilities within assignmen
 
 ### Unified Design Philosophy
 
-The unified block system works seamlessly with Hexen's comptime type system and binary operations, following the same **"Ergonomic Literals + Transparent Costs"** philosophy established in [TYPE_SYSTEM.md](TYPE_SYSTEM.md) and [BINARY_OPS.md](BINARY_OPS.md).
+The unified block system works seamlessly with Hexen's comptime type system and binary operations, following the same **"Ergonomic Literals + Transparent Runtime Costs"** philosophy established in [TYPE_SYSTEM.md](TYPE_SYSTEM.md) and [BINARY_OPS.md](BINARY_OPS.md).
 
 ### Expression Blocks + Comptime Type Preservation
 
@@ -572,7 +572,7 @@ mut narrow_result : f32 = concrete_result:f32  // f64 → f32 (explicit conversi
 This integration demonstrates Hexen's unified design philosophy:
 
 1. **Same Conversion Rules**: Blocks follow identical TYPE_SYSTEM.md conversion patterns
-2. **Consistent Flexibility**: Expression blocks preserve comptime types like `val` declarations
+2. **Consistent Flexibility**: Compile-time evaluable expression blocks preserve comptime types like `val` declarations
 3. **Explicit Costs**: Mixed concrete types require visible conversions everywhere
 4. **Context Propagation**: Parameter types provide context through block boundaries
 5. **Predictable Behavior**: Same simple patterns work across all language features
@@ -786,7 +786,7 @@ func get_fallback_calculation() : f64 = {
 2. **Consistent Scoping**: Same rules everywhere, no special cases
 3. **Composability**: Blocks can be nested and combined naturally
 4. **Design Elegance**: Unified syntax eliminates syntactic complexity
-5. **Type System Integration**: Seamlessly works with comptime types and explicit conversions (see [TYPE_SYSTEM.md](TYPE_SYSTEM.md))
+5. **Type System Integration**: Compile-time evaluable blocks preserve comptime types; runtime blocks require explicit context, following [TYPE_SYSTEM.md](TYPE_SYSTEM.md) patterns
 6. **Extensible Design**: Pattern can accommodate new language constructs
 
 ### Trade-offs
@@ -815,10 +815,10 @@ val invalid = {
 }
 
 // Expression block with return but no assign (function exit)
-val computation = {
-    val input = get_input()
-    if input < 0 {
-        return -1    // ✅ Valid: function exit with error value
+val computation : i32 = {          // Context REQUIRED for runtime blocks!
+    val input = get_input()       // Runtime function call
+    if input < 0 {                // Runtime condition
+        return -1                 // ✅ Valid: function exit with error value
     }
     // Error: "Expression block must end with assign statement or return from function"
 }
@@ -863,7 +863,7 @@ val access = scoped    // Error: "Undefined variable: 'scoped'"
 1. **Mental Model**: Think "block = scope + context-specific behavior"
 2. **Scope Awareness**: Variables are always scoped to their containing block  
 3. **Context Clarity**: Understand how block usage determines behavior
-4. **Type System Consistency**: Blocks follow the same comptime type and conversion rules as other language features (see [TYPE_SYSTEM.md](TYPE_SYSTEM.md))
+4. **Type System Consistency**: Compile-time evaluable blocks preserve comptime types; runtime blocks require explicit context, following [TYPE_SYSTEM.md](TYPE_SYSTEM.md) patterns
 5. **Composition**: Combine blocks naturally for complex logic
 
 ## Conclusion
@@ -883,7 +883,7 @@ This creates **maximum expressiveness** within expression contexts while maintai
 
 The enhanced unified block system works in perfect harmony with Hexen's type system features:
 
-- **Comptime Type Preservation**: Expression blocks with `assign` naturally preserve comptime types following [TYPE_SYSTEM.md](TYPE_SYSTEM.md) flexibility patterns
+- **Comptime Type Preservation**: Compile-time evaluable expression blocks with `assign` preserve comptime types following [TYPE_SYSTEM.md](TYPE_SYSTEM.md) flexibility patterns
 - **Explicit Conversion Requirements**: Mixed concrete types in blocks require the same explicit conversion syntax established in the type system  
 - **Variable Declaration Consistency**: The same `val`/`mut` rules apply within blocks, maintaining consistent behavior
 - **Binary Operations Integration**: Division operators and arithmetic work identically inside blocks as specified in [BINARY_OPS.md](BINARY_OPS.md)
