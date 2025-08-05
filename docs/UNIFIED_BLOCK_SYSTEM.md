@@ -49,6 +49,8 @@ Expression blocks in Hexen fall into two critical categories based on their eval
 - **Context adaptation**: Same block result adapts to different target types
 - **Maximum flexibility**: One expression, multiple concrete uses
 
+> **💡 Quick Reference**: For essential comptime type patterns, see [COMPTIME_QUICK_REFERENCE.md](COMPTIME_QUICK_REFERENCE.md)
+
 ```hexen
 // ✅ Compile-time evaluable (comptime type preservation)
 val flexible_computation = {
@@ -69,7 +71,7 @@ val as_i32 : i32 = flexible_computation:i32  // SAME source → i32 (explicit co
 **Require explicit context** - Cannot preserve comptime types due to runtime operations
 
 **Criteria**:
-- Contains runtime function calls or computations
+- Contains runtime function calls or computations (**functions always return concrete types**) 
 - Involves runtime conditions or control flow
 - Mixes comptime and runtime values
 - Cannot be fully evaluated at compile-time
@@ -82,7 +84,7 @@ val as_i32 : i32 = flexible_computation:i32  // SAME source → i32 (explicit co
 ```hexen
 // ❌ Runtime evaluable (explicit context required)
 val runtime_result : f64 = {              // Context REQUIRED! Cannot preserve comptime types
-    val user_input = get_user_input()     // Runtime function call
+    val user_input = get_user_input()     // Runtime function call → concrete type (functions always return concrete types)
     val base = 42                         // comptime_int
     if user_input > 0 {                   // Runtime condition
         assign base * user_input:f64      // Mixed: comptime_int * concrete → explicit conversion needed
@@ -99,7 +101,7 @@ Blocks that combine comptime and runtime operations are treated as **runtime eva
 // 🔄 Mixed (comptime + runtime = runtime, explicit context required)
 val mixed_result : f64 = {                // Context REQUIRED!
     val comptime_calc = 42 * 3.14         // comptime_int * comptime_float → comptime_float
-    val runtime_multiplier = get_multiplier()  // Runtime function call → concrete type
+    val runtime_multiplier = get_multiplier()  // Runtime function call → concrete type (functions always return concrete types)
     assign comptime_calc * runtime_multiplier:f64  // Mixed → explicit conversion needed
 }
 ```
@@ -129,6 +131,7 @@ val concrete : f64 = { assign get_value() + 42 }  // Runtime → explicit type r
 2. **Runtime cases**: Explicit context required, eliminating ambiguity at source
 3. **No default types needed**: Context is always available when type resolution is required
 4. **Best of both worlds**: Ergonomic literals + explicit runtime costs
+5. **Function calls**: Any block containing function calls becomes runtime evaluable (functions always return concrete types)
 
 ### Integration with Type System
 
@@ -172,7 +175,7 @@ val comptime_complex = ({
 ```hexen
 // ❌ Runtime evaluable (explicit context required)
 val runtime_result : i32 = {               // Context REQUIRED!
-    val intermediate = compute_value()     // Runtime function call
+    val intermediate = compute_value()     // Runtime function call → concrete type (functions always return concrete types)
     assign intermediate * 2                // All operations resolve to i32
 }
 
@@ -276,7 +279,7 @@ func process_data() : string = {
     // Expression block for computation
     val result : string = {
         val processed : string = transform(input)  // Explicit type required for function result
-        return format(processed)  // format() returns string, adapted to return context
+        assign format(processed)  // format() returns string, assigned to block result
     }
     
     return result    // Function return
@@ -388,10 +391,10 @@ func safe_divide(numerator: f64, denominator: f64) : f64 = {
         }
         if numerator == 0.0 {          // Runtime condition (concrete parameter)
             assign 0.0                // Optimization: zero numerator (f64)
+        } else {
+            val division = numerator / denominator  // f64 / f64 → f64 (concrete arithmetic)
+            assign division               // Normal case (f64)
         }
-        
-        val division = numerator / denominator  // f64 / f64 → f64 (concrete arithmetic)
-        assign division               // Normal case (f64)
     }
     
     return result
@@ -643,16 +646,16 @@ val computation = {
     assign multiplied    // ✅ Assigns multiplied to computation
 }
 
-// Control flow case: early function exit
-val validated_data = {
-    val raw_data = get_input()
-    if raw_data == null {
-        return null      // ✅ Exits function early with null
+// Control flow case: early function exit  
+val validated_data : ProcessedData = {    // Context REQUIRED for runtime block!
+    val raw_data = get_input()           // Runtime function call
+    if raw_data == null {                // Runtime condition
+        return null                      // ✅ Exits function early with null
     }
-    if !validate(raw_data) {
-        return null      // ✅ Exits function early with null  
+    if !validate(raw_data) {             // Runtime condition
+        return null                      // ✅ Exits function early with null  
     }
-    assign process(raw_data)  // ✅ Success path assigns processed data
+    assign process(raw_data)             // ✅ Success path assigns processed data
 }
 ```
 
@@ -710,7 +713,7 @@ func complex_computation() : f64 = {
     val final_computation : f64 = {
         val multiplier : f64 = get_multiplier()     // Explicit type required for function result
         val bias = 1.05                             // comptime_float
-        val mixed : f64 = base_computation * multiplier + bias  // comptime_float * f64 + comptime_float → explicit f64 needed
+        val mixed : f64 = base_computation:f64 * multiplier + bias  // Explicit conversion needed for mixed types
         assign mixed                                // Block assigns concrete f64, explicit type required
     }
     
@@ -821,13 +824,15 @@ val computation : i32 = {          // Context REQUIRED for runtime blocks!
         return -1                 // ✅ Valid: function exit with error value
     }
     // Error: "Expression block must end with assign statement or return from function"
+    // Missing: assign input or another return statement
 }
 
-// Using return for value assignment (semantic error)
-val wrong_usage = {
-    val temp = 42
-    return temp      // Error: "Use 'assign' to produce block value, 'return' exits function"
-}
+// Runtime vs compile-time context confusion
+val mixed_context_error = {
+    val temp = 42             // comptime_int
+    val runtime_val = get_value()  // Runtime function call
+    assign temp + runtime_val // Error: "Runtime block requires explicit type context"
+}  // Should be: val mixed_context_error : i32 = { ... }
 
 // Void function with return value
 func work() : void = {
