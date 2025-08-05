@@ -316,15 +316,16 @@ The `assign` keyword is **expression-block specific**:
 #### **1. Validation with Early Returns**
 ```hexen
 func process_user_data() : string = {
-    val validated_input = {
-        val raw_input = get_user_input()
-        if raw_input == "" {
-            return "ERROR: Empty input"    // Early function exit
+    // ❌ Runtime evaluable block (explicit context required)
+    val validated_input : string = {           // Context REQUIRED!
+        val raw_input = get_user_input()      // Runtime function call
+        if raw_input == "" {                  // Runtime condition
+            return "ERROR: Empty input"       // Early function exit
         }
-        if raw_input.length > 1000 {
-            return "ERROR: Input too long" // Early function exit
+        if raw_input.length > 1000 {          // Runtime condition
+            return "ERROR: Input too long"    // Early function exit
         }
-        assign sanitize(raw_input)         // Success: assign sanitized input
+        assign sanitize(raw_input)            // Success: assign sanitized input (string)
     }
     
     // This code only runs if validation succeeded
@@ -335,15 +336,16 @@ func process_user_data() : string = {
 #### **2. Performance Optimization with Caching**
 ```hexen
 func expensive_calculation(key: string) : f64 = {
-    val result = {
-        val cached_value = lookup_cache(key)
-        if cached_value != null {
-            return cached_value        // Early function exit with cached result
+    // ❌ Runtime evaluable block (explicit context required)
+    val result : f64 = {                      // Context REQUIRED!
+        val cached_value = lookup_cache(key)  // Runtime function call
+        if cached_value != null {             // Runtime condition
+            return cached_value               // Early function exit with cached result
         }
         
-        val computed = very_expensive_operation(key)
-        save_to_cache(key, computed)
-        assign computed                // Cache miss: assign computed value
+        val computed = very_expensive_operation(key)  // Runtime function call
+        save_to_cache(key, computed)          // Runtime side effect
+        assign computed                       // Cache miss: assign computed value (f64)
     }
     
     // This logging only happens for cache misses
@@ -355,18 +357,19 @@ func expensive_calculation(key: string) : f64 = {
 #### **3. Error Handling with Fallbacks**
 ```hexen
 func load_configuration() : Config = {
-    val config = {
-        val primary_config = try_load_primary_config()
-        if primary_config != null {
-            assign primary_config      // Success: use primary config
+    // ❌ Runtime evaluable block (explicit context required)
+    val config : Config = {                   // Context REQUIRED!
+        val primary_config = try_load_primary_config()  // Runtime function call
+        if primary_config != null {           // Runtime condition
+            assign primary_config             // Success: use primary config (Config)
         }
         
-        val fallback_config = try_load_fallback_config()
-        if fallback_config != null {
-            assign fallback_config     // Fallback: use backup config
+        val fallback_config = try_load_fallback_config()  // Runtime function call
+        if fallback_config != null {          // Runtime condition
+            assign fallback_config            // Fallback: use backup config (Config)
         }
         
-        return get_default_config()   // Complete failure: function exit with defaults
+        return get_default_config()           // Complete failure: function exit with defaults
     }
     
     // This validation only runs if we loaded a config file
@@ -378,16 +381,17 @@ func load_configuration() : Config = {
 #### **4. Complex Computations with Guards**
 ```hexen
 func safe_divide(numerator: f64, denominator: f64) : f64 = {
-    val result = {
-        if denominator == 0.0 {
-            return 0.0                 // Early exit: division by zero
+    // 🔄 Mixed block (concrete parameters + comptime literal = runtime, explicit context required)
+    val result : f64 = {              // Context REQUIRED!
+        if denominator == 0.0 {       // Runtime condition (concrete parameter)
+            return 0.0                // Early exit: division by zero
         }
-        if numerator == 0.0 {
-            assign 0.0                 // Optimization: zero numerator
+        if numerator == 0.0 {          // Runtime condition (concrete parameter)
+            assign 0.0                // Optimization: zero numerator (f64)
         }
         
-        val division = numerator / denominator
-        assign division                // Normal case
+        val division = numerator / denominator  // f64 / f64 → f64 (concrete arithmetic)
+        assign division               // Normal case (f64)
     }
     
     return result
@@ -419,7 +423,7 @@ The unified block system works seamlessly with Hexen's comptime type system and 
 
 ### Expression Blocks + Comptime Type Preservation
 
-Expression blocks naturally preserve comptime types, enabling maximum flexibility until context forces resolution:
+**Compile-time evaluable** expression blocks preserve comptime types, enabling maximum flexibility until context forces resolution:
 
 ```hexen
 // ✨ Expression block preserves comptime flexibility (TYPE_SYSTEM.md pattern)
@@ -471,7 +475,7 @@ func demonstrate_mixed_types() : void = {
     val int_val : i32 = 10
     val float_val : f64 = 3.14
     
-    // Expression block with explicit conversions (TYPE_SYSTEM.md pattern)
+    // 🔄 Mixed block (concrete types = runtime, explicit context required)
     val mixed_result : f64 = {
         val converted : f64 = int_val:f64 + float_val  // Explicit conversion required
         val scaled = converted * 2.5                   // f64 * comptime_float → f64
@@ -493,7 +497,7 @@ Blocks integrate with [TYPE_SYSTEM.md](TYPE_SYSTEM.md) variable declaration rule
 
 ```hexen
 func demonstrate_variable_context() : void = {
-    // Expression block with val (preserves comptime flexibility)
+    // ✅ Compile-time evaluable block (preserves comptime flexibility)
     val flexible_math = {
         val step1 = 42 + 100      // comptime_int + comptime_int → comptime_int
         val step2 = step1 * 3.14  // comptime_int * comptime_float → comptime_float
@@ -521,7 +525,7 @@ func process_data(input: f64) : f64 = {
 }
 
 func demonstrate_function_integration() : void = {
-    // Expression block result used as function argument
+    // ✅ Compile-time evaluable block result used as function argument
     val computation = {
         val base = 42             // comptime_int
         val adjusted = base / 3   // comptime_int / comptime_int → comptime_float
@@ -531,7 +535,7 @@ func demonstrate_function_integration() : void = {
     // Function parameter provides context (TYPE_SYSTEM.md pattern)
     val result : f64 = process_data(computation)  // Function returns concrete f64, explicit type required
     
-    // Complex nested pattern
+    // ✅ Compile-time evaluable block in nested pattern
     val complex_result : f64 = process_data({
         val temp = 100 + 50      // comptime_int + comptime_int → comptime_int
         assign temp * 3.14       // comptime_int * comptime_float → comptime_float
@@ -544,7 +548,7 @@ func demonstrate_function_integration() : void = {
 Following [TYPE_SYSTEM.md](TYPE_SYSTEM.md) safety rules, `mut` variables cannot preserve comptime types from expression blocks:
 
 ```hexen
-// ✅ val preserves expression block comptime types (maximum flexibility)
+// ✅ val with compile-time evaluable block preserves comptime types (maximum flexibility)
 val flexible_block = {
     val calc = 42 + 100 * 3    // All comptime operations
     assign calc / 2            // comptime_int / comptime_int → comptime_float
@@ -552,7 +556,7 @@ val flexible_block = {
 val as_f32 : f32 = flexible_block  // comptime_float → f32 (preserved until now!)
 val as_f64 : f64 = flexible_block  // SAME source → f64 (different context!)
 
-// 🔴 mut cannot preserve expression block comptime types (safety over flexibility)
+// 🔴 mut with compile-time evaluable block cannot preserve comptime types (safety over flexibility)
 mut concrete_result : f64 = {
     val calc = 42 + 100 * 3    // Same comptime operations
     assign calc / 2            // comptime_float → f64 (immediately resolved!)
@@ -686,7 +690,7 @@ func calculate() : i32 = {
 
 ```hexen
 func complex_computation() : f64 = {
-    // Expression block preserving comptime flexibility (TYPE_SYSTEM.md pattern)
+    // ✅ Compile-time evaluable block preserving comptime flexibility (TYPE_SYSTEM.md pattern)
     val base_computation = {
         val raw_data = 42           // comptime_int
         val scale_factor = 2.5      // comptime_float
@@ -702,7 +706,7 @@ func complex_computation() : f64 = {
         // concrete_base and log_message scoped to this block
     }
     
-    // Expression block with mixed comptime and concrete types
+    // 🔄 Mixed block (comptime + runtime = runtime, explicit context required)
     val final_computation : f64 = {
         val multiplier : f64 = get_multiplier()     // Explicit type required for function result
         val bias = 1.05                             // comptime_float
@@ -719,14 +723,14 @@ func complex_computation() : f64 = {
 ```hexen
 // Expression blocks in functions showing different calculation approaches
 func get_performance_calculation() : f64 = {
-    // Expression block with comptime operations → f64 return type
+    // ✅ Compile-time evaluable block with comptime operations → f64 return type
     val base = 100             // comptime_int
     val factor = 1.5           // comptime_float
     return base * factor       // comptime_int * comptime_float → comptime_float → f64 (function return context)
 }
 
 func get_conservative_calculation() : f64 = {
-    // Expression block with different operations → f64 return type
+    // ✅ Compile-time evaluable block with different operations → f64 return type
     val conservative = 42      // comptime_int
     val adjustment = 2         // comptime_int
     return conservative / adjustment  // comptime_int / comptime_int → comptime_float → f64 (function return context)
@@ -735,7 +739,7 @@ func get_conservative_calculation() : f64 = {
 // Function call results are concrete (TYPE_SYSTEM.md rule)
 val calculation_result : f64 = get_performance_calculation()  // Function returns concrete f64
 
-// Expression blocks with comptime operations showing flexibility
+// ✅ Compile-time evaluable block with comptime operations showing flexibility
 val flexible_calc = {
     val base = 50              // comptime_int
     val multiplier = 2.25      // comptime_float
@@ -760,7 +764,7 @@ func cleanup_operation() : void = {
 
 // Function with mixed types requiring explicit conversions
 func get_complex_calculation() : f64 = {
-    // Expression block requiring explicit type management
+    // 🔄 Mixed block (concrete runtime value + comptime = runtime, explicit context required)
     val runtime_val : i64 = get_runtime_value()  // Concrete type from function
     val comptime_multiplier = 3.14                // comptime_float
     val result : f64 = runtime_val:f64 * comptime_multiplier  // Explicit conversion (TYPE_SYSTEM.md)
@@ -768,7 +772,7 @@ func get_complex_calculation() : f64 = {
 }
 
 func get_fallback_calculation() : f64 = {
-    // Fallback expression block
+    // ✅ Compile-time evaluable block (fallback calculation)
     val default_calc = 42 * 2.5  // comptime_int * comptime_float → comptime_float
     return default_calc          // comptime_float → f64 (function return context)
 }
