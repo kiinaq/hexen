@@ -28,6 +28,116 @@ The unified block system embodies Hexen's core principles:
 - **"Logic: No tricks to remember, only natural approaches"** - Context determines behavior naturally
 - **"Pedantic to write, but really easy to read"** - Explicit context makes intent clear
 
+## Compile-Time vs Runtime Expression Blocks
+
+### The Fundamental Distinction
+
+Expression blocks in Hexen fall into two critical categories based on their evaluability, which determines their interaction with the comptime type system:
+
+#### **✅ Compile-Time Evaluable Blocks**
+**Can preserve comptime types** - Maximum flexibility until context forces resolution
+
+**Criteria**:
+- All operations involve only comptime literals or constants
+- All conditions are compile-time constants
+- No runtime function calls (only pure comptime operations)
+- All computations can be evaluated at compile-time
+
+**Benefits**:
+- **Comptime type preservation**: Block result stays flexible (follows [TYPE_SYSTEM.md](TYPE_SYSTEM.md) patterns)
+- **Zero runtime cost**: All computation happens at compile-time
+- **Context adaptation**: Same block result adapts to different target types
+- **Maximum flexibility**: One expression, multiple concrete uses
+
+```hexen
+// ✅ Compile-time evaluable (comptime type preservation)
+val flexible_computation = {
+    val base = 42              // comptime_int
+    val multiplier = 100       // comptime_int  
+    val factor = 3.14          // comptime_float
+    val result = base * multiplier + factor  // All comptime operations → comptime_float
+    assign result              // Block result: comptime_float (preserved!)
+}
+
+// Same block result adapts to different contexts (maximum flexibility!)
+val as_f32 : f32 = flexible_computation    // comptime_float → f32 (implicit)
+val as_f64 : f64 = flexible_computation    // SAME source → f64 (different context!)
+val as_i32 : i32 = flexible_computation:i32  // SAME source → i32 (explicit conversion)
+```
+
+#### **❌ Runtime Evaluable Blocks**
+**Require explicit context** - Cannot preserve comptime types due to runtime operations
+
+**Criteria**:
+- Contains runtime function calls or computations
+- Involves runtime conditions or control flow
+- Mixes comptime and runtime values
+- Cannot be fully evaluated at compile-time
+
+**Requirements**:
+- **Explicit type annotation required**: Target variable must specify concrete type
+- **No comptime type preservation**: Block result immediately resolves to concrete type
+- **Transparent costs**: All type conversions must be explicit
+
+```hexen
+// ❌ Runtime evaluable (explicit context required)
+val runtime_result : f64 = {              // Context REQUIRED! Cannot preserve comptime types
+    val user_input = get_user_input()     // Runtime function call
+    val base = 42                         // comptime_int
+    if user_input > 0 {                   // Runtime condition
+        assign base * user_input:f64      // Mixed: comptime_int * concrete → explicit conversion needed
+    } else {
+        assign 0.0                        // All paths must resolve to target type (f64)
+    }
+}
+```
+
+#### **🔄 Mixed Blocks (Runtime Category)**
+Blocks that combine comptime and runtime operations are treated as **runtime evaluable**:
+
+```hexen
+// 🔄 Mixed (comptime + runtime = runtime, explicit context required)
+val mixed_result : f64 = {                // Context REQUIRED!
+    val comptime_calc = 42 * 3.14         // comptime_int * comptime_float → comptime_float
+    val runtime_multiplier = get_multiplier()  // Runtime function call → concrete type
+    assign comptime_calc * runtime_multiplier:f64  // Mixed → explicit conversion needed
+}
+```
+
+### The Ambiguity Solution
+
+This compile-time vs runtime distinction solves the **"untyped literal problem"** that exists in many systems programming languages:
+
+#### **Traditional Problem**: Untyped Expressions
+```c
+// Traditional languages: ambiguous without explicit types
+auto result = complex_calculation();  // What type? Depends on hidden defaults
+```
+
+#### **Hexen's Solution**: Context-Driven Resolution
+```hexen
+// ✅ Compile-time case: No ambiguity (compiler evaluates everything)
+val flexible = { assign 42 + 100 * 3.14 }  // All comptime → comptime_float (flexible!)
+val as_needed : f32 = flexible             // Context provides resolution when needed
+
+// ✅ Runtime case: Explicit context required (eliminates ambiguity)  
+val concrete : f64 = { assign get_value() + 42 }  // Runtime → explicit type required
+```
+
+**Key Insights**:
+1. **Compile-time cases**: No ambiguity because compiler can evaluate everything
+2. **Runtime cases**: Explicit context required, eliminating ambiguity at source
+3. **No default types needed**: Context is always available when type resolution is required
+4. **Best of both worlds**: Ergonomic literals + explicit runtime costs
+
+### Integration with Type System
+
+This distinction perfectly aligns with Hexen's **"Ergonomic Literals + Transparent Runtime Costs"** philosophy from [TYPE_SYSTEM.md](TYPE_SYSTEM.md):
+
+- **Compile-time blocks**: Follow comptime type flexibility patterns (ergonomic literals)
+- **Runtime blocks**: Require explicit type context (transparent runtime costs)
+- **Same conversion rules**: Both categories use identical explicit conversion syntax for mixed concrete types
+
 ## Block Types and Contexts
 
 ### 1. Expression Blocks
@@ -36,40 +146,43 @@ The unified block system embodies Hexen's core principles:
 **Context**: Used in expressions where a value is expected  
 **Scope**: Isolated (variables don't leak)  
 **Assignment Requirements**: Must end with `assign` statement for value production  
-**Control Flow**: Support `return` statements for function exits
+**Control Flow**: Support `return` statements for function exits  
+**Type Behavior**: Follows compile-time vs runtime distinction (see above)
 
+#### Compile-Time Expression Block Examples
 ```hexen
-// Expression block in variable assignment
-val result = {
-    val temp = 42
-    val computed = temp * 2
-    assign computed        // Required: assigns computed to result
+// ✅ Compile-time evaluable (can preserve comptime types)
+val comptime_result = {
+    val temp = 42          // comptime_int
+    val computed = temp * 2  // comptime_int * comptime_int → comptime_int
+    assign computed        // Block result: comptime_int (preserved!)
 }
 
-// Expression block in function return
-func calculate() : i32 = {
-    return {
-        val intermediate = 10 + 20
-        assign intermediate * 2    // Nested expression block assigns value
-    }
-}
-
-// Expression block in complex expressions
-val complex = ({
-    val base = 100
-    assign base / 2        // Assigns value to left operand
+// ✅ Complex compile-time operations  
+val comptime_complex = ({
+    val base = 100         // comptime_int
+    assign base / 2        // comptime_int / comptime_int → comptime_float
 } + {
-    val other = 50
-    assign other * 3       // Assigns value to right operand
-}) / 4
+    val other = 50         // comptime_int
+    assign other * 3.14    // comptime_int * comptime_float → comptime_float
+}) // comptime_float + comptime_float → comptime_float (preserved!)
+```
 
-// Expression block with control flow
-val validated_input = {
-    val raw_input = get_user_input()
-    if raw_input < 0 {
-        return -1          // Early function exit - invalid input
+#### Runtime Expression Block Examples  
+```hexen
+// ❌ Runtime evaluable (explicit context required)
+val runtime_result : i32 = {               // Context REQUIRED!
+    val intermediate = compute_value()     // Runtime function call
+    assign intermediate * 2                // All operations resolve to i32
+}
+
+// ❌ Runtime block with control flow (explicit context required)
+val validated_input : i32 = {             // Context REQUIRED!
+    val raw_input = get_user_input()      // Runtime function call
+    if raw_input < 0 {                    // Runtime condition
+        return -1                         // Early function exit - invalid input  
     }
-    assign raw_input       // Valid input assigned to validated_input
+    assign raw_input                      // Valid input assigned (i32)
 }
 ```
 
@@ -78,7 +191,8 @@ val validated_input = {
 - **Control Flow**: Supports `return` statements for function exits (early returns, error handling)
 - **Dual Capability**: Can either assign a value OR exit the function
 - **Final Statement**: Must end with `assign expression` for value production
-- **Type Inference**: Block type determined by assign expression type
+- **Type Behavior**: Compile-time blocks preserve comptime types; runtime blocks require explicit context
+- **Context Requirements**: Runtime blocks need explicit type annotation on target variable
 - **Scope Isolation**: Inner variables not accessible outside block
 
 ### 2. Statement Blocks
@@ -86,7 +200,8 @@ val validated_input = {
 **Purpose**: Execute code without producing a value  
 **Context**: Used as standalone statements  
 **Scope**: Isolated (variables don't leak)  
-**Return Requirements**: No return required, function returns allowed
+**Return Requirements**: No return required, function returns allowed  
+**Type Behavior**: Not applicable (no value production, unaffected by compile-time vs runtime distinction)
 
 ```hexen
 // Statement block for scoped execution
@@ -130,7 +245,8 @@ func setup_environment() : void = {
 **Purpose**: Function implementation with return type validation  
 **Context**: Function body (unified with other block types)  
 **Scope**: Function scope (managed like all other blocks)  
-**Return Requirements**: Context-dependent based on return type
+**Return Requirements**: Context-dependent based on return type  
+**Type Behavior**: Function return type provides explicit context for all comptime types
 
 ```hexen
 // Void function - no return value required
