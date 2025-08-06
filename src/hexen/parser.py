@@ -178,6 +178,15 @@ class HexenTransformer(Transformer):
         else:
             raise SyntaxError(f"Invalid else clause structure: {args}")
 
+    def expression_stmt(self, args):
+        """Transform expression statement: expression"""
+        # Expression statements just wrap the expression in a statement node
+        expr = args[0]
+        return {
+            "type": NodeType.EXPRESSION_STATEMENT.value,
+            "expression": expr,
+        }
+
     def function_call(self, args):
         """Transform function call: IDENTIFIER ( argument_list? )"""
         if len(args) == 1:

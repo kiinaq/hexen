@@ -15,9 +15,12 @@ block: "{" statement* "}"
 statement: var_declaration
          | return_stmt
          | assign_stmt
-         | block
          | assignment_stmt
          | conditional_stmt
+         | block
+         | expression_stmt
+
+expression_stmt: expression
 
 var_declaration: val_declaration
                | mut_declaration

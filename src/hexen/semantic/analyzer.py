@@ -239,6 +239,8 @@ class SemanticAnalyzer:
             self._analyze_block(node, node, context="statement")
         elif stmt_type == NodeType.CONDITIONAL_STATEMENT.value:
             self._analyze_conditional_statement(node)
+        elif stmt_type == NodeType.EXPRESSION_STATEMENT.value:
+            self._analyze_expression_statement(node)
         else:
             self._error(f"Unknown statement type: {stmt_type}", node)
 
@@ -365,3 +367,17 @@ class SemanticAnalyzer:
                     self._analyze_block(clause_branch, node, context="statement")
                 finally:
                     self.symbol_table.exit_scope()
+
+    def _analyze_expression_statement(self, node: Dict) -> None:
+        """
+        Analyze expression statement - validates expression in statement context.
+        
+        Expression statements are used for side effects like function calls.
+        The result type is discarded since it's used in statement context.
+        """
+        expression = node.get("expression")
+        if expression:
+            # Analyze the expression - no specific target type needed
+            self._analyze_expression(expression)
+        else:
+            self._error("Expression statement requires an expression", node)

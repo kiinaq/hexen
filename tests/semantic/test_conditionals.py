@@ -12,6 +12,12 @@ Tests Session 3: Expression Context Analysis
 - Assign/return validation in branches
 - Type unification across branches
 - Integration with expression blocks and comptime types
+
+Tests Session 4: Type System Integration
+- Runtime treatment of all conditionals with comptime type handling
+- Target type context propagation to branches and parameter contexts  
+- Explicit conversion requirements for mixed concrete types
+- Comprehensive type integration with val/mut and expression blocks
 """
 
 import pytest
@@ -399,7 +405,9 @@ class TestConditionalExpressions:
             } else {
                 assign 100
             }
-            return result
+            {
+                return result
+            }
         }
         '''
         ast, errors = parse_and_analyze(code)
@@ -414,7 +422,9 @@ class TestConditionalExpressions:
             } else {
                 assign 3.14     // comptime_float -> f64
             }
-            return result
+            {
+                return result
+            }
         }
         '''
         ast, errors = parse_and_analyze(code)
@@ -429,7 +439,9 @@ class TestConditionalExpressions:
             } else {
                 assign b
             }
-            return result
+            {
+                return result
+            }
         }
         '''
         ast, errors = parse_and_analyze(code)
@@ -444,7 +456,9 @@ class TestConditionalExpressions:
             } else {
                 assign input * 2   // Normal processing
             }
-            return result
+            {
+                return result
+            }
         }
         '''
         ast, errors = parse_and_analyze(code)
@@ -480,7 +494,9 @@ class TestConditionalExpressions:
             } else {
                 assign input * 2   // Success case: assign value
             }
-            return result
+            {
+                return result
+            }
         }
         '''
         ast, errors = parse_and_analyze(code)
@@ -499,7 +515,9 @@ class TestConditionalExpressionErrors:
             } else {
                 assign 100
             }
-            return result
+            {
+                return result
+            }
         }
         '''
         ast, errors = parse_and_analyze(code)
@@ -518,7 +536,9 @@ class TestConditionalExpressionTypeResolution:
             } else {
                 assign 3.14     // comptime_float -> f64  
             }
-            return result
+            {
+                return result
+            }
         }
         '''
         ast, errors = parse_and_analyze(code)
@@ -533,7 +553,9 @@ class TestConditionalExpressionTypeResolution:
             } else {
                 assign 100      // comptime_int adapts to i32 context
             }
-            return result
+            {
+                return result
+            }
         }
         '''
         ast, errors = parse_and_analyze(code)
@@ -556,7 +578,9 @@ class TestConditionalExpressionTypeResolution:
                     assign 4
                 }
             }
-            return result
+            {
+                return result
+            }
         }
         '''
         ast, errors = parse_and_analyze(code)
@@ -578,7 +602,9 @@ class TestConditionalIntegrationPatterns:
                 }
                 assign base:f64 * multiplier
             }
-            return result
+            {
+                return result
+            }
         }
         '''
         ast, errors = parse_and_analyze(code)
@@ -597,7 +623,9 @@ class TestConditionalIntegrationPatterns:
             } else {
                 assign "invalid"
             }
-            return result
+            {
+                return result
+            }
         }
         '''
         ast, errors = parse_and_analyze(code)
@@ -619,3 +647,248 @@ class TestConditionalIntegrationPatterns:
         '''
         ast, errors = parse_and_analyze(code)
         assert_no_errors(errors)
+
+
+class TestTypeSystemIntegration:
+    """Test Session 4: Type System Integration with conditionals."""
+
+    def test_comptime_type_runtime_treatment(self):
+        """Test that all conditionals are treated as runtime with comptime types."""
+        code = '''
+        func test_runtime_treatment() : f64 = {
+            // Mixed comptime types require explicit target context (runtime treatment)
+            val result : f64 = if true {    // Runtime condition (even though constant)
+                assign 42 + 100             // comptime_int -> f64 (context-guided)
+            } else {
+                assign 3.14 * 2.0           // comptime_float -> f64 (context-guided)  
+            }
+            {
+                return result
+            }
+        }
+        '''
+        ast, errors = parse_and_analyze(code)
+        assert_no_errors(errors)
+
+    def test_target_type_context_propagation(self):
+        """Test target type propagation to conditional branches."""
+        code = '''
+        func test_context_propagation() : i32 = {
+            // Target type i32 should propagate to both branches
+            val result : i32 = if true {
+                assign 42       // comptime_int -> i32 (context propagated)
+            } else {
+                assign 100      // comptime_int -> i32 (context propagated)
+            }
+            {
+                return result
+            }
+        }
+        '''
+        ast, errors = parse_and_analyze(code)
+        assert_no_errors(errors)
+
+    def test_mixed_comptime_types_with_context(self):
+        """Test mixed comptime types resolve correctly with target context."""
+        code = '''
+        func test_mixed_comptime() : f64 = {
+            val result : f64 = if true {
+                assign 42       // comptime_int -> f64 (target context)
+            } else {
+                assign 3.14     // comptime_float -> f64 (target context)
+            }
+            {
+                return result
+            }
+        }
+        '''
+        ast, errors = parse_and_analyze(code)
+        assert_no_errors(errors)
+
+    def test_mixed_concrete_types_require_explicit_conversion(self):
+        """Test that mixed concrete types require explicit conversions."""
+        code = '''
+        func get_i32() : i32 = { return 42 }
+        func get_f64() : f64 = { return 3.14 }
+        
+        func test_mixed_concrete() : f64 = {
+            val result : f64 = if true {
+                assign get_i32():f64    // i32 -> f64 (explicit conversion required)
+            } else {
+                assign get_f64()        // f64 -> f64 (identity)
+            }
+            {
+                return result
+            }
+        }
+        '''
+        ast, errors = parse_and_analyze(code)
+        assert_no_errors(errors)
+
+    def test_mixed_concrete_types_error_without_conversion(self):
+        """Test error for mixed concrete types without explicit conversion."""
+        code = '''
+        func get_i32() : i32 = { return 42 }
+        func get_f64() : f64 = { return 3.14 }
+        
+        func test_mixed_concrete_error() : f64 = {
+            val result : f64 = if true {
+                assign get_i32()       // Error: i32 cannot auto-convert to f64
+            } else {
+                assign get_f64()       // f64 -> f64 (identity)
+            }
+            {
+                return result
+            }
+        }
+        '''
+        ast, errors = parse_and_analyze(code)
+        assert_error_contains(errors, "Branch type i32 incompatible with target type f64. Use explicit conversion: value:f64")
+
+    def test_function_parameter_context_propagation(self):
+        """Test context propagation from function parameters."""
+        code = '''
+        func process_f64(value : f64) : void = { return }
+        
+        func test_parameter_context() : void = {
+            // Function parameter type provides context for conditional
+            process_f64(if true {
+                assign 42           // comptime_int -> f64 (parameter context)
+            } else {
+                assign 3.14         // comptime_float -> f64 (parameter context)
+            })
+            return
+        }
+        '''
+        ast, errors = parse_and_analyze(code)
+        assert_no_errors(errors)
+
+    def test_function_return_context_propagation(self):
+        """Test context propagation from function return type."""
+        code = '''
+        func test_return_context() : f64 = {
+            // Function return type provides context for conditional
+            return if true {
+                assign 42           // comptime_int -> f64 (return context)
+            } else {
+                assign 3.14         // comptime_float -> f64 (return context)
+            }
+        }
+        '''
+        ast, errors = parse_and_analyze(code)
+        assert_no_errors(errors)
+
+    def test_val_vs_mut_with_conditionals(self):
+        """Test conditional expressions with val vs mut declarations."""
+        code = '''
+        func test_val_vs_mut() : void = {
+            // val with conditional (can preserve flexibility with target type)
+            val val_result : f64 = if true {
+                assign 42           // comptime_int -> f64
+            } else {
+                assign 3.14         // comptime_float -> f64
+            }
+            
+            // mut with conditional (explicit type required)
+            mut mut_result : f64 = if true {
+                assign 42           // comptime_int -> f64
+            } else {
+                assign 3.14         // comptime_float -> f64
+            }
+            
+            mut_result = if false {
+                assign 100          // comptime_int -> f64 (reassignment)
+            } else {
+                assign 2.718        // comptime_float -> f64 (reassignment)
+            }
+            
+            return
+        }
+        '''
+        ast, errors = parse_and_analyze(code)
+        assert_no_errors(errors)
+
+    def test_expression_blocks_with_conditionals_require_context(self):
+        """Test that expression blocks containing conditionals require explicit context."""
+        code = '''
+        func test_expression_block_context() : f64 = {
+            val result : f64 = {        // Context REQUIRED (runtime block)!
+                val base = 42           // comptime_int
+                val multiplier = if base > 50 {
+                    assign 2.5          // comptime_float
+                } else {
+                    assign 1.0          // comptime_float
+                }
+                assign base:f64 * multiplier
+            }
+            {
+                return result
+            }
+        }
+        '''
+        ast, errors = parse_and_analyze(code)
+        assert_no_errors(errors)
+
+    def test_nested_conditionals_with_type_propagation(self):
+        """Test nested conditional expressions with type propagation."""
+        code = '''
+        func test_nested_conditionals() : f64 = {
+            val result : f64 = if true {
+                assign if false {
+                    assign 42       // comptime_int -> f64 (nested context)
+                } else {
+                    assign 3.14     // comptime_float -> f64 (nested context)
+                }
+            } else {
+                assign if true {
+                    assign 100      // comptime_int -> f64 (nested context)
+                } else {
+                    assign 2.718    // comptime_float -> f64 (nested context)
+                }
+            }
+            {
+                return result
+            }
+        }
+        '''
+        ast, errors = parse_and_analyze(code)
+        assert_no_errors(errors)
+
+
+class TestTypeSystemErrorHandling:
+    """Test error handling for type system integration."""
+
+    def test_mixed_types_without_target_context_error(self):
+        """Test error when mixed comptime types lack target context."""
+        code = '''
+        func test_missing_context() : void = {
+            val result = if true {      // Missing explicit type
+                assign 42               // comptime_int
+            } else {
+                assign 3.14             // comptime_float
+            }
+            return
+        }
+        '''
+        ast, errors = parse_and_analyze(code)
+        assert_error_contains(errors, "Mixed types across conditional branches require explicit target type context")
+
+    def test_helpful_conversion_error_messages(self):
+        """Test that concrete type conversion errors provide helpful messages."""
+        code = '''
+        func get_i32() : i32 = { return 42 }
+        
+        func test_conversion_error() : f64 = {
+            val result : f64 = if true {
+                assign get_i32()       // i32 needs explicit conversion to f64
+            } else {
+                assign 3.14            // comptime_float -> f64
+            }
+            {
+                return result
+            }
+        }
+        '''
+        ast, errors = parse_and_analyze(code)
+        # Should suggest explicit conversion syntax
+        assert_error_contains(errors, "Use explicit conversion: value:f64")

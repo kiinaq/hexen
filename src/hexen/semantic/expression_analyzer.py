@@ -204,8 +204,8 @@ class ExpressionAnalyzer:
             self._error("Conditional expression missing if branch", node)
             return HexenType.UNKNOWN
             
-        # Analyze if branch in expression context with target type propagation  
-        if_type = self._analyze_block(if_branch, node, context="expression")
+        # Analyze if branch in expression context with target type propagation
+        if_type = self._analyze_conditional_branch(if_branch, node, target_type)
         
         # 3. Collect types from branches that actually assign (not return)
         assign_branch_types = []
@@ -228,10 +228,10 @@ class ExpressionAnalyzer:
                         clause_condition
                     )
             
-            # Analyze else clause branch as expression block
+            # Analyze else clause branch as expression block with target type propagation
             clause_branch = else_clause.get("branch")
             if clause_branch:
-                clause_type = self._analyze_block(clause_branch, node, context="expression")
+                clause_type = self._analyze_conditional_branch(clause_branch, node, target_type)
                 # Only collect types from branches that use assign (not return)
                 if self._branch_uses_assign(clause_branch):
                     if clause_type != HexenType.UNKNOWN:
@@ -278,10 +278,11 @@ class ExpressionAnalyzer:
                     # Comptime types adapt to target context - this is handled by the system
                     continue
                 elif branch_type != target_type:
-                    # For now, require exact type match for concrete types
-                    # Future enhancement: implement conversion compatibility
+                    # Require exact type match for concrete types (transparent costs principle)
+                    # Suggest explicit conversion for mixed concrete types
                     self._error(
-                        f"Branch type {branch_type.name.lower()} incompatible with target type {target_type.name.lower()}", 
+                        f"Branch type {branch_type.name.lower()} incompatible with target type {target_type.name.lower()}. "
+                        f"Use explicit conversion: value:{target_type.name.lower()}", 
                         node
                     )
                     return HexenType.UNKNOWN
@@ -338,3 +339,50 @@ class ExpressionAnalyzer:
             # If last statement is neither assign nor return, this is an error
             # but we'll let the block analyzer handle that error
             return False
+    
+    def _analyze_conditional_branch(
+        self, branch_node: Dict, conditional_node: Dict, target_type: Optional[HexenType] = None
+    ) -> HexenType:
+        """
+        Analyze a conditional branch with proper target type propagation.
+        
+        This method provides specialized branch analysis for conditional expressions,
+        enabling target type context propagation to assign statements within branches.
+        
+        Args:
+            branch_node: Block AST node (the branch)
+            conditional_node: Conditional AST node (for error reporting)
+            target_type: Target type for context-guided resolution
+            
+        Returns:
+            Type of the branch (from assign statement or return statement)
+        """
+        # Check if this branch uses assign or return first
+        uses_assign = self._branch_uses_assign(branch_node)
+        
+        if uses_assign and target_type:
+            # For assign branches with target type context, skip the initial block analysis
+            # to avoid analyzing expressions without target type context
+            if not branch_node or branch_node.get("type") != "block":
+                return HexenType.UNKNOWN
+                
+            statements = branch_node.get("statements", [])
+            if not statements:
+                return HexenType.UNKNOWN
+                
+            # The last statement should be an assign statement
+            last_statement = statements[-1]
+            if last_statement.get("type") != "assign_statement":
+                return HexenType.UNKNOWN
+                
+            # Analyze the assign statement with target type propagation
+            assign_value = last_statement.get("value")
+            if assign_value:
+                # Use the target type for context-guided resolution
+                return self.analyze_expression(assign_value, target_type)
+            else:
+                return HexenType.UNKNOWN
+        else:
+            # For return branches or branches without target type, use standard block analysis
+            block_type = self._analyze_block(branch_node, conditional_node, context="expression")
+            return block_type
