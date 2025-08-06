@@ -17,6 +17,7 @@ statement: var_declaration
          | assign_stmt
          | block
          | assignment_stmt
+         | conditional_stmt
 
 var_declaration: val_declaration
                | mut_declaration
@@ -31,6 +32,11 @@ return_stmt: "return" expression?
 assign_stmt: "assign" expression
 
 assignment_stmt: IDENTIFIER "=" expression
+
+conditional_stmt: "if" expression block else_clause*
+
+else_clause: "else" "if" expression block
+           | "else" block
 
 expression: logical_or
 
@@ -78,7 +84,7 @@ MUT: /mut\b/
 FUNC: /func\b/
 
 // Terminals
-IDENTIFIER: /(?!val\b|mut\b|func\b|return\b|assign\b|true\b|false\b)[a-zA-Z_][a-zA-Z0-9_]*/
+IDENTIFIER: /(?!val\b|mut\b|func\b|return\b|assign\b|true\b|false\b|if\b|else\b)[a-zA-Z_][a-zA-Z0-9_]*/
 NUMBER: SIGN? (SCIENTIFIC | HEXADECIMAL | BINARY | DECIMAL | INTEGER)
 STRING: /\"[^\"]*\"/
 BOOLEAN: "true" | "false"

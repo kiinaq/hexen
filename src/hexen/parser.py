@@ -141,6 +141,43 @@ class HexenTransformer(Transformer):
             "value": value,
         }
 
+    def conditional_stmt(self, args):
+        # Handle: "if" expression block else_clause*
+        # args: [condition, if_branch, *else_clauses] (keywords are consumed by grammar)
+        condition = args[0]
+        if_branch = args[1]
+        else_clauses = args[2:] if len(args) > 2 else []
+        
+        return {
+            "type": NodeType.CONDITIONAL_STATEMENT.value,
+            "condition": condition,
+            "if_branch": if_branch,
+            "else_clauses": list(else_clauses),
+        }
+
+    def else_clause(self, args):
+        # Handle: "else" "if" expression block | "else" block
+        # Keywords are consumed by grammar, so we only get the meaningful parts
+        if len(args) == 2:
+            # else if case: [condition, block] (from "else if" production)
+            condition = args[0]
+            branch = args[1]
+            return {
+                "type": NodeType.ELSE_CLAUSE.value,
+                "condition": condition,
+                "branch": branch,
+            }
+        elif len(args) == 1:
+            # final else case: [block] (from "else" production)
+            branch = args[0]
+            return {
+                "type": NodeType.ELSE_CLAUSE.value,
+                "condition": None,  # No condition for final else
+                "branch": branch,
+            }
+        else:
+            raise SyntaxError(f"Invalid else clause structure: {args}")
+
     def function_call(self, args):
         """Transform function call: IDENTIFIER ( argument_list? )"""
         if len(args) == 1:

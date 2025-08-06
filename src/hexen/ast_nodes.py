@@ -41,6 +41,8 @@ class NodeType(Enum):
     RETURN_STATEMENT = "return_statement"
     ASSIGN_STATEMENT = "assign_statement"
     ASSIGNMENT_STATEMENT = "assignment_statement"
+    CONDITIONAL_STATEMENT = "conditional_statement"
+    ELSE_CLAUSE = "else_clause"
 
     # Expressions
     LITERAL = "literal"
