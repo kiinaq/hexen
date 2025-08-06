@@ -237,6 +237,8 @@ class SemanticAnalyzer:
         elif stmt_type == NodeType.BLOCK.value:
             # Statement block - standalone execution (like void functions)
             self._analyze_block(node, node, context="statement")
+        elif stmt_type == NodeType.CONDITIONAL_STATEMENT.value:
+            self._analyze_conditional_statement(node)
         else:
             self._error(f"Unknown statement type: {stmt_type}", node)
 
@@ -310,3 +312,56 @@ class SemanticAnalyzer:
     def _get_current_scope(self):
         """Return the current (innermost) scope dictionary from the symbol table."""
         return self.symbol_table.scopes[-1]
+
+    def _analyze_conditional_statement(self, node: Dict) -> None:
+        """
+        Analyze conditional statement (if/else if/else) in statement context.
+        
+        Statement context analysis:
+        1. Validate condition is boolean type
+        2. Analyze each branch as statement block with scope isolation
+        3. Support early returns within branches
+        """
+        # 1. Analyze condition - must be bool type
+        condition = node.get("condition")
+        if not condition:
+            self._error("Conditional statement missing condition", node)
+            return
+            
+        condition_type = self._analyze_expression(condition)
+        if condition_type != HexenType.BOOL:
+            self._error(
+                f"Condition must be of type bool, got {condition_type.name.lower()}", 
+                condition
+            )
+        
+        # 2. Analyze if branch as statement block
+        if_branch = node.get("if_branch") 
+        if if_branch:
+            self.symbol_table.enter_scope()
+            try:
+                self._analyze_block(if_branch, node, context="statement")
+            finally:
+                self.symbol_table.exit_scope()
+        
+        # 3. Analyze each else clause
+        else_clauses = node.get("else_clauses", [])
+        for else_clause in else_clauses:
+            # Analyze else-if condition if present
+            clause_condition = else_clause.get("condition")
+            if clause_condition:
+                clause_condition_type = self._analyze_expression(clause_condition)
+                if clause_condition_type != HexenType.BOOL:
+                    self._error(
+                        f"Condition must be of type bool, got {clause_condition_type.name.lower()}", 
+                        clause_condition
+                    )
+            
+            # Analyze else clause branch as statement block
+            clause_branch = else_clause.get("branch")
+            if clause_branch:
+                self.symbol_table.enter_scope()
+                try:
+                    self._analyze_block(clause_branch, node, context="statement")
+                finally:
+                    self.symbol_table.exit_scope()

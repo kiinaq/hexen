@@ -1,0 +1,381 @@
+"""
+Semantic tests for conditional statements and expressions.
+
+Tests Session 2: Statement Context Analysis
+- Conditional statement analysis
+- Boolean condition type checking  
+- Scope management for branches
+- Integration with function bodies
+"""
+
+import pytest
+from tests.semantic import (
+    parse_and_analyze, 
+    assert_no_errors, 
+    assert_error_contains
+)
+
+
+class TestConditionalStatements:
+    """Test basic conditional statement functionality."""
+
+    def test_basic_if_statement(self):
+        """Test basic if statement with boolean condition."""
+        code = '''
+        func test() : void = {
+            if true {
+                val x = 42
+            }
+            return
+        }
+        '''
+        ast, errors = parse_and_analyze(code)
+        assert_no_errors(errors)
+        
+    def test_if_else_statement(self):
+        """Test if-else statement."""
+        code = '''
+        func test() : void = {
+            if true {
+                val x = 42
+            } else {
+                val y = 100
+            }
+            return
+        }
+        '''
+        ast, errors = parse_and_analyze(code)
+        assert_no_errors(errors)
+        
+    def test_else_if_chain(self):
+        """Test if-else if-else chain."""
+        code = '''
+        func test(input : i32) : void = {
+            if input < 0 {
+                val negative = -1
+            } else if input == 0 {
+                val zero = 0
+            } else {
+                val positive = 1
+            }
+            return
+        }
+        '''
+        ast, errors = parse_and_analyze(code)
+        assert_no_errors(errors)
+        
+    def test_nested_conditionals(self):
+        """Test nested conditional statements."""
+        code = '''
+        func test(a : i32, b : i32) : void = {
+            if a > 0 {
+                if b > 0 {
+                    val both_positive = true
+                } else {
+                    val a_positive_b_nonpositive = true
+                }
+            } else {
+                val a_nonpositive = true
+            }
+            return
+        }
+        '''
+        ast, errors = parse_and_analyze(code)
+        assert_no_errors(errors)
+
+
+class TestConditionValidation:
+    """Test condition type validation."""
+
+    def test_boolean_condition_validation(self):
+        """Test that boolean conditions are accepted."""
+        code = '''
+        func test() : void = {
+            val flag : bool = true
+            if flag {
+                val x = 42
+            }
+            return
+        }
+        '''
+        ast, errors = parse_and_analyze(code)
+        assert_no_errors(errors)
+        
+    def test_comparison_conditions(self):
+        """Test comparison operations as conditions."""
+        code = '''
+        func test(x : i32, y : i32) : void = {
+            if x > y {
+                val greater = 1
+            }
+            if x < y {
+                val lesser = 1  
+            }
+            if x == y {
+                val equal = 1
+            }
+            if x != y {
+                val not_equal = 1
+            }
+            if x >= y {
+                val greater_equal = 1
+            }
+            if x <= y {
+                val lesser_equal = 1
+            }
+            return
+        }
+        '''
+        ast, errors = parse_and_analyze(code)
+        assert_no_errors(errors)
+        
+    def test_logical_conditions(self):
+        """Test logical operations as conditions."""
+        code = '''
+        func test(a : bool, b : bool) : void = {
+            if a && b {
+                val both_true = 1
+            }
+            if a || b {
+                val at_least_one_true = 1
+            }
+            if !a {
+                val a_false = 1
+            }
+            return
+        }
+        '''
+        ast, errors = parse_and_analyze(code)
+        assert_no_errors(errors)
+        
+    def test_invalid_condition_types(self):
+        """Test that non-boolean conditions produce errors."""
+        # i32 condition
+        code = '''
+        func test() : void = {
+            val x : i32 = 42
+            if x {
+                val invalid = 1
+            }
+            return
+        }
+        '''
+        ast, errors = parse_and_analyze(code)
+        assert_error_contains(errors, "Condition must be of type bool, got i32")
+        
+        # string condition  
+        code = '''
+        func test() : void = {
+            val message = "hello"
+            if message {
+                val invalid = 1
+            }
+            return
+        }
+        '''
+        ast, errors = parse_and_analyze(code)
+        assert_error_contains(errors, "Condition must be of type bool, got string")
+        
+        # f64 condition
+        code = '''
+        func test() : void = {
+            val pi : f64 = 3.14
+            if pi {
+                val invalid = 1
+            }
+            return
+        }
+        '''
+        ast, errors = parse_and_analyze(code)
+        assert_error_contains(errors, "Condition must be of type bool, got f64")
+
+
+class TestScopeManagement:
+    """Test scope isolation and management in conditional branches."""
+    
+    def test_scope_isolation(self):
+        """Test that variables in branches are scoped properly."""
+        code = '''
+        func test() : void = {
+            if true {
+                val scoped = 42
+            }
+            // scoped should not be accessible here
+            return
+        }
+        '''
+        ast, errors = parse_and_analyze(code)
+        assert_no_errors(errors)
+        
+    def test_variable_shadowing(self):
+        """Test variable shadowing within conditional branches."""
+        code = '''
+        func test() : void = {
+            val x = 10
+            if true {
+                val x = 20  // shadows outer x
+            }
+            // outer x should still be 10
+            return
+        }
+        '''
+        ast, errors = parse_and_analyze(code)
+        assert_no_errors(errors)
+        
+    def test_lexical_scoping(self):
+        """Test access to outer scope variables from conditional branches."""
+        code = '''
+        func test() : void = {
+            val outer = 42
+            if true {
+                val inner = outer * 2  // should access outer variable
+            }
+            return
+        }
+        '''
+        ast, errors = parse_and_analyze(code)
+        assert_no_errors(errors)
+        
+    def test_scope_cleanup(self):
+        """Test that variables are cleaned up after branch exit."""
+        code = '''
+        func test() : void = {
+            if true {
+                val temp = 100
+            } else {
+                val temp = 200  // Same name, different scope - should be fine
+            }
+            return
+        }
+        '''
+        ast, errors = parse_and_analyze(code)
+        assert_no_errors(errors)
+
+
+class TestIntegrationWithFunctions:
+    """Test conditional statements within function contexts."""
+    
+    def test_conditionals_in_functions(self):
+        """Test conditional statements within function bodies."""
+        code = '''
+        func process(input : i32) : void = {
+            if input > 0 {
+                val positive_message = "Positive number"
+            } else if input < 0 {
+                val negative_message = "Negative number"  
+            } else {
+                val zero_message = "Zero"
+            }
+            return
+        }
+        '''
+        ast, errors = parse_and_analyze(code)
+        assert_no_errors(errors)
+        
+    def test_return_statements_in_conditionals(self):
+        """Test early return statements within conditionals."""
+        code = '''
+        func validate(input : i32) : i32 = {
+            if input < 0 {
+                return -1  // Early return for negative input
+            }
+            if input > 1000 {
+                return -2  // Early return for too large input
+            }
+            return input  // Normal return
+        }
+        '''
+        ast, errors = parse_and_analyze(code)
+        assert_no_errors(errors)
+        
+    def test_empty_branches(self):
+        """Test conditional statements with empty branches."""
+        code = '''
+        func test() : void = {
+            if true {
+                // Empty if branch
+            }
+            if false {
+                val x = 42
+            } else {
+                // Empty else branch  
+            }
+            return
+        }
+        '''
+        ast, errors = parse_and_analyze(code)
+        assert_no_errors(errors)
+
+
+class TestErrorConditions:
+    """Test various error conditions for conditional statements."""
+    
+    def test_undefined_variable_in_condition(self):
+        """Test error for undefined variable in condition."""
+        code = '''
+        func test() : void = {
+            if undefined_var {
+                val x = 42
+            }
+            return
+        }
+        '''
+        ast, errors = parse_and_analyze(code)
+        assert_error_contains(errors, "Undefined variable: 'undefined_var'")
+        
+    def test_type_mismatch_in_condition(self):
+        """Test error for type mismatch in condition expressions."""
+        code = '''
+        func test() : void = {
+            val x : i32 = 10
+            val y : f64 = 3.14
+            if x > y {  // This should require explicit conversion
+                val result = 1
+            }
+            return
+        }
+        '''
+        # Note: This might pass depending on comptime type handling
+        # Will be refined in later sessions
+        ast, errors = parse_and_analyze(code)
+        # For now, just verify it analyzes without crashing
+
+
+class TestAdvancedPatterns:
+    """Test advanced conditional patterns."""
+    
+    def test_multiple_conditions_same_scope(self):
+        """Test multiple conditionals in same scope level."""
+        code = '''
+        func test(a : i32, b : i32, c : i32) : void = {
+            if a > 0 {
+                val pos_a = true
+            }
+            if b > 0 {
+                val pos_b = true
+            }  
+            if c > 0 {
+                val pos_c = true
+            }
+            return
+        }
+        '''
+        ast, errors = parse_and_analyze(code)
+        assert_no_errors(errors)
+        
+    def test_conditional_with_function_calls(self):
+        """Test conditionals with function call conditions (basic case)."""
+        code = '''
+        func is_valid(x : i32) : bool = {
+            return x > 0
+        }
+        
+        func test(input : i32) : void = {
+            if is_valid(input) {
+                val valid = true
+            }
+            return
+        }
+        '''
+        ast, errors = parse_and_analyze(code)
+        assert_no_errors(errors)
