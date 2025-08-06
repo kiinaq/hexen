@@ -49,7 +49,7 @@ multiplicative: unary (MUL_OP unary)*
 unary: UNARY_OP unary
      | conversion
 conversion: primary (CONVERSION_OP type)?
-primary: NUMBER | STRING | BOOLEAN | function_call | IDENTIFIER | block | "(" expression ")"
+primary: NUMBER | STRING | BOOLEAN | function_call | IDENTIFIER | block | conditional_stmt | "(" expression ")"
 
 function_call: IDENTIFIER "(" argument_list? ")"
 

@@ -6,6 +6,12 @@ Tests Session 2: Statement Context Analysis
 - Boolean condition type checking  
 - Scope management for branches
 - Integration with function bodies
+
+Tests Session 3: Expression Context Analysis  
+- Conditional expression analysis
+- Assign/return validation in branches
+- Type unification across branches
+- Integration with expression blocks and comptime types
 """
 
 import pytest
@@ -375,6 +381,240 @@ class TestAdvancedPatterns:
                 val valid = true
             }
             return
+        }
+        '''
+        ast, errors = parse_and_analyze(code)
+        assert_no_errors(errors)
+
+
+class TestConditionalExpressions:
+    """Test conditional expressions in expression context - Session 3."""
+
+    def test_basic_conditional_expression(self):
+        """Test basic conditional expression with assign statements."""
+        code = '''
+        func test() : i32 = {
+            val result = if true {
+                assign 42
+            } else {
+                assign 100
+            }
+            return result
+        }
+        '''
+        ast, errors = parse_and_analyze(code)
+        assert_no_errors(errors)
+
+    def test_conditional_expression_with_comptime_values(self):
+        """Test conditional expression with comptime literals."""
+        code = '''
+        func get_value(flag : bool) : f64 = {
+            val result : f64 = if flag {
+                assign 42       // comptime_int -> f64
+            } else {
+                assign 3.14     // comptime_float -> f64
+            }
+            return result
+        }
+        '''
+        ast, errors = parse_and_analyze(code)
+        assert_no_errors(errors)
+        
+    def test_conditional_expression_with_variables(self):
+        """Test conditional expression using variables."""
+        code = '''
+        func select(flag : bool, a : i32, b : i32) : i32 = {
+            val result = if flag {
+                assign a
+            } else {
+                assign b
+            }
+            return result
+        }
+        '''
+        ast, errors = parse_and_analyze(code)
+        assert_no_errors(errors)
+
+    def test_conditional_expression_with_early_return(self):
+        """Test conditional expression with return statements for early exit."""
+        code = '''
+        func process(input : i32) : i32 = {
+            val result = if input < 0 {
+                return -1          // Early function exit
+            } else {
+                assign input * 2   // Normal processing
+            }
+            return result
+        }
+        '''
+        ast, errors = parse_and_analyze(code)
+        assert_no_errors(errors)
+
+    def test_conditional_expression_else_if_chain(self):
+        """Test conditional expression with else-if chains."""
+        code = '''
+        func classify(score : i32) : string = {
+            val grade = if score >= 90 {
+                assign "A"
+            } else if score >= 80 {
+                assign "B"
+            } else if score >= 70 {
+                assign "C"
+            } else {
+                assign "F"
+            }
+            return grade
+        }
+        '''
+        ast, errors = parse_and_analyze(code)
+        assert_no_errors(errors)
+
+    def test_mixed_return_and_assign(self):
+        """Test conditional expression mixing return and assign statements."""
+        code = '''
+        func validate_and_process(input : i32) : i32 = {
+            val result = if input < 0 {
+                return -1          // Early exit: error case
+            } else if input == 0 {
+                return 0           // Early exit: special case
+            } else {
+                assign input * 2   // Success case: assign value
+            }
+            return result
+        }
+        '''
+        ast, errors = parse_and_analyze(code)
+        assert_no_errors(errors)
+
+
+class TestConditionalExpressionErrors:
+    """Test error conditions for conditional expressions."""
+
+    def test_non_boolean_condition_in_expression(self):
+        """Test error for non-boolean condition in conditional expression."""
+        code = '''
+        func test(x : i32) : i32 = {
+            val result = if x {  // Error: i32 not bool
+                assign 42
+            } else {
+                assign 100
+            }
+            return result
+        }
+        '''
+        ast, errors = parse_and_analyze(code)
+        assert_error_contains(errors, "Condition must be of type bool, got i32")
+
+
+class TestConditionalExpressionTypeResolution:
+    """Test type resolution across conditional expression branches."""
+
+    def test_comptime_type_unification(self):
+        """Test type unification with comptime types."""
+        code = '''
+        func get_number(use_int : bool) : f64 = {
+            val result : f64 = if use_int {
+                assign 42       // comptime_int -> f64
+            } else {
+                assign 3.14     // comptime_float -> f64  
+            }
+            return result
+        }
+        '''
+        ast, errors = parse_and_analyze(code)
+        assert_no_errors(errors)
+
+    def test_explicit_type_context_propagation(self):
+        """Test that target type context propagates to branches."""
+        code = '''
+        func get_value(flag : bool) : i32 = {
+            val result : i32 = if flag {
+                assign 42       // comptime_int adapts to i32 context
+            } else {
+                assign 100      // comptime_int adapts to i32 context
+            }
+            return result
+        }
+        '''
+        ast, errors = parse_and_analyze(code)
+        assert_no_errors(errors)
+
+    def test_nested_conditional_expressions(self):
+        """Test nested conditional expressions."""
+        code = '''
+        func complex_logic(a : bool, b : bool) : i32 = {
+            val result = if a {
+                assign if b {
+                    assign 1
+                } else {
+                    assign 2
+                }
+            } else {
+                assign if b {
+                    assign 3
+                } else {
+                    assign 4
+                }
+            }
+            return result
+        }
+        '''
+        ast, errors = parse_and_analyze(code)
+        assert_no_errors(errors)
+
+
+class TestConditionalIntegrationPatterns:
+    """Test integration with other language features."""
+
+    def test_conditionals_in_expression_blocks(self):
+        """Test conditional expressions within expression blocks."""
+        code = '''
+        func calculate(base : i32) : f64 = {
+            val result : f64 = {
+                val multiplier = if base > 100 {
+                    assign 2.5
+                } else {
+                    assign 1.0  
+                }
+                assign base:f64 * multiplier
+            }
+            return result
+        }
+        '''
+        ast, errors = parse_and_analyze(code)
+        assert_no_errors(errors)
+
+    def test_conditionals_with_function_calls_in_conditions(self):
+        """Test conditionals with function calls in conditions."""
+        code = '''
+        func is_valid(x : i32) : bool = {
+            return x > 0
+        }
+        
+        func process(input : i32) : string = {
+            val result = if is_valid(input) {
+                assign "valid"
+            } else {
+                assign "invalid"
+            }
+            return result
+        }
+        '''
+        ast, errors = parse_and_analyze(code)
+        assert_no_errors(errors)
+
+    def test_conditionals_with_binary_operations(self):
+        """Test conditionals with complex condition expressions."""
+        code = '''
+        func categorize(x : i32, y : i32) : string = {
+            val category = if x > 0 && y > 0 {
+                assign "positive"
+            } else if x < 0 || y < 0 {
+                assign "negative"  
+            } else {
+                assign "zero"
+            }
+            return category
         }
         '''
         ast, errors = parse_and_analyze(code)

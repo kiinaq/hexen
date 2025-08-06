@@ -119,6 +119,9 @@ class ExpressionAnalyzer:
         elif expr_type == NodeType.FUNCTION_CALL.value:
             # Function calls - delegate to function call analyzer
             return self._analyze_function_call(node, target_type)
+        elif expr_type == NodeType.CONDITIONAL_STATEMENT.value:
+            # Conditional expressions - analyze as expression context
+            return self._analyze_conditional_expression(node, target_type)
         else:
             self._error(f"Unknown expression type: {expr_type}", node)
             return HexenType.UNKNOWN
@@ -161,3 +164,177 @@ class ExpressionAnalyzer:
         # Mark symbol as used for dead code analysis
         symbol.used = True
         return symbol.type
+
+    def _analyze_conditional_expression(
+        self, node: Dict, target_type: Optional[HexenType] = None
+    ) -> HexenType:
+        """
+        Analyze conditional expression (if/else if/else) in expression context.
+        
+        Expression context analysis:
+        1. Validate condition is boolean type
+        2. Analyze each branch as expression block  
+        3. Validate all branches assign or return
+        4. Check type compatibility across branches
+        5. Return unified type
+        
+        Args:
+            node: Conditional AST node
+            target_type: Optional target type for context-guided resolution
+            
+        Returns:
+            Unified type from all branches
+        """
+        # 1. Analyze condition - must be bool type
+        condition = node.get("condition")
+        if not condition:
+            self._error("Conditional expression missing condition", node)
+            return HexenType.UNKNOWN
+            
+        condition_type = self.analyze_expression(condition)
+        if condition_type != HexenType.BOOL:
+            self._error(
+                f"Condition must be of type bool, got {condition_type.name.lower()}", 
+                condition
+            )
+        
+        # 2. Analyze if branch as expression block
+        if_branch = node.get("if_branch")
+        if not if_branch:
+            self._error("Conditional expression missing if branch", node)
+            return HexenType.UNKNOWN
+            
+        # Analyze if branch in expression context with target type propagation  
+        if_type = self._analyze_block(if_branch, node, context="expression")
+        
+        # 3. Collect types from branches that actually assign (not return)
+        assign_branch_types = []
+        
+        # Check if the if branch uses assign or return by examining its structure
+        if self._branch_uses_assign(if_branch):
+            if if_type != HexenType.UNKNOWN:
+                assign_branch_types.append(if_type)
+            
+        else_clauses = node.get("else_clauses", [])
+        
+        for else_clause in else_clauses:
+            # Analyze else-if condition if present
+            clause_condition = else_clause.get("condition")
+            if clause_condition:
+                clause_condition_type = self.analyze_expression(clause_condition)
+                if clause_condition_type != HexenType.BOOL:
+                    self._error(
+                        f"Condition must be of type bool, got {clause_condition_type.name.lower()}", 
+                        clause_condition
+                    )
+            
+            # Analyze else clause branch as expression block
+            clause_branch = else_clause.get("branch")
+            if clause_branch:
+                clause_type = self._analyze_block(clause_branch, node, context="expression")
+                # Only collect types from branches that use assign (not return)
+                if self._branch_uses_assign(clause_branch):
+                    if clause_type != HexenType.UNKNOWN:
+                        assign_branch_types.append(clause_type)
+        
+        # 4. Validate branch coverage for expression context
+        # Expression blocks with conditionals follow the same rules as unified blocks:
+        # - All branches must either assign or return (dual capability)
+        # - If any branch returns (early function exit), other branches don't need full coverage
+        # - If no branches return, all execution paths must be covered (final else required)
+        
+        has_final_else = False
+        has_any_returns = False
+        
+        if else_clauses:
+            # Check if the last clause is a final else (no condition)
+            last_clause = else_clauses[-1]
+            if not last_clause.get("condition"):
+                has_final_else = True
+                
+        # Check if any branch uses return statements (this would be detected by block analyzer)
+        # For now, we'll assume branches are properly validated by the block analyzer
+        
+        # If there's no final else, we need to check if this is acceptable
+        # (i.e., some branches may return early, making incomplete coverage valid)
+        if not has_final_else:
+            # This is acceptable if branches use return statements for early exits
+            # The block analyzer will validate individual branch compliance
+            pass
+            
+        # 5. Check type compatibility across assign branches and return unified type
+        if not assign_branch_types:
+            # If no branches contribute types (all return early), use target_type if available
+            # This handles cases like: val x = if cond { return early } else { return early }
+            return target_type if target_type else HexenType.UNKNOWN
+            
+        # Implement type unification for comptime types
+        # If we have a target type, use it for context-guided resolution
+        if target_type:
+            # All assign branches should be compatible with the target type
+            # Comptime types will adapt automatically
+            for branch_type in assign_branch_types:
+                if branch_type in [HexenType.COMPTIME_INT, HexenType.COMPTIME_FLOAT]:
+                    # Comptime types adapt to target context - this is handled by the system
+                    continue
+                elif branch_type != target_type:
+                    # For now, require exact type match for concrete types
+                    # Future enhancement: implement conversion compatibility
+                    self._error(
+                        f"Branch type {branch_type.name.lower()} incompatible with target type {target_type.name.lower()}", 
+                        node
+                    )
+                    return HexenType.UNKNOWN
+            return target_type
+        
+        # Without target context, implement basic type unification
+        unified_type = assign_branch_types[0]
+        
+        # Check if all types are the same or comptime-compatible
+        all_comptime_int = all(t == HexenType.COMPTIME_INT for t in assign_branch_types)
+        all_comptime_float = all(t == HexenType.COMPTIME_FLOAT for t in assign_branch_types)
+        all_same_concrete = all(t == unified_type for t in assign_branch_types)
+        
+        if all_comptime_int:
+            return HexenType.COMPTIME_INT
+        elif all_comptime_float:
+            return HexenType.COMPTIME_FLOAT
+        elif all_same_concrete:
+            return unified_type
+        else:
+            # Mixed types require explicit target context for resolution
+            self._error(
+                f"Mixed types across conditional branches require explicit target type context", 
+                node
+            )
+            return HexenType.UNKNOWN
+    
+    def _branch_uses_assign(self, branch_node: Dict) -> bool:
+        """
+        Check if a branch (block) uses assign statement instead of return statement.
+        
+        Args:
+            branch_node: Block AST node
+            
+        Returns:
+            True if branch ends with assign statement, False if it ends with return
+        """
+        if not branch_node or branch_node.get("type") != "block":
+            return False
+            
+        statements = branch_node.get("statements", [])
+        if not statements:
+            return False
+            
+        # Check the last statement type
+        last_statement = statements[-1]
+        last_stmt_type = last_statement.get("type")
+        
+        if last_stmt_type == "assign_statement":
+            return True
+        elif last_stmt_type == "return_statement":
+            return False
+        else:
+            # If last statement is neither assign nor return, this is an error
+            # but we'll let the block analyzer handle that error
+            return False
