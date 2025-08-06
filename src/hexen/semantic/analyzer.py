@@ -219,7 +219,7 @@ class SemanticAnalyzer:
         Future statement types:
         - if_statement: Conditional execution
         - while_statement: Loop execution
-        - expression_statement: Expression evaluation
+        - function_call_statement: Function call evaluation
         """
         stmt_type = node.get("type")
 
@@ -239,8 +239,8 @@ class SemanticAnalyzer:
             self._analyze_block(node, node, context="statement")
         elif stmt_type == NodeType.CONDITIONAL_STATEMENT.value:
             self._analyze_conditional_statement(node)
-        elif stmt_type == NodeType.EXPRESSION_STATEMENT.value:
-            self._analyze_expression_statement(node)
+        elif stmt_type == NodeType.FUNCTION_CALL_STATEMENT.value:
+            self._analyze_function_call_statement(node)
         else:
             self._error(f"Unknown statement type: {stmt_type}", node)
 
@@ -368,16 +368,17 @@ class SemanticAnalyzer:
                 finally:
                     self.symbol_table.exit_scope()
 
-    def _analyze_expression_statement(self, node: Dict) -> None:
+    def _analyze_function_call_statement(self, node: Dict) -> None:
         """
-        Analyze expression statement - validates expression in statement context.
+        Analyze function call statement - validates function call in statement context.
         
-        Expression statements are used for side effects like function calls.
+        Function call statements are used for side effects like calling void functions
+        or functions where the return value is intentionally discarded.
         The result type is discarded since it's used in statement context.
         """
-        expression = node.get("expression")
-        if expression:
-            # Analyze the expression - no specific target type needed
-            self._analyze_expression(expression)
+        function_call = node.get("function_call")
+        if function_call:
+            # Analyze the function call - no specific target type needed
+            self._analyze_expression(function_call)
         else:
-            self._error("Expression statement requires an expression", node)
+            self._error("Function call statement requires a function call", node)

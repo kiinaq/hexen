@@ -18,9 +18,9 @@ statement: var_declaration
          | assignment_stmt
          | conditional_stmt
          | block
-         | expression_stmt
+         | function_call_stmt
 
-expression_stmt: expression
+function_call_stmt: function_call
 
 var_declaration: val_declaration
                | mut_declaration
