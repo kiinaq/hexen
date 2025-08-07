@@ -892,3 +892,436 @@ class TestTypeSystemErrorHandling:
         ast, errors = parse_and_analyze(code)
         # Should suggest explicit conversion syntax
         assert_error_contains(errors, "Use explicit conversion: value:f64")
+
+
+class TestAdvancedValidationPatterns:
+    """Test advanced validation patterns from CONDITIONAL_SYSTEM.md."""
+    
+    def test_validation_chains_with_early_returns(self):
+        """Test validation chains using early returns (from specification)."""
+        code = '''
+        func validate_and_process(input: i32) : string = {
+            val result = if input < 0 {
+                return "ERROR: Negative input"     // Early function exit
+            } else if input > 1000 {
+                return "ERROR: Input too large"    // Early function exit
+            } else {
+                assign "SUCCESS: Valid input"     // Success: processed input
+            }
+            
+            // Additional processing only happens for valid input
+            return result
+        }
+        '''
+        ast, errors = parse_and_analyze(code)
+        assert_no_errors(errors)
+        
+    def test_guard_clause_pattern(self):
+        """Test guard clause patterns with early returns."""
+        code = '''
+        func safe_divide(a: f64, b: f64) : f64 = {
+            val result : f64 = if b == 0.0 {
+                return 0.0         // Early exit: division by zero
+            } else {
+                assign a / b       // Normal case: assign division result
+            }
+            return result
+        }
+        '''
+        ast, errors = parse_and_analyze(code)
+        assert_no_errors(errors)
+        
+    def test_nested_validation_pattern(self):
+        """Test multiple levels of validation with nested conditionals."""
+        code = '''
+        func validate_user_data(name_id: i32, age: i32) : string = {
+            val result = if name_id < 1 {
+                return "ERROR: Name ID required"
+            } else if name_id > 999999 {
+                return "ERROR: Name ID too large"
+            } else {
+                val age_result = if age < 0 {
+                    return "ERROR: Invalid age"       // Early function exit
+                } else if age > 150 {
+                    return "ERROR: Age too high"      // Early function exit  
+                } else {
+                    assign age                         // Valid age
+                }
+                assign "VALID: User data OK"
+            }
+            return result
+        }
+        '''
+        ast, errors = parse_and_analyze(code)
+        assert_no_errors(errors)
+
+
+class TestAdvancedCachingPatterns:
+    """Test performance optimization patterns with caching."""
+    
+    def test_caching_pattern_with_early_returns(self):
+        """Test caching pattern using early returns (from specification)."""
+        code = '''
+        func lookup_cache(key: i32) : f64 = { return -1.0 }  // -1.0 means cache miss
+        func very_expensive_operation(key: i32) : f64 = { return key:f64 * 2.0 }
+        func save_to_cache(key: i32, value: f64) : void = { return }
+        func log_cache_miss(key: i32) : void = { return }
+        
+        func expensive_calc(key: i32) : f64 = {
+            val cached : f64 = lookup_cache(key)
+            val computed : f64 = very_expensive_operation(key)
+            
+            val result : f64 = if cached >= 0.0 {
+                return cached          // Early exit: cache hit
+            } else {
+                save_to_cache(key, computed)
+                assign computed        // Cache miss: assign computed value
+            }
+            
+            // This only executes on cache miss (after assign, not after return)
+            log_cache_miss(key)
+            return result
+        }
+        '''
+        ast, errors = parse_and_analyze(code)
+        assert_no_errors(errors)
+        
+    def test_short_circuit_optimization_pattern(self):
+        """Test short-circuit optimization using conditionals."""
+        code = '''
+        func optimized_calculation(use_fast_path: bool, input: f64) : f64 = {
+            val fast_result : f64 = input * 2.0
+            val slow_result : f64 = (input * input / 3.14159) + 1.0
+            
+            val result : f64 = if use_fast_path {
+                assign fast_result     // Fast path
+            } else {
+                assign slow_result     // Complex expensive calculation
+            }
+            return result
+        }
+        '''
+        ast, errors = parse_and_analyze(code)
+        assert_no_errors(errors)
+        
+    def test_conditional_computation_pattern(self):
+        """Test conditional computation to avoid expensive operations."""
+        code = '''
+        func smart_processing(enable_advanced: bool, data: f64) : f64 = {
+            val base_result = data * 1.5
+            
+            val enhanced_result = if enable_advanced {
+                val complex_calc = base_result * base_result * 3.14159
+                assign complex_calc
+            } else {
+                assign base_result     // Skip expensive calculation
+            }
+            
+            return enhanced_result
+        }
+        '''
+        ast, errors = parse_and_analyze(code)
+        assert_no_errors(errors)
+
+
+class TestAdvancedFallbackPatterns:
+    """Test configuration and fallback patterns."""
+    
+    def test_fallback_configuration_pattern(self):
+        """Test primary -> fallback -> default configuration pattern (from specification)."""
+        code = '''
+        func primary_config_exists() : bool = { return true }
+        func load_primary_config() : i32 = { return 100 }  // PRIMARY config ID
+        func fallback_config_exists() : bool = { return true }
+        func load_fallback_config() : i32 = { return 200 } // FALLBACK config ID
+        func get_default_config() : i32 = { return 300 }   // DEFAULT config ID
+        
+        func load_config_with_fallback() : i32 = {
+            val primary_exists : bool = primary_config_exists()
+            val primary : i32 = load_primary_config()
+            val fallback_exists : bool = fallback_config_exists()
+            val fallback : i32 = load_fallback_config()
+            val default : i32 = get_default_config()
+            
+            // Simple fallback pattern: check primary first
+            val config : i32 = if primary_exists && (primary > 0) {
+                assign primary                     // Use primary config
+            } else if fallback_exists {
+                assign fallback                    // Use fallback config
+            } else {
+                assign default                     // Use default config
+            }
+            
+            return config
+        }
+        '''
+        ast, errors = parse_and_analyze(code)
+        assert_no_errors(errors)
+        
+    def test_conditional_feature_selection(self):
+        """Test feature flag controlled behavior."""
+        code = '''
+        func process_with_feature_flags(enable_feature_a: bool, enable_feature_b: bool) : i32 = {
+            val feature_a_result = if enable_feature_a {
+                assign 1    // Feature A enabled
+            } else {
+                assign 0    // Feature A disabled
+            }
+            
+            val feature_b_result = if enable_feature_b {
+                assign 10   // Feature B enabled (use different value to distinguish)
+            } else {
+                assign 0    // Feature B disabled
+            }
+            
+            return feature_a_result + feature_b_result  // Combined feature flags
+        }
+        '''
+        ast, errors = parse_and_analyze(code)
+        assert_no_errors(errors)
+        
+    def test_graceful_degradation_pattern(self):
+        """Test graceful degradation on errors."""
+        code = '''
+        func process_with_degradation(input: f64, use_advanced: bool) : f64 = {
+            val result = if use_advanced {
+                val advanced_result = if input > 0.0 {
+                    // Advanced processing might fail
+                    val complex = input * input * input
+                    assign complex
+                } else {
+                    // Fallback to simple processing
+                    return input * 2.0     // Early exit with simple calculation
+                }
+                assign advanced_result
+            } else {
+                assign input * 2.0         // Simple processing
+            }
+            
+            return result
+        }
+        '''
+        ast, errors = parse_and_analyze(code)
+        assert_no_errors(errors)
+
+
+class TestComplexIntegrationPatterns:
+    """Test complex integration patterns with existing language features."""
+    
+    def test_conditionals_with_complex_binary_operations(self):
+        """Test conditionals integrated with complex binary operations."""
+        code = '''
+        func complex_calculation(a: f64, b: f64, c: f64) : f64 = {
+            val result : f64 = if (a + b) > c {
+                assign (a * b) + c
+            } else if (a - b) < c {
+                assign (a / b) * c
+            } else {
+                assign a + b + c
+            }
+            
+            return result
+        }
+        '''
+        ast, errors = parse_and_analyze(code)
+        assert_no_errors(errors)
+        
+    def test_conditionals_with_function_call_chains(self):
+        """Test conditionals with complex function call chains."""
+        code = '''
+        func transform_data(input: f64) : f64 = { return input * 2.0 }
+        func validate_result(value: f64) : bool = { return value > 0.0 }
+        func apply_correction(value: f64) : f64 = { return value + 1.0 }
+        
+        func process_data_pipeline(input: f64) : f64 = {
+            val transformed = transform_data(input)
+            
+            val result = if validate_result(transformed) {
+                val corrected = if transformed > 100.0 {
+                    assign apply_correction(transformed)
+                } else {
+                    assign transformed
+                }
+                assign corrected
+            } else {
+                return 0.0     // Early exit for invalid data
+            }
+            
+            return result
+        }
+        '''
+        ast, errors = parse_and_analyze(code)
+        assert_no_errors(errors)
+        
+    def test_conditionals_in_complex_expression_blocks(self):
+        """Test conditionals within complex expression blocks with mixed contexts."""
+        code = '''
+        func get_base_price() : f64 = { return 50.0 }
+        func get_user_tier() : i32 = { return 1 }  // 1 = basic, 2 = gold, 3 = premium
+        func is_first_time_user() : bool = { return false }
+        
+        func calculate_pricing() : f64 = {
+            val final_price : f64 = {              // Context REQUIRED (runtime block)!
+                val base_price : f64 = get_base_price()  // Runtime function call
+                val user_tier : i32 = get_user_tier()    // Runtime function call
+                
+                val discount_multiplier : f64 = if user_tier == 3 {     // 3 = premium
+                    assign 0.8                     // 20% discount
+                } else if user_tier == 2 {         // 2 = gold
+                    assign 0.9                     // 10% discount  
+                } else if is_first_time_user() {   // Runtime condition
+                    assign 0.95                    // 5% new user discount
+                } else {
+                    assign 1.0                     // No discount
+                }
+                
+                val discounted : f64 = base_price * discount_multiplier
+                
+                val final_adjustment : f64 = if discounted < 10.0 {
+                    return 0.0                     // Early exit: too cheap, make it free
+                } else if discounted > 1000.0 {
+                    assign 1000.0                  // Cap at maximum price
+                } else {
+                    assign discounted              // Use calculated price
+                }
+                
+                assign final_adjustment
+            }
+            
+            return final_price
+        }
+        '''
+        ast, errors = parse_and_analyze(code)
+        assert_no_errors(errors)
+
+
+class TestRealWorldScenarios:
+    """Test complete real-world scenarios using all conditional patterns."""
+    
+    def test_complete_validation_function(self):
+        """Test complete validation function using all validation patterns."""
+        code = '''
+        func comprehensive_data_validator(name_id: i32, age: i32, score: f64) : i32 = {
+            // Input validation chain - return error codes
+            val validation_result = if name_id <= 0 {
+                return -1     // ERROR: Name ID required
+            } else if name_id > 999999 {
+                return -2     // ERROR: Name ID too large
+            } else if age < 0 {
+                return -3     // ERROR: Age cannot be negative  
+            } else if age > 120 {
+                return -4     // ERROR: Age seems unrealistic
+            } else if score < 0.0 {
+                return -5     // ERROR: Score cannot be negative
+            } else if score > 100.0 {
+                return -6     // ERROR: Score cannot exceed 100
+            } else {
+                assign 0      // VALID (success code)
+            }
+            
+            // Additional processing only for valid data
+            val grade_points = if score >= 90.0 {
+                assign 4      // A grade
+            } else if score >= 80.0 {
+                assign 3      // B grade
+            } else if score >= 70.0 {
+                assign 2      // C grade
+            } else if score >= 60.0 {
+                assign 1      // D grade
+            } else {
+                assign 0      // F grade
+            }
+            
+            return validation_result + grade_points  // Combined result
+        }
+        '''
+        ast, errors = parse_and_analyze(code)
+        assert_no_errors(errors)
+        
+    def test_complete_configuration_loader(self):
+        """Test complete configuration loader with all fallback patterns."""
+        code = '''
+        // Forward declare helper functions first
+        func get_environment() : i32 = { return 2 }  // 2 = development
+        func production_config_exists() : bool = { return true }
+        func load_production_config() : i32 = { return 100 }  // PROD_CONFIG ID
+        func validate_config(config: i32) : bool = { return config > 0 }
+        func development_config_exists() : bool = { return false }
+        func load_development_config() : i32 = { return 200 }  // DEV_CONFIG ID
+        func get_default_development_config() : i32 = { return 300 }  // DEFAULT_DEV_CONFIG ID
+        func get_default_config() : i32 = { return 400 }  // DEFAULT_CONFIG ID
+        
+        func load_application_config() : i32 = {
+            val environment = get_environment()
+            
+            if environment == 1 {  // 1 = production
+                if production_config_exists() {
+                    val config = load_production_config()
+                    if validate_config(config) {
+                        return config
+                    } else {
+                        return -1   // ERROR: Invalid production config
+                    }
+                } else {
+                    return -2       // ERROR: Production config not found
+                }
+            } else if environment == 2 {  // 2 = development
+                if development_config_exists() {
+                    return load_development_config()
+                } else {
+                    return get_default_development_config()
+                }
+            } else {
+                return get_default_config()
+            }
+        }
+        '''
+        ast, errors = parse_and_analyze(code)
+        assert_no_errors(errors)
+        
+    def test_complete_calculation_function(self):
+        """Test complete calculation function with conditional computation patterns."""
+        code = '''
+        // Forward declare helper functions first
+        func check_cache(input: f64, mode: i32) : f64 = { return -1.0 }  // -1 means miss
+        func store_in_cache(input: f64, mode: i32, result: f64) : void = { return }
+        
+        func advanced_mathematical_processor(input: f64, precision_mode: i32, enable_caching: bool) : f64 = {
+            // Cache check first
+            if enable_caching {
+                val cached = check_cache(input, precision_mode)
+                if cached >= 0.0 {
+                    return cached      // Early exit: cache hit
+                }
+            }
+            
+            // Calculate base value
+            val base_calculation = input * input + 2.0 * input + 1.0
+            
+            // Precision-based calculation
+            val result : f64 = if precision_mode == 3 {  // 3 = "high"
+                assign {
+                    val step1 = base_calculation * 3.141592653589793
+                    val step2 : f64 = step1 / 2.718281828459045
+                    assign step2 + 1.414213562373095
+                }
+            } else if precision_mode == 2 {  // 2 = "medium"
+                assign {
+                    val step1 = base_calculation * 3.14159
+                    val step2 : f64 = step1 / 2.71828
+                    assign step2
+                }
+            } else {  // 1 = "low" or default
+                assign base_calculation * 3.14
+            }
+            
+            // Store in cache if enabled
+            if enable_caching {
+                store_in_cache(input, precision_mode, result)
+            }
+            
+            return result
+        }
+        '''
+        ast, errors = parse_and_analyze(code)
+        assert_no_errors(errors)
