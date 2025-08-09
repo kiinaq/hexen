@@ -339,6 +339,23 @@ def is_boolean_type(type_: HexenType) -> bool:
     return type_ == HexenType.BOOL
 
 
+def is_concrete_type(type_annotation: str) -> bool:
+    """
+    Check if a type annotation represents a concrete (non-comptime) type.
+    
+    Used in block evaluability detection to determine if variables with
+    explicit type annotations should trigger runtime classification.
+    
+    Args:
+        type_annotation: Type annotation string (e.g., "i32", "f64", "string")
+        
+    Returns:
+        True if type is concrete, False if it's comptime
+    """
+    concrete_types = {"i32", "i64", "f32", "f64", "string", "bool", "void"}
+    return type_annotation in concrete_types
+
+
 def is_precision_loss_operation(from_type: HexenType, to_type: HexenType) -> bool:
     """
     Check if an operation represents precision loss that requires explicit conversion.

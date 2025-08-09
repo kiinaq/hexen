@@ -63,3 +63,32 @@ class Mutability(Enum):
 
     IMMUTABLE = "val"  # val variables - cannot be reassigned
     MUTABLE = "mut"  # mut variables - can be reassigned
+
+
+class BlockEvaluability(Enum):
+    """
+    Classification of block evaluability for type preservation in the unified block system.
+    
+    This classification determines how expression blocks interact with the comptime type system:
+    
+    COMPILE_TIME:
+    - Block contains only comptime operations (literals, arithmetic on comptime types)
+    - Can preserve comptime types for maximum flexibility
+    - Enables "one computation, multiple uses" pattern
+    - No runtime operations (function calls, conditionals, concrete variables)
+    
+    RUNTIME:
+    - Block contains runtime operations requiring explicit type context
+    - Includes function calls (functions always return concrete types)
+    - Includes conditionals (all conditionals are runtime per CONDITIONAL_SYSTEM.md)
+    - Includes concrete variable usage
+    - Requires explicit type annotation on target variable
+    
+    Design rationale:
+    - Binary classification simplifies logic (no MIXED enum needed)
+    - Aligns with unified block system philosophy
+    - Supports both comptime flexibility and explicit runtime costs
+    """
+    
+    COMPILE_TIME = "compile_time"  # Can preserve comptime types
+    RUNTIME = "runtime"            # Requires explicit context (includes mixed operations)
