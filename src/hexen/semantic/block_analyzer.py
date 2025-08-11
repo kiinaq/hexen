@@ -272,13 +272,13 @@ class BlockAnalyzer:
         Returns:
             Type of the expression block result
         """
-        # Session 1: Foundation with existing behavior
-        # TODO Session 2: Add function call and conditional detection
-        # TODO Session 3: Add comptime type preservation for COMPILE_TIME blocks
+        # Session 1: Foundation with existing behavior ✅ COMPLETED
+        # Session 2: Function call and conditional detection ✅ COMPLETED
+        # TODO Session 3: Add comptime type preservation for COMPILE_TIME blocks  
         # TODO Session 3: Add explicit context validation for RUNTIME blocks
         
-        # For now, maintain existing behavior while logging evaluability classification
-        # This ensures no regressions while building the foundation
+        # Session 2: Classification infrastructure complete, maintain existing behavior
+        # The validation methods are ready for Session 3 integration
         
         if not (has_assign or has_return):
             self._error(
@@ -326,7 +326,7 @@ class BlockAnalyzer:
         return HexenType.UNKNOWN
 
     # =========================================================================
-    # BLOCK EVALUABILITY DETECTION INFRASTRUCTURE (Session 1)
+    # BLOCK EVALUABILITY DETECTION INFRASTRUCTURE (Session 1 + 2)
     # =========================================================================
 
     def _classify_block_evaluability(self, statements: List[Dict]) -> BlockEvaluability:
@@ -336,12 +336,17 @@ class BlockAnalyzer:
         This is the foundation for the enhanced unified block system that determines
         whether expression blocks can preserve comptime types or require explicit context.
         
-        Compile-time evaluable criteria:
+        Compile-time evaluable criteria (ALL must be true):
         - All operations involve only comptime literals
         - NO conditional expressions (all conditionals are runtime per CONDITIONAL_SYSTEM.md)
-        - No runtime function calls (will be added in Session 2)
-        - No runtime variable usage
+        - NO runtime function calls (functions always return concrete types)
+        - NO runtime variable usage (concrete types)
         - All computations can be evaluated at compile-time
+        
+        Runtime evaluable triggers (ANY triggers runtime):
+        - Function calls (Session 2): Functions always return concrete types
+        - Conditionals (Session 2): All conditionals are runtime per specification
+        - Concrete variable usage (Session 1): Mixing comptime + concrete types
         
         Args:
             statements: List of statements in the block
@@ -350,13 +355,17 @@ class BlockAnalyzer:
             BlockEvaluability.COMPILE_TIME if block can preserve comptime types
             BlockEvaluability.RUNTIME if block requires explicit context
         """
-        # Session 1: Basic detection (function calls and conditionals will be added in Session 2)
+        # Session 2: Enhanced detection with function calls and conditionals
         
-        # Check for concrete variable usage (mixing comptime + concrete = runtime)
+        # Priority 1: Check for runtime operations (function calls, conditionals)
+        if self._contains_runtime_operations(statements):
+            return BlockEvaluability.RUNTIME
+        
+        # Priority 2: Check for concrete variable usage (mixing comptime + concrete = runtime)
         if self._has_runtime_variables(statements):
             return BlockEvaluability.RUNTIME
             
-        # If all operations are comptime-only, block is compile-time evaluable
+        # Priority 3: If all operations are comptime-only, block is compile-time evaluable
         if self._has_comptime_only_operations(statements):
             return BlockEvaluability.COMPILE_TIME
             
@@ -608,3 +617,306 @@ class BlockAnalyzer:
             return self._has_runtime_variables(statements)
             
         return False
+
+    # =========================================================================
+    # RUNTIME OPERATION DETECTION (Session 2)
+    # =========================================================================
+
+    def _contains_runtime_operations(self, statements: List[Dict]) -> bool:
+        """
+        Detect runtime operations that trigger runtime classification.
+        
+        Runtime operations include:
+        - Function calls (functions always return concrete types)
+        - Conditional expressions (all conditionals are runtime per CONDITIONAL_SYSTEM.md)
+        - Runtime variable usage (concrete types) - handled by existing logic
+        
+        This is Session 2 enhancement to the block evaluability system.
+        
+        Args:
+            statements: List of statements to analyze
+            
+        Returns:
+            True if any runtime operations found, False if all operations are comptime
+        """
+        return (self._contains_function_calls(statements) or 
+                self._contains_conditionals(statements))
+
+    def _contains_function_calls(self, statements: List[Dict]) -> bool:
+        """
+        Recursively detect function calls in block statements.
+        
+        Function calls always trigger runtime classification because:
+        1. Functions always return concrete types (never comptime types)
+        2. Function execution happens at runtime
+        3. Results cannot be computed at compile-time
+        
+        Args:
+            statements: List of statements to analyze
+            
+        Returns:
+            True if any function calls found in statements or sub-expressions
+        """
+        for statement in statements:
+            if self._statement_contains_function_calls(statement):
+                return True
+        return False
+
+    def _contains_conditionals(self, statements: List[Dict]) -> bool:
+        """
+        Recursively detect conditional expressions in block statements.
+        
+        Conditionals always trigger runtime classification per CONDITIONAL_SYSTEM.md:
+        1. All conditionals are runtime (specification requirement)
+        2. Condition evaluation happens at runtime
+        3. Branch selection cannot be determined at compile-time
+        
+        Args:
+            statements: List of statements to analyze
+            
+        Returns:
+            True if any conditionals found in statements or sub-expressions
+        """
+        for statement in statements:
+            if self._statement_contains_conditionals(statement):
+                return True
+        return False
+
+    def _statement_contains_function_calls(self, statement: Dict) -> bool:
+        """
+        Check if a single statement contains function calls.
+        
+        Args:
+            statement: Statement AST node to analyze
+            
+        Returns:
+            True if statement contains function calls, False otherwise
+        """
+        stmt_type = statement.get("type")
+        
+        # Function call statements are direct function calls
+        if stmt_type == NodeType.FUNCTION_CALL_STATEMENT.value:
+            return True
+            
+        # Check expressions in declaration statements
+        if stmt_type in [NodeType.VAL_DECLARATION.value, NodeType.MUT_DECLARATION.value]:
+            value = statement.get("value")
+            if value and value != "undef":
+                return self._expression_contains_function_calls(value)
+                
+        # Check expressions in assign/assignment statements
+        elif stmt_type in [NodeType.ASSIGN_STATEMENT.value, NodeType.ASSIGNMENT_STATEMENT.value]:
+            value = statement.get("value")
+            if value:
+                return self._expression_contains_function_calls(value)
+                
+        # Check expressions in return statements
+        elif stmt_type == NodeType.RETURN_STATEMENT.value:
+            value = statement.get("value")
+            if value:
+                return self._expression_contains_function_calls(value)
+                
+        return False
+
+    def _statement_contains_conditionals(self, statement: Dict) -> bool:
+        """
+        Check if a single statement contains conditionals.
+        
+        Args:
+            statement: Statement AST node to analyze
+            
+        Returns:
+            True if statement contains conditionals, False otherwise
+        """
+        stmt_type = statement.get("type")
+        
+        # Direct conditional statements
+        if stmt_type == NodeType.CONDITIONAL_STATEMENT.value:
+            return True
+            
+        # Check expressions in declaration statements
+        if stmt_type in [NodeType.VAL_DECLARATION.value, NodeType.MUT_DECLARATION.value]:
+            value = statement.get("value")
+            if value and value != "undef":
+                return self._expression_contains_conditionals(value)
+                
+        # Check expressions in assign/assignment statements  
+        elif stmt_type in [NodeType.ASSIGN_STATEMENT.value, NodeType.ASSIGNMENT_STATEMENT.value]:
+            value = statement.get("value")
+            if value:
+                return self._expression_contains_conditionals(value)
+                
+        # Check expressions in return statements
+        elif stmt_type == NodeType.RETURN_STATEMENT.value:
+            value = statement.get("value")
+            if value:
+                return self._expression_contains_conditionals(value)
+                
+        return False
+
+    def _expression_contains_function_calls(self, expression: Dict) -> bool:
+        """
+        Recursively analyze expression for function calls.
+        
+        This performs deep analysis of expression trees to find any nested
+        function calls that would trigger runtime classification.
+        
+        Args:
+            expression: Expression AST node to analyze
+            
+        Returns:
+            True if expression contains function calls, False otherwise
+        """
+        expr_type = expression.get("type")
+        
+        # Direct function call expression
+        if expr_type == NodeType.FUNCTION_CALL.value:
+            return True
+            
+        # Binary operations: check both operands
+        elif expr_type == NodeType.BINARY_OPERATION.value:
+            left = expression.get("left")
+            right = expression.get("right")
+            if left and self._expression_contains_function_calls(left):
+                return True
+            if right and self._expression_contains_function_calls(right):
+                return True
+                
+        # Unary operations: check operand
+        elif expr_type == NodeType.UNARY_OPERATION.value:
+            operand = expression.get("operand")
+            if operand and self._expression_contains_function_calls(operand):
+                return True
+                
+        # Explicit conversions: check operand
+        elif expr_type == NodeType.EXPLICIT_CONVERSION_EXPRESSION.value:
+            operand = expression.get("expression")
+            if operand and self._expression_contains_function_calls(operand):
+                return True
+                
+        # Block expressions: recursively analyze (nested expression blocks)
+        elif expr_type == NodeType.BLOCK.value:
+            statements = expression.get("statements", [])
+            return self._contains_function_calls(statements)
+            
+        return False
+
+    def _expression_contains_conditionals(self, expression: Dict) -> bool:
+        """
+        Recursively analyze expression for conditionals.
+        
+        This performs deep analysis of expression trees to find any nested
+        conditionals that would trigger runtime classification.
+        
+        Args:
+            expression: Expression AST node to analyze
+            
+        Returns:
+            True if expression contains conditionals, False otherwise
+        """
+        expr_type = expression.get("type")
+        
+        # Note: Based on the grammar, conditionals are statements not expressions
+        # But we check anyway for future extensibility
+        
+        # Binary operations: check both operands
+        if expr_type == NodeType.BINARY_OPERATION.value:
+            left = expression.get("left")
+            right = expression.get("right")
+            if left and self._expression_contains_conditionals(left):
+                return True
+            if right and self._expression_contains_conditionals(right):
+                return True
+                
+        # Unary operations: check operand
+        elif expr_type == NodeType.UNARY_OPERATION.value:
+            operand = expression.get("operand")
+            if operand and self._expression_contains_conditionals(operand):
+                return True
+                
+        # Explicit conversions: check operand
+        elif expr_type == NodeType.EXPLICIT_CONVERSION_EXPRESSION.value:
+            operand = expression.get("expression")
+            if operand and self._expression_contains_conditionals(operand):
+                return True
+                
+        # Block expressions: recursively analyze (nested expression blocks)
+        elif expr_type == NodeType.BLOCK.value:
+            statements = expression.get("statements", [])
+            return self._contains_conditionals(statements)
+            
+        return False
+
+    # =========================================================================
+    # RUNTIME OPERATION CONTEXT VALIDATION (Session 2)
+    # =========================================================================
+
+    def _validate_runtime_block_context(self, statements: List[Dict], evaluability: BlockEvaluability) -> Optional[str]:
+        """
+        Validate that runtime blocks have appropriate context and generate helpful error messages.
+        
+        For Session 2, this provides detailed error messages explaining why blocks require
+        runtime context when they contain function calls or conditionals.
+        
+        Args:
+            statements: List of statements in the block
+            evaluability: Block evaluability classification
+            
+        Returns:
+            Error message string if validation fails, None if validation passes
+        """
+        if evaluability != BlockEvaluability.RUNTIME:
+            return None  # Compile-time blocks don't need validation
+            
+        # Generate helpful error messages explaining why runtime context is required
+        reasons = []
+        
+        # Check for function calls
+        if self._contains_function_calls(statements):
+            reasons.append("contains function calls (functions always return concrete types)")
+            
+        # Check for conditionals  
+        if self._contains_conditionals(statements):
+            reasons.append("contains conditional expressions (all conditionals are runtime per specification)")
+            
+        # Check for concrete variable usage
+        if self._has_runtime_variables(statements):
+            reasons.append("uses concrete type variables")
+            
+        if reasons:
+            reason_text = " and ".join(reasons)
+            return f"Runtime block requires explicit type context because it {reason_text}. " \
+                   f"Suggestion: Add explicit type annotation to the target variable."
+                   
+        return None
+
+    def _get_runtime_operation_reason(self, statements: List[Dict]) -> str:
+        """
+        Get a detailed reason why the block is classified as runtime.
+        
+        This helps generate specific error messages for different types of runtime operations.
+        
+        Args:
+            statements: List of statements in the block
+            
+        Returns:
+            Human-readable string explaining the runtime classification reason
+        """
+        reasons = []
+        
+        # Check for function calls
+        if self._contains_function_calls(statements):
+            reasons.append("Function calls detected (functions always return concrete types)")
+            
+        # Check for conditionals  
+        if self._contains_conditionals(statements):
+            reasons.append("Conditional expressions detected (all conditionals are runtime per CONDITIONAL_SYSTEM.md)")
+            
+        # Check for concrete variable usage
+        if self._has_runtime_variables(statements):
+            reasons.append("Concrete type variables detected (mixing comptime and concrete types)")
+            
+        if not reasons:
+            return "Unknown runtime operations detected"
+            
+        return ". ".join(reasons) + "."
