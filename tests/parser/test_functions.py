@@ -1,5 +1,5 @@
 """
-Test module for Function System parsing (Session 3)
+Test module for Function System parsing
 
 Comprehensive testing of function declaration and call parsing implementation.
 Tests all function syntax variations before semantic analysis.

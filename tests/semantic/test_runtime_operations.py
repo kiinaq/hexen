@@ -1,11 +1,11 @@
 """
-Tests for Session 2: Function Call & Conditional Detection and Runtime Classification
+Tests for Function Call & Conditional Detection and Runtime Classification
 
 Tests the enhanced block evaluability detection that classifies blocks containing
 function calls or conditionals as runtime evaluable.
 
-This is Session 2 of the implementation plan - adding detection for runtime operations
-that require explicit type context (function calls and conditionals).
+Covers detection for runtime operations that require explicit type context 
+(function calls and conditionals).
 """
 
 from src.hexen.parser import HexenParser  
@@ -13,31 +13,31 @@ from src.hexen.semantic.analyzer import SemanticAnalyzer
 from src.hexen.semantic.types import BlockEvaluability
 
 
-class TestSession2Infrastructure:
-    """Test that Session 2 runtime operation detection infrastructure is implemented"""
+class TestRuntimeOperationsInfrastructure:
+    """Test that runtime operation detection infrastructure is implemented"""
 
     def setup_method(self):
         self.parser = HexenParser()
         self.analyzer = SemanticAnalyzer()
 
     def test_runtime_operation_detection_methods_exist(self):
-        """Test that Session 2 runtime operation detection methods are available"""
+        """Test that Runtime Operations runtime operation detection methods are available"""
         block_analyzer = self.analyzer.block_analyzer
         
-        # Session 2: Runtime operation detection infrastructure
+        # Runtime Operations: Runtime operation detection infrastructure
         assert hasattr(block_analyzer, '_contains_runtime_operations')
         assert hasattr(block_analyzer, '_contains_function_calls')
         assert hasattr(block_analyzer, '_contains_conditionals')
         
-        # Session 2: Statement-level detection methods
+        # Runtime Operations: Statement-level detection methods
         assert hasattr(block_analyzer, '_statement_contains_function_calls')
         assert hasattr(block_analyzer, '_statement_contains_conditionals')
         
-        # Session 2: Expression-level detection methods
+        # Runtime Operations: Expression-level detection methods
         assert hasattr(block_analyzer, '_expression_contains_function_calls')
         assert hasattr(block_analyzer, '_expression_contains_conditionals')
         
-        # Session 2: Context validation methods (ready for Session 3)
+        # Runtime Operations: Context validation methods (ready for Comptime Preservation)
         assert hasattr(block_analyzer, '_validate_runtime_block_context')
         assert hasattr(block_analyzer, '_get_runtime_operation_reason')
 
@@ -50,7 +50,7 @@ class TestFunctionCallDetection:
         self.analyzer = SemanticAnalyzer()
 
     def test_function_call_in_expression_triggers_runtime(self):
-        """Test blocks with function calls analyze correctly (Session 2 infrastructure test)"""
+        """Test blocks with function calls analyze correctly (Runtime Operations infrastructure test)"""
         source = """
         func helper() : i32 = {
             return 42
@@ -67,7 +67,7 @@ class TestFunctionCallDetection:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         
-        # Session 2: Should analyze without errors (infrastructure doesn't break functionality)
+        # Runtime Operations: Should analyze without errors (infrastructure doesn't break functionality)
         assert errors == []
 
     def test_nested_function_calls_detected(self):
@@ -92,7 +92,7 @@ class TestFunctionCallDetection:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         
-        # Session 2: Should analyze without errors (infrastructure doesn't break functionality)
+        # Runtime Operations: Should analyze without errors (infrastructure doesn't break functionality)
         assert errors == []
 
     def test_function_call_in_binary_operation(self):
@@ -113,7 +113,7 @@ class TestFunctionCallDetection:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         
-        # Session 2: Should analyze without errors (infrastructure doesn't break functionality)
+        # Runtime Operations: Should analyze without errors (infrastructure doesn't break functionality)
         assert errors == []
 
     def test_function_call_in_assign_statement(self):
@@ -134,7 +134,7 @@ class TestFunctionCallDetection:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         
-        # Session 2: Should analyze without errors (infrastructure doesn't break functionality)
+        # Runtime Operations: Should analyze without errors (infrastructure doesn't break functionality)
         assert errors == []
 
     def test_function_call_in_return_statement(self):
@@ -155,7 +155,7 @@ class TestFunctionCallDetection:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         
-        # Session 2: Should analyze without errors (infrastructure doesn't break functionality)
+        # Runtime Operations: Should analyze without errors (infrastructure doesn't break functionality)
         assert errors == []
 
     def test_function_call_statement_detected(self):
@@ -176,7 +176,7 @@ class TestFunctionCallDetection:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         
-        # Session 2: Should analyze without errors (infrastructure doesn't break functionality)
+        # Runtime Operations: Should analyze without errors (infrastructure doesn't break functionality)
         assert errors == []
 
 
@@ -188,7 +188,7 @@ class TestConditionalDetection:
         self.analyzer = SemanticAnalyzer()
 
     def test_if_statement_triggers_runtime(self):
-        """Test blocks with if statements analyze correctly (Session 2 infrastructure test)"""
+        """Test blocks with if statements analyze correctly (Runtime Operations infrastructure test)"""
         source = """
         func test() : i32 = {
             val result = {
@@ -204,7 +204,7 @@ class TestConditionalDetection:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         
-        # Session 2: Should analyze without errors (infrastructure doesn't break functionality)
+        # Runtime Operations: Should analyze without errors (infrastructure doesn't break functionality)
         assert errors == []
 
     def test_if_else_chain_detected(self):
@@ -228,7 +228,7 @@ class TestConditionalDetection:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         
-        # Session 2: Should analyze without errors (infrastructure doesn't break functionality)
+        # Runtime Operations: Should analyze without errors (infrastructure doesn't break functionality)
         assert errors == []
 
     def test_nested_conditionals_detected(self):
@@ -251,7 +251,7 @@ class TestConditionalDetection:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         
-        # Session 2: Should analyze without errors (infrastructure doesn't break functionality)
+        # Runtime Operations: Should analyze without errors (infrastructure doesn't break functionality)
         assert errors == []
 
 
@@ -285,7 +285,7 @@ class TestCombinedRuntimeOperations:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         
-        # Session 2: Should analyze without errors (infrastructure doesn't break functionality)
+        # Runtime Operations: Should analyze without errors (infrastructure doesn't break functionality)
         assert errors == []
 
     def test_function_call_in_conditional_condition(self):
@@ -309,7 +309,7 @@ class TestCombinedRuntimeOperations:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         
-        # Session 2: Should analyze without errors (infrastructure doesn't break functionality)
+        # Runtime Operations: Should analyze without errors (infrastructure doesn't break functionality)
         assert errors == []
 
     def test_complex_runtime_operation_combinations(self):
@@ -340,7 +340,7 @@ class TestCombinedRuntimeOperations:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         
-        # Session 2: Should analyze without errors (infrastructure doesn't break functionality)
+        # Runtime Operations: Should analyze without errors (infrastructure doesn't break functionality)
         assert errors == []
 
 
@@ -372,38 +372,38 @@ class TestRuntimeOperationValidation:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         
-        # Session 2: Should analyze without errors (infrastructure doesn't break functionality)
+        # Runtime Operations: Should analyze without errors (infrastructure doesn't break functionality)
         assert errors == []
         
         # Test that validation infrastructure exists and can be used
         block_analyzer = self.analyzer.block_analyzer
         
-        # Test validation method with empty statements (safe for Session 2)
+        # Test validation method with empty statements (safe for Runtime Operations)
         validation_result = block_analyzer._validate_runtime_block_context([], BlockEvaluability.COMPILE_TIME)
         assert validation_result is None  # Compile-time blocks don't need validation
         
-        # Test reason method with empty statements (safe for Session 2)
+        # Test reason method with empty statements (safe for Runtime Operations)
         reason = block_analyzer._get_runtime_operation_reason([])
         assert isinstance(reason, str)  # Should return a string
 
 
-class TestSession2FoundationComplete:
-    """Test that Session 2 foundation is complete and ready for Session 3"""
+class TestRuntimeOperationsFoundationComplete:
+    """Test that Runtime Operations foundation is complete and ready for Comptime Preservation"""
 
     def setup_method(self):
         self.parser = HexenParser()
         self.analyzer = SemanticAnalyzer()
 
     def test_session2_infrastructure_ready_for_session3(self):
-        """Test that Session 2 infrastructure is complete and ready for Session 3"""
+        """Test that Runtime Operations infrastructure is complete and ready for Comptime Preservation"""
         block_analyzer = self.analyzer.block_analyzer
         
-        # Session 1 infrastructure still exists
+        # Evaluability Infrastructure infrastructure still exists
         assert hasattr(block_analyzer, '_classify_block_evaluability')
         assert hasattr(block_analyzer, '_has_comptime_only_operations')
         assert hasattr(block_analyzer, '_has_runtime_variables')
         
-        # Session 2 infrastructure is complete
+        # Runtime Operations infrastructure is complete
         assert hasattr(block_analyzer, '_contains_runtime_operations')
         assert hasattr(block_analyzer, '_contains_function_calls')
         assert hasattr(block_analyzer, '_contains_conditionals')
@@ -412,11 +412,11 @@ class TestSession2FoundationComplete:
         assert hasattr(block_analyzer, '_expression_contains_function_calls')
         assert hasattr(block_analyzer, '_expression_contains_conditionals')
         
-        # Session 2 validation infrastructure ready for Session 3
+        # Runtime Operations validation infrastructure ready for Comptime Preservation
         assert hasattr(block_analyzer, '_validate_runtime_block_context')
         assert hasattr(block_analyzer, '_get_runtime_operation_reason')
         
-        # Enhanced finalization method from Session 1
+        # Enhanced finalization method from Evaluability Infrastructure
         assert hasattr(block_analyzer, '_finalize_expression_block_with_evaluability')
         
         # BlockEvaluability enum ready
@@ -424,8 +424,8 @@ class TestSession2FoundationComplete:
         assert BlockEvaluability.RUNTIME
 
     def test_no_regressions_from_session2_changes(self):
-        """Verify that Session 2 doesn't break any existing functionality"""
-        # Test that complex Session 1 functionality still works with Session 2 enhancements
+        """Verify that Runtime Operations doesn't break any existing functionality"""
+        # Test that complex Evaluability Infrastructure functionality still works with Runtime Operations enhancements
         source = """
         func test() : i32 = {
             val comptime_only = {
@@ -448,5 +448,5 @@ class TestSession2FoundationComplete:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         
-        # Session 2: All Session 1 functionality should continue working
+        # Runtime Operations: All Evaluability Infrastructure functionality should continue working
         assert errors == []

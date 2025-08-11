@@ -335,7 +335,7 @@ class DeclarationAnalyzer:
                     self._error(f"Cannot infer type for variable '{name}'", node)
                     return
 
-            # SESSION 3: Preserve comptime types for val declarations (flexibility)
+            # Preserve comptime types for val declarations (flexibility)
             # Per TYPE_SYSTEM.md: val declarations preserve comptime types for later adaptation
             var_type = (
                 inferred_type  # ✅ PRESERVE comptime types for maximum flexibility

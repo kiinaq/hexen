@@ -1,19 +1,19 @@
 """
 Semantic tests for conditional statements and expressions.
 
-Tests Session 2: Statement Context Analysis
+Tests Statement Context Analysis
 - Conditional statement analysis
 - Boolean condition type checking  
 - Scope management for branches
 - Integration with function bodies
 
-Tests Session 3: Expression Context Analysis  
+Tests Expression Context Analysis  
 - Conditional expression analysis
 - Assign/return validation in branches
 - Type unification across branches
 - Integration with expression blocks and comptime types
 
-Tests Session 4: Type System Integration
+Tests Type System Integration
 - Runtime treatment of all conditionals with comptime type handling
 - Target type context propagation to branches and parameter contexts  
 - Explicit conversion requirements for mixed concrete types
@@ -394,7 +394,7 @@ class TestAdvancedPatterns:
 
 
 class TestConditionalExpressions:
-    """Test conditional expressions in expression context - Session 3."""
+    """Test conditional expressions in expression context."""
 
     def test_basic_conditional_expression(self):
         """Test basic conditional expression with assign statements."""

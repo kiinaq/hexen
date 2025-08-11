@@ -1,15 +1,14 @@
 """
-Tests for Session 1: Block Evaluability Detection Infrastructure
+Tests for Block Evaluability Detection Infrastructure
 
 Tests the foundation of the enhanced unified block system that classifies
 blocks as compile-time vs runtime evaluable for type preservation.
 
-This is Session 1 of the implementation plan - basic detection without
-function calls and conditionals (those will be added in Session 2).
+This covers basic detection without function calls and conditionals.
 
-Note: Session 1 focuses on infrastructure implementation while maintaining
-existing behavior. Classification logic works during analysis but internal
-methods cannot be tested outside of analysis scope.
+The infrastructure implementation maintains existing behavior. Classification 
+logic works during analysis but internal methods cannot be tested outside 
+of analysis scope.
 """
 
 from src.hexen.parser import HexenParser  
@@ -18,7 +17,7 @@ from src.hexen.semantic.types import BlockEvaluability
 
 
 class TestSession1Infrastructure:
-    """Test that Session 1 infrastructure is implemented without breaking existing behavior"""
+    """Test that Block Evaluability infrastructure is implemented without breaking existing behavior"""
 
     def setup_method(self):
         self.parser = HexenParser()
@@ -54,7 +53,7 @@ class TestSession1Infrastructure:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         
-        # Session 1: Should analyze without errors (infrastructure doesn't break functionality)
+        # Block Evaluability: Should analyze without errors (infrastructure doesn't break functionality)
         assert errors == []
 
     def test_concrete_variable_blocks_analyze_correctly(self):
@@ -72,7 +71,7 @@ class TestSession1Infrastructure:
         ast = self.parser.parse(source)  
         errors = self.analyzer.analyze(ast)
         
-        # Session 1: Should analyze without errors (infrastructure doesn't break functionality)
+        # Block Evaluability: Should analyze without errors (infrastructure doesn't break functionality)
         assert errors == []
 
     def test_mixed_operation_blocks_analyze_correctly(self):
@@ -91,7 +90,7 @@ class TestSession1Infrastructure:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         
-        # Session 1: Should analyze without errors (infrastructure doesn't break functionality)
+        # Block Evaluability: Should analyze without errors (infrastructure doesn't break functionality)
         assert errors == []
 
     def test_complex_comptime_arithmetic_blocks_analyze_correctly(self):
@@ -113,7 +112,7 @@ class TestSession1Infrastructure:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         
-        # Session 1: Should analyze without errors (infrastructure doesn't break functionality)
+        # Block Evaluability: Should analyze without errors (infrastructure doesn't break functionality)
         assert errors == []
 
     def test_explicit_type_annotation_blocks_analyze_correctly(self):
@@ -130,7 +129,7 @@ class TestSession1Infrastructure:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         
-        # Session 1: Should analyze without errors (infrastructure doesn't break functionality)
+        # Block Evaluability: Should analyze without errors (infrastructure doesn't break functionality)
         assert errors == []
 
     def test_nested_expression_blocks_analyze_correctly(self):
@@ -151,7 +150,7 @@ class TestSession1Infrastructure:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         
-        # Session 1: Should analyze without errors (infrastructure doesn't break functionality)
+        # Block Evaluability: Should analyze without errors (infrastructure doesn't break functionality)
         assert errors == []
 
     def test_various_literal_types_analyze_correctly(self):
@@ -175,7 +174,7 @@ class TestSession1Infrastructure:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         
-        # Session 1: Should analyze without errors (infrastructure doesn't break functionality)
+        # Block Evaluability: Should analyze without errors (infrastructure doesn't break functionality)
         assert errors == []
 
     def test_binary_operations_analyze_correctly(self):
@@ -193,7 +192,7 @@ class TestSession1Infrastructure:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         
-        # Session 1: Should analyze without errors (infrastructure doesn't break functionality)
+        # Block Evaluability: Should analyze without errors (infrastructure doesn't break functionality)
         assert errors == []
 
     def test_explicit_conversions_analyze_correctly(self):
@@ -209,7 +208,7 @@ class TestSession1Infrastructure:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         
-        # Session 1: Should analyze without errors (infrastructure doesn't break functionality)
+        # Block Evaluability: Should analyze without errors (infrastructure doesn't break functionality)
         assert errors == []
 
     def test_concrete_type_usage_analyzes_correctly(self):
@@ -232,7 +231,7 @@ class TestSession1Infrastructure:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         
-        # Session 1: Should analyze without errors (infrastructure doesn't break functionality)
+        # Block Evaluability: Should analyze without errors (infrastructure doesn't break functionality)
         assert errors == []
 
     def test_mut_variables_analyze_correctly(self):
@@ -248,7 +247,7 @@ class TestSession1Infrastructure:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         
-        # Session 1: Should analyze without errors (infrastructure doesn't break functionality)
+        # Block Evaluability: Should analyze without errors (infrastructure doesn't break functionality)
         assert errors == []
 
     def test_comptime_variable_references_analyze_correctly(self):
@@ -265,7 +264,7 @@ class TestSession1Infrastructure:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         
-        # Session 1: Should analyze without errors (infrastructure doesn't break functionality)
+        # Block Evaluability: Should analyze without errors (infrastructure doesn't break functionality)
         assert errors == []
 
     def test_simple_blocks_analyze_correctly(self):
@@ -281,12 +280,12 @@ class TestSession1Infrastructure:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         
-        # Session 1: Should analyze without errors (infrastructure doesn't break functionality)
+        # Block Evaluability: Should analyze without errors (infrastructure doesn't break functionality)
         assert errors == []
 
     def test_session_1_maintains_existing_behavior(self):
-        """Test that existing block behavior is preserved in Session 1"""
-        # This is critical - Session 1 should not break existing functionality
+        """Test that existing block behavior is preserved in Block Evaluability"""
+        # This is critical - Block Evaluability should not break existing functionality
         source = """
         func test() : i32 = {
             val result = {
@@ -306,20 +305,20 @@ class TestSession1Infrastructure:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         
-        # Session 1: Should maintain all existing behavior
+        # Block Evaluability: Should maintain all existing behavior
         assert errors == []
 
 
 class TestSession1FoundationComplete:
-    """Test that Session 1 foundation is complete and ready for Session 2"""
+    """Test that Block Evaluability foundation is complete and ready for Runtime Operations"""
 
     def setup_method(self):
         self.parser = HexenParser()
         self.analyzer = SemanticAnalyzer()
 
     def test_infrastructure_ready_for_session_2(self):
-        """Test that infrastructure is ready for Session 2 enhancements"""
-        # Verify all required Session 1 components exist
+        """Test that infrastructure is ready for Runtime Operations enhancements"""
+        # Verify all required Block Evaluability components exist
         assert hasattr(self.analyzer, 'block_analyzer')
         block_analyzer = self.analyzer.block_analyzer
         
@@ -346,7 +345,7 @@ class TestSession1FoundationComplete:
         assert BlockEvaluability.RUNTIME
         
     def test_no_regressions_in_existing_tests(self):
-        """Verify that Session 1 doesn't break any existing functionality"""
+        """Verify that Block Evaluability doesn't break any existing functionality"""
         # This test passes if the complete test suite passes
         # (which we verified - 765 existing tests still pass)
         

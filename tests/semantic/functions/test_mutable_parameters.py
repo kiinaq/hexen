@@ -2,7 +2,7 @@
 Comprehensive tests for mutable parameter functionality.
 
 Tests parameter reassignment validation, mutability checking, and error messages
-as specified in FUNCTION_SYSTEM.md Session 10.
+as specified in FUNCTION_SYSTEM.md.
 """
 
 from src.hexen.parser import HexenParser

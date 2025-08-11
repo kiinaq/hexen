@@ -2,7 +2,7 @@
 Test module for comptime type parsing
 
 Tests that numeric literals generate correct comptime AST nodes.
-This validates Session 2 implementation: parser generates comptime_int
+This validates parser implementation: parser generates comptime_int
 and comptime_float nodes for the semantic analyzer's type system.
 """
 

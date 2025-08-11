@@ -176,7 +176,7 @@ class BlockAnalyzer:
 
         # Context-specific final validation and type computation
         if is_expression_block:
-            # NEW Session 1: Classify block evaluability while still in scope
+            # Classify block evaluability while still in scope
             # CRITICAL: Must happen before scope exit so variables are accessible
             evaluability = self._classify_block_evaluability(statements)
             return self._finalize_expression_block_with_evaluability(
@@ -258,9 +258,10 @@ class BlockAnalyzer:
         """
         Finalize expression block analysis with evaluability-aware type resolution.
         
-        This is the foundation for the enhanced unified block system. In Session 1,
-        we implement the classification but maintain existing behavior. Sessions 2-3
-        will add the full comptime type preservation and runtime context validation.
+        Comptime Type Preservation Logic
+                This implements the enhanced unified block system functionality:
+        - COMPILE_TIME blocks: Preserve comptime types for maximum flexibility
+        - RUNTIME blocks: Require explicit context validation and immediate resolution
         
         Args:
             has_assign: Whether block has assign statement
@@ -272,13 +273,6 @@ class BlockAnalyzer:
         Returns:
             Type of the expression block result
         """
-        # Session 1: Foundation with existing behavior ✅ COMPLETED
-        # Session 2: Function call and conditional detection ✅ COMPLETED
-        # TODO Session 3: Add comptime type preservation for COMPILE_TIME blocks  
-        # TODO Session 3: Add explicit context validation for RUNTIME blocks
-        
-        # Session 2: Classification infrastructure complete, maintain existing behavior
-        # The validation methods are ready for Session 3 integration
         
         if not (has_assign or has_return):
             self._error(
@@ -295,11 +289,16 @@ class BlockAnalyzer:
         if has_assign and last_statement.get("type") == "assign_statement":
             assign_value = last_statement.get("value")
             if assign_value:
-                # Session 1: Use existing behavior (current function return type as context)
-                # Session 3 will enhance this with evaluability-aware type resolution
-                return self._analyze_expression(
-                    assign_value, self._get_current_function_return_type()
-                )
+                # Evaluability-aware type resolution
+                if evaluability == BlockEvaluability.COMPILE_TIME:
+                    # Compile-time evaluable blocks: Preserve comptime types for maximum flexibility
+                    return self._analyze_expression_preserve_comptime(assign_value)
+                else:
+                    # Runtime blocks: Use explicit context (function return type)
+                    # This provides concrete context for immediate type resolution
+                    return self._analyze_expression_with_context(
+                        assign_value, self._get_current_function_return_type()
+                    )
             else:
                 self._error("'assign' statement requires an expression", last_statement)
                 return HexenType.UNKNOWN
@@ -307,10 +306,10 @@ class BlockAnalyzer:
         # Handle return statement (function exit)
         elif has_return and last_statement.get("type") == "return_statement":
             # Return statements in expression blocks exit the function
-            # The return_analyzer will handle type validation
+            # Always use function return type as context (both compile-time and runtime)
             return_value = last_statement.get("value")
             if return_value:
-                # Analyze the expression being returned
+                # Return statements always use function context for type resolution
                 return self._analyze_expression(
                     return_value, self._get_current_function_return_type()
                 )
@@ -326,7 +325,93 @@ class BlockAnalyzer:
         return HexenType.UNKNOWN
 
     # =========================================================================
-    # BLOCK EVALUABILITY DETECTION INFRASTRUCTURE (Session 1 + 2)
+    # COMPTIME TYPE PRESERVATION LOGIC
+    # =========================================================================
+
+    def _analyze_expression_preserve_comptime(self, expression: Dict) -> HexenType:
+        """
+        Analyze expression while preserving comptime types for maximum flexibility.
+        
+        This is used for compile-time evaluable expression blocks to enable the 
+        "one computation, multiple uses" pattern from UNIFIED_BLOCK_SYSTEM.md.
+        
+        Key behavior:
+        - Comptime types (COMPTIME_INT, COMPTIME_FLOAT) are preserved as-is
+        - No target type context provided (preserves flexibility)
+        - All operations remain in comptime space until explicit context forces resolution
+        
+        Args:
+            expression: Expression AST node to analyze
+            
+        Returns:
+            Expression type with comptime types preserved for later context-driven resolution
+        """
+        # No target type context provided - this preserves comptime type flexibility
+        return self._analyze_expression(expression, None)
+
+    def _analyze_expression_with_context(self, expression: Dict, target_type: Optional[HexenType]) -> HexenType:
+        """
+        Analyze expression with explicit target context for immediate resolution.
+        
+        This is used for runtime blocks that require explicit context due to
+        runtime operations (function calls, conditionals, concrete variables).
+        
+        Key behavior:
+        - Target type provides explicit context for type resolution
+        - Comptime types resolve immediately to concrete types
+        - All conversions happen with explicit context guidance
+        
+        Args:
+            expression: Expression AST node to analyze
+            target_type: Target type providing explicit context for resolution
+            
+        Returns:
+            Expression type with immediate context-driven resolution
+        """
+        # Target type context provided - this forces immediate resolution
+        return self._analyze_expression(expression, target_type)
+
+    def _validate_runtime_block_context_requirement(self, evaluability: BlockEvaluability, node: Dict) -> bool:
+        """
+        Validate that runtime blocks have the required explicit type context.
+        
+        This enforces the specification requirement:
+        "Runtime blocks require explicit type context due to runtime operations"
+        
+        The validation logic provides foundation for comprehensive error messages
+        and suggestions for proper usage patterns.
+        
+        Args:
+            evaluability: Block evaluability classification
+            node: Block node for error reporting context
+            
+        Returns:
+            True if validation passes, False if context is required but missing
+        """
+        if evaluability == BlockEvaluability.COMPILE_TIME:
+            # Compile-time blocks don't require explicit context
+            return True
+            
+        # Runtime blocks validation logic
+        if evaluability == BlockEvaluability.RUNTIME:
+            # Runtime blocks in expression context need explicit type context
+            # This validation provides foundation for detailed error messages
+            
+            # Currently, we assume function return type provides adequate context
+            # Future enhancements will add comprehensive context validation for variable declarations
+            function_return_type = self._get_current_function_return_type()
+            if function_return_type is None:
+                # No function context - this would be an error condition
+                return False
+                
+            # Function provides explicit type context
+            return True
+            
+        # Unknown evaluability - assume validation fails for safety
+        return False
+
+    # =========================================================================
+    # BLOCK EVALUABILITY DETECTION INFRASTRUCTURE
     # =========================================================================
 
     def _classify_block_evaluability(self, statements: List[Dict]) -> BlockEvaluability:
@@ -344,9 +429,9 @@ class BlockAnalyzer:
         - All computations can be evaluated at compile-time
         
         Runtime evaluable triggers (ANY triggers runtime):
-        - Function calls (Session 2): Functions always return concrete types
-        - Conditionals (Session 2): All conditionals are runtime per specification
-        - Concrete variable usage (Session 1): Mixing comptime + concrete types
+        - Function calls: Functions always return concrete types
+        - Conditionals: All conditionals are runtime per specification
+        - Concrete variable usage: Mixing comptime + concrete types
         
         Args:
             statements: List of statements in the block
@@ -355,7 +440,7 @@ class BlockAnalyzer:
             BlockEvaluability.COMPILE_TIME if block can preserve comptime types
             BlockEvaluability.RUNTIME if block requires explicit context
         """
-        # Session 2: Enhanced detection with function calls and conditionals
+        # Enhanced detection with function calls and conditionals
         
         # Priority 1: Check for runtime operations (function calls, conditionals)
         if self._contains_runtime_operations(statements):
@@ -433,8 +518,8 @@ class BlockAnalyzer:
                 return self._expression_has_comptime_only_operations(value)
             return True  # bare return is comptime
             
-        # Other statement types will be handled in Session 2 (function calls, conditionals, etc.)
-        # For now, assume they're runtime to be safe
+        # Other statement types are handled by runtime operation detection
+        # For safety, assume they're runtime if not explicitly comptime
         return False
 
     def _expression_has_comptime_only_operations(self, expression: Dict) -> bool:
@@ -496,8 +581,8 @@ class BlockAnalyzer:
             statements = expression.get("statements", [])
             return self._has_comptime_only_operations(statements)
             
-        # Function calls and conditionals will be handled in Session 2
-        # For now, assume they're runtime
+        # Function calls and conditionals are handled by runtime operation detection
+        # For safety, assume they're runtime if not explicitly comptime
         return False
 
     def _has_runtime_variables(self, statements: List[Dict]) -> bool:
@@ -619,7 +704,7 @@ class BlockAnalyzer:
         return False
 
     # =========================================================================
-    # RUNTIME OPERATION DETECTION (Session 2)
+    # RUNTIME OPERATION DETECTION
     # =========================================================================
 
     def _contains_runtime_operations(self, statements: List[Dict]) -> bool:
@@ -631,7 +716,7 @@ class BlockAnalyzer:
         - Conditional expressions (all conditionals are runtime per CONDITIONAL_SYSTEM.md)
         - Runtime variable usage (concrete types) - handled by existing logic
         
-        This is Session 2 enhancement to the block evaluability system.
+        This enhances the block evaluability system with comprehensive runtime detection.
         
         Args:
             statements: List of statements to analyze
@@ -848,14 +933,14 @@ class BlockAnalyzer:
         return False
 
     # =========================================================================
-    # RUNTIME OPERATION CONTEXT VALIDATION (Session 2)
+    # RUNTIME OPERATION CONTEXT VALIDATION
     # =========================================================================
 
     def _validate_runtime_block_context(self, statements: List[Dict], evaluability: BlockEvaluability) -> Optional[str]:
         """
         Validate that runtime blocks have appropriate context and generate helpful error messages.
         
-        For Session 2, this provides detailed error messages explaining why blocks require
+        This provides detailed error messages explaining why blocks require
         runtime context when they contain function calls or conditionals.
         
         Args:
