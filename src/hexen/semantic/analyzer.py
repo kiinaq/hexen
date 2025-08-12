@@ -21,6 +21,7 @@ from .block_analyzer import BlockAnalyzer
 from .expression_analyzer import ExpressionAnalyzer
 from .conversion_analyzer import ConversionAnalyzer
 from .function_analyzer import FunctionAnalyzer
+from .comptime_analyzer import ComptimeAnalyzer
 
 
 class SemanticAnalyzer:
@@ -49,6 +50,9 @@ class SemanticAnalyzer:
         # Context tracking for unified block concept
         self.block_context: List[str] = []  # Track: "function", "expression", etc.
 
+        # Initialize comptime analyzer first (needed by other analyzers)
+        self.comptime_analyzer = ComptimeAnalyzer(self.symbol_table)
+
         # Initialize all specialized analyzers
         self._initialize_analyzers()
 
@@ -58,6 +62,7 @@ class SemanticAnalyzer:
         self.binary_ops = BinaryOpsAnalyzer(
             error_callback=self._error,
             analyze_expression_callback=self._analyze_expression,
+            comptime_analyzer=self.comptime_analyzer,
         )
 
         # Initialize unary operations analyzer with callbacks
@@ -87,6 +92,7 @@ class SemanticAnalyzer:
             clear_function_context_callback=self._clear_function_context,
             get_current_scope_callback=self._get_current_scope,
             symbol_table=self.symbol_table,
+            comptime_analyzer=self.comptime_analyzer,
         )
 
         # Initialize assignment analyzer with callbacks
@@ -94,6 +100,7 @@ class SemanticAnalyzer:
             error_callback=self._error,
             analyze_expression_callback=self._analyze_expression,
             lookup_symbol_callback=self.symbol_table.lookup_symbol,
+            comptime_analyzer=self.comptime_analyzer,
             is_parameter_callback=self.symbol_table.is_parameter,
             get_parameter_info_callback=self.symbol_table.get_parameter_info,
         )
@@ -104,6 +111,7 @@ class SemanticAnalyzer:
             analyze_expression_callback=self._analyze_expression,
             get_block_context_callback=lambda: self.block_context,
             get_current_function_return_type_callback=lambda: self.current_function_return_type,
+            comptime_analyzer=self.comptime_analyzer,
         )
 
         # Initialize conversion analyzer with callbacks

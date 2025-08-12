@@ -37,6 +37,7 @@ class ReturnAnalyzer:
         analyze_expression_callback: Callable[[Dict, Optional[HexenType]], HexenType],
         get_block_context_callback: Callable[[], List[str]],
         get_current_function_return_type_callback: Callable[[], Optional[HexenType]],
+        comptime_analyzer,
     ):
         """
         Initialize the return analyzer.
@@ -46,6 +47,7 @@ class ReturnAnalyzer:
             analyze_expression_callback: Function to analyze expressions
             get_block_context_callback: Function to get current block context stack
             get_current_function_return_type_callback: Function to get current function return type
+            comptime_analyzer: ComptimeAnalyzer instance for comptime type operations
         """
         self._error = error_callback
         self._analyze_expression = analyze_expression_callback
@@ -53,6 +55,7 @@ class ReturnAnalyzer:
         self._get_current_function_return_type = (
             get_current_function_return_type_callback
         )
+        self.comptime_analyzer = comptime_analyzer
 
     def analyze_return_statement(self, node: Dict) -> None:
         """
@@ -170,15 +173,10 @@ class ReturnAnalyzer:
 
             # Check for literal overflow before type coercion
             if return_type in {HexenType.COMPTIME_INT, HexenType.COMPTIME_FLOAT}:
-                from .type_util import (
-                    extract_literal_info,
-                    validate_comptime_literal_coercion,
-                )
-
-                literal_value, source_text = extract_literal_info(value)
+                literal_value, source_text = self.comptime_analyzer.extract_literal_info(value)
                 if literal_value is not None:
                     try:
-                        validate_comptime_literal_coercion(
+                        self.comptime_analyzer.validate_comptime_literal_coercion(
                             literal_value,
                             return_type,
                             expected_return_type,

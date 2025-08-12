@@ -23,8 +23,6 @@ from .type_util import (
     parse_type,
     can_coerce,
     is_precision_loss_operation,
-    validate_comptime_literal_coercion,
-    extract_literal_info,
 )
 
 
@@ -53,6 +51,7 @@ class DeclarationAnalyzer:
         clear_function_context_callback: Callable[[], None],
         get_current_scope_callback: Callable[[], dict],
         symbol_table: SymbolTable,
+        comptime_analyzer,
     ):
         """
         Initialize the declaration analyzer.
@@ -67,6 +66,7 @@ class DeclarationAnalyzer:
             clear_function_context_callback: Function to clear function context
             get_current_scope_callback: Function to get current scope
             symbol_table: Direct access to symbol table for function management
+            comptime_analyzer: ComptimeAnalyzer instance for comptime type operations
         """
         self._error = error_callback
         self._analyze_expression = analyze_expression_callback
@@ -77,6 +77,7 @@ class DeclarationAnalyzer:
         self._clear_function_context = clear_function_context_callback
         self._get_current_scope = get_current_scope_callback
         self.symbol_table = symbol_table
+        self.comptime_analyzer = comptime_analyzer
 
     def analyze_declaration(self, node: Dict) -> None:
         """
@@ -275,10 +276,10 @@ class DeclarationAnalyzer:
 
                     # Check for literal overflow before type coercion
                     if value_type in {HexenType.COMPTIME_INT, HexenType.COMPTIME_FLOAT}:
-                        literal_value, source_text = extract_literal_info(value)
+                        literal_value, source_text = self.comptime_analyzer.extract_literal_info(value)
                         if literal_value is not None:
                             try:
-                                validate_comptime_literal_coercion(
+                                self.comptime_analyzer.validate_comptime_literal_coercion(
                                     literal_value, value_type, var_type, source_text
                                 )
                             except TypeError as e:

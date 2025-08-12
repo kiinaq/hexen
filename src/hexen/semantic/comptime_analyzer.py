@@ -11,12 +11,19 @@ This module provides:
 - Runtime variable usage analysis
 """
 
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union, Any
 
 from ..ast_nodes import NodeType
-from .types import HexenType, BlockEvaluability
+from .types import HexenType, BlockEvaluability, Mutability
 from .symbol_table import SymbolTable
-from .type_util import is_concrete_type
+from .type_util import (
+    is_concrete_type, 
+    is_numeric_type, 
+    is_float_type, 
+    is_integer_type,
+    validate_literal_range,
+    TYPE_RANGES
+)
 
 
 class ComptimeAnalyzer:
@@ -70,6 +77,472 @@ class ComptimeAnalyzer:
             True if explicit context is required for immediate resolution
         """
         return evaluability == BlockEvaluability.RUNTIME
+    
+    # =========================================================================
+    # CENTRALIZED COMPTIME TYPE OPERATIONS
+    # =========================================================================
+    
+    def is_comptime_type(self, type_: HexenType) -> bool:
+        """
+        Check if type is a comptime type (COMPTIME_INT or COMPTIME_FLOAT).
+        
+        Args:
+            type_: The type to check
+            
+        Returns:
+            True if type is comptime (COMPTIME_INT or COMPTIME_FLOAT)
+        """
+        return type_ in {HexenType.COMPTIME_INT, HexenType.COMPTIME_FLOAT}
+    
+    def is_mixed_comptime_operation(self, left_type: HexenType, right_type: HexenType) -> bool:
+        """
+        Detect operations mixing comptime and concrete types.
+        
+        Args:
+            left_type: Left operand type
+            right_type: Right operand type
+            
+        Returns:
+            True if operation mixes comptime and concrete types
+        """
+        left_is_comptime = self.is_comptime_type(left_type)
+        right_is_comptime = self.is_comptime_type(right_type)
+        
+        # Mixed if exactly one operand is comptime
+        return left_is_comptime != right_is_comptime
+    
+    def has_comptime_operands(self, expression: Dict) -> bool:
+        """
+        Check if expression contains any comptime operands.
+        
+        Args:
+            expression: Expression AST node to analyze
+            
+        Returns:
+            True if expression contains comptime operands
+        """
+        expr_type = expression.get("type")
+        
+        # Direct comptime literals
+        if expr_type in [NodeType.COMPTIME_INT.value, NodeType.COMPTIME_FLOAT.value]:
+            return True
+            
+        # Binary operations: check both operands
+        elif expr_type == NodeType.BINARY_OPERATION.value:
+            left = expression.get("left")
+            right = expression.get("right")
+            if left and self.has_comptime_operands(left):
+                return True
+            if right and self.has_comptime_operands(right):
+                return True
+                
+        # Unary operations: check operand
+        elif expr_type == NodeType.UNARY_OPERATION.value:
+            operand = expression.get("operand")
+            if operand and self.has_comptime_operands(operand):
+                return True
+                
+        # Variable references: check if variable has comptime type
+        elif expr_type == NodeType.IDENTIFIER.value:
+            var_name = expression.get("name")
+            if var_name:
+                symbol_info = self.symbol_table.lookup_symbol(var_name)
+                if symbol_info and self.is_comptime_type(symbol_info.type):
+                    return True
+                    
+        return False
+    
+    def unify_comptime_types(self, types: List[HexenType]) -> Optional[HexenType]:
+        """
+        Unify multiple comptime types following promotion rules.
+        
+        Args:
+            types: List of types to unify
+            
+        Returns:
+            Unified comptime type or None if unification not possible
+        """
+        if not types:
+            return None
+            
+        # Filter to only comptime types
+        comptime_types = [t for t in types if self.is_comptime_type(t)]
+        
+        if not comptime_types:
+            return None
+            
+        # All comptime_int -> comptime_int
+        if all(t == HexenType.COMPTIME_INT for t in comptime_types):
+            return HexenType.COMPTIME_INT
+            
+        # All comptime_float -> comptime_float  
+        if all(t == HexenType.COMPTIME_FLOAT for t in comptime_types):
+            return HexenType.COMPTIME_FLOAT
+            
+        # Mixed comptime types -> comptime_float (promotion rule)
+        if (HexenType.COMPTIME_INT in comptime_types and 
+            HexenType.COMPTIME_FLOAT in comptime_types):
+            return HexenType.COMPTIME_FLOAT
+            
+        return None
+    
+    def get_comptime_promotion_result(self, left_type: HexenType, right_type: HexenType) -> HexenType:
+        """
+        Get promotion result for comptime types (int + float = float).
+        
+        Args:
+            left_type: Left operand type
+            right_type: Right operand type
+            
+        Returns:
+            Promoted comptime type
+        """
+        # Both comptime_int -> comptime_int
+        if left_type == HexenType.COMPTIME_INT and right_type == HexenType.COMPTIME_INT:
+            return HexenType.COMPTIME_INT
+            
+        # Both comptime_float -> comptime_float
+        if left_type == HexenType.COMPTIME_FLOAT and right_type == HexenType.COMPTIME_FLOAT:
+            return HexenType.COMPTIME_FLOAT
+            
+        # Mixed comptime types -> comptime_float (promotion)
+        if ((left_type == HexenType.COMPTIME_INT and right_type == HexenType.COMPTIME_FLOAT) or
+            (left_type == HexenType.COMPTIME_FLOAT and right_type == HexenType.COMPTIME_INT)):
+            return HexenType.COMPTIME_FLOAT
+            
+        # Default fallback
+        return left_type
+    
+    def resolve_comptime_binary_operation(self, left_type: HexenType, right_type: HexenType, operator: str) -> HexenType:
+        """
+        Resolve result type for comptime binary operations.
+        
+        Args:
+            left_type: Left operand type
+            right_type: Right operand type
+            operator: Binary operator
+            
+        Returns:
+            Result type for comptime binary operation
+        """
+        # Only handle if both are comptime types
+        if not (self.is_comptime_type(left_type) and self.is_comptime_type(right_type)):
+            return HexenType.UNKNOWN
+            
+        # Comparison operators always produce bool
+        if operator in {"<", ">", "<=", ">=", "==", "!="}:
+            return HexenType.BOOL
+            
+        # Logical operators always produce bool  
+        if operator in {"&&", "||"}:
+            return HexenType.BOOL
+            
+        # Arithmetic operators follow promotion rules
+        if operator in {"+", "-", "*", "/", "\\"}:
+            return self.get_comptime_promotion_result(left_type, right_type)
+            
+        return HexenType.UNKNOWN
+    
+    def can_comptime_types_mix_safely(self, left_type: HexenType, right_type: HexenType, target_type: Optional[HexenType]) -> bool:
+        """
+        Check if comptime types can mix safely with given target context.
+        
+        Args:
+            left_type: Left operand type
+            right_type: Right operand type  
+            target_type: Target type providing context
+            
+        Returns:
+            True if comptime types can mix safely
+        """
+        # If both are comptime, they can always mix
+        if self.is_comptime_type(left_type) and self.is_comptime_type(right_type):
+            return True
+            
+        # If one is comptime and we have target context
+        if target_type is not None:
+            # Comptime type can adapt to concrete type with context
+            if (self.is_comptime_type(left_type) and not self.is_comptime_type(right_type)) or \
+               (not self.is_comptime_type(left_type) and self.is_comptime_type(right_type)):
+                return True
+                
+        return False
+    
+    def are_all_comptime_compatible(self, types: List[HexenType]) -> bool:
+        """
+        Check if all types are comptime-compatible for unification.
+        
+        Args:
+            types: List of types to check
+            
+        Returns:
+            True if all types are comptime-compatible
+        """
+        if not types:
+            return True
+            
+        # All types must be comptime types for compatibility
+        return all(self.is_comptime_type(t) for t in types)
+    
+    def should_preserve_comptime_type_in_declaration(self, mutability: Mutability, inferred_type: HexenType) -> bool:
+        """
+        Determine if comptime type should be preserved in variable declaration.
+        
+        Args:
+            mutability: Variable mutability (val vs mut)
+            inferred_type: Inferred type from expression
+            
+        Returns:
+            True if comptime type should be preserved for flexibility
+        """
+        # Only preserve comptime types for immutable (val) declarations
+        # Per TYPE_SYSTEM.md: val declarations preserve comptime types for later adaptation
+        if mutability == Mutability.IMMUTABLE and self.is_comptime_type(inferred_type):
+            return True
+            
+        return False
+    
+    def resolve_conditional_comptime_types(self, branch_types: List[HexenType], target_type: Optional[HexenType]) -> HexenType:
+        """
+        Resolve comptime types across conditional branches.
+        
+        Args:
+            branch_types: Types from all conditional branches
+            target_type: Target type for context-guided resolution
+            
+        Returns:
+            Unified type for conditional expression
+        """
+        if not branch_types:
+            return HexenType.UNKNOWN
+            
+        # If we have target context, use it for resolution
+        if target_type:
+            # Check if all branches are comptime-compatible with target
+            all_compatible = True
+            for branch_type in branch_types:
+                if self.is_comptime_type(branch_type):
+                    # Comptime types adapt to target context
+                    continue
+                elif branch_type != target_type:
+                    all_compatible = False
+                    break
+                    
+            if all_compatible:
+                return target_type
+                
+        # Without target context, try to unify comptime types
+        unified = self.unify_comptime_types(branch_types)
+        if unified:
+            return unified
+            
+        # Check if all branches have same type
+        first_type = branch_types[0]
+        if all(t == first_type for t in branch_types):
+            return first_type
+            
+        return HexenType.UNKNOWN
+    
+    def analyze_comptime_operands_in_binary_op(self, left_type: HexenType, right_type: HexenType, target_type: HexenType) -> bool:
+        """
+        Analyze if comptime operands in binary operation make it safe.
+        
+        Args:
+            left_type: Left operand type
+            right_type: Right operand type
+            target_type: Target type for the operation
+            
+        Returns:
+            True if comptime operands make the operation safe
+        """
+        # If either operand is comptime and can adapt to target, it's safe
+        if self.is_comptime_type(left_type):
+            # Check if comptime type can coerce to target (basic check)
+            if target_type in {HexenType.I32, HexenType.I64, HexenType.F32, HexenType.F64}:
+                return True
+                
+        if self.is_comptime_type(right_type):
+            # Check if comptime type can coerce to target (basic check)
+            if target_type in {HexenType.I32, HexenType.I64, HexenType.F32, HexenType.F64}:
+                return True
+                
+        return False
+    
+    def preserve_comptime_type_in_unary_op(self, operand_type: HexenType, operator: str) -> HexenType:
+        """
+        Preserve comptime type through unary operations.
+        
+        Args:
+            operand_type: Operand type
+            operator: Unary operator
+            
+        Returns:
+            Result type preserving comptime nature where appropriate
+        """
+        # For comptime types with unary minus, preserve the comptime type
+        if operator == "-":
+            if operand_type == HexenType.COMPTIME_INT:
+                return HexenType.COMPTIME_INT
+            elif operand_type == HexenType.COMPTIME_FLOAT:
+                return HexenType.COMPTIME_FLOAT
+                
+        # For logical not, always return bool
+        if operator == "!":
+            return HexenType.BOOL
+            
+        # Default: return operand type unchanged
+        return operand_type
+    
+    def requires_explicit_comptime_context(self, expression: Dict) -> bool:
+        """
+        Determine if expression requires explicit context for comptime resolution.
+        
+        Args:
+            expression: Expression AST node
+            
+        Returns:
+            True if expression requires explicit context
+        """
+        # Mixed comptime operations typically require context
+        expr_type = expression.get("type")
+        
+        if expr_type == NodeType.BINARY_OPERATION.value:
+            left = expression.get("left")
+            right = expression.get("right")
+            if left and right:
+                # This is a simplified check - would need full type analysis
+                return True  # Conservative: assume binary ops need context
+                
+        return False
+    
+    # =========================================================================
+    # METHODS MOVED FROM TYPE_UTIL.PY
+    # =========================================================================
+    
+    def resolve_comptime_type(self, comptime_type: HexenType, target_type: Optional[HexenType] = None) -> HexenType:
+        """
+        Resolve a comptime type to a concrete type based on context.
+
+        Used when we have a comptime_int or comptime_float that needs to become
+        a concrete type. Falls back to default types if no target is provided.
+
+        Args:
+            comptime_type: The comptime type to resolve
+            target_type: Optional target type for context-guided resolution
+
+        Returns:
+            The resolved concrete type
+        """
+        if comptime_type == HexenType.COMPTIME_INT:
+            if target_type and is_numeric_type(target_type):
+                return target_type
+            return HexenType.I32  # Default integer type
+
+        if comptime_type == HexenType.COMPTIME_FLOAT:
+            if target_type and is_float_type(target_type):
+                return target_type
+            return HexenType.F64  # Default float type
+
+        return comptime_type  # Not a comptime type, return as-is
+    
+    def is_mixed_type_operation(self, left_type: HexenType, right_type: HexenType) -> bool:
+        """
+        Check if an operation involves mixed types that require explicit handling.
+
+        Returns True ONLY for Pattern 3 (Mixed Concrete → Explicit Required):
+        - Operation between different concrete integer types (e.g. i32 + i64)
+        - Operation between different concrete float types (e.g. f32 + f64)
+        - Operation between concrete float and concrete integer types
+
+        Returns False for all other patterns:
+        - Pattern 1: Comptime + Comptime → Comptime (e.g. comptime_int + comptime_float)
+        - Pattern 2: Comptime + Concrete → Concrete (e.g. i64 + comptime_int, f32 + comptime_float)
+        - Pattern 4: Same Concrete → Same Concrete (e.g. i32 + i32)
+        """
+        # Pattern 1 & 2: Any operation involving comptime types should be handled elsewhere (not mixed)
+        if left_type in {
+            HexenType.COMPTIME_INT,
+            HexenType.COMPTIME_FLOAT,
+        } or right_type in {HexenType.COMPTIME_INT, HexenType.COMPTIME_FLOAT}:
+            return False
+
+        # Pattern 4: Same concrete types are not mixed
+        if left_type == right_type:
+            return False
+
+        # Pattern 3: Mixed concrete types - require explicit conversions
+        return (
+            # Different concrete integer types
+            (is_integer_type(left_type) and is_integer_type(right_type))
+            or
+            # Different concrete float types
+            (is_float_type(left_type) and is_float_type(right_type))
+            or
+            # Concrete float + concrete integer (either direction)
+            (is_float_type(left_type) and is_integer_type(right_type))
+            or (is_integer_type(left_type) and is_float_type(right_type))
+        )
+    
+    def validate_comptime_literal_coercion(
+        self,
+        value: Union[int, float],
+        from_type: HexenType,
+        to_type: HexenType,
+        source_text: str = None,
+    ) -> None:
+        """
+        Validate comptime literal can be safely coerced to target type.
+
+        This function implements the overflow detection during comptime type coercion
+        as specified in LITERAL_OVERFLOW_BEHAVIOR.md. It should be called when
+        comptime_int or comptime_float literals are being coerced to concrete types.
+
+        Args:
+            value: The literal value from the AST node
+            from_type: The source comptime type (COMPTIME_INT or COMPTIME_FLOAT)
+            to_type: The target concrete type
+            source_text: Original literal text for error messages
+
+        Raises:
+            TypeError: If literal overflows target type range
+
+        Returns:
+            None if coercion is safe
+        """
+        # Only validate comptime type coercions to concrete types
+        if from_type not in {HexenType.COMPTIME_INT, HexenType.COMPTIME_FLOAT}:
+            return
+
+        if to_type not in TYPE_RANGES:
+            return
+
+        # Special handling for comptime_float → integer coercion
+        if from_type == HexenType.COMPTIME_FLOAT and to_type in {
+            HexenType.I32,
+            HexenType.I64,
+        }:
+            # This should require explicit conversion per TYPE_SYSTEM.md
+            # But if we get here, validate the conversion is at least in range
+            validate_literal_range(int(value), to_type, source_text)
+        else:
+            # Standard range validation
+            validate_literal_range(value, to_type, source_text)
+    
+    def extract_literal_info(self, node: Dict) -> tuple[Union[int, float], str]:
+        """
+        Extract literal value and source text from AST node.
+
+        Args:
+            node: AST node representing a literal (comptime_int, comptime_float, etc.)
+
+        Returns:
+            Tuple of (value, source_text) or (None, None) if not a literal
+        """
+        if node.get("type") in {NodeType.COMPTIME_INT.value, NodeType.COMPTIME_FLOAT.value}:
+            value = node.get("value")
+            source_text = node.get("source_text", str(value) if value is not None else None)
+            return value, source_text
+        return None, None
     
     # =========================================================================
     # BLOCK EVALUABILITY CLASSIFICATION

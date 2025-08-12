@@ -13,11 +13,8 @@ from typing import Dict, Optional, Callable
 
 from .types import HexenType, Mutability
 from .type_util import (
-    resolve_comptime_type,
     can_coerce,
     is_precision_loss_operation,
-    validate_comptime_literal_coercion,
-    extract_literal_info,
 )
 
 
@@ -37,6 +34,7 @@ class AssignmentAnalyzer:
         error_callback: Callable[[str, Optional[Dict]], None],
         analyze_expression_callback: Callable[[Dict, Optional[HexenType]], HexenType],
         lookup_symbol_callback: Callable[[str], Optional[object]],
+        comptime_analyzer,
         is_parameter_callback: Optional[Callable[[str], bool]] = None,
         get_parameter_info_callback: Optional[Callable[[str], Optional[object]]] = None,
     ):
@@ -47,12 +45,14 @@ class AssignmentAnalyzer:
             error_callback: Function to call when semantic errors are found
             analyze_expression_callback: Function to analyze expressions
             lookup_symbol_callback: Function to lookup symbols in symbol table
+            comptime_analyzer: ComptimeAnalyzer instance for comptime type operations
             is_parameter_callback: Function to check if a name is a parameter
             get_parameter_info_callback: Function to get parameter info
         """
         self._error = error_callback
         self._analyze_expression = analyze_expression_callback
         self._lookup_symbol = lookup_symbol_callback
+        self.comptime_analyzer = comptime_analyzer
         self._is_parameter = is_parameter_callback
         self._get_parameter_info = get_parameter_info_callback
 
@@ -175,10 +175,10 @@ class AssignmentAnalyzer:
 
             # Check for literal overflow before type coercion
             if value_type in {HexenType.COMPTIME_INT, HexenType.COMPTIME_FLOAT}:
-                literal_value, source_text = extract_literal_info(value)
+                literal_value, source_text = self.comptime_analyzer.extract_literal_info(value)
                 if literal_value is not None:
                     try:
-                        validate_comptime_literal_coercion(
+                        self.comptime_analyzer.validate_comptime_literal_coercion(
                             literal_value, value_type, symbol.type, source_text
                         )
                     except TypeError as e:
@@ -188,7 +188,7 @@ class AssignmentAnalyzer:
             # Check type compatibility with coercion for non-precision-loss cases
             if not can_coerce(value_type, symbol.type):
                 # Resolve comptime types for better error messages
-                display_value_type = resolve_comptime_type(
+                display_value_type = self.comptime_analyzer.resolve_comptime_type(
                     value_type, HexenType.UNKNOWN
                 )
                 self._error(

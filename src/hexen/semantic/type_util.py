@@ -180,33 +180,7 @@ def can_coerce(from_type: HexenType, to_type: HexenType) -> bool:
     return False
 
 
-def resolve_comptime_type(
-    comptime_type: HexenType, target_type: Optional[HexenType] = None
-) -> HexenType:
-    """
-    Resolve a comptime type to a concrete type based on context.
-
-    Used when we have a comptime_int or comptime_float that needs to become
-    a concrete type. Falls back to default types if no target is provided.
-
-    Args:
-        comptime_type: The comptime type to resolve
-        target_type: Optional target type for context-guided resolution
-
-    Returns:
-        The resolved concrete type
-    """
-    if comptime_type == HexenType.COMPTIME_INT:
-        if target_type and is_numeric_type(target_type):
-            return target_type
-        return HexenType.I32  # Default integer type
-
-    if comptime_type == HexenType.COMPTIME_FLOAT:
-        if target_type and is_float_type(target_type):
-            return target_type
-        return HexenType.F64  # Default float type
-
-    return comptime_type  # Not a comptime type, return as-is
+# resolve_comptime_type moved to ComptimeAnalyzer
 
 
 def to_float_type(type_: HexenType) -> HexenType:
@@ -290,43 +264,7 @@ def infer_type_from_value(value: Dict) -> HexenType:
         return HexenType.UNKNOWN
 
 
-def is_mixed_type_operation(left_type: HexenType, right_type: HexenType) -> bool:
-    """
-    Check if an operation involves mixed types that require explicit handling.
-
-    Returns True ONLY for Pattern 3 (Mixed Concrete → Explicit Required):
-    - Operation between different concrete integer types (e.g. i32 + i64)
-    - Operation between different concrete float types (e.g. f32 + f64)
-    - Operation between concrete float and concrete integer types
-
-    Returns False for all other patterns:
-    - Pattern 1: Comptime + Comptime → Comptime (e.g. comptime_int + comptime_float)
-    - Pattern 2: Comptime + Concrete → Concrete (e.g. i64 + comptime_int, f32 + comptime_float)
-    - Pattern 4: Same Concrete → Same Concrete (e.g. i32 + i32)
-    """
-    # Pattern 1 & 2: Any operation involving comptime types should be handled elsewhere (not mixed)
-    if left_type in {
-        HexenType.COMPTIME_INT,
-        HexenType.COMPTIME_FLOAT,
-    } or right_type in {HexenType.COMPTIME_INT, HexenType.COMPTIME_FLOAT}:
-        return False
-
-    # Pattern 4: Same concrete types are not mixed
-    if left_type == right_type:
-        return False
-
-    # Pattern 3: Mixed concrete types - require explicit conversions
-    return (
-        # Different concrete integer types
-        (is_integer_type(left_type) and is_integer_type(right_type))
-        or
-        # Different concrete float types
-        (is_float_type(left_type) and is_float_type(right_type))
-        or
-        # Concrete float + concrete integer (either direction)
-        (is_float_type(left_type) and is_integer_type(right_type))
-        or (is_integer_type(left_type) and is_float_type(right_type))
-    )
+# is_mixed_type_operation moved to ComptimeAnalyzer
 
 
 def is_string_type(type_: HexenType) -> bool:
@@ -441,63 +379,5 @@ def validate_literal_range(
         raise TypeError(error_msg)
 
 
-def validate_comptime_literal_coercion(
-    value: Union[int, float],
-    from_type: HexenType,
-    to_type: HexenType,
-    source_text: str = None,
-) -> None:
-    """
-    Validate comptime literal can be safely coerced to target type.
-
-    This function implements the overflow detection during comptime type coercion
-    as specified in LITERAL_OVERFLOW_BEHAVIOR.md. It should be called when
-    comptime_int or comptime_float literals are being coerced to concrete types.
-
-    Args:
-        value: The literal value from the AST node
-        from_type: The source comptime type (COMPTIME_INT or COMPTIME_FLOAT)
-        to_type: The target concrete type
-        source_text: Original literal text for error messages
-
-    Raises:
-        TypeError: If literal overflows target type range
-
-    Returns:
-        None if coercion is safe
-    """
-    # Only validate comptime type coercions to concrete types
-    if from_type not in {HexenType.COMPTIME_INT, HexenType.COMPTIME_FLOAT}:
-        return
-
-    if to_type not in TYPE_RANGES:
-        return
-
-    # Special handling for comptime_float → integer coercion
-    if from_type == HexenType.COMPTIME_FLOAT and to_type in {
-        HexenType.I32,
-        HexenType.I64,
-    }:
-        # This should require explicit conversion per TYPE_SYSTEM.md
-        # But if we get here, validate the conversion is at least in range
-        validate_literal_range(int(value), to_type, source_text)
-    else:
-        # Standard range validation
-        validate_literal_range(value, to_type, source_text)
-
-
-def extract_literal_info(node: Dict) -> tuple[Union[int, float], str]:
-    """
-    Extract literal value and source text from AST node.
-
-    Args:
-        node: AST node representing a literal (comptime_int, comptime_float, etc.)
-
-    Returns:
-        Tuple of (value, source_text) or (None, None) if not a literal
-    """
-    if node.get("type") in {NodeType.COMPTIME_INT.value, NodeType.COMPTIME_FLOAT.value}:
-        value = node.get("value")
-        source_text = node.get("source_text", str(value) if value is not None else None)
-        return value, source_text
-    return None, None
+# validate_comptime_literal_coercion moved to ComptimeAnalyzer
+# extract_literal_info moved to ComptimeAnalyzer

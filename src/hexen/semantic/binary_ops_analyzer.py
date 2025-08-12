@@ -16,11 +16,9 @@ from .types import HexenType
 from .type_util import (
     is_numeric_type,
     is_float_type,
-    resolve_comptime_type,
     to_float_type,
     to_integer_type,
     get_wider_type,
-    is_mixed_type_operation,
     is_integer_type,
     can_coerce,
 )
@@ -47,6 +45,7 @@ class BinaryOpsAnalyzer:
         self,
         error_callback: Callable[[str, Optional[Dict]], None],
         analyze_expression_callback: Callable[[Dict, Optional[HexenType]], HexenType],
+        comptime_analyzer,
     ):
         """
         Initialize the binary operations analyzer.
@@ -56,9 +55,11 @@ class BinaryOpsAnalyzer:
                           (typically SemanticAnalyzer._error)
             analyze_expression_callback: Function to analyze expressions
                                       (typically SemanticAnalyzer._analyze_expression)
+            comptime_analyzer: ComptimeAnalyzer instance for comptime type operations
         """
         self._error = error_callback
         self._analyze_expression = analyze_expression_callback
+        self.comptime_analyzer = comptime_analyzer
 
     def analyze_binary_operation(
         self, node: Dict, target_type: Optional[HexenType] = None
@@ -113,7 +114,7 @@ class BinaryOpsAnalyzer:
             )
 
         # Handle mixed type operations (BINARY_OPS.md Pattern 2 & 3)
-        if is_mixed_type_operation(left_type, right_type):
+        if self.comptime_analyzer.is_mixed_type_operation(left_type, right_type):
             # Pattern 2: Comptime + Concrete → Concrete (comptime adapts)
             # Pattern 3: Mixed Concrete → Requires explicit conversions
 
@@ -200,7 +201,7 @@ class BinaryOpsAnalyzer:
         if operator in EQUALITY_OPERATORS:
             # For numeric types, follow same rules as arithmetic operations
             if is_numeric_type(left_type) and is_numeric_type(right_type):
-                if is_mixed_type_operation(left_type, right_type):
+                if self.comptime_analyzer.is_mixed_type_operation(left_type, right_type):
                     # Check if both are comptime types (should work naturally)
                     both_comptime = left_type in {
                         HexenType.COMPTIME_INT,
@@ -240,7 +241,7 @@ class BinaryOpsAnalyzer:
             return HexenType.UNKNOWN
 
         # For numeric comparisons, follow BINARY_OPS.md exactly (same rules as arithmetic)
-        if is_mixed_type_operation(left_type, right_type):
+        if self.comptime_analyzer.is_mixed_type_operation(left_type, right_type):
             # Check if both are comptime types (should work naturally)
             both_comptime = left_type in {
                 HexenType.COMPTIME_INT,
@@ -375,8 +376,8 @@ class BinaryOpsAnalyzer:
                 is_float_type(target_type) or is_integer_type(target_type)
             ):
                 # Resolve comptime types to target type for context guidance
-                left_resolved = resolve_comptime_type(left_type, target_type)
-                right_resolved = resolve_comptime_type(right_type, target_type)
+                left_resolved = self.comptime_analyzer.resolve_comptime_type(left_type, target_type)
+                right_resolved = self.comptime_analyzer.resolve_comptime_type(right_type, target_type)
 
                 # Check if both operands can coerce to target type
                 if can_coerce(left_resolved, target_type) and can_coerce(
@@ -413,8 +414,8 @@ class BinaryOpsAnalyzer:
                 return HexenType.COMPTIME_FLOAT
 
             # For mixed concrete types or other cases, resolve to defaults and get wider type
-            left_resolved = resolve_comptime_type(left_type, None)
-            right_resolved = resolve_comptime_type(right_type, None)
+            left_resolved = self.comptime_analyzer.resolve_comptime_type(left_type, None)
+            right_resolved = self.comptime_analyzer.resolve_comptime_type(right_type, None)
 
             # Standard arithmetic type resolution
             return get_wider_type(left_resolved, right_resolved)
