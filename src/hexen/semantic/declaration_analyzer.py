@@ -269,31 +269,11 @@ class DeclarationAnalyzer:
                     # Explicit conversions are handled in _analyze_expression using value:type syntax
                     # If we get here without errors, the operation was either safe or explicitly converted
 
-                    # Check for precision loss operations that require explicit conversion
-                    if is_precision_loss_operation(value_type, var_type):
-                        self._generate_precision_loss_error(value_type, var_type, node)
-                        return
-
-                    # Check for literal overflow before type coercion
-                    if value_type in {HexenType.COMPTIME_INT, HexenType.COMPTIME_FLOAT}:
-                        literal_value, source_text = self.comptime_analyzer.extract_literal_info(value)
-                        if literal_value is not None:
-                            try:
-                                self.comptime_analyzer.validate_comptime_literal_coercion(
-                                    literal_value, value_type, var_type, source_text
-                                )
-                            except TypeError as e:
-                                self._error(str(e), node)
-                                return
-
-                    # Check for remaining type compatibility
-                    if not can_coerce(value_type, var_type):
-                        # Explicit conversions are handled in _analyze_expression
-                        self._error(
-                            f"Type mismatch: variable '{name}' declared as {var_type.value} "
-                            f"but assigned value of type {value_type.value}",
-                            node,
-                        )
+                    # Use centralized declaration type compatibility validation
+                    # Don't return early to avoid cascading errors - still create the symbol
+                    self.comptime_analyzer.validate_variable_declaration_type_compatibility(
+                        value_type, var_type, value, name, self._error, node
+                    )
         else:
             # Type inference path - must have value
             if not value:
@@ -325,21 +305,16 @@ class DeclarationAnalyzer:
                 return
 
             inferred_type = self._analyze_expression(value)
-            if inferred_type == HexenType.UNKNOWN:
-                # Check if this is likely a mixed-type operation that already reported a specific error
-                if value.get("type") == "binary_operation":
-                    # Binary operation analyzer already provided a specific error about mixed types
-                    # Don't add a generic "Cannot infer type" error - just return
-                    return
-                else:
-                    # For other cases, provide a generic type inference error
-                    self._error(f"Cannot infer type for variable '{name}'", node)
-                    return
+            
+            # Use centralized type inference error analysis
+            if self.comptime_analyzer.analyze_declaration_type_inference_error(
+                value, inferred_type, name, self._error, node
+            ):
+                return
 
-            # Preserve comptime types for val declarations (flexibility)
-            # Per TYPE_SYSTEM.md: val declarations preserve comptime types for later adaptation
-            var_type = (
-                inferred_type  # ✅ PRESERVE comptime types for maximum flexibility
+            # Use centralized comptime type preservation logic
+            var_type = self.comptime_analyzer.should_preserve_comptime_for_declaration(
+                mutability, inferred_type
             )
 
         # Create and register symbol
@@ -353,38 +328,3 @@ class DeclarationAnalyzer:
         if not self._declare_symbol(symbol):
             self._error(f"Failed to declare variable '{name}'", node)
 
-    def _generate_precision_loss_error(
-        self, from_type: HexenType, to_type: HexenType, node: Dict
-    ):
-        """Generate appropriate precision loss error message based on operation type."""
-        if from_type == HexenType.I64 and to_type == HexenType.I32:
-            self._error(
-                "Potential truncation. Use explicit conversion: 'value:i32'",
-                node,
-            )
-        elif from_type == HexenType.F64 and to_type == HexenType.F32:
-            self._error(
-                "Potential precision loss. Use explicit conversion: 'value:f32'",
-                node,
-            )
-        elif from_type in {
-            HexenType.F32,
-            HexenType.F64,
-            HexenType.COMPTIME_FLOAT,
-        } and to_type in {HexenType.I32, HexenType.I64}:
-            # Float to integer conversion - use "truncation" terminology
-            self._error(
-                f"Potential truncation. Use explicit conversion: 'value:{to_type.value}'",
-                node,
-            )
-        elif from_type == HexenType.I64 and to_type == HexenType.F32:
-            self._error(
-                "Potential precision loss. Use explicit conversion: 'value:f32'",
-                node,
-            )
-        else:
-            # Generic precision loss message
-            self._error(
-                f"Potential precision loss. Use explicit conversion: 'value:{to_type.value}'",
-                node,
-            )

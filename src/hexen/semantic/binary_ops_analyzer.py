@@ -114,44 +114,11 @@ class BinaryOpsAnalyzer:
             )
 
         # Handle mixed type operations (BINARY_OPS.md Pattern 2 & 3)
-        if self.comptime_analyzer.is_mixed_type_operation(left_type, right_type):
-            # Pattern 2: Comptime + Concrete → Concrete (comptime adapts)
-            # Pattern 3: Mixed Concrete → Requires explicit conversions
-
-            # Check if either operand is comptime (Pattern 2 - should work with target context)
-            has_comptime = left_type in {
-                HexenType.COMPTIME_INT,
-                HexenType.COMPTIME_FLOAT,
-            } or right_type in {HexenType.COMPTIME_INT, HexenType.COMPTIME_FLOAT}
-
-            if has_comptime and target_type is not None:
-                # Pattern 2: Comptime adapts to concrete type with target context
-                # This should work - let the resolve function handle it
-                pass
-            elif not has_comptime:
-                # Pattern 3: Mixed concrete types ALWAYS require explicit conversions
-                # This enforces transparent costs and explicit conversion philosophy
-                self._error(
-                    f"Mixed concrete type operation '{left_type.value} {operator} {right_type.value}' requires explicit conversions. "
-                    f"Use: 'left_val:{target_type.value if target_type else 'target_type'} {operator} right_val:{target_type.value if target_type else 'target_type'}'",
-                    node,
-                )
-                return HexenType.UNKNOWN
-            elif target_type is None:
-                # Comptime types without target context - check if it's a valid comptime operation
-                if left_type in {
-                    HexenType.COMPTIME_INT,
-                    HexenType.COMPTIME_FLOAT,
-                } and right_type in {HexenType.COMPTIME_INT, HexenType.COMPTIME_FLOAT}:
-                    # This is Pattern 1: comptime + comptime - let resolve function handle
-                    pass
-                else:
-                    self._error(
-                        f"Mixed-type operation '{left_type.value} {operator} {right_type.value}' requires target type context. "
-                        f"Use: 'val result : target_type = expression'",
-                        node,
-                    )
-                    return HexenType.UNKNOWN
+        mixed_type_result = self.comptime_analyzer.handle_mixed_type_binary_operation(
+            left_type, right_type, operator, target_type, self._error, node
+        )
+        if mixed_type_result is not None:
+            return mixed_type_result
 
         # Handle remaining arithmetic operations
         return self._resolve_binary_operation_type(
@@ -201,25 +168,11 @@ class BinaryOpsAnalyzer:
         if operator in EQUALITY_OPERATORS:
             # For numeric types, follow same rules as arithmetic operations
             if is_numeric_type(left_type) and is_numeric_type(right_type):
-                if self.comptime_analyzer.is_mixed_type_operation(left_type, right_type):
-                    # Check if both are comptime types (should work naturally)
-                    both_comptime = left_type in {
-                        HexenType.COMPTIME_INT,
-                        HexenType.COMPTIME_FLOAT,
-                    } and right_type in {
-                        HexenType.COMPTIME_INT,
-                        HexenType.COMPTIME_FLOAT,
-                    }
-
-                    if not both_comptime:
-                        # Mixed concrete types require explicit conversions (BINARY_OPS.md rule)
-                        self._error(
-                            f"Mixed-type comparison '{left_type.value} {operator} {right_type.value}' requires explicit conversions. "
-                            f"Use explicit conversions like: 'left_val:{right_type.value} {operator} right_val' "
-                            f"or 'left_val:f64 {operator} right_val:f64'",
-                            node,
-                        )
-                        return HexenType.UNKNOWN
+                mixed_comparison_result = self.comptime_analyzer.handle_mixed_type_comparison(
+                    operator, left_type, right_type, self._error, node
+                )
+                if mixed_comparison_result is not None:
+                    return mixed_comparison_result
                 return HexenType.BOOL
 
             # For non-numeric types, types must be exactly the same
@@ -241,22 +194,11 @@ class BinaryOpsAnalyzer:
             return HexenType.UNKNOWN
 
         # For numeric comparisons, follow BINARY_OPS.md exactly (same rules as arithmetic)
-        if self.comptime_analyzer.is_mixed_type_operation(left_type, right_type):
-            # Check if both are comptime types (should work naturally)
-            both_comptime = left_type in {
-                HexenType.COMPTIME_INT,
-                HexenType.COMPTIME_FLOAT,
-            } and right_type in {HexenType.COMPTIME_INT, HexenType.COMPTIME_FLOAT}
-
-            if not both_comptime:
-                # Mixed concrete types require explicit conversions (BINARY_OPS.md rule)
-                self._error(
-                    f"Mixed-type comparison '{left_type.value} {operator} {right_type.value}' requires explicit conversions. "
-                    f"Use explicit conversions like: 'left_val:{right_type.value} {operator} right_val' "
-                    f"or 'left_val:f64 {operator} right_val:f64'",
-                    node,
-                )
-                return HexenType.UNKNOWN
+        mixed_comparison_result = self.comptime_analyzer.handle_mixed_type_comparison(
+            operator, left_type, right_type, self._error, node
+        )
+        if mixed_comparison_result is not None:
+            return mixed_comparison_result
 
         # For same-type numeric comparisons, result is boolean
         return HexenType.BOOL
@@ -370,48 +312,22 @@ class BinaryOpsAnalyzer:
             ):
                 return HexenType.STRING
 
-            # If target_type is provided and is a numeric type, use it
-            # This enables context-guided resolution for mixed types
+            # Check for comptime-specific arithmetic first
+            comptime_result = self.comptime_analyzer.resolve_arithmetic_operation_type(
+                operator, left_type, right_type, target_type
+            )
+            if comptime_result is not None:
+                return comptime_result
+
+            # If target_type is provided and is a numeric type, use context-guided resolution
             if target_type and (
                 is_float_type(target_type) or is_integer_type(target_type)
             ):
-                # Resolve comptime types to target type for context guidance
-                left_resolved = self.comptime_analyzer.resolve_comptime_type(left_type, target_type)
-                right_resolved = self.comptime_analyzer.resolve_comptime_type(right_type, target_type)
-
-                # Check if both operands can coerce to target type
-                if can_coerce(left_resolved, target_type) and can_coerce(
-                    right_resolved, target_type
-                ):
-                    return target_type
-
-                # If coercion is not possible, fall back to standard resolution
-                return get_wider_type(left_resolved, right_resolved)
-
-            # No target context - handle comptime type promotion first
-            # BINARY_OPS.md Pattern 1: comptime_int + comptime_float → comptime_float
-            if (
-                left_type == HexenType.COMPTIME_INT
-                and right_type == HexenType.COMPTIME_FLOAT
-            ) or (
-                left_type == HexenType.COMPTIME_FLOAT
-                and right_type == HexenType.COMPTIME_INT
-            ):
-                return HexenType.COMPTIME_FLOAT
-
-            # BINARY_OPS.md Pattern 1: comptime_int + comptime_int → comptime_int
-            if (
-                left_type == HexenType.COMPTIME_INT
-                and right_type == HexenType.COMPTIME_INT
-            ):
-                return HexenType.COMPTIME_INT
-
-            # BINARY_OPS.md Pattern 1: comptime_float + comptime_float → comptime_float
-            if (
-                left_type == HexenType.COMPTIME_FLOAT
-                and right_type == HexenType.COMPTIME_FLOAT
-            ):
-                return HexenType.COMPTIME_FLOAT
+                context_result = self.comptime_analyzer.resolve_context_guided_arithmetic(
+                    left_type, right_type, target_type
+                )
+                if context_result is not None:
+                    return context_result
 
             # For mixed concrete types or other cases, resolve to defaults and get wider type
             left_resolved = self.comptime_analyzer.resolve_comptime_type(left_type, None)

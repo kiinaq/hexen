@@ -29,6 +29,7 @@ class UnaryOpsAnalyzer:
         self,
         error_callback: Callable[[str, Optional[Dict]], None],
         analyze_expression_callback: Callable[[Dict, Optional[HexenType]], HexenType],
+        comptime_analyzer,
     ):
         """
         Initialize the unary operations analyzer.
@@ -38,9 +39,11 @@ class UnaryOpsAnalyzer:
                           (typically SemanticAnalyzer._error)
             analyze_expression_callback: Function to analyze expressions
                                       (typically SemanticAnalyzer._analyze_expression)
+            comptime_analyzer: ComptimeAnalyzer instance for comptime type operations
         """
         self._error = error_callback
         self._analyze_expression = analyze_expression_callback
+        self.comptime_analyzer = comptime_analyzer
 
     def analyze_unary_operation(
         self, node: Dict, target_type: Optional[HexenType] = None
@@ -78,11 +81,10 @@ class UnaryOpsAnalyzer:
                 )
                 return HexenType.UNKNOWN
 
-            # For comptime types, preserve them
-            if operand_type == HexenType.COMPTIME_INT:
-                return HexenType.COMPTIME_INT
-            if operand_type == HexenType.COMPTIME_FLOAT:
-                return HexenType.COMPTIME_FLOAT
+            # Use centralized comptime type preservation logic
+            result_type = self.comptime_analyzer.preserve_comptime_type_in_unary_op(operand_type, operator)
+            if result_type != HexenType.UNKNOWN:
+                return result_type
 
             # For concrete types, return the same type
             return operand_type

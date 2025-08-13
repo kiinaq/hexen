@@ -11,7 +11,7 @@ Handles all expression analysis including:
 Implements the context-guided resolution strategy from TYPE_SYSTEM.md and BINARY_OPS.md.
 """
 
-from typing import Dict, Optional, Callable
+from typing import Dict, Optional, Callable, List
 
 from ..ast_nodes import NodeType
 from .types import HexenType
@@ -48,6 +48,7 @@ class ExpressionAnalyzer:
             [Dict, Optional[HexenType]], HexenType
         ],
         conversion_analyzer,
+        comptime_analyzer=None,
     ):
         """Initialize with callbacks to main analyzer functionality."""
         self._error = error_callback
@@ -57,6 +58,7 @@ class ExpressionAnalyzer:
         self._lookup_symbol = lookup_symbol_callback
         self._analyze_function_call = analyze_function_call_callback
         self._conversion_analyzer = conversion_analyzer
+        self.comptime_analyzer = comptime_analyzer
 
     def analyze_expression(
         self, node: Dict, target_type: Optional[HexenType] = None
@@ -211,7 +213,10 @@ class ExpressionAnalyzer:
         assign_branch_types = []
         
         # Check if the if branch uses assign or return by examining its structure
-        if self._branch_uses_assign(if_branch):
+        if self.comptime_analyzer and self.comptime_analyzer.check_branch_uses_assign(if_branch):
+            if if_type != HexenType.UNKNOWN:
+                assign_branch_types.append(if_type)
+        elif not self.comptime_analyzer and self._branch_uses_assign(if_branch):
             if if_type != HexenType.UNKNOWN:
                 assign_branch_types.append(if_type)
             
@@ -233,7 +238,10 @@ class ExpressionAnalyzer:
             if clause_branch:
                 clause_type = self._analyze_conditional_branch(clause_branch, node, target_type)
                 # Only collect types from branches that use assign (not return)
-                if self._branch_uses_assign(clause_branch):
+                uses_assign = (self.comptime_analyzer.check_branch_uses_assign(clause_branch) 
+                             if self.comptime_analyzer 
+                             else self._branch_uses_assign(clause_branch))
+                if uses_assign:
                     if clause_type != HexenType.UNKNOWN:
                         assign_branch_types.append(clause_type)
         
@@ -263,52 +271,13 @@ class ExpressionAnalyzer:
             pass
             
         # 5. Check type compatibility across assign branches and return unified type
-        if not assign_branch_types:
-            # If no branches contribute types (all return early), use target_type if available
-            # This handles cases like: val x = if cond { return early } else { return early }
-            return target_type if target_type else HexenType.UNKNOWN
-            
-        # Implement type unification for comptime types
-        # If we have a target type, use it for context-guided resolution
-        if target_type:
-            # All assign branches should be compatible with the target type
-            # Comptime types will adapt automatically
-            for branch_type in assign_branch_types:
-                if branch_type in [HexenType.COMPTIME_INT, HexenType.COMPTIME_FLOAT]:
-                    # Comptime types adapt to target context - this is handled by the system
-                    continue
-                elif branch_type != target_type:
-                    # Require exact type match for concrete types (transparent costs principle)
-                    # Suggest explicit conversion for mixed concrete types
-                    self._error(
-                        f"Branch type {branch_type.name.lower()} incompatible with target type {target_type.name.lower()}. "
-                        f"Use explicit conversion: value:{target_type.name.lower()}", 
-                        node
-                    )
-                    return HexenType.UNKNOWN
-            return target_type
-        
-        # Without target context, implement basic type unification
-        unified_type = assign_branch_types[0]
-        
-        # Check if all types are the same or comptime-compatible
-        all_comptime_int = all(t == HexenType.COMPTIME_INT for t in assign_branch_types)
-        all_comptime_float = all(t == HexenType.COMPTIME_FLOAT for t in assign_branch_types)
-        all_same_concrete = all(t == unified_type for t in assign_branch_types)
-        
-        if all_comptime_int:
-            return HexenType.COMPTIME_INT
-        elif all_comptime_float:
-            return HexenType.COMPTIME_FLOAT
-        elif all_same_concrete:
-            return unified_type
-        else:
-            # Mixed types require explicit target context for resolution
-            self._error(
-                f"Mixed types across conditional branches require explicit target type context", 
-                node
+        if self.comptime_analyzer:
+            return self.comptime_analyzer.validate_conditional_branch_compatibility(
+                assign_branch_types, target_type, self._error, node
             )
-            return HexenType.UNKNOWN
+        else:
+            # Fallback to original logic if no comptime analyzer available
+            return self._fallback_branch_type_unification(assign_branch_types, target_type, node)
     
     def _branch_uses_assign(self, branch_node: Dict) -> bool:
         """
@@ -358,11 +327,20 @@ class ExpressionAnalyzer:
             Type of the branch (from assign statement or return statement)
         """
         # Check if this branch uses assign or return first
-        uses_assign = self._branch_uses_assign(branch_node)
+        uses_assign = (self.comptime_analyzer.check_branch_uses_assign(branch_node) 
+                      if self.comptime_analyzer 
+                      else self._branch_uses_assign(branch_node))
         
         if uses_assign and target_type:
-            # For assign branches with target type context, skip the initial block analysis
-            # to avoid analyzing expressions without target type context
+            # Use centralized logic if available
+            if self.comptime_analyzer:
+                result = self.comptime_analyzer.analyze_conditional_branch_with_target_context(
+                    branch_node, target_type, self.analyze_expression
+                )
+                if result is not None:
+                    return result
+            
+            # Fallback to original logic
             if not branch_node or branch_node.get("type") != "block":
                 return HexenType.UNKNOWN
                 
@@ -386,3 +364,59 @@ class ExpressionAnalyzer:
             # For return branches or branches without target type, use standard block analysis
             block_type = self._analyze_block(branch_node, conditional_node, context="expression")
             return block_type
+    
+    def _fallback_branch_type_unification(
+        self, 
+        assign_branch_types: List[HexenType], 
+        target_type: Optional[HexenType], 
+        node: Dict
+    ) -> HexenType:
+        """
+        Fallback implementation of branch type unification.
+        
+        Used when no comptime_analyzer is available.
+        """
+        if not assign_branch_types:
+            # If no branches contribute types (all return early), use target_type if available
+            return target_type if target_type else HexenType.UNKNOWN
+            
+        # If we have a target type, use it for context-guided resolution
+        if target_type:
+            # All assign branches should be compatible with the target type
+            # Comptime types will adapt automatically
+            for branch_type in assign_branch_types:
+                if branch_type in [HexenType.COMPTIME_INT, HexenType.COMPTIME_FLOAT]:
+                    # Comptime types adapt to target context - this is handled by the system
+                    continue
+                elif branch_type != target_type:
+                    # Require exact type match for concrete types (transparent costs principle)
+                    # Suggest explicit conversion for mixed concrete types
+                    self._error(
+                        f"Branch type {branch_type.name.lower()} incompatible with target type {target_type.name.lower()}. "
+                        f"Use explicit conversion: value:{target_type.name.lower()}", 
+                        node
+                    )
+                    return HexenType.UNKNOWN
+            return target_type
+        
+        # Without target context, implement basic type unification
+        unified_type = assign_branch_types[0]
+        
+        # Check if all types are the same or comptime-compatible
+        all_comptime_int = all(t == HexenType.COMPTIME_INT for t in assign_branch_types)
+        all_comptime_float = all(t == HexenType.COMPTIME_FLOAT for t in assign_branch_types)
+        all_same_concrete = all(t == unified_type for t in assign_branch_types)
+        
+        if all_comptime_int:
+            return HexenType.COMPTIME_INT
+        elif all_comptime_float:
+            return HexenType.COMPTIME_FLOAT
+        elif all_same_concrete:
+            return unified_type
+        else:
+            # Mixed types require explicit target context for resolution
+            self._error(
+                f"Mixed types across conditional branches require explicit target type context", 
+                node
+            )
+            return HexenType.UNKNOWN

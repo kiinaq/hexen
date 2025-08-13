@@ -69,6 +69,7 @@ class SemanticAnalyzer:
         self.unary_ops = UnaryOpsAnalyzer(
             error_callback=self._error,
             analyze_expression_callback=self._analyze_expression,
+            comptime_analyzer=self.comptime_analyzer,
         )
 
         # Initialize block analyzer with callbacks
@@ -136,6 +137,7 @@ class SemanticAnalyzer:
             lookup_symbol_callback=self.symbol_table.lookup_symbol,
             analyze_function_call_callback=self._analyze_function_call,
             conversion_analyzer=self.conversion_analyzer,
+            comptime_analyzer=self.comptime_analyzer,
         )
 
     def analyze(self, ast: Dict) -> List[SemanticError]:

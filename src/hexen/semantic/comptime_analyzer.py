@@ -415,6 +415,514 @@ class ComptimeAnalyzer:
                 
         return False
     
+    def handle_mixed_type_binary_operation(
+        self, 
+        left_type: HexenType, 
+        right_type: HexenType, 
+        operator: str, 
+        target_type: Optional[HexenType],
+        error_callback,
+        node: Dict
+    ) -> Optional[HexenType]:
+        """
+        Handle mixed type binary operations with BINARY_OPS.md patterns.
+        
+        Implements Pattern 2 (Comptime + Concrete) and Pattern 3 (Mixed Concrete) logic
+        that was previously scattered across BinaryOpsAnalyzer.
+        
+        Args:
+            left_type: Left operand type
+            right_type: Right operand type
+            operator: Binary operator
+            target_type: Optional target type for context
+            error_callback: Function to call for error reporting
+            node: AST node for error reporting
+            
+        Returns:
+            None to continue with normal processing, or HexenType.UNKNOWN if error occurred
+        """
+        if not self.is_mixed_type_operation(left_type, right_type):
+            return None  # Not a mixed type operation, continue normal processing
+            
+        # Pattern 2: Comptime + Concrete → Concrete (comptime adapts)
+        # Pattern 3: Mixed Concrete → Requires explicit conversions
+
+        # Check if either operand is comptime (Pattern 2 - should work with target context)
+        has_comptime = self.is_comptime_type(left_type) or self.is_comptime_type(right_type)
+
+        if has_comptime and target_type is not None:
+            # Pattern 2: Comptime adapts to concrete type with target context
+            # This should work - let the resolve function handle it
+            return None  # Continue with normal processing
+            
+        elif not has_comptime:
+            # Pattern 3: Mixed concrete types ALWAYS require explicit conversions
+            # This enforces transparent costs and explicit conversion philosophy
+            error_callback(
+                f"Mixed concrete type operation '{left_type.value} {operator} {right_type.value}' requires explicit conversions. "
+                f"Use: 'left_val:{target_type.value if target_type else 'target_type'} {operator} right_val:{target_type.value if target_type else 'target_type'}'",
+                node,
+            )
+            return HexenType.UNKNOWN
+            
+        elif target_type is None:
+            # Comptime types without target context - check if it's a valid comptime operation
+            if self.is_comptime_type(left_type) and self.is_comptime_type(right_type):
+                # This is Pattern 1: comptime + comptime - let resolve function handle
+                return None  # Continue with normal processing
+            else:
+                error_callback(
+                    f"Mixed-type operation '{left_type.value} {operator} {right_type.value}' requires target type context. "
+                    f"Use: 'val result : target_type = expression'",
+                    node,
+                )
+                return HexenType.UNKNOWN
+                
+        return None  # Continue with normal processing
+    
+    def resolve_arithmetic_operation_type(
+        self,
+        operator: str,
+        left_type: HexenType,
+        right_type: HexenType,
+        target_type: Optional[HexenType]
+    ) -> Optional[HexenType]:
+        """
+        Resolve comptime-specific arithmetic operation types.
+        
+        Handles the comptime type promotion logic that was in BinaryOpsAnalyzer.
+        Returns None if not a comptime-specific case (caller should handle normally).
+        
+        Args:
+            operator: Arithmetic operator (+, -, *)
+            left_type: Left operand type
+            right_type: Right operand type
+            target_type: Optional target type for context
+            
+        Returns:
+            Resolved type for comptime operations, None for non-comptime cases
+        """
+        if operator not in ["+", "-", "*"]:
+            return None  # Not an arithmetic operator we handle
+            
+        # Handle comptime type promotion first (Pattern 1)
+        # BINARY_OPS.md Pattern 1: comptime_int + comptime_float → comptime_float
+        if ((left_type == HexenType.COMPTIME_INT and right_type == HexenType.COMPTIME_FLOAT) or
+            (left_type == HexenType.COMPTIME_FLOAT and right_type == HexenType.COMPTIME_INT)):
+            return HexenType.COMPTIME_FLOAT
+
+        # BINARY_OPS.md Pattern 1: comptime_int + comptime_int → comptime_int
+        if left_type == HexenType.COMPTIME_INT and right_type == HexenType.COMPTIME_INT:
+            return HexenType.COMPTIME_INT
+
+        # BINARY_OPS.md Pattern 1: comptime_float + comptime_float → comptime_float
+        if left_type == HexenType.COMPTIME_FLOAT and right_type == HexenType.COMPTIME_FLOAT:
+            return HexenType.COMPTIME_FLOAT
+            
+        # For mixed comptime + concrete with target context, let caller handle
+        if target_type and (self.is_comptime_type(left_type) or self.is_comptime_type(right_type)):
+            return None  # Caller should handle context-guided resolution
+            
+        return None  # Not a comptime-specific case
+    
+    def resolve_context_guided_arithmetic(
+        self,
+        left_type: HexenType,
+        right_type: HexenType,
+        target_type: HexenType
+    ) -> Optional[HexenType]:
+        """
+        Resolve arithmetic operation with context guidance for comptime types.
+        
+        Args:
+            left_type: Left operand type
+            right_type: Right operand type
+            target_type: Target type for context guidance
+            
+        Returns:
+            Resolved type or None if normal resolution should be used
+        """
+        from .type_util import is_float_type, is_integer_type, can_coerce, get_wider_type
+        
+        # Only handle if target is numeric
+        if not (is_float_type(target_type) or is_integer_type(target_type)):
+            return None
+            
+        # Resolve comptime types to target type for context guidance
+        left_resolved = self.resolve_comptime_type(left_type, target_type)
+        right_resolved = self.resolve_comptime_type(right_type, target_type)
+
+        # Check if both operands can coerce to target type
+        if can_coerce(left_resolved, target_type) and can_coerce(right_resolved, target_type):
+            return target_type
+
+        # If coercion is not possible, fall back to standard resolution
+        return get_wider_type(left_resolved, right_resolved)
+    
+    def handle_mixed_type_comparison(
+        self,
+        operator: str,
+        left_type: HexenType,
+        right_type: HexenType,
+        error_callback,
+        node: Dict
+    ) -> Optional[HexenType]:
+        """
+        Handle mixed type comparison operations following BINARY_OPS.md rules.
+        
+        Args:
+            operator: Comparison operator (==, !=, <, >, <=, >=)
+            left_type: Left operand type
+            right_type: Right operand type
+            error_callback: Function to call for error reporting
+            node: AST node for error reporting
+            
+        Returns:
+            HexenType.BOOL if valid, HexenType.UNKNOWN if error, None for normal processing
+        """
+        from .type_util import is_numeric_type
+        
+        if not self.is_mixed_type_operation(left_type, right_type):
+            return None  # Not mixed type, continue normal processing
+            
+        # For numeric types, apply same rules as arithmetic operations
+        if is_numeric_type(left_type) and is_numeric_type(right_type):
+            # Check if both are comptime types (should work naturally)
+            both_comptime = (self.is_comptime_type(left_type) and 
+                           self.is_comptime_type(right_type))
+
+            if not both_comptime:
+                # Mixed concrete types require explicit conversions (BINARY_OPS.md rule)
+                error_callback(
+                    f"Mixed-type comparison '{left_type.value} {operator} {right_type.value}' requires explicit conversions. "
+                    f"Use explicit conversions like: 'left_val:{right_type.value} {operator} right_val' "
+                    f"or 'left_val:f64 {operator} right_val:f64'",
+                    node,
+                )
+                return HexenType.UNKNOWN
+                
+        return None  # Continue normal processing
+    
+    def validate_conditional_branch_compatibility(
+        self,
+        branch_types: List[HexenType],
+        target_type: Optional[HexenType],
+        error_callback,
+        node: Dict
+    ) -> Optional[HexenType]:
+        """
+        Validate type compatibility across conditional branches and return unified type.
+        
+        Implements the conditional type unification logic from ExpressionAnalyzer.
+        
+        Args:
+            branch_types: Types from conditional branches that use assign
+            target_type: Optional target type for context-guided resolution
+            error_callback: Function to call for error reporting
+            node: AST node for error reporting
+            
+        Returns:
+            Unified type or HexenType.UNKNOWN if incompatible
+        """
+        if not branch_types:
+            # If no branches contribute types (all return early), use target_type if available
+            return target_type if target_type else HexenType.UNKNOWN
+            
+        # If we have a target type, use it for context-guided resolution
+        if target_type:
+            # All assign branches should be compatible with the target type
+            # Comptime types will adapt automatically
+            for branch_type in branch_types:
+                if self.is_comptime_type(branch_type):
+                    # Comptime types adapt to target context - this is handled by the system
+                    continue
+                elif branch_type != target_type:
+                    # Require exact type match for concrete types (transparent costs principle)
+                    # Suggest explicit conversion for mixed concrete types
+                    error_callback(
+                        f"Branch type {branch_type.name.lower()} incompatible with target type {target_type.name.lower()}. "
+                        f"Use explicit conversion: value:{target_type.name.lower()}", 
+                        node
+                    )
+                    return HexenType.UNKNOWN
+            return target_type
+        
+        # Without target context, implement basic type unification
+        return self._unify_branch_types_without_context(branch_types, error_callback, node)
+    
+    def _unify_branch_types_without_context(
+        self,
+        branch_types: List[HexenType],
+        error_callback,
+        node: Dict
+    ) -> HexenType:
+        """
+        Unify branch types without target context using comptime promotion rules.
+        
+        Args:
+            branch_types: Types from conditional branches
+            error_callback: Function to call for error reporting
+            node: AST node for error reporting
+            
+        Returns:
+            Unified type or HexenType.UNKNOWN if incompatible
+        """
+        if not branch_types:
+            return HexenType.UNKNOWN
+            
+        unified_type = branch_types[0]
+        
+        # Check if all types are the same or comptime-compatible
+        all_comptime_int = all(t == HexenType.COMPTIME_INT for t in branch_types)
+        all_comptime_float = all(t == HexenType.COMPTIME_FLOAT for t in branch_types)
+        all_same_concrete = all(t == unified_type for t in branch_types)
+        
+        if all_comptime_int:
+            return HexenType.COMPTIME_INT
+        elif all_comptime_float:
+            return HexenType.COMPTIME_FLOAT
+        elif all_same_concrete:
+            return unified_type
+        else:
+            # Mixed types require explicit target context for resolution
+            error_callback(
+                f"Mixed types across conditional branches require explicit target type context", 
+                node
+            )
+            return HexenType.UNKNOWN
+    
+    def analyze_conditional_branch_with_target_context(
+        self,
+        branch_node: Dict,
+        target_type: HexenType,
+        analyze_expression_callback
+    ) -> Optional[HexenType]:
+        """
+        Analyze conditional branch with target type context for assign statements.
+        
+        Extracts the comptime-specific logic for analyzing conditional branches
+        with target type propagation from ExpressionAnalyzer.
+        
+        Args:
+            branch_node: Block AST node (the branch)
+            target_type: Target type for context-guided resolution
+            analyze_expression_callback: Function to analyze expressions
+            
+        Returns:
+            Type from the assign statement or None if not applicable
+        """
+        if not branch_node or branch_node.get("type") != "block":
+            return None
+            
+        statements = branch_node.get("statements", [])
+        if not statements:
+            return None
+            
+        # The last statement should be an assign statement
+        last_statement = statements[-1]
+        if last_statement.get("type") != "assign_statement":
+            return None
+            
+        # Analyze the assign statement with target type propagation
+        assign_value = last_statement.get("value")
+        if assign_value:
+            # Use the target type for context-guided resolution
+            return analyze_expression_callback(assign_value, target_type)
+        else:
+            return None
+    
+    def check_branch_uses_assign(self, branch_node: Dict) -> bool:
+        """
+        Check if a branch (block) uses assign statement instead of return statement.
+        
+        Centralizes the branch analysis logic from ExpressionAnalyzer.
+        
+        Args:
+            branch_node: Block AST node
+            
+        Returns:
+            True if branch ends with assign statement, False if it ends with return
+        """
+        if not branch_node or branch_node.get("type") != "block":
+            return False
+            
+        statements = branch_node.get("statements", [])
+        if not statements:
+            return False
+            
+        # Check the last statement type
+        last_statement = statements[-1]
+        last_stmt_type = last_statement.get("type")
+        
+        if last_stmt_type == "assign_statement":
+            return True
+        elif last_stmt_type == "return_statement":
+            return False
+        else:
+            # If last statement is neither assign nor return, this is an error
+            # but we'll let the block analyzer handle that error
+            return False
+    
+    def validate_variable_declaration_type_compatibility(
+        self,
+        value_type: HexenType,
+        var_type: HexenType,
+        value_node: Dict,
+        variable_name: str,
+        error_callback,
+        node: Dict
+    ) -> bool:
+        """
+        Validate type compatibility for variable declarations with comptime awareness.
+        
+        Centralizes the declaration-specific type validation logic including:
+        - Precision loss detection
+        - Comptime literal overflow validation
+        - Type coercion validation
+        
+        Args:
+            value_type: Type of the assigned value
+            var_type: Type of the variable being declared
+            value_node: AST node of the value expression
+            error_callback: Function to call for error reporting
+            node: Declaration AST node for error reporting
+            
+        Returns:
+            True if types are compatible, False if error was reported
+        """
+        from .type_util import is_precision_loss_operation, can_coerce
+        
+        # Check for precision loss operations that require explicit conversion
+        if is_precision_loss_operation(value_type, var_type):
+            self._generate_declaration_precision_loss_error(value_type, var_type, error_callback, node)
+            return False
+
+        # Check for literal overflow before type coercion
+        if self.is_comptime_type(value_type):
+            literal_value, source_text = self.extract_literal_info(value_node)
+            if literal_value is not None:
+                try:
+                    self.validate_comptime_literal_coercion(
+                        literal_value, value_type, var_type, source_text
+                    )
+                except TypeError as e:
+                    error_callback(str(e), node)
+                    return False
+
+        # Check for remaining type compatibility
+        if not can_coerce(value_type, var_type):
+            error_callback(
+                f"Type mismatch: variable '{variable_name}' declared as {var_type.value} "
+                f"but assigned value of type {value_type.value}",
+                node,
+            )
+            return False
+            
+        return True
+    
+    def should_preserve_comptime_for_declaration(
+        self,
+        mutability: Mutability,
+        inferred_type: HexenType
+    ) -> HexenType:
+        """
+        Determine final variable type considering comptime type preservation rules.
+        
+        Per TYPE_SYSTEM.md: val declarations preserve comptime types for later adaptation,
+        while mut declarations require concrete types for safety.
+        
+        Args:
+            mutability: Variable mutability (val vs mut)
+            inferred_type: Type inferred from the value expression
+            
+        Returns:
+            Final type to use for the variable declaration
+        """
+        # Preserve comptime types for val declarations (flexibility)
+        # Per TYPE_SYSTEM.md: val declarations preserve comptime types for later adaptation
+        if mutability == Mutability.IMMUTABLE and self.is_comptime_type(inferred_type):
+            return inferred_type  # ✅ PRESERVE comptime types for maximum flexibility
+        
+        # For mut declarations, comptime types should be resolved to concrete types
+        # This is already handled by the requirement for explicit type annotations on mut
+        return inferred_type
+    
+    def analyze_declaration_type_inference_error(
+        self,
+        value_node: Dict,
+        inferred_type: HexenType,
+        variable_name: str,
+        error_callback,
+        node: Dict
+    ) -> bool:
+        """
+        Analyze type inference errors with comptime awareness.
+        
+        Provides specific error handling for mixed-type operations vs generic inference failures.
+        
+        Args:
+            value_node: AST node of the value expression
+            inferred_type: The inferred type (typically HexenType.UNKNOWN)
+            variable_name: Name of the variable being declared
+            error_callback: Function to call for error reporting
+            node: Declaration AST node for error reporting
+            
+        Returns:
+            True if specific error was reported, False if generic error should be used
+        """
+        if inferred_type == HexenType.UNKNOWN:
+            # Check if this is likely a mixed-type operation that already reported a specific error
+            if value_node.get("type") == "binary_operation":
+                # Binary operation analyzer already provided a specific error about mixed types
+                # Don't add a generic "Cannot infer type" error - just return
+                return True
+            else:
+                # For other cases, provide a generic type inference error
+                error_callback(f"Cannot infer type for variable '{variable_name}'", node)
+                return True
+                
+        return False
+    
+    def _generate_declaration_precision_loss_error(
+        self, 
+        from_type: HexenType, 
+        to_type: HexenType, 
+        error_callback,
+        node: Dict
+    ) -> None:
+        """Generate appropriate precision loss error message for declarations."""
+        if from_type == HexenType.I64 and to_type == HexenType.I32:
+            error_callback(
+                "Potential truncation. Use explicit conversion: 'value:i32'",
+                node,
+            )
+        elif from_type == HexenType.F64 and to_type == HexenType.F32:
+            error_callback(
+                "Potential precision loss. Use explicit conversion: 'value:f32'",
+                node,
+            )
+        elif from_type in {
+            HexenType.F32,
+            HexenType.F64,
+            HexenType.COMPTIME_FLOAT,
+        } and to_type in {HexenType.I32, HexenType.I64}:
+            # Float to integer conversion - use "truncation" terminology
+            error_callback(
+                f"Potential truncation. Use explicit conversion: 'value:{to_type.value}'",
+                node,
+            )
+        elif from_type == HexenType.I64 and to_type == HexenType.F32:
+            error_callback(
+                "Potential precision loss. Use explicit conversion: 'value:f32'",
+                node,
+            )
+        else:
+            # Generic precision loss message
+            error_callback(
+                f"Potential precision loss. Use explicit conversion: 'value:{to_type.value}'",
+                node,
+            )
+    
     # =========================================================================
     # METHODS MOVED FROM TYPE_UTIL.PY
     # =========================================================================
@@ -1143,3 +1651,116 @@ class ComptimeAnalyzer:
             return "Unknown runtime operations detected"
             
         return ". ".join(reasons) + "."
+    
+    # =========================================================================
+    # ASSIGNMENT ANALYZER CENTRALIZATION
+    # =========================================================================
+    
+    def can_safely_adapt_comptime_types(self, left_type: HexenType, right_type: HexenType, target_type: HexenType) -> bool:
+        """
+        Check if comptime types in a binary operation can safely adapt to the target type.
+        
+        Centralizes the comptime adaptation logic from AssignmentAnalyzer lines 144-153.
+        This determines if a binary operation with comptime operands can safely resolve
+        without requiring precision loss checks.
+        
+        Args:
+            left_type: Left operand type  
+            right_type: Right operand type
+            target_type: Target type for the assignment
+            
+        Returns:
+            True if comptime operands can safely adapt, skipping precision loss checks
+        """
+        from .type_util import can_coerce
+        
+        # Check if either operand is a comptime type
+        has_comptime_operand = self.is_comptime_type(left_type) or self.is_comptime_type(right_type)
+        
+        if not has_comptime_operand:
+            # No comptime operands - cannot adapt
+            return False
+            
+        # Check if comptime operands can coerce to target type
+        left_can_coerce = self.is_comptime_type(left_type) and can_coerce(left_type, target_type)
+        right_can_coerce = self.is_comptime_type(right_type) and can_coerce(right_type, target_type)
+        
+        # If we have comptime operands that can coerce to target type, adaptation is safe
+        return left_can_coerce or right_can_coerce
+    
+    def should_skip_precision_loss_check_for_mixed_concrete(self, left_type: HexenType, right_type: HexenType, target_type: HexenType) -> bool:
+        """
+        Check if precision loss check should be skipped for mixed concrete types.
+        
+        Centralizes logic from AssignmentAnalyzer lines 160-164 for handling mixed
+        concrete operations that are safe despite not having comptime operands.
+        
+        Args:
+            left_type: Left operand type
+            right_type: Right operand type  
+            target_type: Target type for the assignment
+            
+        Returns:
+            True if precision loss check should be skipped for safe concrete operations
+        """
+        from .type_util import can_coerce
+        
+        # Both operand types must be able to coerce to target type for safety
+        return can_coerce(left_type, target_type) and can_coerce(right_type, target_type)
+    
+    def analyze_assignment_comptime_operands(self, left_type: HexenType, right_type: HexenType, target_type: HexenType) -> bool:
+        """
+        Analyze if comptime operands in assignment binary operation make precision loss check unnecessary.
+        
+        Centralizes the complete comptime operand analysis logic from AssignmentAnalyzer 
+        lines 135-153, combining both comptime adaptation and mixed concrete safety checks.
+        
+        Args:
+            left_type: Left operand type in binary operation
+            right_type: Right operand type in binary operation  
+            target_type: Target type for the assignment
+            
+        Returns:
+            True if precision loss check should be skipped due to safe comptime/concrete mixing
+        """
+        # First check: Can comptime operands safely adapt?
+        if self.can_safely_adapt_comptime_types(left_type, right_type, target_type):
+            return True
+            
+        # Second check: Are mixed concrete types safe?
+        if not (self.is_comptime_type(left_type) or self.is_comptime_type(right_type)):
+            # No comptime operands, check if concrete types are safe
+            return self.should_skip_precision_loss_check_for_mixed_concrete(left_type, right_type, target_type)
+            
+        return False
+    
+    def validate_assignment_comptime_literal(self, value_node: Dict, value_type: HexenType, target_type: HexenType) -> Optional[str]:
+        """
+        Validate comptime literal coercion in assignment context.
+        
+        Centralizes the comptime literal validation logic from AssignmentAnalyzer
+        lines 177-186, providing comprehensive literal overflow checking.
+        
+        Args:
+            value_node: AST node for the assigned value
+            value_type: Inferred type of the value  
+            target_type: Target type for the assignment
+            
+        Returns:
+            Error message string if validation fails, None if validation passes
+        """
+        # Only validate comptime literals
+        if value_type not in {HexenType.COMPTIME_INT, HexenType.COMPTIME_FLOAT}:
+            return None
+            
+        # Extract literal information
+        literal_value, source_text = self.extract_literal_info(value_node)
+        if literal_value is None:
+            return None
+            
+        # Validate literal coercion
+        try:
+            self.validate_comptime_literal_coercion(literal_value, value_type, target_type, source_text)
+            return None  # Validation passed
+        except TypeError as e:
+            return str(e)  # Return error message

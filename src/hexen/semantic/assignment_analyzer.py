@@ -114,12 +114,11 @@ class AssignmentAnalyzer:
             # For complex expressions (like binary operations), check what the natural type would be
             # without target type influence to detect precision loss scenarios
             if value.get("type") == "binary_operation":
-                # Check if this might involve comptime types that could safely resolve
-                # If so, skip the precision loss check to avoid false positives
+                # Use centralized comptime operand analysis from ComptimeAnalyzer
                 left = value.get("left", {})
                 right = value.get("right", {})
 
-                # Get operand types
+                # Get operand types  
                 left_type = (
                     self._analyze_expression(left, symbol.type)
                     if left
@@ -131,40 +130,14 @@ class AssignmentAnalyzer:
                     else HexenType.UNKNOWN
                 )
 
-                # If either operand is a comptime type that can coerce to target, this is likely safe
-                has_comptime_operand = left_type in {
-                    HexenType.COMPTIME_INT,
-                    HexenType.COMPTIME_FLOAT,
-                } or right_type in {
-                    HexenType.COMPTIME_INT,
-                    HexenType.COMPTIME_FLOAT,
-                }
+                # Use centralized logic to determine if precision loss check should be skipped
+                should_skip_check = self.comptime_analyzer.analyze_assignment_comptime_operands(
+                    left_type, right_type, symbol.type
+                )
 
-                # If we have comptime operands that can coerce to target type, skip precision loss check
-                if has_comptime_operand:
-                    if (
-                        left_type in {HexenType.COMPTIME_INT, HexenType.COMPTIME_FLOAT}
-                        and can_coerce(left_type, symbol.type)
-                    ) or (
-                        right_type in {HexenType.COMPTIME_INT, HexenType.COMPTIME_FLOAT}
-                        and can_coerce(right_type, symbol.type)
-                    ):
-                        # Skip precision loss check - comptime types can safely adapt
-                        pass
-                    else:
-                        # Proceed with precision loss check
-                        self._check_precision_loss_in_binary_op(value, symbol, node)
-                else:
-                    # No comptime operands, but check if this is a safe mixed concrete operation
-                    # If both operand types can coerce to target type, it's safe - skip precision loss check
-                    if can_coerce(left_type, symbol.type) and can_coerce(
-                        right_type, symbol.type
-                    ):
-                        # Both types can safely coerce to target - no precision loss check needed
-                        pass
-                    else:
-                        # Proceed with precision loss check for truly problematic cases
-                        self._check_precision_loss_in_binary_op(value, symbol, node)
+                if not should_skip_check:
+                    # Proceed with precision loss check for problematic cases
+                    self._check_precision_loss_in_binary_op(value, symbol, node)
             else:
                 # For non-binary operations, use the existing logic
                 # Check for precision loss operations that require explicit conversion
@@ -173,17 +146,13 @@ class AssignmentAnalyzer:
                     self._generate_precision_loss_error(value_type, symbol.type, node)
                     return
 
-            # Check for literal overflow before type coercion
-            if value_type in {HexenType.COMPTIME_INT, HexenType.COMPTIME_FLOAT}:
-                literal_value, source_text = self.comptime_analyzer.extract_literal_info(value)
-                if literal_value is not None:
-                    try:
-                        self.comptime_analyzer.validate_comptime_literal_coercion(
-                            literal_value, value_type, symbol.type, source_text
-                        )
-                    except TypeError as e:
-                        self._error(str(e), node)
-                        return
+            # Check for literal overflow before type coercion using centralized validation
+            literal_error = self.comptime_analyzer.validate_assignment_comptime_literal(
+                value, value_type, symbol.type
+            )
+            if literal_error:
+                self._error(literal_error, node)
+                return
 
             # Check type compatibility with coercion for non-precision-loss cases
             if not can_coerce(value_type, symbol.type):
