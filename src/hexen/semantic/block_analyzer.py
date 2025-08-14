@@ -15,7 +15,7 @@ from typing import Dict, List, Optional, Callable
 from ..ast_nodes import NodeType
 from .types import HexenType, BlockEvaluability
 from .symbol_table import SymbolTable
-from .comptime_analyzer import ComptimeAnalyzer
+from .comptime import ComptimeAnalyzer
 
 
 class BlockAnalyzer:

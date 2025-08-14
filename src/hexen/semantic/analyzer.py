@@ -21,7 +21,7 @@ from .block_analyzer import BlockAnalyzer
 from .expression_analyzer import ExpressionAnalyzer
 from .conversion_analyzer import ConversionAnalyzer
 from .function_analyzer import FunctionAnalyzer
-from .comptime_analyzer import ComptimeAnalyzer
+from .comptime import ComptimeAnalyzer
 
 
 class SemanticAnalyzer:
