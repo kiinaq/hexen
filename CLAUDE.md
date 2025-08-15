@@ -586,3 +586,236 @@ func mixed_computation() : f64 = {
     return result
 }
 ```
+
+---
+
+# Enhanced Unified Block System Deep Dive
+
+## Core Philosophy: Compile-Time vs Runtime Block Classification
+
+The enhanced unified block system introduces sophisticated **compile-time vs runtime distinction** that determines whether expression blocks can preserve comptime types for maximum flexibility or require explicit context for immediate resolution.
+
+**Key Insight**: Expression blocks fall into two categories based on their contents:
+- **Compile-time evaluable**: Preserve comptime types for maximum flexibility (one computation, multiple uses)
+- **Runtime evaluable**: Require explicit context due to runtime operations (functions, conditionals, mixed types)
+
+### The Two-Tier Classification System
+
+#### Compile-Time Evaluable Blocks ✨
+**Contains only comptime operations** - preserves comptime types for maximum adaptability:
+
+```hexen
+// ✨ Compile-time evaluable block preserves comptime types
+val flexible_computation = {
+    val base = 42              // comptime_int
+    val multiplier = 100       // comptime_int  
+    val factor = 3.14          // comptime_float
+    val result = base * multiplier + factor  // All comptime operations → comptime_float
+    assign result              // Block result: comptime_float (preserved!)
+}
+
+// Same block result adapts to different contexts (maximum flexibility!)
+val as_f32 : f32 = flexible_computation    // comptime_float → f32 (implicit)
+val as_f64 : f64 = flexible_computation    // SAME source → f64 (different context!)
+val as_i32 : i32 = flexible_computation:i32  // SAME source → i32 (explicit conversion)
+```
+
+#### Runtime Evaluable Blocks 🔧
+**Contains runtime operations** - requires explicit context for immediate resolution:
+
+```hexen
+// 🔧 Runtime evaluable block requires explicit context
+func get_user_input() : f64 = { return 42.0 }
+
+val runtime_result : f64 = {              // Context REQUIRED! (explicit type annotation)
+    val user_input = get_user_input()     // Function call → runtime operation
+    val base = 42                         // comptime_int  
+    assign base * user_input              // Mixed: comptime + concrete → needs context
+}
+```
+
+### Runtime Operation Detection
+
+The system automatically detects runtime operations that trigger runtime classification:
+
+#### Function Calls → Runtime Classification
+**All function calls return concrete types**, making blocks runtime evaluable:
+
+```hexen
+func helper() : i32 = { return 42 }
+
+// Function call detection
+val with_function : i32 = {        // Explicit context required
+    val result = helper()          // Function call → runtime
+    assign result
+}
+```
+
+#### Conditional Expressions → Runtime Classification  
+**All conditionals are runtime per specification**, even with comptime branches:
+
+```hexen
+// Conditional detection
+val with_conditional : i32 = {     // Explicit context required
+    val value = if true {
+        assign 42
+    } else {
+        assign 100
+    }                              // Conditional → runtime
+    assign value
+}
+```
+
+#### Mixed Concrete Types → Runtime Classification
+**Mixing concrete types** requires explicit conversions and context:
+
+```hexen
+// Mixed concrete types
+val mixed_block : f64 = {          // Explicit context required
+    val a : i32 = 10               // concrete i32
+    val b : f64 = 20.0             // concrete f64
+    assign a:f64 + b               // Mixed concrete → explicit conversion required
+}
+```
+
+### Enhanced Error Messages and Validation
+
+The system provides context-specific error messages with actionable guidance:
+
+#### "Context REQUIRED!" Messages
+Runtime blocks explain why explicit context is needed:
+
+```hexen
+// ❌ Missing explicit context
+val problematic = {
+    val input = get_input()        // Function call → runtime
+    assign input * 2
+}
+// Error: Context REQUIRED! Runtime block requires explicit type annotation because it 
+// contains function calls (functions always return concrete types). 
+// Suggestion: val problematic : i32 = { ... }
+```
+
+#### Explicit Conversion Guidance
+Mixed concrete types get detailed conversion suggestions:
+
+```hexen
+// ❌ Mixed concrete types without conversion
+val a : i32 = 10
+val b : f64 = 20.0
+val mixed = a + b
+// Error: Mixed concrete types in arithmetic operation '+': i32 incompatible with f64. 
+// Transparent costs principle requires explicit conversion. 
+// Use explicit conversion syntax: value:f64
+```
+
+### Advanced Patterns Enabled
+
+#### One Computation, Multiple Uses Pattern
+Compile-time evaluable blocks enable flexible reuse:
+
+```hexen
+// Single computation, multiple contexts
+val complex_math = {
+    val x = 42 + 100               // comptime_int
+    val y = 3.14 * 2.0             // comptime_float  
+    assign x * y                   // comptime_int * comptime_float → comptime_float
+}
+
+// Same computation used in different contexts
+val for_graphics : f32 = complex_math      // → f32
+val for_physics : f64 = complex_math       // → f64 (higher precision)
+val for_indexing : i32 = complex_math:i32  // → i32 (explicit conversion)
+```
+
+#### Runtime Optimization with Early Exits
+Runtime blocks support performance optimization patterns:
+
+```hexen
+func expensive_calc(key: string) : f64 = {
+    val result : f64 = {
+        val cached = lookup_cache(key)
+        if cached != 0.0 {
+            return cached          // Early function exit: cache hit
+        }
+        
+        val computed = very_expensive_operation(key)
+        save_to_cache(key, computed)
+        assign computed            // Cache miss: assign computed value
+    }
+    
+    log_cache_miss(key)            // Only executes on cache miss
+    return result
+}
+```
+
+#### Error Handling with Validation Guards
+Expression blocks enable comprehensive validation patterns:
+
+```hexen
+func safe_processing(input: f64) : f64 = {
+    val validated : f64 = {
+        if input < 0.0 {
+            return -1.0            // Early function exit: invalid input
+        }
+        if input > 1000.0 {
+            return -2.0            // Early function exit: out of range
+        }
+        assign sanitize(input)     // Success: assign sanitized value
+    }
+    
+    return validated
+}
+```
+
+### Integration with Existing Type System
+
+The enhanced block system seamlessly integrates with existing comptime types and `val`/`mut` semantics:
+
+#### `val` + Compile-Time Blocks = Maximum Flexibility
+```hexen
+val preserved_comptime = {         // No explicit type needed
+    val calc = 42 * 3.14          // comptime operations
+    assign calc                   // Preserved as comptime_float
+}
+
+// Multiple uses with different types
+val use1 : f32 = preserved_comptime
+val use2 : f64 = preserved_comptime
+```
+
+#### `mut` + Runtime Blocks = Immediate Resolution
+```hexen
+mut immediate_resolution : f64 = { // Explicit type required for mut
+    val calc = 42 * 3.14          // Same comptime operations
+    assign calc                   // Immediately resolved to f64
+}
+// No flexibility preserved - immediate_resolution is concrete f64
+```
+
+### Specification Compliance
+
+The enhanced unified block system fully complies with:
+- **UNIFIED_BLOCK_SYSTEM.md**: Compile-time vs runtime distinction
+- **CONDITIONAL_SYSTEM.md**: All conditionals treated as runtime
+- **TYPE_SYSTEM.md**: Transparent costs principle with explicit conversions
+- **BINARY_OPS.md**: Consistent type resolution across all operations
+
+### Development Guidelines
+
+#### When to Use Compile-Time Blocks
+- Pure mathematical computations with comptime literals
+- Calculations that might be used in multiple type contexts
+- Configuration values that adapt to usage context
+
+#### When to Use Runtime Blocks (with explicit context)
+- Any computation involving function calls
+- Blocks containing conditional expressions
+- Operations mixing concrete types
+- Cases where immediate type resolution is desired
+
+#### Best Practices
+1. **Let the system guide you**: Error messages provide specific guidance for required annotations
+2. **Preserve flexibility when possible**: Use compile-time blocks for reusable computations
+3. **Be explicit about costs**: Use type annotations when mixing concrete types
+4. **Leverage early returns**: Use `return` for error handling and optimization patterns

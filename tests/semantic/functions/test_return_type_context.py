@@ -118,8 +118,8 @@ class TestReturnTypeContext:
         # This should fail because mixed concrete types require explicit conversions
         # following TYPE_SYSTEM.md transparent costs principle
         assert len(errors) == 1
-        assert "Mixed concrete type operation" in str(errors[0])
-        assert "requires explicit conversions" in str(errors[0])
+        assert "Mixed concrete types" in str(errors[0])
+        assert "requires explicit conversion" in str(errors[0])
 
     def test_function_return_with_explicit_conversions_works(self):
         """Test that function return statements work with explicit conversions for mixed concrete types."""

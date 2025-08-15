@@ -70,7 +70,7 @@ class TestExplicitConversionErrorMessages(StandardTestBase):
 
         # Should have mixed concrete type operation error
         mixed_errors = [
-            e for e in errors if "Mixed concrete type operation" in e.message
+            e for e in errors if "Mixed concrete types" in e.message
         ]
         assert len(mixed_errors) >= 1
 
@@ -260,9 +260,9 @@ class TestMixedTypeErrorMessages(StandardTestBase):
         assert len(errors) >= 1
 
         error_msg = errors[0].message
-        assert "Mixed concrete type operation" in error_msg
+        assert "Mixed concrete types" in error_msg
         assert "i32" in error_msg and "i64" in error_msg
-        assert "Use:" in error_msg
+        assert "Use explicit conversion syntax:" in error_msg
 
     def test_ambiguous_comptime_expression_messages(self):
         """Test that comptime expressions work correctly (no errors for comptime + comptime)"""
@@ -282,11 +282,11 @@ class TestMixedTypeErrorMessages(StandardTestBase):
         test_cases = [
             (
                 "val a:i32 = 10\n            val b:i64 = 20\n            val x = a + b",
-                "Use:",
+                "Use explicit conversion syntax:",
             ),
             (
                 "val c:f32 = 3.14\n            val d:f64 = 2.5\n            val y = c * d",
-                "Use:",
+                "Use explicit conversion syntax:",
             ),
         ]
 

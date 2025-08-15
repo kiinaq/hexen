@@ -100,7 +100,7 @@ class TestUnaryMinusSemantics(StandardTestBase):
             in str(e)
             for e in errors
         )
-        assert any("Mixed concrete type operation" in str(e) for e in errors)
+        assert any("Mixed concrete types" in str(e) for e in errors)
 
 
 class TestNegativeNumberLiterals(StandardTestBase):

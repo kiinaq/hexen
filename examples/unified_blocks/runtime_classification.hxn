@@ -1,0 +1,248 @@
+// Advanced Pattern Examples: Runtime Block Classification
+//
+// This file demonstrates runtime blocks that require explicit context due to
+// function calls, conditionals, or mixed concrete types.
+
+// =============================================================================
+// HELPER FUNCTIONS FOR RUNTIME EXAMPLES
+// =============================================================================
+
+func get_user_input() : i32 = { return 42 }
+func get_system_time() : f64 = { return 1234567890.5 }
+func lookup_cache(key: string) : f64 = { return 0.0 }
+func very_expensive_operation(key: string) : f64 = { return 42.0 }
+func save_to_cache(key: string, value: f64) : void = { return }
+func log_cache_miss(key: string) : void = { return }
+func sanitize_input(value: f64) : f64 = { return value }
+func validate_range(value: f64) : bool = { return value >= 0.0 && value <= 1000.0 }
+
+// =============================================================================
+// PATTERN 1: FUNCTION CALL RUNTIME CLASSIFICATION
+// =============================================================================
+
+func demonstrate_function_call_runtime() : void = {
+    // Function calls always return concrete types → runtime block
+    val runtime_result : i32 = {              // Context REQUIRED!
+        val user_input = get_user_input()     // Function call → runtime classification
+        val multiplier = 2                    // comptime_int
+        assign user_input * multiplier        // Mixed: concrete + comptime → concrete
+    }
+    
+    // Multiple function calls in same block
+    val multi_function_result : f64 = {       // Context REQUIRED!
+        val input = get_user_input()          // Returns i32 (concrete)
+        val timestamp = get_system_time()     // Returns f64 (concrete)
+        assign input:f64 + timestamp          // Explicit conversion required
+    }
+    
+    return
+}
+
+// =============================================================================
+// PATTERN 2: CONDITIONAL RUNTIME CLASSIFICATION
+// =============================================================================
+
+func demonstrate_conditional_runtime() : void = {
+    // All conditionals are runtime per specification
+    val conditional_result : i32 = {          // Context REQUIRED!
+        val condition = true                  // comptime value used in condition
+        val value = if condition {
+            assign 42                         // comptime_int
+        } else {
+            assign 100                        // comptime_int
+        }
+        assign value                          // Conditional → runtime classification
+    }
+    
+    // Complex conditional with mixed types
+    val complex_conditional : f64 = {         // Context REQUIRED!
+        val threshold = 50                    // comptime_int
+        val base_value = get_user_input()     // Function call + conditional
+        val result = if base_value > threshold {
+            assign base_value:f64 * 1.5       // Explicit conversion needed
+        } else {
+            assign base_value:f64 * 0.5       // Explicit conversion needed
+        }
+        assign result
+    }
+    
+    return
+}
+
+// =============================================================================
+// PATTERN 3: MIXED CONCRETE TYPE RUNTIME CLASSIFICATION
+// =============================================================================
+
+func demonstrate_mixed_concrete_runtime() : void = {
+    // Mixed concrete types require explicit conversions
+    val mixed_types_result : f64 = {          // Context REQUIRED!
+        val int_value : i32 = 10              // concrete i32
+        val float_value : f64 = 20.0          // concrete f64
+        assign int_value:f64 + float_value    // Explicit conversion required
+    }
+    
+    // Multiple mixed operations
+    val complex_mixed : f64 = {               // Context REQUIRED!
+        val a : i32 = 100
+        val b : i64 = 200
+        val c : f32 = 3.14
+        val intermediate = a:f64 + b:f64      // i32→f64, i64→f64
+        assign intermediate * c:f64           // f32→f64
+    }
+    
+    return
+}
+
+// =============================================================================
+// PATTERN 4: PERFORMANCE OPTIMIZATION WITH CACHING
+// =============================================================================
+
+func expensive_calc_with_caching(key: string) : f64 = {
+    val result : f64 = {                      // Context REQUIRED! (function calls)
+        val cached = lookup_cache(key)
+        if cached != 0.0 {
+            return cached                     // Early function exit: cache hit
+        }
+        
+        val computed = very_expensive_operation(key)
+        save_to_cache(key, computed)
+        assign computed                       // Cache miss: assign computed value
+    }
+    
+    log_cache_miss(key)                       // Only executes on cache miss
+    return result
+}
+
+// =============================================================================
+// PATTERN 5: ERROR HANDLING AND VALIDATION GUARDS
+// =============================================================================
+
+func safe_processing_with_validation(input: f64) : f64 = {
+    val validated_input : f64 = {             // Context REQUIRED! (function calls)
+        if input < 0.0 {
+            return -1.0                       // Early function exit: invalid input
+        }
+        if input > 1000.0 {
+            return -2.0                       // Early function exit: out of range
+        }
+        
+        val sanitized = sanitize_input(input) // Function call → runtime
+        if validate_range(sanitized) {        // Function call in condition
+            assign sanitized
+        } else {
+            return -3.0                       // Validation failed
+        }
+    }
+    
+    return validated_input
+}
+
+// =============================================================================
+// PATTERN 6: COMPLEX BUSINESS LOGIC WITH MULTIPLE RUNTIME OPERATIONS
+// =============================================================================
+
+func calculate_pricing_with_discounts(base_price: f64, user_tier: i32) : f64 = {
+    val final_price : f64 = {                 // Context REQUIRED! (conditionals + mixed types)
+        val tier_multiplier = if user_tier == 1 {
+            assign 1.0                        // Basic tier: no discount
+        } else if user_tier == 2 {
+            assign 0.9                        // Gold tier: 10% discount  
+        } else if user_tier == 3 {
+            assign 0.8                        // Premium tier: 20% discount
+        } else {
+            assign 1.0                        // Unknown tier: no discount
+        }
+        
+        val discounted = base_price * tier_multiplier
+        
+        // Additional time-based discount
+        val current_time = get_system_time()  // Function call
+        val time_discount = if current_time > 1000000000.0 {
+            assign 0.95                       // Off-peak discount
+        } else {
+            assign 1.0                        // No time discount
+        }
+        
+        assign discounted * time_discount
+    }
+    
+    return final_price
+}
+
+// =============================================================================
+// PATTERN 7: RUNTIME BLOCKS WITH EARLY RETURNS FOR FLOW CONTROL
+// =============================================================================
+
+func process_user_request(request_type: i32, priority: i32) : i32 = {
+    val processing_result : i32 = {           // Context REQUIRED! (function calls + conditionals)
+        // Quick rejection for invalid requests
+        if request_type < 0 || request_type > 10 {
+            return -1                         // Early exit: invalid request type
+        }
+        
+        // Priority-based processing
+        if priority == 0 {
+            return 0                          // Early exit: low priority, skip processing
+        }
+        
+        // Simulate processing based on type
+        val base_result = get_user_input()    // Function call → runtime
+        val processed = if request_type <= 5 {
+            assign base_result * 2            // Simple processing
+        } else {
+            assign base_result * 3            // Complex processing
+        }
+        
+        assign processed
+    }
+    
+    return processing_result
+}
+
+// =============================================================================
+// PATTERN 8: NESTED RUNTIME BLOCKS WITH DIFFERENT CLASSIFICATIONS
+// =============================================================================
+
+func demonstrate_nested_runtime_blocks() : void = {
+    val outer_result : f64 = {                // Context REQUIRED! (contains runtime operations)
+        // Inner block with function calls
+        val function_result : i32 = {         // Context REQUIRED! (function calls)
+            val input = get_user_input()
+            assign input * 2
+        }
+        
+        // Inner block with conditionals  
+        val conditional_result : f64 = {      // Context REQUIRED! (conditionals)
+            val value = if function_result > 50 {
+                assign 100.0
+            } else {
+                assign 50.0
+            }
+            assign value
+        }
+        
+        // Combine results with mixed types
+        assign function_result:f64 + conditional_result  // Explicit conversion
+    }
+    
+    return
+}
+
+// =============================================================================
+// MAIN DEMONSTRATION FUNCTION
+// =============================================================================
+
+func main() : void = {
+    demonstrate_function_call_runtime()
+    demonstrate_conditional_runtime()
+    demonstrate_mixed_concrete_runtime()
+    demonstrate_nested_runtime_blocks()
+    
+    // Test complex patterns
+    val cache_result = expensive_calc_with_caching("test_key")
+    val validated = safe_processing_with_validation(42.0)
+    val pricing = calculate_pricing_with_discounts(100.0, 2)
+    val request_result = process_user_request(3, 1)
+    
+    return
+}

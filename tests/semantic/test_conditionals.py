@@ -743,7 +743,7 @@ class TestTypeSystemIntegration:
         }
         '''
         ast, errors = parse_and_analyze(code)
-        assert_error_contains(errors, "Branch type i32 incompatible with target type f64. Use explicit conversion: value:f64")
+        assert_error_contains(errors, "Branch type mismatch in conditional branch: i32 incompatible with target type f64. Use explicit conversion: value:f64")
 
     def test_function_parameter_context_propagation(self):
         """Test context propagation from function parameters."""
@@ -871,7 +871,7 @@ class TestTypeSystemErrorHandling:
         }
         '''
         ast, errors = parse_and_analyze(code)
-        assert_error_contains(errors, "Mixed types across conditional branches require explicit target type context")
+        assert_error_contains(errors, "Type ambiguity detected in conditional branches")
 
     def test_helpful_conversion_error_messages(self):
         """Test that concrete type conversion errors provide helpful messages."""

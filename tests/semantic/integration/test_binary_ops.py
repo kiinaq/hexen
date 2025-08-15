@@ -245,7 +245,7 @@ class TestBinaryOperationErrors(StandardTestBase):
         assert any(
             "Float division requires explicit result type" in e.message for e in errors
         ), "Missing granular error for div1"
-        assert any("Mixed concrete type operation" in e.message for e in errors), (
+        assert any("Mixed concrete types" in e.message for e in errors), (
             "Missing granular error for add2"
         )
 

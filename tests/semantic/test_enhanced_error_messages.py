@@ -80,10 +80,12 @@ class TestIntegrationWithEnhancedErrors:
         ast = parser.parse(source)
         analyzer = SemanticAnalyzer()
         
-        with pytest.raises(SemanticError) as exc_info:
-            analyzer.analyze(ast)
+        errors = analyzer.analyze(ast)
         
-        error_msg = str(exc_info.value)
+        # Should have at least one error
+        assert len(errors) >= 1, "Expected at least one error for mixed concrete types"
+        
+        error_msg = str(errors[0])
         # Check that it's an enhanced error (should contain enhanced terminology)
         has_enhanced_content = any(term in error_msg.lower() for term in [
             "mixed concrete types", "transparent costs", "explicit conversion",
