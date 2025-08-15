@@ -103,7 +103,7 @@ class TestComptimePreservationBasics:
         """Test compile-time evaluable block with complex arithmetic expressions."""
         source = """
         func test_complex_comptime() : f64 = {
-            val computation = {
+            val computation : f64 = {  // Explicit type required for runtime block (contains concrete variable)
                 val step1 = 42 + 100
                 val step2 = step1 * 3.14
                 val step3 : f64 = step2 / 2.0  // Float division requires explicit type
@@ -133,7 +133,7 @@ class TestRuntimeBlockContextResolution:
         }
         
         func test_runtime() : i32 = {
-            val result = {
+            val result : i32 = {  // Explicit type required for runtime block (contains function call)
                 val computed = helper()  // Function call triggers runtime
                 assign computed
             }

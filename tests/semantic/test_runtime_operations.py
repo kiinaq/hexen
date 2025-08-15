@@ -57,7 +57,7 @@ class TestFunctionCallDetection:
         }
         
         func test() : i32 = {
-            val result = {
+            val result : i32 = {  // Explicit type required for runtime block
                 val computed = helper()  // Function call should trigger runtime
                 assign computed
             }
@@ -67,7 +67,7 @@ class TestFunctionCallDetection:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         
-        # Runtime Operations: Should analyze without errors (infrastructure doesn't break functionality)
+        # Runtime Operations: Should analyze without errors with explicit type annotation
         assert errors == []
 
     def test_nested_function_calls_detected(self):
@@ -82,7 +82,7 @@ class TestFunctionCallDetection:
         }
         
         func test() : i32 = {
-            val result = {
+            val result : i32 = {  // Explicit type required for runtime block (contains function calls)
                 val computed = add(multiply(2, 3), 4)  // Nested function calls
                 assign computed
             }
@@ -92,7 +92,7 @@ class TestFunctionCallDetection:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         
-        # Runtime Operations: Should analyze without errors (infrastructure doesn't break functionality)
+        # Runtime Operations: Should analyze without errors with explicit type annotation
         assert errors == []
 
     def test_function_call_in_binary_operation(self):
@@ -103,7 +103,7 @@ class TestFunctionCallDetection:
         }
         
         func test() : i32 = {
-            val result = {
+            val result : i32 = {  // Explicit type required for runtime block (contains function call)
                 val computed = getValue() + 42  // Function call in binary operation
                 assign computed
             }
@@ -124,7 +124,7 @@ class TestFunctionCallDetection:
         }
         
         func test() : i32 = {
-            val result = {
+            val result : i32 = {  // Explicit type required for runtime block (contains function call)
                 val temp = 42
                 assign calculate()  // Function call directly in assign
             }
@@ -166,7 +166,7 @@ class TestFunctionCallDetection:
         }
         
         func test() : i32 = {
-            val result = {
+            val result : i32 = {  // Explicit type required for runtime block (contains function call)
                 doSomething()  // Direct function call statement
                 assign 42
             }

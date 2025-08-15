@@ -466,6 +466,13 @@ class BlockEvaluation:
                     # If variable has comptime type, it's comptime-only
                     var_type = symbol_info.type
                     return var_type in [HexenType.COMPTIME_INT, HexenType.COMPTIME_FLOAT]
+                else:
+                    # FORWARD REFERENCE FIX: If symbol not found, assume it's comptime
+                    # This handles cases where variables are referenced within the same block
+                    # before they're declared in the symbol table during classification
+                    # Better to be conservative and allow these through classification,
+                    # then catch real errors during actual analysis
+                    return True
             return False
             
         # Binary operations: both operands must be comptime-only

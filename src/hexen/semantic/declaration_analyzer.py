@@ -306,6 +306,32 @@ class DeclarationAnalyzer:
 
             inferred_type = self._analyze_expression(value)
             
+            # Runtime blocks without explicit type annotation should trigger enhanced error
+            if value and value.get("type") == "block":
+                # Classify block evaluability to determine if explicit context is required
+                block_statements = value.get("statements", [])
+                evaluability = self.comptime_analyzer.classify_block_evaluability(block_statements)
+                
+                # If block is runtime evaluable, it requires explicit type context
+                from .types import BlockEvaluability
+                if evaluability == BlockEvaluability.RUNTIME:
+                    # REFINED: Only flag blocks that actually produce values with assign statements
+                    # Blocks with only return statements (early exits) don't need explicit context
+                    has_assign_statement = any(
+                        stmt.get("type") == "assign_statement" 
+                        for stmt in block_statements
+                    )
+                    
+                    if has_assign_statement:
+                        # Generate enhanced error message with actionable guidance
+                        runtime_reason = self.comptime_analyzer.get_runtime_operation_reason(block_statements)
+                        self._error(
+                            f"Context REQUIRED! Runtime block requires explicit type annotation because it {runtime_reason.lower()}. "
+                            f"Suggestion: val {name} : <type> = {{ ... }}", 
+                            node
+                        )
+                        return
+            
             # Use centralized type inference error analysis
             if self.comptime_analyzer.analyze_declaration_type_inference_error(
                 value, inferred_type, name, self._error, node

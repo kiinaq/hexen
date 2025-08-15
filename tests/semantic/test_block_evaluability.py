@@ -61,7 +61,7 @@ class TestSession1Infrastructure:
         source = """
         func test() : i32 = {
             val concrete_var : i32 = 42    // Explicit concrete type
-            val result = {
+            val result : i32 = {  // Explicit type required for runtime block (uses concrete variable)
                 val doubled = concrete_var * 2  // Uses concrete variable
                 assign doubled
             }
@@ -71,7 +71,7 @@ class TestSession1Infrastructure:
         ast = self.parser.parse(source)  
         errors = self.analyzer.analyze(ast)
         
-        # Block Evaluability: Should analyze without errors (infrastructure doesn't break functionality)
+        # Block Evaluability: Should analyze without errors with explicit type annotation
         assert errors == []
 
     def test_mixed_operation_blocks_analyze_correctly(self):
@@ -79,7 +79,7 @@ class TestSession1Infrastructure:
         source = """
         func test() : f64 = {
             val concrete_base : f32 = 10.0  // Explicit concrete type
-            val result = {
+            val result : f64 = {  // Explicit type required for runtime block (uses concrete variable)
                 val comptime_mult = 3.14     // comptime_float
                 val mixed = concrete_base:f64 * comptime_mult  // Mixed operation
                 assign mixed
@@ -90,7 +90,7 @@ class TestSession1Infrastructure:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         
-        # Block Evaluability: Should analyze without errors (infrastructure doesn't break functionality)
+        # Block Evaluability: Should analyze without errors with explicit type annotation
         assert errors == []
 
     def test_complex_comptime_arithmetic_blocks_analyze_correctly(self):
@@ -119,7 +119,7 @@ class TestSession1Infrastructure:
         """Test explicit type annotations work correctly (infrastructure test)"""
         source = """
         func test() : i32 = {
-            val result = {
+            val result : i32 = {  // Explicit type required for runtime block (contains concrete variable)
                 val explicit : i32 = 42    // Explicit type annotation
                 assign explicit
             }
@@ -129,14 +129,14 @@ class TestSession1Infrastructure:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         
-        # Block Evaluability: Should analyze without errors (infrastructure doesn't break functionality)
+        # Block Evaluability: Should analyze without errors with explicit type annotation
         assert errors == []
 
     def test_nested_expression_blocks_analyze_correctly(self):
         """Test nested expression blocks work correctly (infrastructure test)"""
         source = """
         func test() : i32 = {
-            val outer = {
+            val outer : i32 = {  // Explicit type required for runtime block (contains concrete variable)
                 val inner = {
                     val pure = 42 + 100    // Pure comptime
                     assign pure
@@ -150,7 +150,7 @@ class TestSession1Infrastructure:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         
-        # Block Evaluability: Should analyze without errors (infrastructure doesn't break functionality)
+        # Block Evaluability: Should analyze without errors with explicit type annotation
         assert errors == []
 
     def test_various_literal_types_analyze_correctly(self):
@@ -220,10 +220,10 @@ class TestSession1Infrastructure:
             val string_var : string = "hello"
             val bool_var : bool = true
             
-            val uses_i32 = {
+            val uses_i32 : i32 = {  // Explicit type required for runtime block (uses concrete variable)
                 assign i32_var * 2          // Uses concrete i32 variable
             }
-            val uses_f64 = {
+            val uses_f64 : f64 = {  // Explicit type required for runtime block (uses concrete variable)
                 assign f64_var + 1.0        // Uses concrete f64 variable
             }
         }
@@ -239,7 +239,7 @@ class TestSession1Infrastructure:
         source = """
         func test() : void = {
             mut counter : i32 = 0           // mut requires explicit type
-            val uses_mut = {
+            val uses_mut : i32 = {  // Explicit type required for runtime block (uses concrete variable)
                 assign counter + 1          // Uses concrete mut variable
             }
         }
