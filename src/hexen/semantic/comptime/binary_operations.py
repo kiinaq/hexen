@@ -134,9 +134,14 @@ class BinaryOperations:
         elif not has_comptime:
             # Pattern 3: Mixed concrete types ALWAYS require explicit conversions
             # This enforces transparent costs and explicit conversion philosophy
+            from ..errors import BlockAnalysisError
+            target_type_name = target_type.value if target_type else "target_type"
             error_callback(
-                f"Mixed concrete type operation '{left_type.value} {operator} {right_type.value}' requires explicit conversions. "
-                f"Use: 'left_val:{target_type.value if target_type else 'target_type'} {operator} right_val:{target_type.value if target_type else 'target_type'}'",
+                BlockAnalysisError.mixed_types_need_conversion(
+                    left_type.value,
+                    right_type.value,
+                    f"arithmetic operation '{operator}'"
+                ) + f" Example: left_val:{target_type_name} {operator} right_val:{target_type_name}",
                 node,
             )
             return HexenType.UNKNOWN
@@ -147,9 +152,13 @@ class BinaryOperations:
                 # This is Pattern 1: comptime + comptime - let resolve function handle
                 return None  # Continue with normal processing
             else:
+                # Use enhanced error message for ambiguous operations
+                from ..errors import BlockAnalysisError
                 error_callback(
-                    f"Mixed-type operation '{left_type.value} {operator} {right_type.value}' requires target type context. "
-                    f"Use: 'val result : target_type = expression'",
+                    BlockAnalysisError.ambiguity_resolution_guidance(
+                        f"operation '{left_type.value} {operator} {right_type.value}'",
+                        ["explicit target type annotation", "explicit type conversions"]
+                    ) + " Example: val result : target_type = expression",
                     node,
                 )
                 return HexenType.UNKNOWN
@@ -190,10 +199,14 @@ class BinaryOperations:
 
             if not both_comptime:
                 # Mixed concrete types require explicit conversions (BINARY_OPS.md rule)
+                # Use enhanced error message with better guidance
+                from ..errors import BlockAnalysisError
                 error_callback(
-                    f"Mixed-type comparison '{left_type.value} {operator} {right_type.value}' requires explicit conversions. "
-                    f"Use explicit conversions like: 'left_val:{right_type.value} {operator} right_val' "
-                    f"or 'left_val:f64 {operator} right_val:f64'",
+                    BlockAnalysisError.mixed_types_need_conversion(
+                        left_type.value,
+                        right_type.value,
+                        f"comparison operation '{operator}'"
+                    ),
                     node,
                 )
                 return HexenType.UNKNOWN

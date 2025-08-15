@@ -629,73 +629,86 @@ class BlockEvaluation:
     
     def validate_runtime_block_context(self, statements: List[Dict], evaluability: BlockEvaluability) -> Optional[str]:
         """
-        Validate that runtime blocks have appropriate context and generate helpful error messages.
+        Validate that runtime blocks have appropriate context and generate enhanced error messages.
         
-        This provides detailed error messages explaining why blocks require
-        runtime context when they contain function calls or conditionals.
+        Enhanced in Session 4 with context-specific error messages and actionable guidance.
+        Provides detailed error messages explaining why blocks require runtime context
+        when they contain function calls or conditionals.
         
         Args:
             statements: List of statements in the block
             evaluability: Block evaluability classification
             
         Returns:
-            Error message string if validation fails, None if validation passes
+            Enhanced error message string if validation fails, None if validation passes
         """
         if evaluability != BlockEvaluability.RUNTIME:
             return None  # Compile-time blocks don't need validation
             
-        # Generate helpful error messages explaining why runtime context is required
+        # Generate enhanced error messages with actionable guidance
         reasons = []
         
-        # Check for function calls
+        # Check for function calls with enhanced messaging
         if self._contains_function_calls(statements):
             reasons.append("contains function calls (functions always return concrete types)")
             
-        # Check for conditionals  
+        # Check for conditionals with enhanced messaging
         if self._contains_conditionals(statements):
             reasons.append("contains conditional expressions (all conditionals are runtime per specification)")
             
-        # Check for concrete variable usage
+        # Check for concrete variable usage with enhanced messaging
         if self.has_runtime_variables(statements):
             reasons.append("uses concrete type variables")
             
         if reasons:
-            reason_text = " and ".join(reasons)
-            return f"Runtime block requires explicit type context because it {reason_text}. " \
-                   f"Suggestion: Add explicit type annotation to the target variable."
+            # Use enhanced error message generation from Session 4
+            from ..errors import BlockAnalysisError
+            return BlockAnalysisError.runtime_context_required(reasons, "type annotation")
                    
         return None
     
     def get_runtime_operation_reason(self, statements: List[Dict]) -> str:
         """
-        Get a detailed reason why the block is classified as runtime.
+        Get a detailed reason why the block is classified as runtime with enhanced explanations.
         
+        Enhanced in Session 4 to provide educational explanations and specification references.
         This helps generate specific error messages for different types of runtime operations.
         
         Args:
             statements: List of statements in the block
             
         Returns:
-            Human-readable string explaining the runtime classification reason
+            Enhanced human-readable string explaining the runtime classification reason
         """
         reasons = []
+        explanations = []
         
-        # Check for function calls
+        # Check for function calls with enhanced explanations
         if self._contains_function_calls(statements):
             reasons.append("Function calls detected (functions always return concrete types)")
+            from ..errors import BlockAnalysisError
+            explanations.append(BlockAnalysisError.function_call_runtime_explanation())
             
-        # Check for conditionals  
+        # Check for conditionals with enhanced explanations
         if self._contains_conditionals(statements):
             reasons.append("Conditional expressions detected (all conditionals are runtime per CONDITIONAL_SYSTEM.md)")
+            from ..errors import BlockAnalysisError
+            explanations.append(BlockAnalysisError.conditional_runtime_explanation())
             
-        # Check for concrete variable usage
+        # Check for concrete variable usage with enhanced explanations
         if self.has_runtime_variables(statements):
             reasons.append("Concrete type variables detected (mixing comptime and concrete types)")
             
         if not reasons:
             return "Unknown runtime operations detected"
-            
-        return ". ".join(reasons) + "."
+        
+        # Provide enhanced explanation with actionable guidance
+        basic_reason = ". ".join(reasons) + "."
+        if explanations:
+            # Include first explanation for educational purposes
+            return f"{basic_reason}\n\n{explanations[0]}"
+        
+        return basic_reason
     
     # =========================================================================
     # CONDITIONAL BRANCH ANALYSIS
@@ -736,10 +749,14 @@ class BlockEvaluation:
                     continue
                 elif branch_type != target_type:
                     # Require exact type match for concrete types (transparent costs principle)
-                    # Suggest explicit conversion for mixed concrete types
+                    # Use enhanced error message with explicit conversion suggestions
+                    from ..errors import BlockAnalysisError
                     error_callback(
-                        f"Branch type {branch_type.name.lower()} incompatible with target type {target_type.name.lower()}. "
-                        f"Use explicit conversion: value:{target_type.name.lower()}", 
+                        BlockAnalysisError.branch_type_mismatch(
+                            branch_type.name.lower(),
+                            target_type.name.lower(),
+                            "conditional branch"
+                        ), 
                         node
                     )
                     return HexenType.UNKNOWN
@@ -783,8 +800,14 @@ class BlockEvaluation:
             return unified_type
         else:
             # Mixed types require explicit target context for resolution
+            # Use enhanced error message with actionable guidance
+            from ..errors import BlockAnalysisError
+            type_names = [bt.name.lower() for bt in branch_types]
             error_callback(
-                f"Mixed types across conditional branches require explicit target type context", 
+                BlockAnalysisError.ambiguity_resolution_guidance(
+                    f"conditional branches with types: {', '.join(type_names)}",
+                    ["explicit target type annotation", "explicit type conversions in branches"]
+                ), 
                 node
             )
             return HexenType.UNKNOWN
