@@ -348,7 +348,7 @@ class TestComplexArgumentHandling(StandardTestBase):
         }
         
         func main() : i32 = {
-            val result = {
+            val result : i32 = {  // Explicit type required for runtime block (contains function call)
                 val temp = helper(5)
                 assign temp * 2
             }
@@ -572,7 +572,7 @@ class TestAdvancedFunctionCallScenarios(StandardTestBase):
         """Test function calls with early return patterns"""
         source = """
         func validate_and_process(input: i32) : i32 = {
-            val result = {
+            val result : i32 = {  // Explicit type required for runtime block (uses concrete parameter)
                 // Simplified early return testing - just check the syntax works
                 val negative_check = input < 0
                 assign input * 2  // Normal processing
@@ -626,7 +626,7 @@ class TestAdvancedFunctionCallScenarios(StandardTestBase):
         """Test parameter names don't conflict with local variables"""
         source = """
         func process_data(data: i32, factor: i32) : i32 = {
-            val result = {
+            val result : i32 = {  // Explicit type required for runtime block (uses concrete parameters)
                 val data = data * 2  // Local variable shadows parameter
                 val temp = data + factor
                 assign temp
@@ -769,7 +769,7 @@ class TestFunctionCallIntegrationWithExistingFeatures(StandardTestBase):
         
         func main() : i32 = {
             // Function calls in expression blocks
-            val expr_block_result = {
+            val expr_block_result : i32 = {  // Explicit type required for runtime block (contains function call)
                 val temp = helper(10)
                 assign temp * 2
             }

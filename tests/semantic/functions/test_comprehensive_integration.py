@@ -88,7 +88,7 @@ class TestFunctionSystemIntegration:
         }
 
         func cached_calculation(key: i32) : f64 = {
-            val computed = {
+            val computed : f64 = {  // Explicit type required for runtime block (uses concrete parameter)
                 val base : f64 = key:f64 * 3.14
                 assign base * 2.0
             }

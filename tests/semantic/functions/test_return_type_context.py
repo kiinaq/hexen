@@ -337,7 +337,7 @@ class TestUnifiedBlockSystemIntegration:
         }
         
         func simple_pattern(value: f64) : f64 = {
-            val result = {
+            val result : f64 = {  // Explicit type required for runtime block
                 val computed = expensive_operation(value)
                 assign computed
             }

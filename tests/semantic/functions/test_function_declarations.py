@@ -422,7 +422,7 @@ class TestFunctionBodyIntegration(StandardTestBase):
         """Test function with expression blocks using assign"""
         source = """
         func with_expression_blocks(param: i32) : i32 = {
-            val result = {
+            val result : i32 = {  // Explicit type required for runtime block (uses concrete parameter)
                 val temp = param * 2
                 assign temp + 10
             }
@@ -437,7 +437,7 @@ class TestFunctionBodyIntegration(StandardTestBase):
         """Test function with early return from expression block"""
         source = """
         func with_early_return(param: i32) : i32 = {
-            val result = {
+            val result : i32 = {  // Explicit type required for runtime block (uses concrete parameter)
                 val temp = param * 2
                 assign temp
             }

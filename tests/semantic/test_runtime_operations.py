@@ -191,7 +191,7 @@ class TestConditionalDetection:
         """Test blocks with if statements analyze correctly (Runtime Operations infrastructure test)"""
         source = """
         func test() : i32 = {
-            val result = {
+            val result : i32 = {  // Explicit type required for runtime block (contains conditional)
                 val input = 5
                 if input > 3 {
                     val temp = 100
@@ -211,7 +211,7 @@ class TestConditionalDetection:
         """Test if-else chains are detected"""
         source = """
         func test() : i32 = {
-            val result = {
+            val result : i32 = {  // Explicit type required for runtime block with conditionals
                 val input = 5
                 if input > 10 {
                     val high = 100
@@ -228,14 +228,14 @@ class TestConditionalDetection:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         
-        # Runtime Operations: Should analyze without errors (infrastructure doesn't break functionality)
+        # Runtime Operations: Should analyze without errors with explicit type annotation
         assert errors == []
 
     def test_nested_conditionals_detected(self):
         """Test nested conditionals are detected"""
         source = """
         func test() : i32 = {
-            val result = {
+            val result : i32 = {  // Explicit type required for runtime block with conditionals
                 val x = 5
                 val y = 3
                 if x > 0 {
@@ -251,7 +251,7 @@ class TestConditionalDetection:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         
-        # Runtime Operations: Should analyze without errors (infrastructure doesn't break functionality)
+        # Runtime Operations: Should analyze without errors with explicit type annotation
         assert errors == []
 
 
@@ -270,7 +270,7 @@ class TestCombinedRuntimeOperations:
         }
         
         func test() : i32 = {
-            val result = {
+            val result : i32 = {  // Explicit type required for runtime block
                 val input = getValue()  // Function call
                 if input > 20 {         // Conditional
                     val adjusted = input * 2
@@ -285,7 +285,7 @@ class TestCombinedRuntimeOperations:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         
-        # Runtime Operations: Should analyze without errors (infrastructure doesn't break functionality)
+        # Runtime Operations: Should analyze without errors with explicit type annotation
         assert errors == []
 
     def test_function_call_in_conditional_condition(self):
@@ -296,7 +296,7 @@ class TestCombinedRuntimeOperations:
         }
         
         func test() : i32 = {
-            val result = {
+            val result : i32 = {  // Explicit type required for runtime block
                 val input = 42
                 if shouldProcess() {  // Function call in condition
                     val processed = input * 2
@@ -309,7 +309,7 @@ class TestCombinedRuntimeOperations:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         
-        # Runtime Operations: Should analyze without errors (infrastructure doesn't break functionality)
+        # Runtime Operations: Should analyze without errors with explicit type annotation
         assert errors == []
 
     def test_complex_runtime_operation_combinations(self):
@@ -325,7 +325,7 @@ class TestCombinedRuntimeOperations:
         
         func test() : i32 = {
             val concrete_input : i32 = 10  // Concrete variable
-            val result = {
+            val result : i32 = {  // Explicit type required for runtime block
                 val computed = calculate(concrete_input)  // Function call with concrete arg
                 if validate(computed) {                    // Function call in condition
                     val final_result = computed + concrete_input  // Uses concrete variable
@@ -340,7 +340,7 @@ class TestCombinedRuntimeOperations:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         
-        # Runtime Operations: Should analyze without errors (infrastructure doesn't break functionality)
+        # Runtime Operations: Should analyze without errors with explicit type annotation
         assert errors == []
 
 
@@ -359,7 +359,7 @@ class TestRuntimeOperationValidation:
         }
         
         func test() : i32 = {
-            val result = {
+            val result : i32 = {  // Explicit type required for runtime block
                 val computed = helper()
                 if computed > 20 {
                     val adjusted = computed * 2
@@ -372,7 +372,7 @@ class TestRuntimeOperationValidation:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         
-        # Runtime Operations: Should analyze without errors (infrastructure doesn't break functionality)
+        # Runtime Operations: Should analyze without errors with explicit type annotation
         assert errors == []
         
         # Test that validation infrastructure exists and can be used
@@ -435,13 +435,13 @@ class TestRuntimeOperationsFoundationComplete:
                 assign c            // Pure comptime block
             }
             
-            val concrete_mixed = {
+            val concrete_mixed : i32 = {  // Explicit type required for runtime block (concrete variables)
                 val explicit : i32 = 42    // Concrete type
                 val doubled = explicit * 2  // Mixed operation
                 assign doubled
             }
             
-            return comptime_only + concrete_mixed
+            return comptime_only + concrete_mixed  // comptime_int + i32 -> i32 (comptime adapts)
         }
         """
         
