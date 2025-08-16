@@ -161,7 +161,7 @@ class TestFunctionSystemIntegration:
             accumulator = accumulator * factor
             accumulator = accumulator / 2.0
             
-            val final_adjustment = {
+            val final_adjustment : f64 = {
                 accumulator = accumulator * 1.1
                 assign accumulator
             }
@@ -223,7 +223,7 @@ class TestFunctionSystemIntegration:
             // Local variable shadows parameter
             val param2 : f64 = 999.0  // Shadow param2
             
-            val final_result = {
+            val final_result : f64 = {
                 // Use shadowed variable and modified parameter
                 assign param2 + param3:f64
             }
@@ -406,9 +406,9 @@ class TestEdgeCases:
         """Test deeply nested expression blocks with functions."""
         code = """
         func nested_logic(input: i32) : i32 = {
-            val level1 = {
-                val level2 = {
-                    val level3 = {
+            val level1 : i32 = {
+                val level2 : i32 = {
+                    val level3 : i32 = {
                         assign input * 2
                     }
                     assign level3 + 10
@@ -459,8 +459,8 @@ class TestEdgeCases:
             result = precise:f32 / 3.14
             
             // Expression block with complex logic
-            val computed = {
-                val nested_calc = {
+            val computed : f64 = {
+                val nested_calc : f64 = {
                     mutable = mutable + 100
                     assign mutable:f64 * 1.5
                 }

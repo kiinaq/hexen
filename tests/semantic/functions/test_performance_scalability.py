@@ -166,16 +166,16 @@ class TestFunctionSystemPerformance:
         """Test performance with deeply nested expression blocks in functions."""
         code = """
         func deeply_nested(input: i32) : i32 = {
-            val level1 = {
-                val level2 = {
-                    val level3 = {
-                        val level4 = {
-                            val level5 = {
-                                val level6 = {
-                                    val level7 = {
-                                        val level8 = {
-                                            val level9 = {
-                                                val level10 = {
+            val level1 : i32 = {
+                val level2 : i32 = {
+                    val level3 : i32 = {
+                        val level4 : i32 = {
+                            val level5 : i32 = {
+                                val level6 : i32 = {
+                                    val level7 : i32 = {
+                                        val level8 : i32 = {
+                                            val level9 : i32 = {
+                                                val level10 : i32 = {
                                                     assign input * 2
                                                 }
                                                 assign level10 + 1
