@@ -30,18 +30,21 @@ This is not just an academic exercise, but a practical exploration of what progr
 - [Project Architecture](#project-architecture) — Current implementation structure and design
 - [Architecture Roadmap](#architecture-roadmap) — Implementation strategy and evolution path
 
-### 📚 Detailed Documentation
-- **[Comptime Quick Reference →](docs/COMPTIME_QUICK_REFERENCE.md)** - Essential patterns for the comptime type system ⚡
-- **[Examples →](examples/README.md)** - Comprehensive learning examples organized by difficulty
-- **[Source Code →](src/README.md)** - Complete compiler architecture and implementation details  
-- **[Tests →](tests/README.md)** - Testing strategy and validation approach (682 tests)
-
 ### 📚 Comprehensive Design Documentation
-Beyond examples and implementation details, Hexen provides extensive specification documents for language designers and advanced users:
+Hexen provides extensive specification documents covering every aspect of the language design philosophy:
 
-- **[TYPE_SYSTEM.md](docs/TYPE_SYSTEM.md)** - Complete comptime type system specification
-- **[BINARY_OPS.md](docs/BINARY_OPS.md)** - Binary operations with dual division operators
-- **[UNIFIED_BLOCK_SYSTEM.md](docs/UNIFIED_BLOCK_SYSTEM.md)** - Context-driven block behavior specification
+#### **Core System Specifications**
+- **[TYPE_SYSTEM.md](docs/TYPE_SYSTEM.md)** - Comptime type system with "Ergonomic Literals + Transparent Costs"
+- **[UNIFIED_BLOCK_SYSTEM.md](docs/UNIFIED_BLOCK_SYSTEM.md)** - Single syntax, context-driven behavior
+- **[BINARY_OPS.md](docs/BINARY_OPS.md)** - Dual division operators with unified type rules
+- **[FUNCTION_SYSTEM.md](docs/FUNCTION_SYSTEM.md)** - Complete function system with mutable parameters
+
+#### **Specialized Features**
+- **[CONDITIONAL_SYSTEM.md](docs/CONDITIONAL_SYSTEM.md)** - Unified conditional syntax with runtime treatment
+- **[LITERAL_OVERFLOW_BEHAVIOR.md](docs/LITERAL_OVERFLOW_BEHAVIOR.md)** - Compile-time safety guarantees
+
+#### **Quick Reference**
+- **[COMPTIME_QUICK_REFERENCE.md](docs/COMPTIME_QUICK_REFERENCE.md)** - Essential patterns and mental models ⚡
 
 These documents provide the foundational design philosophy and detailed behavioral specifications that guide Hexen's implementation.
 
@@ -62,8 +65,9 @@ cd hexen
 # Install dependencies
 uv sync --extra dev
 
-# Parse and analyze a Hexen program
-uv run hexen parse examples/literal_ergonomics.hxn
+# Parse and analyze a Hexen program (create a sample file first)
+echo 'func main() : i32 = { return 42 }' > hello.hxn
+uv run hexen parse hello.hxn
 ```
 
 **Note**: Hexen source files use the `.hxn` extension.
@@ -73,29 +77,49 @@ uv run hexen parse examples/literal_ergonomics.hxn
 func main() : i32 = {
     val greeting = "Hello, Hexen!"
     
-    // Comptime type coercion - same literals, different types
-    val default_int = 42        // comptime_int -> i32 (default)
-    val explicit_i64 : i64 = 42 // comptime_int -> i64 (coerced)
-    val as_float : f32 = 42     // comptime_int -> f32 (coerced)
-    val precise : f64 = 3.14    // comptime_float -> f64 (default)
-    val single : f32 = 3.14     // comptime_float -> f32 (coerced)
+    // Comptime type adaptation - same literals, different types
+    val default_int = 42        // comptime_int (flexible until context forces resolution)
+    val explicit_i64 : i64 = 42 // comptime_int → i64 (context-guided)
+    val as_float : f32 = 42     // comptime_int → f32 (seamless adaptation)
+    val precise : f64 = 3.14    // comptime_float → f64 (implicit)
+    val single : f32 = 3.14     // comptime_float → f32 (implicit)
     
-    // Expression block with assign for value production
+    // Unified block system - expression block with dual capability
     val result = {
-        val computed = 42 + 100
-        assign computed  // Expression blocks use assign
+        val computed = 42 + 100  // comptime_int + comptime_int → comptime_int
+        assign computed          // assign: produces block value
     }
     
-    // Statement block for scoped computation
+    // Statement block for scoped execution
     {
-        val temp = result
+        val temp = result        // Scoped variables
         val processed = "done"
+        // Variables don't leak outside block
     }
     
-    return result  // comptime_int -> i32 (return type)
+    // Dual division operators - transparent costs
+    val mathematical = 10 / 3    // Float division → comptime_float 
+    val efficient = 10 \ 3       // Integer division → comptime_int
+    
+    return result  // comptime_int → i32 (return type context)
 }
 
-// Void function with early exit
+// Function with mutable parameters and early returns
+func process_data(input: string, mut counter: i32) : string = {
+    counter = counter + 1        // Mutable parameters can be reassigned
+    
+    // Expression block with validation and early returns  
+    val validated = {
+        if input == "" {
+            return "ERROR"       // return: early function exit
+        }
+        assign input + "!"       // assign: success path value
+    }
+    
+    return validated
+}
+
+// Void function with bare return
 func setup() : void = {
     val config = "ready"
     return  // Bare return in void function
@@ -104,26 +128,27 @@ func setup() : void = {
 
 ### Run Tests
 ```bash
-# Run the complete test suite (682 comprehensive tests)
+# Run the complete test suite
 uv run pytest tests/ -v
 ```
 
 ### What's Working
-- ✅ **Complete Parser**: Lark-based PEG parser with syntax support
+- ✅ **Complete Parser**: Lark-based PEG parser with comprehensive syntax support
 - ✅ **Semantic Analyzer**: Full type checking, symbol tables, scope management
-- ✅ **Unified Block System**: Expression blocks, statement blocks, and void functions  
-- ✅ **Type System**: i32, i64, f32, f64, string, bool, void with comptime type coercion
-- ✅ **Comptime Types**: `comptime_int` and `comptime_float` for elegant context-dependent coercion
-- ✅ **Function System**: Complete function declarations, calls, parameters, and mutable parameter support
-- ✅ **Variable System**: `val`/`mut` declarations with `undef` support and assignment tracking
-- ✅ **Return Statements**: Both value returns and bare returns (`return;`)
-- ✅ **CLI Interface**: `hexen parse` with JSON AST output and error reporting
-- ✅ **Tests**: 682 tests covering all language features including functions and comptime types
-- ✅ **Error Handling**: Detailed semantic error reporting with context
+- ✅ **Unified Block System**: Expression blocks with dual capability (`assign`/`return`), statement blocks, function bodies
+- ✅ **Comptime Type System**: "Ergonomic Literals + Transparent Costs" with `comptime_int`/`comptime_float` adaptation
+- ✅ **Complete Type System**: All numeric types (`i32`, `i64`, `f32`, `f64`), `string`, `bool`, `void` with safety guarantees
+- ✅ **Function System**: Declarations, calls, parameters, mutable parameters, return type validation
+- ✅ **Binary Operations**: Dual division operators (`/` mathematical, `\` integer) with unified type rules  
+- ✅ **Variable System**: `val`/`mut` declarations with comptime type preservation and explicit conversion requirements
+- ✅ **Conditional System**: Unified `if`/`else` syntax with runtime treatment and expression/statement modes
+- ✅ **CLI Interface**: `hexen parse` with JSON AST output and comprehensive error reporting
+- ✅ **Comprehensive Testing**: Complete test coverage across parser and semantic analysis
+- ✅ **Complete Documentation**: Comprehensive specification documents covering all design decisions
 
 ### 📚 Explore Further
-- **[Source Code →](src/README.md)** - Dive into the compiler architecture
-- **[Tests →](tests/README.md)** - Understand the validation strategy
+- **[Type System →](docs/TYPE_SYSTEM.md)** - Deep dive into comptime types and "Ergonomic Literals + Transparent Costs"
+- **[Design Documentation →](#comprehensive-design-documentation)** - Complete specification and philosophy
 
 **Next**: Explore the design principles below to understand Hexen's philosophy! 🦉
 
@@ -134,22 +159,22 @@ Hexen follows four core design principles that guide every language feature and 
 ### 🎯 Ergonomic
 *"Pedantic to write, but really easy to read"*
 
-The language syntax should prioritize clarity and readability over brevity. While it may require more explicit code when writing, the result should be immediately understandable to anyone reading it. Code is read far more often than it's written, so we optimize for the reader's experience.
+The language syntax should prioritize clarity and readability over brevity. This manifests in Hexen's **"Ergonomic Literals + Transparent Costs"** philosophy - comptime types make common patterns feel natural (`42` adapts to `i32`, `i64`, `f32`, or `f64` based on context) while all runtime conversion costs remain visible through explicit syntax (`value:type`).
 
 ### 🧹 Clean
 *"There is only one way to do a thing"*
 
-For any given task, Hexen provides exactly one idiomatic way to accomplish it. This eliminates choice paralysis, reduces cognitive load, and ensures consistency across codebases. When there's only one way, there's no wrong way.
+For any given task, Hexen provides exactly one idiomatic way to accomplish it. This is exemplified by the **unified block system** - all constructs use the same `{}` syntax but adapt their behavior based on context (expression blocks, statement blocks, function bodies). When there's only one syntax to learn, there's no wrong way.
 
 ### 🧠 Logic
 *"No tricks to remember, only natural approaches"*
 
-Language features should build upon each other naturally and logically. Complex concepts should emerge from the combination of simpler, more general principles rather than being special cases or syntactic sugar. Understanding one concept should help you understand related concepts.
+Language features build upon each other naturally. Complex concepts emerge from simpler principles: the same type conversion rules apply everywhere (variables, functions, binary operations), and the same `assign`/`return` semantics work consistently across all contexts. Understanding one concept helps you understand related concepts.
 
 ### ⚡ Pragmatic
 *"Focus on what works better, not on covering everything"*
 
-Hexen chooses only the features that matter most for achieving results. Rather than trying to be everything to everyone, we deliberately select a focused set of capabilities that work exceptionally well together. Every feature must justify its existence by solving real problems effectively.
+Hexen chooses features that work exceptionally well together. Rather than trying to be everything to everyone, we deliberately select capabilities like dual division operators (`/` for mathematical precision, `\` for efficient integer division) that solve real problems with transparent costs. Every feature justifies its existence by making programming both safer and more expressive.
 
 ## File Extension
 
@@ -159,23 +184,22 @@ Hexen source files use the **`.hxn`** extension, reflecting the language's clean
 
 Hexen's current implementation includes unified language constructs:
 
-### 🎯 Unified Block System
-Every construct uses the same `{ }` block syntax but with context-appropriate behavior:
-- **Expression blocks**: `val x = { assign 42 }` - produce values, require final assign
-- **Statement blocks**: `{ val temp = 100 }` - scoped execution, allow function returns  
-- **Function bodies**: Same syntax, unified scope management
-- **Void functions**: `func work() : void = { return }` - support bare returns
+### 🎯 Unified Block System with Dual Capability
+Every construct uses the same `{ }` block syntax with context-driven behavior:
+- **Expression blocks**: Produce values via `assign`, support early function exits via `return`
+- **Statement blocks**: Scoped execution without value production, allow function returns  
+- **Function bodies**: Unified syntax with return type validation
+- **Compile-time vs Runtime**: Expression blocks preserve comptime types when evaluable at compile-time
 
-### 🧠 Type System with Comptime Types
-- **Comptime type coercion**: `42` becomes i32, i64, f32, or f64 based on context
-- **No literal suffixes**: Write `42`, not `42i64` - context determines the type
-- **Type inference**: `val x = 42` automatically becomes `i32` (default)
-- **Explicit annotations**: `val x : i64 = 42` coerces `comptime_int` to `i64`
-- **Complete numeric types**: `i32`, `i64`, `f32`, `f64` with elegant coercion
-- **Additional types**: `string`, `bool`, `void` with full type safety
-- **`undef` support**: `val x : i32 = undef` for uninitialized variables
-- **Validation**: Use-before-definition prevention, type mismatch detection
-- **Context-dependent**: Same literal `3.14` can become `f32` or `f64`
+### 🧠 Comptime Type System with "Ergonomic Literals + Transparent Costs"
+- **Comptime adaptation**: `42` adapts to `i32`, `i64`, `f32`, or `f64` based on context (zero runtime cost)
+- **No literal suffixes**: Write `42`, not `42i64` - context determines type
+- **Flexibility preservation**: `val x = 42` stays flexible (`comptime_int`) until context forces resolution
+- **Explicit conversions**: All concrete type mixing requires visible syntax (`value:type`)
+- **Complete type system**: `i32`, `i64`, `f32`, `f64`, `string`, `bool`, `void` with safety guarantees
+- **Dual division operators**: `/` for mathematical precision, `\` for efficient integer division
+- **Variable mutability**: `val` (immutable) vs `mut` (mutable with explicit types)
+- **Context propagation**: Function parameters, return types, and assignments provide type context
 
 ### 🔒 Memory & Mutability Control
 - **Immutable by default**: `val` variables cannot be reassigned
@@ -223,21 +247,21 @@ Source Code (.hxn)     ← Hexen source files with .hxn extension
 
 ```
 hexen/
-├── src/hexen/              # Core compiler implementation (3,510 lines across 17 specialized components)
-├── tests/                  # Test suite (682 tests)
-├── examples/              # Sample Hexen programs showcasing all features
-└── docs/                  # Documentation & design notes
+├── src/hexen/              # Core compiler implementation
+├── tests/                  # Comprehensive test suite
+└── docs/                  # Design documentation & specifications
 ```
 
-**Detailed breakdowns**: See [src/README.md](src/README.md), [tests/README.md](tests/README.md), and [examples/README.md](examples/README.md)
+**Detailed documentation**: See [Design Documentation](#comprehensive-design-documentation) below for complete specifications
 
 ### 🎯 Current Status
 
-- **Phase I: Language Foundation** 🚧 In Progress - Full parser and semantic analyzer with function system
-- **682 Tests Passing** - Validation of language features  
+- **Phase I: Language Foundation** ✅ **Complete** - Full parser and semantic analyzer with comprehensive feature set
+- **Complete Test Coverage** - All implemented language features validated through extensive testing
+- **Comprehensive Documentation** - Complete specification documents covering all design decisions
 - **LLVM Ready** - Architecture prepared for LLVM backend integration
 
-*For detailed implementation information, see the component-specific documentation linked above.*
+*All core language features are implemented and validated through extensive testing and documentation.*
 
 ## Architecture Roadmap
 
