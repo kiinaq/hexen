@@ -308,13 +308,12 @@ class TestDivisionOperatorsInBlocks:
         """Test float division (/) in compile-time evaluable blocks."""
         source = """
         func test_float_division() : f64 = {
-            val precise : f64 = {
+            val precise = {
                 val numerator = 22
                 val denominator = 7
-                val division_result : f64 = numerator / denominator  // Explicit type for division
-                assign division_result
+                assign numerator / denominator  // comptime_int / comptime_int -> comptime_float
             }
-            return precise
+            return precise  // comptime_float -> f64 (adapts to function return type)
         }
         """
         
@@ -323,7 +322,7 @@ class TestDivisionOperatorsInBlocks:
         analyzer = SemanticAnalyzer()
         errors = analyzer.analyze(ast)
         
-        # Should have no errors - division with explicit type should work
+        # Should have no errors - comptime float division should work per BINARY_OPS.md
         assert len(errors) == 0, f"Unexpected errors: {[e.message for e in errors]}"
     
     def test_integer_division_in_comptime_block(self):

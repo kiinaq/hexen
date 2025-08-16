@@ -227,8 +227,8 @@ class TestBinaryOperationErrors(StandardTestBase):
         """Test missing explicit conversions for operations requiring them"""
         source = """
         func test() : void = {
-            // Float division requires explicit type
-            val div1 = 10 / 3              // Error: Float division requires explicit result type
+            // Comptime division works correctly per BINARY_OPS.md
+            val div1 = 10 / 3              // OK: comptime_int / comptime_int -> comptime_float
 
             // Mixed concrete types require explicit type
             val a:i32 = 10
@@ -240,11 +240,8 @@ class TestBinaryOperationErrors(StandardTestBase):
         errors = self.analyzer.analyze(ast)
         print("[DEBUG] Errors:", [e.message for e in errors])
         assert_error_count(
-            errors, 2
-        )  # Expected 2 errors (only concrete issues need explicit handling)
-        assert any(
-            "Float division requires explicit result type" in e.message for e in errors
-        ), "Missing granular error for div1"
+            errors, 1
+        )  # Expected 1 error (only mixed concrete types need explicit handling)
         assert any("Mixed concrete types" in e.message for e in errors), (
             "Missing granular error for add2"
         )

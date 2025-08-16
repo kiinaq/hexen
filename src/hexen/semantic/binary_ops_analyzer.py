@@ -246,9 +246,25 @@ class BinaryOpsAnalyzer:
         node: Optional[Dict] = None,
     ) -> HexenType:
         """Analyze float division operation."""
-        # If no target type is provided, emit error about requiring explicit type
-        if target_type is None and node is not None:
-            self._error("Float division requires explicit result type", node)
+        # Check if both operands are comptime types
+        both_comptime = (left_type == HexenType.COMPTIME_INT or left_type == HexenType.COMPTIME_FLOAT) and \
+                       (right_type == HexenType.COMPTIME_INT or right_type == HexenType.COMPTIME_FLOAT)
+        
+        # For comptime operations, always produce comptime_float (following BINARY_OPS.md)
+        if both_comptime:
+            return HexenType.COMPTIME_FLOAT
+        
+        # For mixed comptime + concrete operations, require explicit target type
+        one_comptime = (left_type == HexenType.COMPTIME_INT or left_type == HexenType.COMPTIME_FLOAT) or \
+                      (right_type == HexenType.COMPTIME_INT or right_type == HexenType.COMPTIME_FLOAT)
+        
+        if one_comptime and target_type is None and node is not None:
+            self._error("Mixed comptime/concrete division requires explicit result type", node)
+            return HexenType.UNKNOWN
+        
+        # For concrete + concrete operations, require explicit target type  
+        if not one_comptime and target_type is None and node is not None:
+            self._error("Concrete type division requires explicit result type", node)
             return HexenType.UNKNOWN
 
         # Convert operands to float types
