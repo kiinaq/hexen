@@ -106,6 +106,17 @@ func name(param : type) : return_type = {
 func void_func() : void = {
     return  // Bare return for void functions
 }
+
+// Parameter mutability
+func process(input: i32) : i32 = {          // Immutable by default
+    // input = 42                           // ❌ Error: Cannot reassign immutable parameter
+    return input * 2
+}
+
+func modify(mut counter: i32) : i32 = {     // Explicit mutability
+    counter = counter + 1                   // ✅ OK: Mutable parameter
+    return counter
+}
 ```
 
 ### Blocks
@@ -129,6 +140,36 @@ val validated = {
 {
     val scoped = "local"
     mut counter : i32 = 0  // explicit type required for mut
+}
+```
+
+### Conditionals
+```hexen
+// No parentheses around conditions - required braces
+if condition {              // ✅ Correct syntax
+    do_something()
+}
+
+if user_input > 0 {         // ✅ Boolean-only conditions
+    process_input()
+} else if user_input == 0 {
+    handle_zero()
+} else {
+    handle_negative()
+}
+
+// ❌ Common errors
+// if (condition) { }       // Error: No parentheses around conditions
+// if condition             // Error: Braces required
+//     do_something()
+// if count {               // Error: i32 cannot be used as bool
+//     process()
+// }
+
+// ✅ Explicit boolean conversion required
+val count : i32 = 5
+if count > 0 {              // Explicit comparison produces bool
+    process_count()
 }
 ```
 
@@ -278,6 +319,45 @@ counter = 42                    // ✅ Reassignment allowed
 - **✅ Preserved**: Comptime type stays flexible, maximum adaptability
 - **✅ Implicit**: Happens automatically, no conversion cost
 - **🔧 Explicit**: Requires explicit syntax (`value:type`), conversion cost visible
+
+### Literal Overflow Behavior & Safety
+
+Hexen provides **compile-time overflow detection** to prevent silent data loss:
+
+#### Type Range Limits
+| Type | Minimum Value | Maximum Value |
+|------|---------------|---------------|
+| `i32` | -2,147,483,648 | 2,147,483,647 |
+| `i64` | -9,223,372,036,854,775,808 | 9,223,372,036,854,775,807 |
+| `f32` | ±3.4028235e+38 | ~7 decimal digits precision |
+| `f64` | ±1.7976931e+308 | ~15 decimal digits precision |
+
+#### Overflow Detection Examples
+```hexen
+// ✅ Valid literals within range
+val valid_i32 : i32 = 2147483647      // Max i32 value
+val valid_i64 : i64 = 9223372036854775807  // Max i64 value
+
+// ❌ Compile-time overflow errors
+// val overflow_i32 : i32 = 4294967296     // Error: Literal overflows i32 range
+// val overflow_i64 : i64 = 18446744073709551616  // Error: Literal overflows i64 range
+// val overflow_f32 : f32 = 3.5e+38        // Error: Literal overflows f32 range
+
+// ✅ Comptime type preservation avoids premature overflow
+val flexible = 4294967296          // comptime_int (no overflow yet)
+val as_i64 : i64 = flexible        // ✅ Fits in i64
+// val as_i32 : i32 = flexible     // ❌ Error: Would overflow i32
+
+// 🔧 Future: Explicit truncation (if implemented)
+// val intended : i32 = 4294967296:i32   // Explicit truncation acknowledgment
+```
+
+#### Error Message Format
+```
+Error: Literal 4294967296 overflows i32 range
+  Expected: -2147483648 to 2147483647
+  Suggestion: Use explicit conversion if truncation is intended: 4294967296:i32
+```
 
 ### Uninitialized Variables (`undef`)
 
@@ -819,3 +899,170 @@ The enhanced unified block system fully complies with:
 2. **Preserve flexibility when possible**: Use compile-time blocks for reusable computations
 3. **Be explicit about costs**: Use type annotations when mixing concrete types
 4. **Leverage early returns**: Use `return` for error handling and optimization patterns
+
+---
+
+# Function System Deep Dive
+
+## Parameter System & Type Context
+
+### Parameter Mutability Rules
+- **Immutable by default**: Parameters cannot be reassigned unless marked `mut`
+- **Explicit mutability**: Use `mut` keyword for parameters that need modification
+- **Type annotations required**: All parameters must have explicit type annotations
+
+```hexen
+// Immutable parameters (default)
+func process(input: i32, threshold: f64) : bool = {
+    // input = 42              // ❌ Error: Cannot reassign immutable parameter
+    return input > threshold:i32  // ✅ Can read and use in expressions
+}
+
+// Mutable parameters (explicit)
+func increment_and_return(mut counter: i32) : i32 = {
+    counter = counter + 1       // ✅ OK: Mutable parameter can be reassigned
+    return counter
+}
+
+func normalize_string(mut text: string) : string = {
+    text = trim_whitespace(text)          // ✅ OK: Mutable parameter reassignment
+    text = to_lowercase(text)             // ✅ OK: Subsequent reassignment
+    return text
+}
+```
+
+### Function Calls & Comptime Type Context
+
+Function parameters provide **type context** for comptime type resolution, enabling maximum flexibility:
+
+```hexen
+func calculate_area(width: f64, height: f64) : f64 = {
+    return width * height
+}
+
+func process_count(items: i32, multiplier: i32) : i32 = {
+    return items * multiplier
+}
+
+// ✨ Comptime type preservation + function context
+val math_result = 42 + 100 * 5          // comptime_int (preserved!)
+val float_calc = 10.5 * 2.0             // comptime_float (preserved!)
+
+// Same expressions adapt to different function contexts
+val area : f64 = calculate_area(math_result, float_calc)    // comptime types adapt to f64 parameters
+val count : i32 = process_count(math_result, 5)            // comptime types adapt to i32 parameters
+
+// Traditional literals also work
+val area2 : f64 = calculate_area(42, 30)        // comptime_int → f64 for parameters
+val count2 : i32 = process_count(100, 5)        // comptime_int → i32 for parameters
+```
+
+### Mixed Parameter Types & Explicit Conversions
+
+When functions have mixed parameter types, each argument adapts independently but concrete type mixing still requires explicit conversions:
+
+```hexen
+func mixed_calculation(base: i32, multiplier: f64, precision: f32) : f64 = {
+    val scaled : f64 = base:f64 * multiplier      // ✅ Explicit conversion: i32 → f64
+    return scaled * precision:f64                 // ✅ Explicit conversion: f32 → f64
+}
+
+// ✨ Comptime literals adapt seamlessly to parameter contexts
+val result1 : f64 = mixed_calculation(42, 3.14, 1.5)  // All comptime → adapt to parameter types
+
+// 🔧 Mixed concrete types require explicit conversions
+val int_val : i32 = 10
+val large_val : i64 = 20
+val float_val : f64 = 3.14
+
+// ❌ Error: Mixed concrete types
+// mixed_calculation(large_val, float_val, float_val)
+
+// ✅ Explicit conversions make costs visible
+val result2 : f64 = mixed_calculation(large_val:i32, float_val, float_val:f32)
+```
+
+### Integration with Return Types
+
+Function return types provide context for comptime type resolution in return statements:
+
+```hexen
+// Return type provides context for comptime literals
+func get_count() : i32 = {
+    return 42 + 100                      // comptime_int adapts to i32 return type
+}
+
+func get_ratio() : f64 = {
+    return 42 + 3.14                     // comptime_float adapts to f64 return type
+}
+
+func precise_calc() : f32 = {
+    return 10 / 3                        // Float division → comptime_float → f32
+}
+
+// Mixed concrete types in return statements require explicit conversions
+func mixed_return(a: i32, b: f64) : f64 = {
+    // return a + b                      // ❌ Error: Mixed concrete types
+    return a:f64 + b                     // ✅ Explicit conversion required
+}
+```
+
+---
+
+# Literal Overflow Protection Deep Dive
+
+## Safety Philosophy: Compile-Time Detection
+
+Hexen follows a **"safety-first"** approach to literal overflow, similar to modern systems languages like Rust and Zig:
+
+### Detection Points
+- **Literal parsing**: When comptime literals are assigned explicit types
+- **Type coercion**: When comptime types resolve to concrete types  
+- **Assignment validation**: During variable declaration and assignment
+
+### Comparison with Other Languages
+
+| Language | Behavior | Safety Level |
+|----------|----------|--------------|
+| **Hexen** | ❌ Compile error | 🟢 Very Safe |
+| **Zig** | ❌ Compile error | 🟢 Very Safe |
+| **Rust** | ❌ Compile error | 🟢 Very Safe |
+| **Java** | ❌ Compile error | 🟢 Very Safe |
+| **Go** | ❌ Compile error | 🟢 Very Safe |
+| **C/C++** | ⚠️ Warning + truncation | 🔴 Unsafe |
+| **Python** | ✅ Arbitrary precision | 🟡 Different paradigm |
+
+### Edge Cases & Special Literals
+
+```hexen
+// Boundary values (should work)
+val max_i32 : i32 = 2147483647     // ✅ Exactly at boundary
+val min_i32 : i32 = -2147483648    // ✅ Exactly at boundary
+
+// Hexadecimal literals
+// val hex_overflow : i32 = 0x100000000  // ❌ Error: 2^32 in hex
+
+// Binary literals  
+// val bin_overflow : i32 = 0b100000000000000000000000000000000  // ❌ Error: 2^32 in binary
+
+// Negative overflow
+// val neg_overflow : i32 = -2147483649   // ❌ Error: Below i32 minimum
+```
+
+### Implementation Integration
+
+The overflow detection integrates seamlessly with the comptime type system:
+
+```hexen
+// Comptime types stay flexible until forced to resolve
+val flexible = 4294967296        // comptime_int (no error yet)
+val as_i32 : i32 = flexible      // ❌ Error: NOW detects overflow during coercion
+val as_i64 : i64 = flexible      // ✅ Coercion succeeds (fits in i64)
+
+// Consistency with explicit conversion requirements
+val small : i32 = 42
+val large : i64 = small:i64      // ✅ Explicit conversion required (type system rule)
+
+// Overflow follows same explicit pattern (future enhancement)
+// val truncated : i32 = 4294967296:i32  // 🔧 Explicit truncation (if implemented)
+```
