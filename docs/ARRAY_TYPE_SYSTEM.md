@@ -19,7 +19,7 @@ Hexen's arrays follow the same **"Ergonomic Literals + Transparent Runtime Costs
 - **Consistent with Individual Values**: Arrays follow identical patterns to single-value type system
 - **Natural Usage**: Common array literal patterns work without ceremony (`[1, 2, 3]`, `[3.14, 2.71]`)
 - **Size-as-Type**: Array size is part of the type itself, enabling compile-time safety
-- **Proven Approach**: Following Zig's successful array design patterns
+- **Proven Approach**: Following some Zig's successful array design patterns
 
 This philosophy ensures that **everyday array usage feels natural**, while **runtime performance costs** are always explicit and visible.
 
@@ -38,7 +38,7 @@ Array literals use square brackets with comma-separated elements:
 ### Array Type Declarations
 
 #### Fixed-Size Arrays
-Following Zig's proven `[N]T` pattern for explicit size:
+Following `[N]T` pattern for explicit size:
 
 ```hexen
 val numbers : [3]i32 = [1, 2, 3]           // Fixed-size array: 3 elements of i32
@@ -47,7 +47,7 @@ val flags : [2]bool = [true, false]        // Fixed-size array: 2 elements of bo
 ```
 
 #### Inferred-Size Arrays
-Following Zig's proven `[_]T` pattern for inferred size:
+Following `[_]T` pattern for inferred size:
 
 ```hexen
 val numbers : [_]i32 = [1, 2, 3]           // Size inferred: [3]i32
@@ -145,6 +145,8 @@ val last_element : i32 = numbers[2]     // Access third element: 30
 
 ### Comptime vs Concrete Element Access
 
+> **🔑 Key Insight - Compile-time vs Runtime Materialization**: Comptime arrays exist only in **compiler memory** during compilation. Each assignment to a concrete type **materializes** the required data in **runtime memory** with the specific concrete type. The same comptime source can be materialized multiple times with different concrete types.
+
 #### Comptime Array Elements
 Elements from comptime arrays inherit the comptime type:
 
@@ -156,6 +158,45 @@ val flexible_element = flexible_array[0] // comptime_int (preserved flexibility!
 val as_i32 : i32 = flexible_element     // comptime_int → i32
 val as_i64 : i64 = flexible_element     // Same source → i64
 val as_f64 : f64 = flexible_element     // Same source → f64
+
+// Different elements from same array can resolve to different types
+val elem1_as_i32 : i32 = flexible_array[0]   // First element → i32
+val elem2_as_f64 : f64 = flexible_array[1]   // Second element → f64 (same source!)
+val elem3_as_i64 : i64 = flexible_array[2]   // Third element → i64 (same source!)
+```
+
+**Runtime Materialization Process:**
+```hexen
+val comptime_array = [42, 100, 200]    // Exists ONLY in compiler memory
+
+// Each assignment materializes data in runtime memory:
+val materialized_i32 : [_]i32 = comptime_array    // → Runtime: [42, 100, 200] as i32 values
+val materialized_f64 : [_]f64 = comptime_array    // → Runtime: [42.0, 100.0, 200.0] as f64 values  
+val materialized_i64 : [_]i64 = comptime_array    // → Runtime: [42, 100, 200] as i64 values
+
+// Three separate runtime arrays in memory, each with different concrete types!
+// comptime_array itself never exists at runtime - only materialized versions do
+```
+
+**Complex Comptime Operations - Zero Runtime Cost:**
+```hexen
+// Complex computation at compile time
+val complex_comptime = {
+    val base = [1, 2, 3, 4, 5]
+    val transformed = base * [10, 20, 30, 40, 50]          // Element-wise multiplication
+    val filtered = transformed.filter(|x| x > 25)          // Filtering operation - 'filter' not yet specified
+    val final = filtered.map(|x| x * x + 100)              // Complex transformation - 'map' not yet specified
+    assign final                                            // Result: comptime_array_int
+}
+
+// All the above operations happen at COMPILE TIME - zero runtime cost!
+// Runtime only sees the pre-computed results:
+
+val as_i32 : [_]i32 = complex_comptime    // → Runtime: [1130, 1600, 2500] (pre-computed!)
+val as_f64 : [_]f64 = complex_comptime    // → Runtime: [1130.0, 1600.0, 2500.0] (same pre-computed values!)
+
+// No multiplication, filtering, mapping, or arithmetic happens at runtime
+// Just direct loading of pre-computed constant values
 ```
 
 #### Concrete Array Elements
@@ -353,8 +394,9 @@ Size compatibility and type matching:
 val short : [_]i32 = [1, 2]             // [2]i32
 val long : [_]i32 = [1, 2, 3, 4]        // [4]i32
 
-// Size mismatch errors
-// short = long                          // ❌ Error: [2]i32 ≠ [4]i32
+// Size mismatch errors (mut required for reassignment)
+mut short_mut : [_]i32 = short          // [2]i32
+// short_mut = long                      // ❌ Error: [2]i32 ≠ [4]i32
 
 // Element type compatibility
 val int_array : [_]i32 = [1, 2, 3]      // [3]i32
@@ -364,15 +406,373 @@ val float_array : [_]f64 = [1.1, 2.2, 3.3]  // [3]f64
 val converted : [_]f64 = int_array:[_]f64    // [3]i32 → [3]f64 (explicit)
 ```
 
-### Nested Array Patterns
-Arrays of arrays following the same principles:
+### Multidimensional Arrays
+Hexen supports multidimensional arrays following `[N][M]T` syntax pattern with full comptime type integration:
 
 ```hexen
-// Arrays of arrays with comptime flexibility
-val matrix = [[1, 2], [3, 4], [5, 6]]   // comptime_array of comptime_array_int
-val as_i32_matrix : [_][_]i32 = matrix   // → [3][2]i32
-val as_f64_matrix : [_][_]f64 = matrix   // Same source → [3][2]f64
+// 2D Arrays with comptime flexibility
+val matrix = [[1, 2, 3], [4, 5, 6]]     // comptime_array of comptime_array_int
+val as_i32_matrix : [_][_]i32 = matrix   // → [2][3]i32
+val as_f64_matrix : [_][_]f64 = matrix   // Same source → [2][3]f64
+
+// Mixed dimensions with explicit sizing
+val fixed_matrix : [2][3]i32 = [[1, 2, 3], [4, 5, 6]]    // Fixed dimensions
+val mixed_size : [_][3]i32 = [[7, 8, 9], [10, 11, 12]]   // Inferred rows, fixed columns
+val fully_inferred : [_][_]i32 = [[13, 14], [15, 16]]    // Both dimensions inferred
 ```
+
+## Multidimensional Arrays Deep Dive
+
+### Syntax and Type System
+
+Hexen's multidimensional arrays follow `[N][M]T` syntax while fully integrating with the comptime type system:
+
+#### Dimension Specification Patterns
+```hexen
+// Fixed dimensions (compile-time known sizes)
+val matrix_fixed : [3][4]i32 = [
+    [1, 2, 3, 4],
+    [5, 6, 7, 8], 
+    [9, 10, 11, 12]
+]
+
+// Fully inferred dimensions
+val matrix_inferred : [_][_]i32 = [
+    [1, 2, 3],
+    [4, 5, 6]
+]  // Infers [2][3]i32
+
+// Mixed specification (outer fixed, inner inferred)
+val matrix_mixed1 : [2][_]i32 = [
+    [1, 2, 3, 4],    // Inner dimension inferred from first row: [4]i32
+    [5, 6, 7, 8]     // Must match: [4]i32
+]
+
+// Mixed specification (outer inferred, inner fixed)
+val matrix_mixed2 : [_][3]i32 = [
+    [1, 2, 3],       // Must be exactly 3 elements
+    [4, 5, 6],       // Must be exactly 3 elements
+    [7, 8, 9]        // Must be exactly 3 elements
+]  // Infers [3][3]i32
+```
+
+#### Comptime Type Integration
+Multidimensional arrays fully integrate with Hexen's comptime type system:
+
+```hexen
+// Comptime multidimensional arrays preserve flexibility
+val flexible_2d = [[42, 100], [200, 300]]   // comptime_array of comptime_array_int
+
+// Same source adapts to different target types
+val as_i32_2d : [_][_]i32 = flexible_2d     // → [2][2]i32
+val as_i64_2d : [_][_]i64 = flexible_2d     // Same source → [2][2]i64
+val as_f32_2d : [_][_]f32 = flexible_2d     // Same source → [2][2]f32
+
+// Mixed numeric types resolve to comptime_array_float
+val mixed_2d = [[42, 3.14], [2.71, 100]]    // comptime_array of comptime_array_float
+val as_f64_2d : [_][_]f64 = mixed_2d        // All elements fit → [2][2]f64
+val as_i32_2d : [_][_]i32 = mixed_2d:[_][_]i32  // Explicit conversion (truncation)
+```
+
+### Memory Layout and Performance
+
+Hexen multidimensional arrays use **row-major memory layout**:
+
+#### Memory Organization
+```hexen
+val matrix : [3][4]i32 = [
+    [1,  2,  3,  4 ],    // Row 0
+    [5,  6,  7,  8 ],    // Row 1  
+    [9,  10, 11, 12]     // Row 2
+]
+
+// Memory layout: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+// Contiguous storage with rows stored sequentially
+```
+
+#### Performance Characteristics
+- **Cache-friendly**: Row-major layout optimizes sequential row access
+- **Compile-time size**: All dimensions known at compile time enable optimizations
+- **No indirection**: Single contiguous memory block, not array of pointers
+
+### Element Access and Indexing
+
+#### Basic Access Patterns
+```hexen
+val matrix : [_][_]i32 = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
+
+// Element access using double indexing
+val element : i32 = matrix[1][2]        // Access row 1, column 2 → 6
+val first_row : [3]i32 = matrix[0]      // Access entire first row → [1, 2, 3]
+
+// Comptime bounds checking for constant indices
+val valid : i32 = matrix[0][0]          // ✅ Compile-time verified
+val last : i32 = matrix[2][2]           // ✅ Compile-time verified  
+// val invalid : i32 = matrix[3][0]     // ❌ Compile-time error: row 3 out of bounds
+
+// Runtime bounds checking for dynamic indices
+val row_idx : i32 = get_user_input()
+val col_idx : i32 = get_user_input()
+val dynamic : i32 = matrix[row_idx][col_idx]  // Runtime bounds checks inserted
+```
+
+#### Comptime vs Concrete Element Access
+Elements from multidimensional arrays follow the same comptime preservation rules:
+
+```hexen
+// Comptime matrix elements preserve flexibility
+val flexible_matrix = [[42, 100], [200, 300]]   // comptime_array of comptime_array_int
+val flexible_elem = flexible_matrix[0][1]       // comptime_int (preserved!)
+val flexible_row = flexible_matrix[0]           // comptime_array_int (preserved!)
+
+// Same element adapts to different contexts
+val as_i32 : i32 = flexible_elem               // comptime_int → i32
+val as_f64 : f64 = flexible_elem               // Same source → f64
+
+// Same row adapts to different contexts
+val row_as_i32 : [_]i32 = flexible_row         // comptime_array_int → [2]i32
+val row_as_f64 : [_]f64 = flexible_row         // Same source → [2]f64
+
+// Different elements from same matrix can resolve to different types
+val elem1_as_i32 : i32 = flexible_matrix[0][0]   // First element → i32
+val elem2_as_f64 : f64 = flexible_matrix[0][1]   // Second element → f64 (same source!)
+val elem3_as_i64 : i64 = flexible_matrix[1][0]   // Third element → i64 (same source!)
+
+// Different rows from same matrix can resolve to different types  
+val row0_as_i32 : [_]i32 = flexible_matrix[0]    // First row → [2]i32
+val row1_as_f64 : [_]f64 = flexible_matrix[1]    // Second row → [2]f64 (same matrix!)
+```
+
+**Multidimensional Runtime Materialization:**
+```hexen
+val comptime_matrix = [[42, 100], [200, 300]]  // Exists ONLY in compiler memory
+
+// Each assignment materializes the required portion in runtime memory:
+val full_i32 : [_][_]i32 = comptime_matrix     // → Runtime: [[42, 100], [200, 300]] as i32 values
+val full_f64 : [_][_]f64 = comptime_matrix     // → Runtime: [[42.0, 100.0], [200.0, 300.0]] as f64 values
+
+val row_i32 : [_]i32 = comptime_matrix[0]      // → Runtime: [42, 100] as i32 values
+val row_f64 : [_]f64 = comptime_matrix[1]      // → Runtime: [200.0, 300.0] as f64 values
+
+val elem_i32 : i32 = comptime_matrix[0][0]     // → Runtime: 42 as i32 value  
+val elem_f64 : f64 = comptime_matrix[1][1]     // → Runtime: 300.0 as f64 value
+
+// Multiple runtime materializations from single comptime source!
+// comptime_matrix itself never exists at runtime - only materialized portions do
+```
+
+**Complex Matrix Operations - Zero Runtime Cost:**
+```hexen
+// Complex matrix computation at compile time  
+val complex_matrix = {
+    val m1 = [[1, 2], [3, 4]]
+    val m2 = [[5, 6], [7, 8]] 
+    val multiplied = m1 * m2                    // Matrix multiplication
+    val transposed = multiplied.transpose()     // Matrix transposition
+    val scaled = transposed.map(|row| row.map(|x| x * 2 + 10))  // Complex element transformation
+    assign scaled                               // Result: comptime_array of comptime_array_int
+}
+
+// All matrix operations happen at COMPILE TIME - zero runtime cost!
+// Runtime only sees the final pre-computed matrix:
+
+val as_i32_matrix : [_][_]i32 = complex_matrix  // → Runtime: pre-computed result matrix
+val as_f64_matrix : [_][_]f64 = complex_matrix  // → Runtime: same pre-computed values as f64
+
+// No matrix multiplication, transposition, or transformations at runtime
+// Just direct loading of pre-computed constant matrix data
+```
+
+#### Concrete Matrix Access
+Elements from concrete matrices need explicit types:  
+```hexen
+val concrete_matrix : [_][_]i32 = [[1, 2], [3, 4]]  // [2][2]i32
+val concrete_elem : i32 = concrete_matrix[1][0]     // Explicit type required: i32
+val concrete_row : [2]i32 = concrete_matrix[0]      // Explicit type required: [2]i32
+val widened_elem : i64 = concrete_matrix[1][0]:i64  // Explicit conversion: i32 → i64
+```
+
+### Advanced Multidimensional Patterns
+
+#### 3D and Higher Dimensions
+```hexen
+// 3D arrays for volumetric data
+val cube : [_][_][_]i32 = [
+    [[1, 2], [3, 4]],      // Layer 0: 2x2
+    [[5, 6], [7, 8]]       // Layer 1: 2x2  
+]  // Infers [2][2][2]i32
+
+val element_3d : i32 = cube[1][0][1]  // Access layer 1, row 0, column 1 → 6
+
+// 4D arrays for batch processing
+val batch : [_][_][_][_]f32 = [
+    [[[1.0, 2.0], [3.0, 4.0]], [[5.0, 6.0], [7.0, 8.0]]],  // Batch 0
+    [[[9.0, 10.0], [11.0, 12.0]], [[13.0, 14.0], [15.0, 16.0]]]  // Batch 1
+]  // Infers [2][2][2][2]f32
+```
+
+#### Dimension Mismatch Detection
+```hexen
+// ❌ Inconsistent inner dimensions caught at compile time
+// val irregular = [
+//     [1, 2, 3],      // 3 elements
+//     [4, 5]          // 2 elements - Error: inconsistent dimensions
+// ]
+
+// ✅ Type mismatch across dimensions
+// val type_mismatch = [
+//     [1, 2],         // comptime_int
+//     [3.14, 2.71]    // comptime_float - combined into comptime_array_float
+// ]  // ✅ This actually works - resolves to comptime_array_float
+
+// ✅ Uniform dimensions required for rectangular arrays
+val uniform : [_][3]i32 = [
+    [1, 2, 3],
+    [4, 5, 6],
+    [7, 8, 9]
+]  // ✅ All rows have exactly 3 elements
+```
+
+#### Matrix Operations and Transformations
+```hexen
+// Matrix with explicit conversions
+val int_matrix : [_][_]i32 = [[1, 2], [3, 4]]
+val float_matrix : [_][_]f64 = [[1.1, 2.2], [3.3, 4.4]]
+
+// Element-wise operations with mixed types require explicit conversions
+val mixed_result : [_][_]f64 = [
+    [int_matrix[0][0]:f64 + float_matrix[0][0], int_matrix[0][1]:f64 + float_matrix[0][1]],
+    [int_matrix[1][0]:f64 + float_matrix[1][0], int_matrix[1][1]:f64 + float_matrix[1][1]]
+]
+
+// Matrix conversion (whole array)
+val converted_matrix : [_][_]f64 = int_matrix:[_][_]f64  // [2][2]i32 → [2][2]f64
+```
+
+### Multidimensional Array Mutability
+
+#### Mutable Multidimensional Arrays
+```hexen
+// Mutable 2D array requires explicit type
+mut grid : [_][_]i32 = [[0, 0, 0], [0, 0, 0], [0, 0, 0]]  // [3][3]i32
+
+// Element reassignment
+grid[1][1] = 42                    // comptime_int → i32 (adapts)
+grid[0][2] = big_value:i32         // Explicit conversion if needed
+
+// Row reassignment  
+grid[2] = [7, 8, 9]                // comptime_array_int → [3]i32 (adapts)
+
+// Dimension constraints maintained
+// grid[0] = [1, 2]                // ❌ Error: [2]i32 ≠ [3]i32 (size mismatch)
+```
+
+### Integration with Expression Blocks
+
+#### Multidimensional Arrays in Expression Blocks
+```hexen
+// Compile-time evaluable matrix computation
+val computed_matrix = {
+    val base = [[1, 2], [3, 4]]      // comptime_array of comptime_array_int
+    val scale = [[2, 2], [2, 2]]     // comptime_array of comptime_array_int  
+    val result = base * scale         // Element-wise multiplication
+    assign result                    // Preserves comptime type (flexible!)
+}
+
+// Same computation used in different contexts
+val as_i32_matrix : [_][_]i32 = computed_matrix    // → [2][2]i32
+val as_f64_matrix : [_][_]f64 = computed_matrix    // Same source → [2][2]f64
+
+// Runtime evaluable matrix operations require explicit context
+val runtime_matrix : [_][_]f32 = {                 // Context required
+    val data : [_][_]f32 = load_matrix_data()      // Function call → runtime
+    val processed = data * [[1.5, 1.5], [1.5, 1.5]] // Mixed: concrete + comptime
+    assign processed
+}
+```
+
+### Common Use Cases and Patterns
+
+#### Graphics and Game Development
+```hexen
+// Transformation matrices for graphics
+val identity_4x4 : [4][4]f32 = [
+    [1.0, 0.0, 0.0, 0.0],
+    [0.0, 1.0, 0.0, 0.0],
+    [0.0, 0.0, 1.0, 0.0],
+    [0.0, 0.0, 0.0, 1.0]
+]
+
+// Game grid/tilemap
+val game_map : [_][_]i32 = [
+    [0, 0, 1, 0],    // 0 = empty, 1 = wall
+    [0, 1, 1, 0],
+    [0, 0, 0, 0],
+    [1, 0, 0, 0]
+]  // → [4][4]i32
+```
+
+#### Scientific Computing
+```hexen
+// Lookup tables for scientific calculations
+val sine_table : [_][2]f64 = [
+    [0.0, 0.0],       // [angle, sin(angle)]
+    [0.785, 0.707],   // π/4, sin(π/4)  
+    [1.57, 1.0]       // π/2, sin(π/2)
+]  // → [3][2]f64
+
+// Multi-channel data processing
+val sensor_data : [_][_][3]f32 = [  // [time][sensor][x,y,z]
+    [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]], // Time 0: sensor 0 & 1
+    [[7.0, 8.0, 9.0], [10.0, 11.0, 12.0]] // Time 1: sensor 0 & 1  
+]  // → [2][2][3]f32
+```
+
+### Error Handling for Multidimensional Arrays
+
+#### Dimension Mismatch Errors
+```
+Error: Inconsistent inner array dimensions in multidimensional array literal
+Expected: [3]i32 (from first row)
+Found: [2]i32 (at row 2)
+All inner arrays must have the same length for rectangular arrays
+```
+
+#### Size Constraint Violations  
+```
+Error: Cannot assign [2][3]i32 to variable of type [3][2]i32
+Matrix dimensions must match exactly: expected [3][2], got [2][3]
+```
+
+#### Index Out of Bounds
+```
+Error: Matrix index [2][5] out of bounds for array of size [3][4]
+Valid indices: rows 0-2, columns 0-3
+```
+
+### Performance Considerations
+
+#### Memory Access Patterns
+```hexen
+// ✅ Cache-friendly row-major traversal
+for matrix |row, row_idx| {
+    for row |element, col_idx| {
+        process(element)  // Sequential memory access
+    }
+}
+
+// ⚠️ Less cache-friendly column-major access
+for col_idx in 0..matrix[0].length {
+    for row_idx in 0..matrix.length {
+        process(matrix[row_idx][col_idx])  // Non-sequential access
+    }
+}
+```
+
+#### Compile-time Optimizations
+- **Bounds checking elimination**: Constant indices checked at compile time
+- **Memory layout optimization**: Contiguous storage enables vectorization
+- **Size-based optimizations**: Known dimensions enable loop unrolling
 
 ## Error Messages
 
@@ -485,13 +885,32 @@ func demonstrate_array_system() : void = {
     val float_arr : [_]f64 = [1.1, 2.2, 3.3]    // [3]f64
     val converted_arr : [_]f64 = int_arr:[_]f64  // Explicit array conversion
     
-    // ===== Nested Arrays =====
-    val matrix = [[1, 2], [3, 4]]               // comptime 2D array
-    val as_i32_matrix : [_][_]i32 = matrix      // → [2][2]i32
-    val as_f64_matrix : [_][_]f64 = matrix      // Same source → [2][2]f64
+    // ===== Multidimensional Arrays =====
+    val matrix_2d = [[1, 2, 3], [4, 5, 6]]     // comptime_array of comptime_array_int
+    val as_i32_matrix : [_][_]i32 = matrix_2d   // → [2][3]i32
+    val as_f64_matrix : [_][_]f64 = matrix_2d   // Same source → [2][3]f64
     
-    val matrix_elem : i32 = as_i32_matrix[0][1] // Access nested element: 2
-    val flexible_nested = matrix[1][0]          // comptime_int (flexible!)
+    // Element access patterns
+    val matrix_elem : i32 = as_i32_matrix[1][2] // Access row 1, column 2: 6
+    val flexible_elem = matrix_2d[0][1]         // comptime_int (flexible!)
+    val whole_row : [3]i32 = as_i32_matrix[0]   // Access entire first row: [1, 2, 3]
+    
+    // 3D array example  
+    val cube_3d = [[[1, 2], [3, 4]], [[5, 6], [7, 8]]]  // [2][2][2] comptime
+    val as_i32_cube : [_][_][_]i32 = cube_3d    // → [2][2][2]i32
+    val cube_elem : i32 = as_i32_cube[1][0][1]  // Access layer 1, row 0, col 1: 6
+    
+    // Mixed dimensions
+    val mixed_matrix : [_][3]i32 = [            // Outer inferred, inner fixed
+        [1, 2, 3],
+        [4, 5, 6],  
+        [7, 8, 9]
+    ]  // → [3][3]i32
+    
+    // Mutable multidimensional arrays
+    mut grid : [_][_]i32 = [[0, 0], [0, 0]]     // [2][2]i32
+    grid[0][1] = 42                              // Element assignment
+    grid[1] = [7, 8]                             // Row assignment
 }
 ```
 
