@@ -3,6 +3,8 @@
 *Design Exploration & Specification*
 
 > **Design Note**: This document describes Hexen's array type system, integrating seamlessly with the existing comptime type system while following proven patterns from languages like Zig. Arrays maintain Hexen's core principle of "Ergonomic Literals + Transparent Runtime Costs".
+> 
+> **NOT YET IMPLEMENTED!**
 
 ## Overview
 
