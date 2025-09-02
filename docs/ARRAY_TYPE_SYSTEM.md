@@ -19,6 +19,7 @@ Hexen's arrays follow the same **"Ergonomic Literals + Transparent Runtime Costs
 - **Consistent with Individual Values**: Arrays follow identical patterns to single-value type system
 - **Natural Usage**: Common array literal patterns work without ceremony (`[1, 2, 3]`, `[3.14, 2.71]`)
 - **Size-as-Type**: Array size is part of the type itself, enabling compile-time safety
+- **Safe Memory Layout Access**: Row-major layout enables zero-cost dimensional flattening
 - **Proven Approach**: Following some Zig's successful array design patterns
 
 This philosophy ensures that **everyday array usage feels natural**, while **runtime performance costs** are always explicit and visible.
@@ -495,6 +496,28 @@ val matrix : [3][4]i32 = [
 - **Compile-time size**: All dimensions known at compile time enable optimizations
 - **No indirection**: Single contiguous memory block, not array of pointers
 
+#### Array Flattening: Leveraging Row-Major Layout
+The row-major memory layout enables **safe array flattening** - converting multidimensional arrays to 1D arrays without runtime cost:
+
+```hexen
+val matrix : [2][3]i32 = [[1, 2, 3], [4, 5, 6]]  // 6 elements total in row-major order
+val flattened : [_]i32 = matrix                   // → [6]i32 automatically inferred!
+
+// Memory layout unchanged: [1, 2, 3, 4, 5, 6]
+// Same memory addresses, different type view - zero runtime cost
+```
+
+**Safe Alternative to Pointer Arithmetic:**
+```hexen
+// Traditional unsafe approach (what we replace):
+// val ptr = &matrix[0][0]               // Raw pointer - dangerous!
+// process_buffer(ptr, 6)                // Manual count - error prone!
+
+// Hexen safe approach:
+val vertices : [_]f32 = matrix           // Type-safe, size-known automatically
+process_buffer(vertices)                 // Bounds checked, no manual calculations
+```
+
 ### Element Access and Indexing
 
 #### Basic Access Patterns
@@ -692,6 +715,52 @@ val runtime_matrix : [_][_]f32 = {                 // Context required
 ```
 
 ### Common Use Cases and Patterns
+
+#### Array Flattening for Systems Programming
+Leveraging row-major layout for safe pointer replacement:
+
+```hexen
+// Graphics: Vertex data (positions + colors)
+val vertex_data : [100][6]f32 = generate_vertices()  // 100 vertices, 6 components each
+val gpu_buffer : [_]f32 = vertex_data                // → [600]f32 for GPU upload
+upload_to_gpu(gpu_buffer)                            // Type-safe, size-automatic
+
+// Scientific computing: Matrix for linear algebra libraries
+val matrix : [512][512]f64 = load_matrix()
+val linear_data : [_]f64 = matrix                    // → [262144]f64 for BLAS/LAPACK
+blas_gemv(linear_data, vector)
+
+// Image processing: RGB pixel data
+val image : [height][width][3]u8 = load_image()
+val pixel_buffer : [_]u8 = image                     // Flat buffer for codecs
+compress_jpeg(pixel_buffer)
+
+// Game development: 3D world serialization
+val chunk : [16][16][16]u8 = generate_chunk()
+val serialized : [_]u8 = chunk                       // → [4096]u8 for disk/network
+save_chunk_data(serialized)
+```
+
+**Comptime Flattening with Type Flexibility:**
+```hexen
+val comptime_matrix = [[42, 100], [200, 300]]        // comptime 2D array
+val flat_i32 : [_]i32 = comptime_matrix              // → [4]i32 
+val flat_f64 : [_]f64 = comptime_matrix              // Same source → [4]f64
+val flat_f32 : [_]f32 = comptime_matrix              // Same source → [4]f32
+
+// One comptime source, multiple flattened materializations!
+```
+
+**Element Count Validation (Compile-time Safety):**
+```hexen
+val matrix_2x3 : [2][3]i32 = data                    // 6 elements total
+val cube_2x2x2 : [2][2][2]i32 = data                 // 8 elements total
+
+val flat_6 : [_]i32 = matrix_2x3                     // ✅ → [6]i32
+val flat_8 : [_]i32 = cube_2x2x2                     // ✅ → [8]i32
+
+// val wrong : [5]i32 = matrix_2x3                   // ❌ Compile error: 6 ≠ 5
+```
 
 #### Graphics and Game Development
 ```hexen
@@ -911,6 +980,27 @@ func demonstrate_array_system() : void = {
     mut grid : [_][_]i32 = [[0, 0], [0, 0]]     // [2][2]i32
     grid[0][1] = 42                              // Element assignment
     grid[1] = [7, 8]                             // Row assignment
+    
+    // ===== Array Flattening (Safe Pointer Replacement) =====
+    // Multidimensional → 1D flattening leverages row-major layout
+    val matrix_3d : [2][3][4]i32 = generate_3d_data()  // 24 elements total
+    val flattened_24 : [_]i32 = matrix_3d               // → [24]i32 (automatic size!)
+    
+    // Zero runtime cost - same memory, different type view
+    val matrix_2d : [4][6]f32 = load_vertex_positions()
+    val vertex_buffer : [_]f32 = matrix_2d              // → [24]f32 for GPU
+    render_vertices(vertex_buffer)                       // Type-safe, bounds-checked
+    
+    // Comptime flattening with type flexibility
+    val comptime_3x3 = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]  // comptime 2D array
+    val flat_i32 : [_]i32 = comptime_3x3                   // → [9]i32
+    val flat_f64 : [_]f64 = comptime_3x3                   // Same source → [9]f64
+    val flat_f32 : [_]f32 = comptime_3x3                   // Same source → [9]f32
+    
+    // Element count validation at compile time
+    val small_matrix : [2][2]i32 = [[1, 2], [3, 4]]        // 4 elements total
+    val flattened_4 : [_]i32 = small_matrix                 // ✅ → [4]i32
+    // val wrong_size : [3]i32 = small_matrix               // ❌ Compile error: 4 ≠ 3
 }
 ```
 
@@ -931,6 +1021,8 @@ func demonstrate_array_system() : void = {
 3. **No Hidden Allocations**: All array operations are explicit
 4. **Bounds Check Optimization**: Compile-time bounds checking where possible
 5. **Memory Layout Predictable**: Fixed-size arrays have predictable layout
+6. **Zero-Cost Flattening**: Multidimensional → 1D conversion with no runtime overhead
+7. **Safe Pointer Replacement**: Eliminates unsafe pointer arithmetic patterns
 
 ### Type Safety
 
