@@ -45,7 +45,7 @@ class TestSession1Infrastructure:
                 val base = 42              // comptime_int
                 val multiplier = 100       // comptime_int
                 val calc = base * multiplier  // comptime_int * comptime_int
-                assign calc
+                -> calc
             }
             return result
         }
@@ -63,7 +63,7 @@ class TestSession1Infrastructure:
             val concrete_var : i32 = 42    // Explicit concrete type
             val result : i32 = {  // Explicit type required for runtime block (uses concrete variable)
                 val doubled = concrete_var * 2  // Uses concrete variable
-                assign doubled
+                -> doubled
             }
             return result
         }
@@ -82,7 +82,7 @@ class TestSession1Infrastructure:
             val result : f64 = {  // Explicit type required for runtime block (uses concrete variable)
                 val comptime_mult = 3.14     // comptime_float
                 val mixed = concrete_base:f64 * comptime_mult  // Mixed operation
-                assign mixed
+                -> mixed
             }
             return result
         }
@@ -104,7 +104,7 @@ class TestSession1Infrastructure:
                 val step1 = a * c           // comptime_int * comptime_int
                 val step2 = step1 + b       // comptime_int + comptime_int → comptime_int
                 val step3 = step2 \\ 2       // comptime_int \\ comptime_int (integer division)
-                assign step3
+                -> step3
             }
             return calculation
         }
@@ -121,7 +121,7 @@ class TestSession1Infrastructure:
         func test() : i32 = {
             val result : i32 = {  // Explicit type required for runtime block (contains concrete variable)
                 val explicit : i32 = 42    // Explicit type annotation
-                assign explicit
+                -> explicit
             }
             return result
         }
@@ -139,10 +139,10 @@ class TestSession1Infrastructure:
             val outer : i32 = {  // Explicit type required for runtime block (contains concrete variable)
                 val inner = {
                     val pure = 42 + 100    // Pure comptime
-                    assign pure
+                    -> pure
                 }
                 val concrete : i32 = inner // Explicit type
-                assign concrete
+                -> concrete
             }
             return outer
         }
@@ -158,16 +158,16 @@ class TestSession1Infrastructure:
         source = """
         func test() : void = {
             val int_literal = {
-                assign 42                   // comptime_int
+                -> 42                   // comptime_int
             }
             val float_literal = {  
-                assign 3.14                 // comptime_float
+                -> 3.14                 // comptime_float
             }
             val string_literal = {
-                assign "hello"              // string literal (treated as comptime)
+                -> "hello"              // string literal (treated as comptime)
             }
             val bool_literal = {
-                assign true                 // bool literal (treated as comptime)
+                -> true                 // bool literal (treated as comptime)
             }
         }
         """
@@ -182,10 +182,10 @@ class TestSession1Infrastructure:
         source = """
         func test() : void = {
             val arithmetic = {
-                assign 42 + 100 * 3         // All comptime arithmetic
+                -> 42 + 100 * 3         // All comptime arithmetic
             }
             val logical = {
-                assign true && false        // bool logical operation
+                -> true && false        // bool logical operation
             }
         }
         """
@@ -201,7 +201,7 @@ class TestSession1Infrastructure:
         func test() : void = {
             val converted = {
                 val base = 42               // comptime_int
-                assign base:i32             // Explicit conversion of comptime value
+                -> base:i32             // Explicit conversion of comptime value
             }
         }
         """
@@ -221,10 +221,10 @@ class TestSession1Infrastructure:
             val bool_var : bool = true
             
             val uses_i32 : i32 = {  // Explicit type required for runtime block (uses concrete variable)
-                assign i32_var * 2          // Uses concrete i32 variable
+                -> i32_var * 2          // Uses concrete i32 variable
             }
             val uses_f64 : f64 = {  // Explicit type required for runtime block (uses concrete variable)
-                assign f64_var + 1.0        // Uses concrete f64 variable
+                -> f64_var + 1.0        // Uses concrete f64 variable
             }
         }
         """
@@ -240,7 +240,7 @@ class TestSession1Infrastructure:
         func test() : void = {
             mut counter : i32 = 0           // mut requires explicit type
             val uses_mut : i32 = {  // Explicit type required for runtime block (uses concrete variable)
-                assign counter + 1          // Uses concrete mut variable
+                -> counter + 1          // Uses concrete mut variable
             }
         }
         """
@@ -257,7 +257,7 @@ class TestSession1Infrastructure:
             val comptime_var = 42           // Inferred comptime_int (no explicit type)
             val uses_comptime = {
                 val doubled = comptime_var * 2  // Uses comptime variable
-                assign doubled
+                -> doubled
             }
         }
         """
@@ -272,7 +272,7 @@ class TestSession1Infrastructure:
         source = """
         func test() : i32 = {
             val empty = {
-                assign 42                   // Simple assign only
+                -> 42                   // Simple -> only
             }
             return empty
         }
@@ -290,7 +290,7 @@ class TestSession1Infrastructure:
         func test() : i32 = {
             val result = {
                 val temp = 42
-                assign temp * 2
+                -> temp * 2
             }
             return result
         }

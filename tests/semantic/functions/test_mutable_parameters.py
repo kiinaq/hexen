@@ -358,7 +358,7 @@ class TestAdvancedParameterScenarios:
         func expression_block_test(mut value: i32) : i32 = {
             val result : i32 = {
                 value = value * 2
-                assign value
+                -> value
             }
             return result
         }

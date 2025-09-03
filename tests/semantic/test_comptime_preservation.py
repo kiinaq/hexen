@@ -37,7 +37,7 @@ class TestComptimePreservationInfrastructure:
         func test_comptime() : i32 = {
             val result = {
                 val calc = 42 + 100
-                assign calc
+                -> calc
             }
             return result
         }
@@ -63,7 +63,7 @@ class TestComptimePreservationBasics:
                 val base = 42
                 val multiplier = 100
                 val result = base * multiplier
-                assign result
+                -> result
             }
             return flexible
         }
@@ -85,7 +85,7 @@ class TestComptimePreservationBasics:
                 val base = 42
                 val factor = 3.14
                 val result = base * factor
-                assign result
+                -> result
             }
             return flexible
         }
@@ -107,7 +107,7 @@ class TestComptimePreservationBasics:
                 val step1 = 42 + 100
                 val step2 = step1 * 3.14
                 val step3 : f64 = step2 / 2.0  // Float division requires explicit type
-                assign step3
+                -> step3
             }
             return computation
         }
@@ -135,7 +135,7 @@ class TestRuntimeBlockContextResolution:
         func test_runtime() : i32 = {
             val result : i32 = {  // Explicit type required for runtime block (contains function call)
                 val computed = helper()  // Function call triggers runtime
-                assign computed
+                -> computed
             }
             return result
         }
@@ -161,7 +161,7 @@ class TestRuntimeBlockContextResolution:
                 val base = 42              // comptime_int
                 val runtime_mult = get_multiplier()  // runtime function call
                 val combined = base * runtime_mult   // mixed operation (comptime adapts to runtime_mult's i32)
-                assign combined
+                -> combined
             }
             return result
         }
@@ -185,7 +185,7 @@ class TestOneComputationMultipleUsesPattern:
         func test_as_i32() : i32 = {
             val flexible = {
                 val calc = 42 + 100 * 3
-                assign calc
+                -> calc
             }
             return flexible  // comptime_int -> i32 (function context)
         }
@@ -193,7 +193,7 @@ class TestOneComputationMultipleUsesPattern:
         func test_as_i64() : i64 = {
             val same_calc = {
                 val calc = 42 + 100 * 3  // Same computation
-                assign calc
+                -> calc
             }
             return same_calc  // comptime_int -> i64 (different function context)
         }
@@ -201,7 +201,7 @@ class TestOneComputationMultipleUsesPattern:
         func test_as_f64() : f64 = {
             val another_calc = {
                 val calc = 42 + 100 * 3  // Same computation again
-                assign calc
+                -> calc
             }
             return another_calc  // comptime_int -> f64 (different function context)
         }
@@ -221,7 +221,7 @@ class TestOneComputationMultipleUsesPattern:
         func test_as_f32() : f32 = {
             val flexible = {
                 val calc = 42 * 3.14159
-                assign calc
+                -> calc
             }
             return flexible  // comptime_float -> f32
         }
@@ -229,7 +229,7 @@ class TestOneComputationMultipleUsesPattern:
         func test_as_f64() : f64 = {
             val same_calc = {
                 val calc = 42 * 3.14159  // Same computation
-                assign calc
+                -> calc
             }
             return same_calc  // comptime_float -> f64 (higher precision)
         }
@@ -254,10 +254,10 @@ class TestNestedExpressionBlocks:
             val outer = {
                 val inner = {
                     val calc = 42 + 100
-                    assign calc  // comptime_int
+                    -> calc  // comptime_int
                 }
                 val scaled = inner * 3.14  // comptime_int * comptime_float -> comptime_float
-                assign scaled
+                -> scaled
             }
             return outer  // comptime_float -> f64
         }
@@ -282,11 +282,11 @@ class TestNestedExpressionBlocks:
             val outer : f64 = {  // Explicit type required for runtime block
                 val comptime_part = {
                     val calc = 42 * 2
-                    assign calc  // Compile-time evaluable -> comptime_int
+                    -> calc  // Compile-time evaluable -> comptime_int
                 }
                 val runtime_part = get_base()  // Runtime function call -> i32
                 val combined = comptime_part + runtime_part  // comptime_int + i32 -> i32 (comptime adapts)
-                assign combined:f64  // Explicit conversion to match block type
+                -> combined:f64  // Explicit conversion to match block type
             }
             return outer
         }
@@ -311,7 +311,7 @@ class TestDivisionOperatorsInBlocks:
             val precise = {
                 val numerator = 22
                 val denominator = 7
-                assign numerator / denominator  // comptime_int / comptime_int -> comptime_float
+                -> numerator / denominator  // comptime_int / comptime_int -> comptime_float
             }
             return precise  // comptime_float -> f64 (adapts to function return type)
         }
@@ -333,7 +333,7 @@ class TestDivisionOperatorsInBlocks:
                 val total = 100
                 val parts = 3
                 val result = total \\ parts  // comptime integer division
-                assign result
+                -> result
             }
             return efficient  // comptime_int -> i32
         }
@@ -356,9 +356,9 @@ class TestExpressionBlocksWithConditionals:
         source = """
         func test_conditional_runtime() : i32 = {
             val result : i32 = if 10 > 5 {
-                assign 100
+                -> 100
             } else {
-                assign 200
+                -> 200
             }
             return result
         }
@@ -384,7 +384,7 @@ class TestReturnStatementsInExpressionBlocks:
                 val base = 42  // comptime value
                 val check = base > 30  // comptime comparison
                 // For demonstration: comptime block that can preserve flexibility
-                assign base * 2  // comptime operation
+                -> base * 2  // comptime operation
             }
             return result  // Uses the computed result
         }
@@ -407,9 +407,9 @@ class TestReturnStatementsInExpressionBlocks:
         
         func test_runtime_early_return() : i32 = {
             val result : i32 = if get_condition() {
-                assign 777
+                -> 777
             } else {
-                assign 0
+                -> 0
             }
             return result
         }
@@ -439,14 +439,14 @@ class TestComptimePreservationFoundationComplete:
             val comptime_calc = {
                 val base = 42 + 100
                 val scaled = base * 3.14
-                assign scaled  // Preserves comptime_float
+                -> scaled  // Preserves comptime_float
             }
             
             // Runtime block with function call - explicit type required
             val runtime_calc : f64 = {
                 val runtime_val = helper(10)  // Function call triggers runtime
                 val combined = runtime_val:f64 + comptime_calc  // Explicit conversion for mixed types
-                assign combined
+                -> combined
             }
             
             return runtime_calc

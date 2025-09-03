@@ -401,7 +401,7 @@ def create_assignment(var_name: str, value: str) -> str:
     Create an assignment statement source code for testing.
 
     Args:
-        var_name: Variable name to assign to
+        var_name: Variable name to -> to
         value: Value to assign
 
     Returns:

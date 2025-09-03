@@ -347,7 +347,7 @@ class TestComprehensiveIntegration(StandardTestBase):
             val computed:f64 = {
                 val temp:f64 = 31.4
                 val adjusted:f64 = temp * 2.0
-                assign adjusted
+                -> adjusted
             }
             
             // Complex expression with explicit conversion

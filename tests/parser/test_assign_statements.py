@@ -1,10 +1,10 @@
 """
 Tests for assign statement parsing in Hexen
 
-Tests the new assign keyword functionality according to UNIFIED_BLOCK_SYSTEM.md:
-- assign statements produce values in expression blocks
-- assign keyword syntax parsing
-- assign with various expressions
+Tests the new -> token functionality according to UNIFIED_BLOCK_SYSTEM.md:
+- -> statements produce values in expression blocks
+- -> token syntax parsing
+- -> with various expressions
 """
 
 from src.hexen.parser import HexenParser
@@ -22,7 +22,7 @@ class TestAssignStatementParsing:
         source = """
         func test() : i32 = {
             val result = {
-                assign 42
+                -> 42
             }
             return result
         }
@@ -43,7 +43,7 @@ class TestAssignStatementParsing:
         func test() : i32 = {
             val result = {
                 val temp = 100
-                assign temp
+                -> temp
             }
             return result
         }
@@ -66,7 +66,7 @@ class TestAssignStatementParsing:
             val result = {
                 val a = 10
                 val b = 20
-                assign a + b
+                -> a + b
             }
             return result
         }
@@ -85,7 +85,7 @@ class TestAssignStatementParsing:
         source = """
         func test() : i32 = {
             val result = {
-                assign (42 + 8)
+                -> (42 + 8)
             }
             return result
         }
@@ -104,7 +104,7 @@ class TestAssignStatementParsing:
         source = """
         func test() : i32 = {
             val result = {
-                assign 42:i32
+                -> 42:i32
             }
             return result
         }
@@ -128,7 +128,7 @@ class TestAssignStatementParsing:
             val result = {
                 val base = 10
                 val multiplier = 2.5
-                assign base * multiplier + 1.0
+                -> base * multiplier + 1.0
             }
             return result
         }
@@ -147,7 +147,7 @@ class TestAssignStatementParsing:
         source = """
         func test() : string = {
             val result = {
-                assign "hello world"
+                -> "hello world"
             }
             return result
         }
@@ -166,7 +166,7 @@ class TestAssignStatementParsing:
         source = """
         func test() : bool = {
             val result = {
-                assign true
+                -> true
             }
             return result
         }
@@ -185,12 +185,12 @@ class TestAssignStatementParsing:
         source = """
         func test() : i32 = {
             val first = {
-                assign 10
+                -> 10
             }
             
             val second = {
                 val temp = first
-                assign temp * 2
+                -> temp * 2
             }
             
             return second
@@ -223,7 +223,7 @@ class TestAssignStatementValidation:
         func test() : i32 = {
             // This should parse 'assign' as keyword, not identifier
             val result = {
-                assign 42
+                -> 42
             }
             return result
         }
@@ -242,7 +242,7 @@ class TestAssignStatementValidation:
         source = """
         func test() : i32 = {
             val result = {
-                assign    42
+                ->    42
             }
             return result
         }
@@ -261,7 +261,7 @@ class TestAssignStatementValidation:
         func test() : i32 = {
             val result = {
                 // This assigns a value
-                assign 42  // The value 42
+                -> 42  // The value 42
             }
             return result
         }

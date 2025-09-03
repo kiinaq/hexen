@@ -82,7 +82,7 @@ class TestFunctionSystemIntegration:
         code = """
         func safe_multiply(numerator: f64, factor: f64) : f64 = {
             val result : f64 = {
-                assign numerator * factor
+                -> numerator * factor
             }
             return result
         }
@@ -90,7 +90,7 @@ class TestFunctionSystemIntegration:
         func cached_calculation(key: i32) : f64 = {
             val computed : f64 = {  // Explicit type required for runtime block (uses concrete parameter)
                 val base : f64 = key:f64 * 3.14
-                assign base * 2.0
+                -> base * 2.0
             }
             return computed + 1.0
         }
@@ -163,7 +163,7 @@ class TestFunctionSystemIntegration:
             
             val final_adjustment : f64 = {
                 accumulator = accumulator * 1.1
-                assign accumulator
+                -> accumulator
             }
             
             return final_adjustment
@@ -196,7 +196,7 @@ class TestFunctionSystemIntegration:
         func complex_returns(flag: bool) : i32 = {
             val result = {
                 val computation = 10 * 20
-                assign computation
+                -> computation
             }
             
             return result + 3
@@ -225,7 +225,7 @@ class TestFunctionSystemIntegration:
             
             val final_result : f64 = {
                 // Use shadowed variable and modified parameter
-                assign param2 + param3:f64
+                -> param2 + param3:f64
             }
             
             return final_result
@@ -409,11 +409,11 @@ class TestEdgeCases:
             val level1 : i32 = {
                 val level2 : i32 = {
                     val level3 : i32 = {
-                        assign input * 2
+                        -> input * 2
                     }
-                    assign level3 + 10
+                    -> level3 + 10
                 }
-                assign level2 * 3
+                -> level2 * 3
             }
             return level1 + 5
         }
@@ -462,11 +462,11 @@ class TestEdgeCases:
             val computed : f64 = {
                 val nested_calc : f64 = {
                     mutable = mutable + 100
-                    assign mutable:f64 * 1.5
+                    -> mutable:f64 * 1.5
                 }
                 
                 result = 999.0
-                assign nested_calc + precise
+                -> nested_calc + precise
             }
             
             // Complex final computation with explicit conversions

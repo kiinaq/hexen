@@ -302,7 +302,7 @@ class TestComplexBlockScenarios(StandardTestBase):
             
             // Expression block with outer variable access
             val final = {
-                assign base + computed
+                -> base + computed
             }
             
             return final
@@ -322,7 +322,7 @@ class TestComplexBlockScenarios(StandardTestBase):
             
             val result = {                       // Expression block with error
                 val computed = 42
-                // ❌ Missing assign statement
+                // ❌ Missing -> statement
             }
             
             return result

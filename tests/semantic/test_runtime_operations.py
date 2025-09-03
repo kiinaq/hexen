@@ -59,7 +59,7 @@ class TestFunctionCallDetection:
         func test() : i32 = {
             val result : i32 = {  // Explicit type required for runtime block
                 val computed = helper()  // Function call should trigger runtime
-                assign computed
+                -> computed
             }
             return result
         }
@@ -84,7 +84,7 @@ class TestFunctionCallDetection:
         func test() : i32 = {
             val result : i32 = {  // Explicit type required for runtime block (contains function calls)
                 val computed = add(multiply(2, 3), 4)  // Nested function calls
-                assign computed
+                -> computed
             }
             return result
         }
@@ -105,7 +105,7 @@ class TestFunctionCallDetection:
         func test() : i32 = {
             val result : i32 = {  // Explicit type required for runtime block (contains function call)
                 val computed = getValue() + 42  // Function call in binary operation
-                assign computed
+                -> computed
             }
             return result
         }
@@ -117,7 +117,7 @@ class TestFunctionCallDetection:
         assert errors == []
 
     def test_function_call_in_assign_statement(self):
-        """Test function calls in assign statements are detected"""
+        """Test function calls in -> statements are detected"""
         source = """
         func calculate() : i32 = {
             return 100
@@ -126,7 +126,7 @@ class TestFunctionCallDetection:
         func test() : i32 = {
             val result : i32 = {  // Explicit type required for runtime block (contains function call)
                 val temp = 42
-                assign calculate()  // Function call directly in assign
+                -> calculate()  // Function call directly in assign
             }
             return result
         }
@@ -168,7 +168,7 @@ class TestFunctionCallDetection:
         func test() : i32 = {
             val result : i32 = {  // Explicit type required for runtime block (contains function call)
                 doSomething()  // Direct function call statement
-                assign 42
+                -> 42
             }
             return result
         }
@@ -196,7 +196,7 @@ class TestConditionalDetection:
                 if input > 3 {
                     val temp = 100
                 }
-                assign input * 2
+                -> input * 2
             }
             return result
         }
@@ -220,7 +220,7 @@ class TestConditionalDetection:
                 } else {
                     val low = 10
                 }
-                assign input
+                -> input
             }
             return result
         }
@@ -243,7 +243,7 @@ class TestConditionalDetection:
                         val both_positive = true
                     }
                 }
-                assign x + y
+                -> x + y
             }
             return result
         }
@@ -277,7 +277,7 @@ class TestCombinedRuntimeOperations:
                 } else {
                     val adjusted = input
                 }
-                assign input
+                -> input
             }
             return result
         }
@@ -301,7 +301,7 @@ class TestCombinedRuntimeOperations:
                 if shouldProcess() {  // Function call in condition
                     val processed = input * 2
                 }
-                assign input
+                -> input
             }
             return result
         }
@@ -332,7 +332,7 @@ class TestCombinedRuntimeOperations:
                 } else {
                     val final_result = 0
                 }
-                assign computed
+                -> computed
             }
             return result
         }
@@ -364,7 +364,7 @@ class TestRuntimeOperationValidation:
                 if computed > 20 {
                     val adjusted = computed * 2
                 }
-                assign computed
+                -> computed
             }
             return result
         }
@@ -432,13 +432,13 @@ class TestRuntimeOperationsFoundationComplete:
                 val a = 42          // comptime_int  
                 val b = 100         // comptime_int
                 val c = a * b       // comptime operation
-                assign c            // Pure comptime block
+                -> c            // Pure comptime block
             }
             
             val concrete_mixed : i32 = {  // Explicit type required for runtime block (concrete variables)
                 val explicit : i32 = 42    // Concrete type
                 val doubled = explicit * 2  // Mixed operation
-                assign doubled
+                -> doubled
             }
             
             return comptime_only + concrete_mixed  // comptime_int + i32 -> i32 (comptime adapts)

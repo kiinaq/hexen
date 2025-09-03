@@ -176,25 +176,25 @@ class TestFunctionSystemPerformance:
                                         val level8 : i32 = {
                                             val level9 : i32 = {
                                                 val level10 : i32 = {
-                                                    assign input * 2
+                                                    -> input * 2
                                                 }
-                                                assign level10 + 1
+                                                -> level10 + 1
                                             }
-                                            assign level9 + 2
+                                            -> level9 + 2
                                         }
-                                        assign level8 + 3
+                                        -> level8 + 3
                                     }
-                                    assign level7 + 4
+                                    -> level7 + 4
                                 }
-                                assign level6 + 5
+                                -> level6 + 5
                             }
-                            assign level5 + 6
+                            -> level5 + 6
                         }
-                        assign level4 + 7
+                        -> level4 + 7
                     }
-                    assign level3 + 8
+                    -> level3 + 8
                 }
-                assign level2 + 9
+                -> level2 + 9
             }
             return level1 + 10
         }

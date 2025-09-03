@@ -121,9 +121,9 @@ class HexenTransformer(Transformer):
             return {"type": NodeType.RETURN_STATEMENT.value, "value": args[0]}
 
     def assign_stmt(self, args):
-        # Handle: "assign" expression
+        # Handle: "->" expression
         if len(args) == 1:
-            # Just the expression after "assign" keyword
+            # Just the expression after "->" token
             return {
                 "type": NodeType.ASSIGN_STATEMENT.value,
                 "value": args[0],

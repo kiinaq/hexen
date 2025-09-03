@@ -272,13 +272,13 @@ class TestUnifiedBlockSystemIntegration:
     """Test integration with unified block system assign/return dual capability."""
 
     def test_expression_block_assign_for_value_production(self):
-        """Test expression blocks use assign for value production."""
+        """Test expression blocks use -> for value production."""
         program = """
         func expression_block_assign() : i32 = {
             val computation = {
                 val base = 42
                 val result = base * 2
-                assign result
+                -> result
             }
             return computation
         }
@@ -339,7 +339,7 @@ class TestUnifiedBlockSystemIntegration:
         func simple_pattern(value: f64) : f64 = {
             val result : f64 = {  // Explicit type required for runtime block
                 val computed = expensive_operation(value)
-                assign computed
+                -> computed
             }
             return result
         }

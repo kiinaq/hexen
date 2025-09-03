@@ -424,7 +424,7 @@ class TestFunctionBodyIntegration(StandardTestBase):
         func with_expression_blocks(param: i32) : i32 = {
             val result : i32 = {  // Explicit type required for runtime block (uses concrete parameter)
                 val temp = param * 2
-                assign temp + 10
+                -> temp + 10
             }
             return result
         }
@@ -439,7 +439,7 @@ class TestFunctionBodyIntegration(StandardTestBase):
         func with_early_return(param: i32) : i32 = {
             val result : i32 = {  // Explicit type required for runtime block (uses concrete parameter)
                 val temp = param * 2
-                assign temp
+                -> temp
             }
             return result + 10
         }

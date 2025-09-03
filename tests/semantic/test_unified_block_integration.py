@@ -34,7 +34,7 @@ class TestUnifiedBlockSystemIntegration:
                 val multiplier = 100       // comptime_int  
                 val factor = 3.14          // comptime_float
                 val result = base * multiplier + factor  // All comptime operations → comptime_float
-                assign result              // Block result: comptime_float (preserved!)
+                -> result              // Block result: comptime_float (preserved!)
             }
             
             // Same block result adapts to different contexts (maximum flexibility!)
@@ -59,7 +59,7 @@ class TestUnifiedBlockSystemIntegration:
             val runtime_result = {              // Should require explicit type annotation
                 val user_input = get_user_input()     // Function call -> runtime block returns i64
                 val base : i32 = 42                   // concrete i32
-                assign base + user_input              // Mixed concrete types i32 + i64 should error
+                -> base + user_input              // Mixed concrete types i32 + i64 should error
             }
             return
         }
@@ -80,11 +80,11 @@ class TestUnifiedBlockSystemIntegration:
             val result : i32 = {
                 val condition = true
                 val value = if condition {
-                    assign 42
+                    -> 42
                 } else {
-                    assign 100
+                    -> 100
                 }  // Conditional -> runtime
-                assign value
+                -> value
             }
             return
         }
@@ -104,15 +104,15 @@ class TestUnifiedBlockSystemIntegration:
             val outer_result = {     // Missing explicit context - should error!
                 val comptime_block = {
                     val calc = 42 + 100
-                    assign calc  // Compile-time evaluable
+                    -> calc  // Compile-time evaluable
                 }
                 
                 val runtime_block : i32 = {
                     val helper_result = helper()  // Function call -> runtime
-                    assign helper_result
+                    -> helper_result
                 }
                 
-                assign comptime_block + runtime_block  // Mixed types - makes block runtime
+                -> comptime_block + runtime_block  // Mixed types - makes block runtime
             }
             return
         }
@@ -144,7 +144,7 @@ class TestUnifiedBlockSystemIntegration:
                 
                 val computed = very_expensive_operation(key)
                 save_to_cache(key, computed)
-                assign computed        // Cache miss: assign computed value
+                -> computed        // Cache miss: -> computed value
             }
             
             log_cache_miss(key)        // Only executes on cache miss
@@ -170,7 +170,7 @@ class TestUnifiedBlockSystemIntegration:
                 if raw_input > 1000.0 {
                     return -2.0        // Early function exit with different error
                 }
-                assign sanitize(raw_input) // Success: assign sanitized input
+                -> sanitize(raw_input) // Success: assign sanitized input
             }
             return validated_input
         }
@@ -190,13 +190,13 @@ class TestUnifiedBlockSystemIntegration:
             val base_calculations = {
                 val standard_deduction = 12000.0  // comptime_float
                 val rate = 0.22                    // comptime_float
-                assign standard_deduction * rate   // comptime calculation
+                -> standard_deduction * rate   // comptime calculation
             }
             
             val runtime_calculations : f64 = {
                 val user_deductions = get_deductions()  // Function call -> runtime
                 val taxable = income - user_deductions
-                assign calculate_tax(taxable)
+                -> calculate_tax(taxable)
             }
             
             val final_tax : f64 = runtime_calculations - base_calculations
@@ -242,13 +242,13 @@ class TestBackwardCompatibilityValidation:
             // Simple expression block
             val simple = {
                 val x = 42
-                assign x * 2
+                -> x * 2
             }
             
             // Block with explicit type
             val explicit : i32 = {
                 val calc = 100 + 200
-                assign calc
+                -> calc
             }
             
             return simple + explicit
@@ -325,7 +325,7 @@ class TestSpecificationComplianceValidation:
             val comptime_block = {
                 val a = 42        // comptime_int
                 val b = 3.14      // comptime_float
-                assign a + b      // comptime_int + comptime_float → comptime_float
+                -> a + b      // comptime_int + comptime_float → comptime_float
             }
             
             // Same source, different targets (flexibility preserved)
@@ -348,7 +348,7 @@ class TestSpecificationComplianceValidation:
             // Block with function call requires explicit context
             val runtime_block : i32 = {
                 val value = get_value()  // Function call → runtime
-                assign value
+                -> value
             }
             
             return
@@ -367,7 +367,7 @@ class TestSpecificationComplianceValidation:
             val mixed_block : i32 = {
                 val comptime_val = 42              // comptime_int
                 val runtime_val = get_runtime_value() // Function call → concrete i32
-                assign comptime_val + runtime_val   // Mixed: comptime + concrete
+                -> comptime_val + runtime_val   // Mixed: comptime + concrete
             }
             
             return
@@ -378,7 +378,7 @@ class TestSpecificationComplianceValidation:
         assert_no_errors(errors)
     
     def test_dual_capability_semantics(self):
-        """Test assign + return dual capability in expression blocks."""
+        """Test -> + return dual capability in expression blocks."""
         source = """
         func test_dual_capability(condition: bool) : i32 = {
             val result : i32 = {
@@ -386,7 +386,7 @@ class TestSpecificationComplianceValidation:
                     return 42  // Early function exit
                 }
                 val computation = 100 + 200
-                assign computation  // Block value assignment
+                -> computation  // Block value assignment
             }
             
             // This line only executes if condition is false
@@ -413,7 +413,7 @@ class TestSessionIntegrationValidation:
             val comptime_only = {
                 val a = 42
                 val b = 100
-                assign a + b
+                -> a + b
             }
             
             val as_different_types_f32 : f32 = comptime_only
@@ -434,17 +434,17 @@ class TestSessionIntegrationValidation:
             // Function call detection
             val with_function : i32 = {
                 val result = helper()
-                assign result
+                -> result
             }
             
             // Conditional detection
             val with_conditional : i32 = {
                 val value = if true {
-                    assign 42
+                    -> 42
                 } else {
-                    assign 100
+                    -> 100
                 }
-                assign value
+                -> value
             }
             
             return
@@ -460,7 +460,7 @@ class TestSessionIntegrationValidation:
         func test_session3() : void = {
             val preserved_comptime = {
                 val calculation = 42 * 3.14  // comptime_int * comptime_float → comptime_float
-                assign calculation            // Preserved as comptime_float
+                -> calculation            // Preserved as comptime_float
             }
             
             // Multiple uses of same preserved computation
@@ -482,7 +482,7 @@ class TestSessionIntegrationValidation:
         func test_session4() : void = {
             val valid_block = {
                 val computation = 42 + 100
-                assign computation
+                -> computation
             }
             
             val valid_typed : i32 = valid_block

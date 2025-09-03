@@ -199,7 +199,7 @@ class TestFunctionDeclarations:
         func complex_function(base: i32, scale: f64) : f64 = {
             val intermediate = {
                 val temp = base * 2
-                assign temp:f64 + scale
+                -> temp:f64 + scale
             }
             
             {
@@ -379,7 +379,7 @@ class TestFunctionCalls:
         source = """
         val result = process({
             val temp = 42
-            assign temp + 10
+            -> temp + 10
         })
         """
 
@@ -550,7 +550,7 @@ class TestReturnStatements:
         func test() : i32 = {
             val result = {
                 val temp = 42
-                assign temp
+                -> temp
             }
             return result
         }
@@ -758,7 +758,7 @@ class TestComplexIntegration:
             val local_calculation = {
                 val base = immutable_int:f64
                 val scaled = base * mutable_float
-                assign scaled + 1.0
+                -> scaled + 1.0
             }
             
             {
@@ -800,7 +800,7 @@ class TestComplexIntegration:
         val result = {
             val step1 = calculate(10, 20)
             val step2 = process(step1, helper())
-            assign finalize(step2)
+            -> finalize(step2)
         }
         """
 

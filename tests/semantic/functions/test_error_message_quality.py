@@ -447,7 +447,7 @@ class TestComplexScenarioErrorMessages:
         func outer() : i32 = {
             val result = {
                 val inner_result : i32 = undefined_function(42)
-                assign inner_result
+                -> inner_result
             }
             return result
         }

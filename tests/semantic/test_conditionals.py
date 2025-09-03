@@ -397,13 +397,13 @@ class TestConditionalExpressions:
     """Test conditional expressions in expression context."""
 
     def test_basic_conditional_expression(self):
-        """Test basic conditional expression with assign statements."""
+        """Test basic conditional expression with -> statements."""
         code = '''
         func test() : i32 = {
             val result = if true {
-                assign 42
+                -> 42
             } else {
-                assign 100
+                -> 100
             }
             {
                 return result
@@ -418,9 +418,9 @@ class TestConditionalExpressions:
         code = '''
         func get_value(flag : bool) : f64 = {
             val result : f64 = if flag {
-                assign 42       // comptime_int -> f64
+                -> 42       // comptime_int -> f64
             } else {
-                assign 3.14     // comptime_float -> f64
+                -> 3.14     // comptime_float -> f64
             }
             {
                 return result
@@ -435,9 +435,9 @@ class TestConditionalExpressions:
         code = '''
         func select(flag : bool, a : i32, b : i32) : i32 = {
             val result = if flag {
-                assign a
+                -> a
             } else {
-                assign b
+                -> b
             }
             {
                 return result
@@ -454,7 +454,7 @@ class TestConditionalExpressions:
             val result = if input < 0 {
                 return -1          // Early function exit
             } else {
-                assign input * 2   // Normal processing
+                -> input * 2   // Normal processing
             }
             {
                 return result
@@ -469,13 +469,13 @@ class TestConditionalExpressions:
         code = '''
         func classify(score : i32) : string = {
             val grade = if score >= 90 {
-                assign "A"
+                -> "A"
             } else if score >= 80 {
-                assign "B"
+                -> "B"
             } else if score >= 70 {
-                assign "C"
+                -> "C"
             } else {
-                assign "F"
+                -> "F"
             }
             return grade
         }
@@ -484,7 +484,7 @@ class TestConditionalExpressions:
         assert_no_errors(errors)
 
     def test_mixed_return_and_assign(self):
-        """Test conditional expression mixing return and assign statements."""
+        """Test conditional expression mixing return and -> statements."""
         code = '''
         func validate_and_process(input : i32) : i32 = {
             val result = if input < 0 {
@@ -492,7 +492,7 @@ class TestConditionalExpressions:
             } else if input == 0 {
                 return 0           // Early exit: special case
             } else {
-                assign input * 2   // Success case: assign value
+                -> input * 2   // Success case: -> value
             }
             {
                 return result
@@ -511,9 +511,9 @@ class TestConditionalExpressionErrors:
         code = '''
         func test(x : i32) : i32 = {
             val result = if x {  // Error: i32 not bool
-                assign 42
+                -> 42
             } else {
-                assign 100
+                -> 100
             }
             {
                 return result
@@ -532,9 +532,9 @@ class TestConditionalExpressionTypeResolution:
         code = '''
         func get_number(use_int : bool) : f64 = {
             val result : f64 = if use_int {
-                assign 42       // comptime_int -> f64
+                -> 42       // comptime_int -> f64
             } else {
-                assign 3.14     // comptime_float -> f64  
+                -> 3.14     // comptime_float -> f64  
             }
             {
                 return result
@@ -549,9 +549,9 @@ class TestConditionalExpressionTypeResolution:
         code = '''
         func get_value(flag : bool) : i32 = {
             val result : i32 = if flag {
-                assign 42       // comptime_int adapts to i32 context
+                -> 42       // comptime_int adapts to i32 context
             } else {
-                assign 100      // comptime_int adapts to i32 context
+                -> 100      // comptime_int adapts to i32 context
             }
             {
                 return result
@@ -566,16 +566,16 @@ class TestConditionalExpressionTypeResolution:
         code = '''
         func complex_logic(a : bool, b : bool) : i32 = {
             val result = if a {
-                assign if b {
-                    assign 1
+                -> if b {
+                    -> 1
                 } else {
-                    assign 2
+                    -> 2
                 }
             } else {
-                assign if b {
-                    assign 3
+                -> if b {
+                    -> 3
                 } else {
-                    assign 4
+                    -> 4
                 }
             }
             {
@@ -596,11 +596,11 @@ class TestConditionalIntegrationPatterns:
         func calculate(base : i32) : f64 = {
             val result : f64 = {
                 val multiplier = if base > 100 {
-                    assign 2.5
+                    -> 2.5
                 } else {
-                    assign 1.0  
+                    -> 1.0  
                 }
-                assign base:f64 * multiplier
+                -> base:f64 * multiplier
             }
             {
                 return result
@@ -619,9 +619,9 @@ class TestConditionalIntegrationPatterns:
         
         func process(input : i32) : string = {
             val result = if is_valid(input) {
-                assign "valid"
+                -> "valid"
             } else {
-                assign "invalid"
+                -> "invalid"
             }
             {
                 return result
@@ -636,11 +636,11 @@ class TestConditionalIntegrationPatterns:
         code = '''
         func categorize(x : i32, y : i32) : string = {
             val category = if x > 0 && y > 0 {
-                assign "positive"
+                -> "positive"
             } else if x < 0 || y < 0 {
-                assign "negative"  
+                -> "negative"  
             } else {
-                assign "zero"
+                -> "zero"
             }
             return category
         }
@@ -658,9 +658,9 @@ class TestTypeSystemIntegration:
         func test_runtime_treatment() : f64 = {
             // Mixed comptime types require explicit target context (runtime treatment)
             val result : f64 = if true {    // Runtime condition (even though constant)
-                assign 42 + 100             // comptime_int -> f64 (context-guided)
+                -> 42 + 100             // comptime_int -> f64 (context-guided)
             } else {
-                assign 3.14 * 2.0           // comptime_float -> f64 (context-guided)  
+                -> 3.14 * 2.0           // comptime_float -> f64 (context-guided)  
             }
             {
                 return result
@@ -676,9 +676,9 @@ class TestTypeSystemIntegration:
         func test_context_propagation() : i32 = {
             // Target type i32 should propagate to both branches
             val result : i32 = if true {
-                assign 42       // comptime_int -> i32 (context propagated)
+                -> 42       // comptime_int -> i32 (context propagated)
             } else {
-                assign 100      // comptime_int -> i32 (context propagated)
+                -> 100      // comptime_int -> i32 (context propagated)
             }
             {
                 return result
@@ -693,9 +693,9 @@ class TestTypeSystemIntegration:
         code = '''
         func test_mixed_comptime() : f64 = {
             val result : f64 = if true {
-                assign 42       // comptime_int -> f64 (target context)
+                -> 42       // comptime_int -> f64 (target context)
             } else {
-                assign 3.14     // comptime_float -> f64 (target context)
+                -> 3.14     // comptime_float -> f64 (target context)
             }
             {
                 return result
@@ -713,9 +713,9 @@ class TestTypeSystemIntegration:
         
         func test_mixed_concrete() : f64 = {
             val result : f64 = if true {
-                assign get_i32():f64    // i32 -> f64 (explicit conversion required)
+                -> get_i32():f64    // i32 -> f64 (explicit conversion required)
             } else {
-                assign get_f64()        // f64 -> f64 (identity)
+                -> get_f64()        // f64 -> f64 (identity)
             }
             {
                 return result
@@ -733,9 +733,9 @@ class TestTypeSystemIntegration:
         
         func test_mixed_concrete_error() : f64 = {
             val result : f64 = if true {
-                assign get_i32()       // Error: i32 cannot auto-convert to f64
+                -> get_i32()       // Error: i32 cannot auto-convert to f64
             } else {
-                assign get_f64()       // f64 -> f64 (identity)
+                -> get_f64()       // f64 -> f64 (identity)
             }
             {
                 return result
@@ -753,9 +753,9 @@ class TestTypeSystemIntegration:
         func test_parameter_context() : void = {
             // Function parameter type provides context for conditional
             process_f64(if true {
-                assign 42           // comptime_int -> f64 (parameter context)
+                -> 42           // comptime_int -> f64 (parameter context)
             } else {
-                assign 3.14         // comptime_float -> f64 (parameter context)
+                -> 3.14         // comptime_float -> f64 (parameter context)
             })
             return
         }
@@ -769,9 +769,9 @@ class TestTypeSystemIntegration:
         func test_return_context() : f64 = {
             // Function return type provides context for conditional
             return if true {
-                assign 42           // comptime_int -> f64 (return context)
+                -> 42           // comptime_int -> f64 (return context)
             } else {
-                assign 3.14         // comptime_float -> f64 (return context)
+                -> 3.14         // comptime_float -> f64 (return context)
             }
         }
         '''
@@ -784,22 +784,22 @@ class TestTypeSystemIntegration:
         func test_val_vs_mut() : void = {
             // val with conditional (can preserve flexibility with target type)
             val val_result : f64 = if true {
-                assign 42           // comptime_int -> f64
+                -> 42           // comptime_int -> f64
             } else {
-                assign 3.14         // comptime_float -> f64
+                -> 3.14         // comptime_float -> f64
             }
             
             // mut with conditional (explicit type required)
             mut mut_result : f64 = if true {
-                assign 42           // comptime_int -> f64
+                -> 42           // comptime_int -> f64
             } else {
-                assign 3.14         // comptime_float -> f64
+                -> 3.14         // comptime_float -> f64
             }
             
             mut_result = if false {
-                assign 100          // comptime_int -> f64 (reassignment)
+                -> 100          // comptime_int -> f64 (reassignment)
             } else {
-                assign 2.718        // comptime_float -> f64 (reassignment)
+                -> 2.718        // comptime_float -> f64 (reassignment)
             }
             
             return
@@ -815,11 +815,11 @@ class TestTypeSystemIntegration:
             val result : f64 = {        // Context REQUIRED (runtime block)!
                 val base = 42           // comptime_int
                 val multiplier = if base > 50 {
-                    assign 2.5          // comptime_float
+                    -> 2.5          // comptime_float
                 } else {
-                    assign 1.0          // comptime_float
+                    -> 1.0          // comptime_float
                 }
-                assign base:f64 * multiplier
+                -> base:f64 * multiplier
             }
             {
                 return result
@@ -834,16 +834,16 @@ class TestTypeSystemIntegration:
         code = '''
         func test_nested_conditionals() : f64 = {
             val result : f64 = if true {
-                assign if false {
-                    assign 42       // comptime_int -> f64 (nested context)
+                -> if false {
+                    -> 42       // comptime_int -> f64 (nested context)
                 } else {
-                    assign 3.14     // comptime_float -> f64 (nested context)
+                    -> 3.14     // comptime_float -> f64 (nested context)
                 }
             } else {
-                assign if true {
-                    assign 100      // comptime_int -> f64 (nested context)
+                -> if true {
+                    -> 100      // comptime_int -> f64 (nested context)
                 } else {
-                    assign 2.718    // comptime_float -> f64 (nested context)
+                    -> 2.718    // comptime_float -> f64 (nested context)
                 }
             }
             {
@@ -863,9 +863,9 @@ class TestTypeSystemErrorHandling:
         code = '''
         func test_missing_context() : void = {
             val result = if true {      // Missing explicit type
-                assign 42               // comptime_int
+                -> 42               // comptime_int
             } else {
-                assign 3.14             // comptime_float
+                -> 3.14             // comptime_float
             }
             return
         }
@@ -880,9 +880,9 @@ class TestTypeSystemErrorHandling:
         
         func test_conversion_error() : f64 = {
             val result : f64 = if true {
-                assign get_i32()       // i32 needs explicit conversion to f64
+                -> get_i32()       // i32 needs explicit conversion to f64
             } else {
-                assign 3.14            // comptime_float -> f64
+                -> 3.14            // comptime_float -> f64
             }
             {
                 return result
@@ -906,7 +906,7 @@ class TestAdvancedValidationPatterns:
             } else if input > 1000 {
                 return "ERROR: Input too large"    // Early function exit
             } else {
-                assign "SUCCESS: Valid input"     // Success: processed input
+                -> "SUCCESS: Valid input"     // Success: processed input
             }
             
             // Additional processing only happens for valid input
@@ -923,7 +923,7 @@ class TestAdvancedValidationPatterns:
             val result : f64 = if b == 0.0 {
                 return 0.0         // Early exit: division by zero
             } else {
-                assign a / b       // Normal case: assign division result
+                -> a / b       // Normal case: -> division result
             }
             return result
         }
@@ -945,9 +945,9 @@ class TestAdvancedValidationPatterns:
                 } else if age > 150 {
                     return "ERROR: Age too high"      // Early function exit  
                 } else {
-                    assign age                         // Valid age
+                    -> age                         // Valid age
                 }
-                assign "VALID: User data OK"
+                -> "VALID: User data OK"
             }
             return result
         }
@@ -975,7 +975,7 @@ class TestAdvancedCachingPatterns:
                 return cached          // Early exit: cache hit
             } else {
                 save_to_cache(key, computed)
-                assign computed        // Cache miss: assign computed value
+                -> computed        // Cache miss: -> computed value
             }
             
             // This only executes on cache miss (after assign, not after return)
@@ -994,9 +994,9 @@ class TestAdvancedCachingPatterns:
             val slow_result : f64 = (input * input / 3.14159) + 1.0
             
             val result : f64 = if use_fast_path {
-                assign fast_result     // Fast path
+                -> fast_result     // Fast path
             } else {
-                assign slow_result     // Complex expensive calculation
+                -> slow_result     // Complex expensive calculation
             }
             return result
         }
@@ -1012,9 +1012,9 @@ class TestAdvancedCachingPatterns:
             
             val enhanced_result = if enable_advanced {
                 val complex_calc = base_result * base_result * 3.14159
-                assign complex_calc
+                -> complex_calc
             } else {
-                assign base_result     // Skip expensive calculation
+                -> base_result     // Skip expensive calculation
             }
             
             return enhanced_result
@@ -1045,11 +1045,11 @@ class TestAdvancedFallbackPatterns:
             
             // Simple fallback pattern: check primary first
             val config : i32 = if primary_exists && (primary > 0) {
-                assign primary                     // Use primary config
+                -> primary                     // Use primary config
             } else if fallback_exists {
-                assign fallback                    // Use fallback config
+                -> fallback                    // Use fallback config
             } else {
-                assign default                     // Use default config
+                -> default                     // Use default config
             }
             
             return config
@@ -1063,15 +1063,15 @@ class TestAdvancedFallbackPatterns:
         code = '''
         func process_with_feature_flags(enable_feature_a: bool, enable_feature_b: bool) : i32 = {
             val feature_a_result = if enable_feature_a {
-                assign 1    // Feature A enabled
+                -> 1    // Feature A enabled
             } else {
-                assign 0    // Feature A disabled
+                -> 0    // Feature A disabled
             }
             
             val feature_b_result = if enable_feature_b {
-                assign 10   // Feature B enabled (use different value to distinguish)
+                -> 10   // Feature B enabled (use different value to distinguish)
             } else {
-                assign 0    // Feature B disabled
+                -> 0    // Feature B disabled
             }
             
             return feature_a_result + feature_b_result  // Combined feature flags
@@ -1088,14 +1088,14 @@ class TestAdvancedFallbackPatterns:
                 val advanced_result = if input > 0.0 {
                     // Advanced processing might fail
                     val complex = input * input * input
-                    assign complex
+                    -> complex
                 } else {
                     // Fallback to simple processing
                     return input * 2.0     // Early exit with simple calculation
                 }
-                assign advanced_result
+                -> advanced_result
             } else {
-                assign input * 2.0         // Simple processing
+                -> input * 2.0         // Simple processing
             }
             
             return result
@@ -1113,11 +1113,11 @@ class TestComplexIntegrationPatterns:
         code = '''
         func complex_calculation(a: f64, b: f64, c: f64) : f64 = {
             val result : f64 = if (a + b) > c {
-                assign (a * b) + c
+                -> (a * b) + c
             } else if (a - b) < c {
-                assign (a / b) * c
+                -> (a / b) * c
             } else {
-                assign a + b + c
+                -> a + b + c
             }
             
             return result
@@ -1138,11 +1138,11 @@ class TestComplexIntegrationPatterns:
             
             val result = if validate_result(transformed) {
                 val corrected = if transformed > 100.0 {
-                    assign apply_correction(transformed)
+                    -> apply_correction(transformed)
                 } else {
-                    assign transformed
+                    -> transformed
                 }
-                assign corrected
+                -> corrected
             } else {
                 return 0.0     // Early exit for invalid data
             }
@@ -1166,13 +1166,13 @@ class TestComplexIntegrationPatterns:
                 val user_tier : i32 = get_user_tier()    // Runtime function call
                 
                 val discount_multiplier : f64 = if user_tier == 3 {     // 3 = premium
-                    assign 0.8                     // 20% discount
+                    -> 0.8                     // 20% discount
                 } else if user_tier == 2 {         // 2 = gold
-                    assign 0.9                     // 10% discount  
+                    -> 0.9                     // 10% discount  
                 } else if is_first_time_user() {   // Runtime condition
-                    assign 0.95                    // 5% new user discount
+                    -> 0.95                    // 5% new user discount
                 } else {
-                    assign 1.0                     // No discount
+                    -> 1.0                     // No discount
                 }
                 
                 val discounted : f64 = base_price * discount_multiplier
@@ -1180,12 +1180,12 @@ class TestComplexIntegrationPatterns:
                 val final_adjustment : f64 = if discounted < 10.0 {
                     return 0.0                     // Early exit: too cheap, make it free
                 } else if discounted > 1000.0 {
-                    assign 1000.0                  // Cap at maximum price
+                    -> 1000.0                  // Cap at maximum price
                 } else {
-                    assign discounted              // Use calculated price
+                    -> discounted              // Use calculated price
                 }
                 
-                assign final_adjustment
+                -> final_adjustment
             }
             
             return final_price
@@ -1216,20 +1216,20 @@ class TestRealWorldScenarios:
             } else if score > 100.0 {
                 return -6     // ERROR: Score cannot exceed 100
             } else {
-                assign 0      // VALID (success code)
+                -> 0      // VALID (success code)
             }
             
             // Additional processing only for valid data
             val grade_points = if score >= 90.0 {
-                assign 4      // A grade
+                -> 4      // A grade
             } else if score >= 80.0 {
-                assign 3      // B grade
+                -> 3      // B grade
             } else if score >= 70.0 {
-                assign 2      // C grade
+                -> 2      // C grade
             } else if score >= 60.0 {
-                assign 1      // D grade
+                -> 1      // D grade
             } else {
-                assign 0      // F grade
+                -> 0      // F grade
             }
             
             return validation_result + grade_points  // Combined result
@@ -1300,19 +1300,19 @@ class TestRealWorldScenarios:
             
             // Precision-based calculation
             val result : f64 = if precision_mode == 3 {  // 3 = "high"
-                assign {
+                -> {
                     val step1 = base_calculation * 3.141592653589793
                     val step2 : f64 = step1 / 2.718281828459045
-                    assign step2 + 1.414213562373095
+                    -> step2 + 1.414213562373095
                 }
             } else if precision_mode == 2 {  // 2 = "medium"
-                assign {
+                -> {
                     val step1 = base_calculation * 3.14159
                     val step2 : f64 = step1 / 2.71828
-                    assign step2
+                    -> step2
                 }
             } else {  // 1 = "low" or default
-                assign base_calculation * 3.14
+                -> base_calculation * 3.14
             }
             
             // Store in cache if enabled
