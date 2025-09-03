@@ -9,7 +9,7 @@
 Hexen's **Conditional System** applies the same **"One Syntax, Context-Driven Behavior"** philosophy as the unified block system. Conditionals use consistent `if`/`else if`/`else` syntax with `{}` blocks, but their behavior adapts based on context:
 
 - **Conditional Statements**: Execute code conditionally, no value production
-- **Conditional Expressions**: Produce values conditionally using `assign`, support `return` for early function exits
+- **Conditional Expressions**: Produce values conditionally using `->`, support `return` for early function exits
 - **Unified Syntax**: Same `if {} else {}` pattern everywhere
 - **Runtime Evaluation**: All conditionals treated as runtime (simplified cognitive model)
 
@@ -20,7 +20,7 @@ Hexen's **Conditional System** applies the same **"One Syntax, Context-Driven Be
 All Hexen conditionals use the same syntax `if condition { }`, but context determines their specific behavior:
 
 - **Statement Context**: Execute code branches, no value production required
-- **Expression Context**: Must produce values via `assign`, support function `return` for control flow
+- **Expression Context**: Must produce values via `->`, support function `return` for control flow
 - **Consistent Scoping**: All conditional blocks follow unified block scoping rules
 - **Runtime Treatment**: All conditionals treated as runtime evaluation (no special compile-time cases)
 
@@ -31,7 +31,7 @@ This unification eliminates cognitive overhead while maintaining precise semanti
 The conditional system embodies Hexen's core principles:
 - **"Clean: There is only one way to do a thing"** - Single conditional syntax for all contexts
 - **"Logic: No tricks to remember, only natural approaches"** - Context determines behavior naturally
-- **"Pedantic to write, but really easy to read"** - Explicit value production with `assign`
+- **"Pedantic to write, but really easy to read"** - Explicit value production with `->`
 - **"Ergonomic Literals + Transparent Costs"** - Same type system rules apply in all branches
 
 ## Runtime Treatment Philosophy
@@ -120,18 +120,18 @@ func validate_input(input: string) : bool = {
 
 ### 2. Conditional Expressions
 
-**Purpose**: Produce values conditionally using `assign`  
+**Purpose**: Produce values conditionally using `->`  
 **Context**: Used in expression contexts (variable assignments, function arguments, etc.)  
 **Scope**: Each branch creates isolated scope  
-**Value Production**: Required via `assign` statements  
-**Branch Requirements**: All paths must either `assign` a value or `return` from function
+**Value Production**: Required via `->` statements  
+**Branch Requirements**: All paths must either `->` a value or `return` from function
 
 ```hexen
 // Basic conditional expression
 val result = if user_input > 0 {
-    assign user_input * 2
+    -> user_input * 2
 } else {
-    assign 0
+    -> 0
 }
 
 // Conditional expression with early function return
@@ -139,9 +139,9 @@ func process_data(input: i32) : i32 = {
     val processed = if input < 0 {
         return -1          // Early function exit with error
     } else if input == 0 {
-        assign 1           // Special case
+        -> 1           // Special case
     } else {
-        assign input * 2   // Normal processing
+        -> input * 2   // Normal processing
     }
     
     return processed
@@ -154,20 +154,20 @@ val validated_result : string = {           // Context REQUIRED (runtime block)!
         if user_data.length > 100 {        // Nested conditional
             return "ERROR: Too long"       // Early function exit
         } else {
-            assign sanitize(user_data)     // Success path
+            -> sanitize(user_data)     // Success path
         }
     } else {
         return "ERROR: Invalid data"       // Early function exit  
     }
-    assign format_output(result)           // Final processing
+    -> format_output(result)           // Final processing
 }
 ```
 
 **Key Characteristics:**
-- **Value Production**: Must produce value via `assign` statement in each branch
-- **Complete Coverage**: All execution paths must either `assign` or `return`
+- **Value Production**: Must produce value via `->` statement in each branch
+- **Complete Coverage**: All execution paths must either `->` or `return`
 - **Function Returns**: Support `return` statements for early function exits
-- **Branch Requirements**: Every branch that doesn't return must assign
+- **Branch Requirements**: Every branch that doesn't return must ->
 - **Type Context**: When used in expression blocks, follows runtime evaluation rules
 
 ### 3. Integration with Expression Blocks
@@ -179,14 +179,14 @@ Conditional expressions work seamlessly within expression blocks, following the 
 val complex_calculation : f64 = {        // Context REQUIRED!
     val base_value = get_base_value()    // Runtime function call
     val multiplier = if base_value > 100 {
-        assign 2.5                       // High value multiplier
+        -> 2.5                       // High value multiplier
     } else if base_value > 50 {
-        assign 1.8                       // Medium value multiplier  
+        -> 1.8                       // Medium value multiplier  
     } else {
         return 0.0                       // Early exit for low values
     }
     
-    assign base_value:f64 * multiplier   // Final calculation with explicit conversion
+    -> base_value:f64 * multiplier   // Final calculation with explicit conversion
 }
 ```
 
@@ -222,27 +222,27 @@ if condition1 {
 ### Conditional Expression Syntax
 
 ```hexen
-// Conditional expression (must assign in all non-returning branches)
+// Conditional expression (must -> in all non-returning branches)
 val result = if condition {
-    assign value1
+    -> value1
 } else {
-    assign value2
+    -> value2
 }
 
 // Conditional expression with else-if
 val result = if condition1 {
-    assign value1
+    -> value1
 } else if condition2 {
-    assign value2
+    -> value2
 } else {
-    assign default_value
+    -> default_value
 }
 
 // Conditional expression with early returns
 val result = if error_condition {
     return error_value    // Early function exit
 } else {
-    assign normal_value   // Success path
+    -> normal_value   // Success path
 }
 ```
 
@@ -316,9 +316,9 @@ Each branch in conditional expressions must resolve to compatible types:
 ```hexen
 // ✅ Compatible branch types
 val result : f64 = if condition {
-    assign 42                      // comptime_int → f64
+    -> 42                      // comptime_int → f64
 } else {
-    assign 3.14                    // comptime_float → f64
+    -> 3.14                    // comptime_float → f64
 }
 
 // ✅ Explicit conversions for mixed concrete types
@@ -327,9 +327,9 @@ func get_mixed_result() : f64 = {
     val float_val : f32 = get_float()
     
     val result : f64 = if use_int {
-        assign int_val:f64         // Explicit: i32 → f64
+        -> int_val:f64         // Explicit: i32 → f64
     } else {
-        assign float_val:f64       // Explicit: f32 → f64  
+        -> float_val:f64       // Explicit: f32 → f64  
     }
     
     return result
@@ -337,9 +337,9 @@ func get_mixed_result() : f64 = {
 
 // ❌ Incompatible types without explicit conversion
 // val bad_result : f64 = if condition {
-//     assign int_val             // Error: i32 cannot auto-convert to f64
+//     -> int_val             // Error: i32 cannot auto-convert to f64
 // } else {
-//     assign float_val           // Error: f32 cannot auto-convert to f64
+//     -> float_val           // Error: f32 cannot auto-convert to f64
 // }
 ```
 
@@ -350,20 +350,20 @@ Conditional expressions containing only comptime operations still require explic
 ```hexen
 // Conditional treated as runtime (even with comptime values)
 val result : f64 = if true {       // Runtime condition (even though constant)
-    assign 42                      // comptime_int → f64 (context provided)
+    -> 42                      // comptime_int → f64 (context provided)
 } else {
-    assign 100                     // comptime_int → f64 (context provided)
+    -> 100                     // comptime_int → f64 (context provided)
 }
 
 // Expression block with conditional requires explicit context
 val complex_result : i32 = {       // Context REQUIRED!
     val base = 42                  // comptime_int
     val multiplier = if base > 50 {
-        assign 2                   // comptime_int
+        -> 2                   // comptime_int
     } else {
-        assign 3                   // comptime_int  
+        -> 3                   // comptime_int  
     }
-    assign base * multiplier       // comptime_int * comptime_int → comptime_int → i32
+    -> base * multiplier       // comptime_int * comptime_int → comptime_int → i32
 }
 ```
 
@@ -433,7 +433,7 @@ func validate_and_process(input: string) : string = {
     } else if contains_invalid_chars(input) {
         return "ERROR: Invalid characters" // Early function exit
     } else {
-        assign sanitize(input)             // Success: processed input
+        -> sanitize(input)             // Success: processed input
     }
     
     // Additional processing only happens for valid input
@@ -449,18 +449,18 @@ func load_config_with_fallback() : Config = {
     val config = if primary_config_exists() {
         val primary = load_primary_config()
         if primary.is_valid() {
-            assign primary                 // Use primary config
+            -> primary                 // Use primary config
         } else {
             log_warning("Primary config invalid, trying fallback")
             if fallback_config_exists() {
-                assign load_fallback_config()  // Use fallback
+                -> load_fallback_config()  // Use fallback
             } else {
                 return get_default_config()    // Early exit with defaults
             }
         }
     } else {
         log_info("No primary config, using defaults")
-        assign get_default_config()       // Use defaults
+        -> get_default_config()       // Use defaults
     }
     
     validate_config(config)
@@ -477,13 +477,13 @@ func calculate_pricing() : f64 = {
         val user_tier = get_user_tier()    // Runtime function call
         
         val discount_multiplier = if user_tier == "premium" {
-            assign 0.8                     // 20% discount
+            -> 0.8                     // 20% discount
         } else if user_tier == "gold" {
-            assign 0.9                     // 10% discount  
+            -> 0.9                     // 10% discount  
         } else if is_first_time_user() {   // Runtime condition
-            assign 0.95                    // 5% new user discount
+            -> 0.95                    // 5% new user discount
         } else {
-            assign 1.0                     // No discount
+            -> 1.0                     // No discount
         }
         
         val discounted = base_price * discount_multiplier
@@ -491,12 +491,12 @@ func calculate_pricing() : f64 = {
         val final_adjustment = if discounted < 10.0 {
             return 0.0                     // Early exit: too cheap, make it free
         } else if discounted > 1000.0 {
-            assign 1000.0                  // Cap at maximum price
+            -> 1000.0                  // Cap at maximum price
         } else {
-            assign discounted              // Use calculated price
+            -> discounted              // Use calculated price
         }
         
-        assign final_adjustment
+        -> final_adjustment
     }
     
     return final_price
@@ -508,24 +508,24 @@ func calculate_pricing() : f64 = {
 ### Expression Context Requirements
 
 ```hexen
-// ❌ Error: Not all paths assign
+// ❌ Error: Not all paths ->
 val incomplete = if condition {
-    assign value1
+    -> value1
 }
-// Error: "All branches in conditional expression must assign a value or return from function"
+// Error: "All branches in conditional expression must -> a value or return from function"
 
 // ✅ Correct: All paths covered
 val complete = if condition {
-    assign value1
+    -> value1
 } else {
-    assign value2
+    -> value2
 }
 
 // ✅ Correct: Early return is valid
 val with_return = if error_condition {
     return error_value             // Early function exit
 } else {
-    assign normal_value
+    -> normal_value
 }
 ```
 
@@ -614,7 +614,7 @@ The conditional system provides a foundation for future language features:
 
 1. **Mental Model**: Think "conditional = scoped branches + context-specific behavior"
 2. **Boolean Clarity**: Always use explicit boolean comparisons
-3. **Expression Coverage**: Ensure all branches in conditional expressions assign or return
+3. **Expression Coverage**: Ensure all branches in conditional expressions -> or return
 4. **Scope Awareness**: Variables are scoped to their containing branch
 5. **Type Consistency**: Follow same explicit conversion rules as rest of language
 

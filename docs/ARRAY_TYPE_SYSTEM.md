@@ -189,7 +189,7 @@ val complex_comptime = {
     val transformed = base * [10, 20, 30, 40, 50]          // Element-wise multiplication
     val filtered = transformed.filter(|x| x > 25)          // Filtering operation - 'filter' not yet specified
     val final = filtered.map(|x| x * x + 100)              // Complex transformation - 'map' not yet specified
-    assign final                                            // Result: comptime_array_int
+    -> final                                            // Result: comptime_array_int
 }
 
 // All the above operations happen at COMPILE TIME - zero runtime cost!
@@ -355,7 +355,7 @@ val flexible_array_computation = {
     val base = [1, 2, 3]                 // comptime_array_int
     val multiplier = [2, 2, 2]           // comptime_array_int
     val result = base * multiplier        // Element-wise multiplication → comptime_array_int
-    assign result                        // Preserves comptime_array_int (flexible!)
+    -> result                        // Preserves comptime_array_int (flexible!)
 }
 
 // Same computation, different target types
@@ -371,7 +371,7 @@ Blocks with function calls or concrete arrays require explicit context:
 val runtime_array_result : [_]i32 = {               // Explicit context required
     val input_data : [_]i32 = load_array_data()    // Function call → runtime (explicit type required)
     val processed = input_data * [2, 2, 2]          // Mixed: concrete + comptime
-    assign processed                                // Result type determined by context
+    -> processed                                // Result type determined by context
 }
 ```
 
@@ -595,7 +595,7 @@ val complex_matrix = {
     val multiplied = m1 * m2                    // Matrix multiplication
     val transposed = multiplied.transpose()     // Matrix transposition
     val scaled = transposed.map(|row| row.map(|x| x * 2 + 10))  // Complex element transformation
-    assign scaled                               // Result: comptime_array of comptime_array_int
+    -> scaled                               // Result: comptime_array of comptime_array_int
 }
 
 // All matrix operations happen at COMPILE TIME - zero runtime cost!
@@ -701,7 +701,7 @@ val computed_matrix = {
     val base = [[1, 2], [3, 4]]      // comptime_array of comptime_array_int
     val scale = [[2, 2], [2, 2]]     // comptime_array of comptime_array_int  
     val result = base * scale         // Element-wise multiplication
-    assign result                    // Preserves comptime type (flexible!)
+    -> result                    // Preserves comptime type (flexible!)
 }
 
 // Same computation used in different contexts
@@ -712,7 +712,7 @@ val as_f64_matrix : [_][_]f64 = computed_matrix    // Same source → [2][2]f64
 val runtime_matrix : [_][_]f32 = {                 // Context required
     val data : [_][_]f32 = load_matrix_data()      // Function call → runtime
     val processed = data * [[1.5, 1.5], [1.5, 1.5]] // Mixed: concrete + comptime
-    assign processed
+    -> processed
 }
 ```
 
@@ -932,7 +932,7 @@ func demonstrate_array_system() : void = {
     val flexible_computation = {
         val base = [1, 2, 3, 4]                 // comptime_array_int
         val scaled = base * [2, 2, 2, 2]        // comptime array ops
-        assign scaled                           // Preserves comptime_array_int
+        -> scaled                           // Preserves comptime_array_int
     }
     val comp_as_i32 : [_]i32 = flexible_computation  // → [4]i32
     val comp_as_f64 : [_]f64 = flexible_computation  // Same source → [4]f64
@@ -941,7 +941,7 @@ func demonstrate_array_system() : void = {
     val runtime_result : [_]f64 = {             // Context required
         val data = load_data_array()            // Function call → runtime
         val processed = data * [1.5, 1.5, 1.5] // Mixed concrete + comptime
-        assign processed
+        -> processed
     }
     
     // ===== Size and Type Safety =====
