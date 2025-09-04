@@ -25,6 +25,8 @@ class HexenType(Enum):
     Zig-inspired comptime types:
     - comptime_int: Integer literals that can coerce to any integer or float type
     - comptime_float: Float literals that can coerce to any float type
+    - comptime_array_int: Integer array literals with flexible element adaptation
+    - comptime_array_float: Float array literals with flexible element adaptation
     - Context-dependent coercion eliminates need for literal suffixes
 
     Future extensions:
@@ -42,6 +44,8 @@ class HexenType(Enum):
     VOID = "void"  # For functions/blocks that don't return values
     COMPTIME_INT = "comptime_int"  # New: integer literals
     COMPTIME_FLOAT = "comptime_float"  # New: float literals
+    COMPTIME_ARRAY_INT = "comptime_array_int"  # New: flexible integer arrays
+    COMPTIME_ARRAY_FLOAT = "comptime_array_float"  # New: flexible float arrays
     UNKNOWN = "unknown"  # For type inference failures - internal use only
     UNINITIALIZED = "undef"  # For explicit undef values - different from null
 

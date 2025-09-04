@@ -297,3 +297,44 @@ class TypeOperations:
             return first_type
             
         return HexenType.UNKNOWN
+    
+    # =========================================================================
+    # ARRAY TYPE OPERATIONS (NEW)
+    # =========================================================================
+    
+    def is_comptime_array_type(self, type_: HexenType) -> bool:
+        """Check if type is a comptime array type."""
+        return type_ in {HexenType.COMPTIME_ARRAY_INT, HexenType.COMPTIME_ARRAY_FLOAT}
+    
+    def is_array_type(self, type_: HexenType) -> bool:
+        """Check if type represents an array (comptime or concrete)."""
+        return (self.is_comptime_array_type(type_) or 
+                isinstance(type_, str) and type_.startswith('['))
+    
+    def unify_comptime_array_types(self, element_types: List[HexenType]) -> Optional[HexenType]:
+        """
+        Unify array element types into comptime array types.
+        
+        Rules from ARRAY_TYPE_SYSTEM.md:
+        - All COMPTIME_INT → COMPTIME_ARRAY_INT
+        - All COMPTIME_FLOAT → COMPTIME_ARRAY_FLOAT  
+        - Mixed comptime int/float → COMPTIME_ARRAY_FLOAT
+        - Any concrete types → None (requires explicit context)
+        """
+        if not element_types:
+            return None
+            
+        # Check for all comptime_int
+        if all(t == HexenType.COMPTIME_INT for t in element_types):
+            return HexenType.COMPTIME_ARRAY_INT
+            
+        # Check for all comptime_float  
+        if all(t == HexenType.COMPTIME_FLOAT for t in element_types):
+            return HexenType.COMPTIME_ARRAY_FLOAT
+            
+        # Mixed comptime types → comptime_array_float (promotion)
+        comptime_types = {HexenType.COMPTIME_INT, HexenType.COMPTIME_FLOAT}
+        if all(t in comptime_types for t in element_types):
+            return HexenType.COMPTIME_ARRAY_FLOAT
+            
+        return None  # Mixed concrete/comptime requires explicit context

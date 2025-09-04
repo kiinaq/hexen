@@ -245,6 +245,22 @@ class ComptimeAnalyzer:
     def analyze_assignment_comptime_operands(self, left_type, right_type, target_type) -> bool:
         """Analyze if comptime operands in assignment binary operation make precision loss check unnecessary."""
         return self.binary_ops.analyze_assignment_comptime_operands(left_type, right_type, target_type)
+    
+    # =========================================================================
+    # ARRAY TYPE OPERATIONS DELEGATION (NEW)
+    # =========================================================================
+    
+    def is_comptime_array_type(self, type_: HexenType) -> bool:
+        """Check if type is a comptime array type."""
+        return self.type_ops.is_comptime_array_type(type_)
+    
+    def is_array_type(self, type_: HexenType) -> bool:
+        """Check if type represents an array (comptime or concrete)."""
+        return self.type_ops.is_array_type(type_)
+    
+    def unify_comptime_array_types(self, element_types: List[HexenType]) -> Optional[HexenType]:
+        """Unify array element types into comptime array types."""
+        return self.type_ops.unify_comptime_array_types(element_types)
 
 
 # Expose main class for import

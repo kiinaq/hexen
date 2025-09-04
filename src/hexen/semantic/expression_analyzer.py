@@ -18,6 +18,7 @@ from .types import HexenType
 from .type_util import (
     infer_type_from_value,
 )
+from .arrays.literal_analyzer import ArrayLiteralAnalyzer
 
 
 class ExpressionAnalyzer:
@@ -59,6 +60,12 @@ class ExpressionAnalyzer:
         self._analyze_function_call = analyze_function_call_callback
         self._conversion_analyzer = conversion_analyzer
         self.comptime_analyzer = comptime_analyzer
+        
+        # Initialize array literal analyzer
+        self.array_literal_analyzer = ArrayLiteralAnalyzer(
+            error_callback=error_callback,
+            comptime_analyzer=comptime_analyzer
+        )
 
     def analyze_expression(
         self, node: Dict, target_type: Optional[HexenType] = None
@@ -93,6 +100,8 @@ class ExpressionAnalyzer:
         - BINARY_OPERATION: Delegate to binary ops analyzer
         - UNARY_OPERATION: Delegate to unary ops analyzer
         - FUNCTION_CALL: Delegate to function call analyzer
+        - ARRAY_LITERAL: Delegate to array literal analyzer
+        - ARRAY_ACCESS: Delegate to array access analyzer
         """
         if expr_type == NodeType.EXPLICIT_CONVERSION_EXPRESSION.value:
             # Handle explicit conversion expressions - implements TYPE_SYSTEM.md rules
@@ -124,6 +133,12 @@ class ExpressionAnalyzer:
         elif expr_type == NodeType.CONDITIONAL_STATEMENT.value:
             # Conditional expressions - analyze as expression context
             return self._analyze_conditional_expression(node, target_type)
+        elif expr_type == NodeType.ARRAY_LITERAL.value:
+            # Array literals - delegate to array literal analyzer
+            return self.array_literal_analyzer.analyze_array_literal(node, target_type)
+        elif expr_type == NodeType.ARRAY_ACCESS.value:
+            # Array access expressions - delegate to array access analyzer
+            return self.array_literal_analyzer.analyze_array_access(node, target_type)
         else:
             self._error(f"Unknown expression type: {expr_type}", node)
             return HexenType.UNKNOWN
