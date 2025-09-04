@@ -87,7 +87,7 @@ func main() : i32 = {
     // Unified block system - expression block with dual capability
     val result = {
         val computed = 42 + 100  // comptime_int + comptime_int → comptime_int
-        assign computed          // assign: produces block value
+        -> computed          // ->: produces block value
     }
     
     // Statement block for scoped execution
@@ -113,7 +113,7 @@ func process_data(input: string, mut counter: i32) : string = {
         if input == "" {
             return "ERROR"       // return: early function exit
         }
-        assign input + "!"       // assign: success path value
+        -> input + "!"       // ->: success path value
     }
     
     return validated
@@ -135,7 +135,7 @@ uv run pytest tests/ -v
 ### What's Working
 - ✅ **Complete Parser**: Lark-based PEG parser with comprehensive syntax support
 - ✅ **Semantic Analyzer**: Full type checking, symbol tables, scope management
-- ✅ **Unified Block System**: Expression blocks with dual capability (`assign`/`return`), statement blocks, function bodies
+- ✅ **Unified Block System**: Expression blocks with dual capability (`->`/`return`), statement blocks, function bodies
 - ✅ **Comptime Type System**: "Ergonomic Literals + Transparent Costs" with `comptime_int`/`comptime_float` adaptation
 - ✅ **Complete Type System**: All numeric types (`i32`, `i64`, `f32`, `f64`), `string`, `bool`, `void` with safety guarantees
 - ✅ **Function System**: Declarations, calls, parameters, mutable parameters, return type validation
@@ -169,7 +169,7 @@ For any given task, Hexen provides exactly one idiomatic way to accomplish it. T
 ### 🧠 Logic
 *"No tricks to remember, only natural approaches"*
 
-Language features build upon each other naturally. Complex concepts emerge from simpler principles: the same type conversion rules apply everywhere (variables, functions, binary operations), and the same `assign`/`return` semantics work consistently across all contexts. Understanding one concept helps you understand related concepts.
+Language features build upon each other naturally. Complex concepts emerge from simpler principles: the same type conversion rules apply everywhere (variables, functions, binary operations), and the same `->`/`return` semantics work consistently across all contexts. Understanding one concept helps you understand related concepts.
 
 ### ⚡ Pragmatic
 *"Focus on what works better, not on covering everything"*
@@ -186,7 +186,7 @@ Hexen's current implementation includes unified language constructs:
 
 ### 🎯 Unified Block System with Dual Capability
 Every construct uses the same `{ }` block syntax with context-driven behavior:
-- **Expression blocks**: Produce values via `assign`, support early function exits via `return`
+- **Expression blocks**: Produce values via `->`, support early function exits via `return`
 - **Statement blocks**: Scoped execution without value production, allow function returns  
 - **Function bodies**: Unified syntax with return type validation
 - **Compile-time vs Runtime**: Expression blocks preserve comptime types when evaluable at compile-time

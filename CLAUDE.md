@@ -124,7 +124,7 @@ func modify(mut counter: i32) : i32 = {     // Explicit mutability
 // Expression blocks (must assign value)
 val result = {
     val temp = 42
-    assign temp * 2        // assign produces block value
+    -> temp * 2        // -> produces block value
 }
 
 // Expression blocks with control flow
@@ -133,7 +133,7 @@ val validated = {
     if input < 0 {
         return -1          // return exits function early
     }
-    assign input * 2       // assign produces block value
+    -> input * 2       // -> produces block value
 }
 
 // Statement blocks (scoped execution)
@@ -381,20 +381,20 @@ mut pending : i32 = undef         // OK: Type explicitly provided
 ### Core Philosophy: One Syntax, Context-Driven Behavior
 
 All Hexen constructs use the same `{}` block syntax, but context determines behavior:
-- **Expression blocks**: Produce values using `assign`, support `return` for function exits
+- **Expression blocks**: Produce values using `->`, support `return` for function exits
 - **Statement blocks**: Execute code with scope isolation, no value production
 - **Function bodies**: Unified with other blocks, context provides return type validation
 
-### The `assign` + `return` Dual Capability
+### The `->` + `return` Dual Capability
 
 Expression blocks support **both** statement types for maximum expressiveness:
 
-#### `assign` - Produces Block Value
+#### `->` - Produces Block Value
 ```hexen
 val computation = {
     val base = 42
     val result = base * 2
-    assign result              // Assigns result to computation
+    -> result              // Assigns result to computation
 }
 ```
 
@@ -408,7 +408,7 @@ val validated_input = {
     if raw_input > 1000 {
         return -2              // Early function exit with different error
     }
-    assign sanitize(raw_input) // Success: assign sanitized input
+    -> sanitize(raw_input) // Success: assign sanitized input
 }
 ```
 
@@ -421,7 +421,7 @@ func safe_divide(a: f64, b: f64) : f64 = {
         if b == 0.0 {
             return 0.0         // Early exit: division by zero
         }
-        assign a / b           // Normal case: assign division result
+        -> a / b           // Normal case: assign division result
     }
     return result
 }
@@ -438,7 +438,7 @@ func expensive_calc(key: string) : f64 = {
         
         val computed = very_expensive_operation(key)
         save_to_cache(key, computed)
-        assign computed        // Cache miss: assign computed value
+        -> computed        // Cache miss: assign computed value
     }
     
     log_cache_miss(key)        // Only executes on cache miss
@@ -449,13 +449,13 @@ func expensive_calc(key: string) : f64 = {
 ### Block Types by Context
 
 #### Expression Blocks (Value Production)
-- **Must end with**: `assign expression` for value production
+- **Must end with**: `-> expression` for value production
 - **Control flow**: `return value` for early function exits
 - **Scope**: Isolated variables
-- **Type**: Determined by `assign` expression type
+- **Type**: Determined by `->` expression type
 
 #### Statement Blocks (Code Execution)
-- **No value production**: Cannot use `assign`
+- **No value production**: Cannot use `->`
 - **Control flow**: `return` for function exits allowed
 - **Scope**: Isolated variables
 - **Purpose**: Side effects and code organization
@@ -582,7 +582,7 @@ val final_i32 : i32 = step4:i32   // Explicit conversion needed
 val complex_calc = {
     val base = 42 + 100           // comptime_int + comptime_int → comptime_int
     val scaled = base * 3.14      // comptime_int * comptime_float → comptime_float
-    assign scaled / 2.0           // comptime_float / comptime_float → comptime_float (preserved!)
+    -> scaled / 2.0               // comptime_float / comptime_float → comptime_float (preserved!)
 }
 val as_f64 : f64 = complex_calc   // SAME source → f64
 val as_f32 : f32 = complex_calc   // SAME source → f32
@@ -623,7 +623,7 @@ Expression blocks work seamlessly with the type system and binary operations:
 val flexible_math = {
     val base = 42 + 100 * 3       // All comptime operations
     val scaled = base * 2.5       // comptime_int * comptime_float → comptime_float
-    assign scaled                 // Preserves comptime_float flexibility
+    -> scaled                     // Preserves comptime_float flexibility
 }
 val as_i32 : i32 = flexible_math:i32  // Explicit conversion needed
 val as_f32 : f32 = flexible_math      // Same source → f32
@@ -638,7 +638,7 @@ func process_data(input: i32) : i32 = {
         if input > 1000 {
             return -2             // Early function exit: input too large
         }
-        assign input * 2          // Success: assign processed input
+        -> input * 2          // Success: assign processed input
     }
     
     // This only executes if validation succeeded
@@ -648,7 +648,7 @@ func process_data(input: i32) : i32 = {
 // 🔴 mut variables cannot preserve expression block comptime types
 mut concrete_result : f64 = {
     val calc = 42 + 100 * 3       // Same comptime operations
-    assign calc / 2               // comptime_float → f64 (immediately resolved!)
+    -> calc / 2               // comptime_float → f64 (immediately resolved!)
 }
 // No flexibility preserved - concrete_result is concrete f64
 
@@ -660,7 +660,7 @@ func mixed_computation() : f64 = {
     val result : f64 = {
         val converted = int_val:f64 + float_val  // Explicit conversion required
         val scaled = converted * 2.5             // f64 * comptime_float → f64
-        assign scaled                            // Block assigns concrete f64
+        -> scaled                            // Block assign concrete f64
     }
     
     return result
@@ -691,7 +691,7 @@ val flexible_computation = {
     val multiplier = 100       // comptime_int  
     val factor = 3.14          // comptime_float
     val result = base * multiplier + factor  // All comptime operations → comptime_float
-    assign result              // Block result: comptime_float (preserved!)
+    -> result              // Block result: comptime_float (preserved!)
 }
 
 // Same block result adapts to different contexts (maximum flexibility!)
@@ -710,7 +710,7 @@ func get_user_input() : f64 = { return 42.0 }
 val runtime_result : f64 = {              // Context REQUIRED! (explicit type annotation)
     val user_input = get_user_input()     // Function call → runtime operation
     val base = 42                         // comptime_int  
-    assign base * user_input              // Mixed: comptime + concrete → needs context
+    -> base * user_input              // Mixed: comptime + concrete → needs context
 }
 ```
 
@@ -727,7 +727,7 @@ func helper() : i32 = { return 42 }
 // Function call detection
 val with_function : i32 = {        // Explicit context required
     val result = helper()          // Function call → runtime
-    assign result
+    -> result
 }
 ```
 
@@ -738,11 +738,11 @@ val with_function : i32 = {        // Explicit context required
 // Conditional detection
 val with_conditional : i32 = {     // Explicit context required
     val value = if true {
-        assign 42
+        -> 42
     } else {
-        assign 100
+        -> 100
     }                              // Conditional → runtime
-    assign value
+    -> value
 }
 ```
 
@@ -754,7 +754,7 @@ val with_conditional : i32 = {     // Explicit context required
 val mixed_block : f64 = {          // Explicit context required
     val a : i32 = 10               // concrete i32
     val b : f64 = 20.0             // concrete f64
-    assign a:f64 + b               // Mixed concrete → explicit conversion required
+    -> a:f64 + b               // Mixed concrete → explicit conversion required
 }
 ```
 
@@ -769,7 +769,7 @@ Runtime blocks explain why explicit context is needed:
 // ❌ Missing explicit context
 val problematic = {
     val input = get_input()        // Function call → runtime
-    assign input * 2
+    -> input * 2
 }
 // Error: Context REQUIRED! Runtime block requires explicit type annotation because it 
 // contains function calls (functions always return concrete types). 
@@ -799,7 +799,7 @@ Compile-time evaluable blocks enable flexible reuse:
 val complex_math = {
     val x = 42 + 100               // comptime_int
     val y = 3.14 * 2.0             // comptime_float  
-    assign x * y                   // comptime_int * comptime_float → comptime_float
+    -> x * y                   // comptime_int * comptime_float → comptime_float
 }
 
 // Same computation used in different contexts
@@ -821,7 +821,7 @@ func expensive_calc(key: string) : f64 = {
         
         val computed = very_expensive_operation(key)
         save_to_cache(key, computed)
-        assign computed            // Cache miss: assign computed value
+        -> computed            // Cache miss: assign computed value
     }
     
     log_cache_miss(key)            // Only executes on cache miss
@@ -841,7 +841,7 @@ func safe_processing(input: f64) : f64 = {
         if input > 1000.0 {
             return -2.0            // Early function exit: out of range
         }
-        assign sanitize(input)     // Success: assign sanitized value
+        -> sanitize(input)     // Success: resolve to sanitized value
     }
     
     return validated
@@ -856,7 +856,7 @@ The enhanced block system seamlessly integrates with existing comptime types and
 ```hexen
 val preserved_comptime = {         // No explicit type needed
     val calc = 42 * 3.14          // comptime operations
-    assign calc                   // Preserved as comptime_float
+    -> calc                   // Preserved as comptime_float
 }
 
 // Multiple uses with different types
@@ -868,7 +868,7 @@ val use2 : f64 = preserved_comptime
 ```hexen
 mut immediate_resolution : f64 = { // Explicit type required for mut
     val calc = 42 * 3.14          // Same comptime operations
-    assign calc                   // Immediately resolved to f64
+    -> calc                   // Immediately resolved to f64
 }
 // No flexibility preserved - immediate_resolution is concrete f64
 ```
