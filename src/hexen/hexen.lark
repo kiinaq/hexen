@@ -51,8 +51,12 @@ additive: multiplicative (ADD_OP multiplicative)*
 multiplicative: unary (MUL_OP unary)*
 unary: UNARY_OP unary
      | conversion
-conversion: primary (CONVERSION_OP type)?
-primary: NUMBER | STRING | BOOLEAN | function_call | IDENTIFIER | block | conditional_stmt | "(" expression ")"
+conversion: postfix (CONVERSION_OP type)?
+postfix: primary (array_access)*
+primary: NUMBER | STRING | BOOLEAN | function_call | IDENTIFIER | block | conditional_stmt | array_literal | "(" expression ")"
+
+array_access: "[" expression "]"
+array_literal: "[" [expression ("," expression)*] "]"
 
 function_call: IDENTIFIER "(" argument_list? ")"
 
@@ -66,13 +70,20 @@ ADD_OP: "+" | "-"
 MUL_OP: "*" | "/" | "\\" | "%"
 UNARY_OP: "-" | "!"
 
-type: TYPE_I32
-    | TYPE_I64
-    | TYPE_F32
-    | TYPE_F64
-    | TYPE_STRING
-    | TYPE_BOOL
-    | TYPE_VOID
+type: primitive_type
+    | array_type
+
+primitive_type: TYPE_I32
+              | TYPE_I64
+              | TYPE_F32
+              | TYPE_F64
+              | TYPE_STRING
+              | TYPE_BOOL
+              | TYPE_VOID
+
+array_type: array_dimension+ primitive_type
+
+array_dimension: "[" (INTEGER | "_") "]"
 
 TYPE_I32: "i32"
 TYPE_I64: "i64"
@@ -103,7 +114,7 @@ DIGITS: /[0-9]+/
 SIGN: /[+-]/
 
 // Conversion operator (tight binding, high priority)
-CONVERSION_OP.10: /:(?=i32|i64|f32|f64|string|bool|void)/
+CONVERSION_OP.10: /:(?=i32|i64|f32|f64|string|bool|void|\[)/
 
 // Ignore whitespace and comments
 %import common.WS

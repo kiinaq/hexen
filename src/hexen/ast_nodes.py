@@ -56,6 +56,12 @@ class NodeType(Enum):
     COMPTIME_INT = "comptime_int"
     COMPTIME_FLOAT = "comptime_float"
 
+    # Array System
+    ARRAY_TYPE = "array_type"
+    ARRAY_DIMENSION = "array_dimension"
+    ARRAY_LITERAL = "array_literal"
+    ARRAY_ACCESS = "array_access"
+
     def __str__(self):
         """Return the string value for convenient usage"""
         return self.value

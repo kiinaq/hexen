@@ -357,12 +357,75 @@ class HexenTransformer(Transformer):
         }
 
     def primary(self, children):
-        # primary: NUMBER | STRING | BOOLEAN | IDENTIFIER | block | "(" expression ")"
+        # primary: NUMBER | STRING | BOOLEAN | IDENTIFIER | block | "(" expression ")" | array_literal
         if len(children) == 1:
             return children[0]  # Direct primary expression
         else:
             # Parenthesized expression: "(" expression ")"
             return children[1]
+
+    def postfix(self, children):
+        # postfix: primary (array_access)*
+        if len(children) == 1:
+            return children[0]  # No array access
+        
+        # Chain array accesses: arr[i][j][k]
+        expr = children[0]  # Base expression
+        for access in children[1:]:
+            # Each array_access contains the index, we need to set the array
+            access["array"] = expr
+            expr = access
+        
+        return expr
+
+    def array_access(self, children):
+        # array_access: "[" expression "]"
+        index = children[0]  # The expression inside brackets
+        return {
+            "type": NodeType.ARRAY_ACCESS.value,
+            "array": None,  # Will be set by postfix handler
+            "index": index,
+        }
+
+    def array_literal(self, children):
+        # array_literal: "[" [expression ("," expression)*] "]"
+        # Filter out None values that might come from empty optional groups
+        elements = [child for child in children if child is not None] if children else []
+        return {
+            "type": NodeType.ARRAY_LITERAL.value,
+            "elements": elements,
+        }
+
+    def array_type(self, children):
+        # array_type: array_dimension+ primitive_type
+        dimensions = children[:-1]  # All but the last item are dimensions
+        element_type = children[-1]  # Last item is the primitive type
+        return {
+            "type": NodeType.ARRAY_TYPE.value,
+            "dimensions": dimensions,
+            "element_type": element_type,
+        }
+
+    def array_dimension(self, children):
+        # array_dimension: "[" (INTEGER | "_") "]"
+        # Handle both INTEGER tokens and "_" literal
+        if len(children) == 0:
+            # This means we got a "_" literal which is not processed as a child
+            return {
+                "type": NodeType.ARRAY_DIMENSION.value,
+                "size": "_",
+            }
+        else:
+            # We got an INTEGER token
+            size = children[0]
+            return {
+                "type": NodeType.ARRAY_DIMENSION.value,
+                "size": size,
+            }
+
+    def primitive_type(self, children):
+        # primitive_type: TYPE_I32 | TYPE_I64 | ...
+        return children[0]
 
     def _build_binary_operation_tree(self, children):
         # print("[DEBUG] _build_binary_operation_tree children:", children)
@@ -571,6 +634,10 @@ class HexenTransformer(Transformer):
     def BOOLEAN(self, token):
         # Parse boolean literals: true -> {type: "literal", value: true}
         return {"type": NodeType.LITERAL.value, "value": str(token) == "true"}
+
+    def INTEGER(self, token):
+        # Parse integer literals for array dimensions: 3 -> 3
+        return int(str(token))
 
 
 class HexenParser:
