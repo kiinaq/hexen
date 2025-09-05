@@ -61,11 +61,14 @@ class ExpressionAnalyzer:
         self._conversion_analyzer = conversion_analyzer
         self.comptime_analyzer = comptime_analyzer
         
-        # Initialize array literal analyzer
+        # Initialize array literal analyzer (callback set after init to avoid circular dependency)
         self.array_literal_analyzer = ArrayLiteralAnalyzer(
             error_callback=error_callback,
-            comptime_analyzer=comptime_analyzer
+            comptime_analyzer=comptime_analyzer,
+            analyze_expression_callback=None  # Set after initialization
         )
+        # Set the expression analysis callback after initialization
+        self.array_literal_analyzer._analyze_expression = self.analyze_expression
 
     def analyze_expression(
         self, node: Dict, target_type: Optional[HexenType] = None

@@ -240,7 +240,7 @@ class DeclarationAnalyzer:
 
         if type_annotation:
             # Explicit type annotation path
-            var_type = parse_type(type_annotation)
+            var_type = self._parse_type_annotation(type_annotation)
 
             # Check for explicit undef initialization
             if (
@@ -353,4 +353,57 @@ class DeclarationAnalyzer:
 
         if not self._declare_symbol(symbol):
             self._error(f"Failed to declare variable '{name}'", node)
+    
+    def _parse_type_annotation(self, type_annotation) -> HexenType:
+        """
+        Parse a type annotation that can be either a simple string or complex AST node.
+        
+        Args:
+            type_annotation: Either a string (like "i32") or AST node (like array types)
+            
+        Returns:
+            HexenType enum representing the type
+        """
+        # Handle simple string types
+        if isinstance(type_annotation, str):
+            return parse_type(type_annotation)
+        
+        # Handle complex AST node types (like array types)
+        if isinstance(type_annotation, dict):
+            node_type = type_annotation.get("type")
+            
+            if node_type == "array_type":
+                return self._parse_array_type_annotation(type_annotation)
+            else:
+                # Unknown complex type - return unknown for graceful degradation
+                return HexenType.UNKNOWN
+        
+        # Fallback for unexpected type annotation format
+        return HexenType.UNKNOWN
+    
+    def _parse_array_type_annotation(self, array_type_node: Dict) -> HexenType:
+        """
+        Parse array type AST node into appropriate HexenType.
+        
+        For now, we'll map all explicit array types to UNKNOWN since they represent 
+        concrete array types that aren't fully implemented yet. This allows the
+        semantic analysis to continue without crashing.
+        
+        Future implementation will return proper concrete array types.
+        """
+        # For Phase 2, we acknowledge explicit array type contexts but don't fully
+        # implement them. This prevents the "unhashable type: 'dict'" error while
+        # maintaining semantic analysis flow.
+        
+        # Extract element type for basic validation
+        element_type_str = array_type_node.get("element_type", "unknown")
+        element_type = parse_type(element_type_str)
+        
+        # Validate that the element type is valid
+        if element_type == HexenType.UNKNOWN:
+            return HexenType.UNKNOWN
+        
+        # For now, return UNKNOWN to indicate this is recognized but not fully implemented
+        # This allows tests to run without crashing while marking the functionality as incomplete
+        return HexenType.UNKNOWN
 

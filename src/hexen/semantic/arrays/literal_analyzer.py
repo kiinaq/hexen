@@ -22,16 +22,18 @@ from .error_messages import ArrayErrorFactory, ArrayErrorMessages
 class ArrayLiteralAnalyzer:
     """Analyzes array literal expressions integrated with expression framework"""
     
-    def __init__(self, error_callback: Callable[[str, Optional[Dict]], None], comptime_analyzer):
+    def __init__(self, error_callback: Callable[[str, Optional[Dict]], None], comptime_analyzer, analyze_expression_callback: Optional[Callable[[Dict, Optional[HexenType]], HexenType]] = None):
         """
         Initialize with callback pattern for integration.
         
         Args:
             error_callback: Error reporting callback to main analyzer
             comptime_analyzer: Existing ComptimeAnalyzer instance
+            analyze_expression_callback: Callback to analyze individual expressions
         """
         self._error = error_callback
         self.comptime_analyzer = comptime_analyzer
+        self._analyze_expression = analyze_expression_callback
         
         # Initialize multidimensional analyzer
         self.multidim_analyzer = MultidimensionalArrayAnalyzer(error_callback, comptime_analyzer)
@@ -62,7 +64,18 @@ class ArrayLiteralAnalyzer:
             # Delegate to multidimensional analyzer
             return self.multidim_analyzer.analyze_multidimensional_literal(node, target_type)
         
-        # Analyze first element to determine base type for 1D arrays
+        # If we have an expression analyzer callback, use it to analyze each element
+        if self._analyze_expression is not None:
+            element_types = []
+            for element in elements:
+                element_type = self._analyze_expression(element, None)
+                element_types.append(element_type)
+            
+            # Use comptime analyzer to unify element types
+            unified_type = self._unify_element_types(element_types, node)
+            return unified_type
+        
+        # Fallback to legacy analysis for backwards compatibility
         element_type_str = first_element.get("type")
         
         if element_type_str == "comptime_int":
@@ -90,6 +103,47 @@ class ArrayLiteralAnalyzer:
             return HexenType.UNKNOWN
         
         return target_type
+    
+    def _unify_element_types(self, element_types: List[HexenType], node: Dict[str, Any]) -> HexenType:
+        """
+        Unify element types to determine the array's overall type.
+        
+        Args:
+            element_types: List of HexenType for each element
+            node: Array literal AST node for error reporting
+            
+        Returns:
+            HexenType representing the unified array type
+        """
+        if not element_types:
+            return HexenType.UNKNOWN
+        
+        # Filter out UNKNOWN types (errors in individual elements)
+        valid_types = [t for t in element_types if t != HexenType.UNKNOWN]
+        if not valid_types:
+            return HexenType.UNKNOWN
+        
+        # If all elements are the same type, use that type as base
+        unique_types = set(valid_types)
+        if len(unique_types) == 1:
+            element_type = list(unique_types)[0]
+            if element_type == HexenType.COMPTIME_INT:
+                return HexenType.COMPTIME_ARRAY_INT
+            elif element_type == HexenType.COMPTIME_FLOAT:
+                return HexenType.COMPTIME_ARRAY_FLOAT
+            else:
+                # Non-comptime types require explicit context
+                self._error("Array with concrete element types requires explicit array type context", node)
+                return HexenType.UNKNOWN
+        
+        # Mixed types - check for comptime int/float promotion
+        if unique_types <= {HexenType.COMPTIME_INT, HexenType.COMPTIME_FLOAT}:
+            # Mixed comptime int/float -> promote to comptime array float
+            return HexenType.COMPTIME_ARRAY_FLOAT
+        
+        # Other mixed types require explicit context
+        self._error("Mixed concrete/comptime element types require explicit array context", node)
+        return HexenType.UNKNOWN
     
     def analyze_array_access(self, node: Dict[str, Any], target_type: Optional[HexenType] = None) -> HexenType:
         """
