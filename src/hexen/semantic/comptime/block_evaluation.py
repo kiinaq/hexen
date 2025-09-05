@@ -491,6 +491,24 @@ class BlockEvaluation:
                 return self.expression_has_comptime_only_operations(operand)
             return False
             
+        # Array literals: elements must all be comptime-only
+        elif expr_type == NodeType.ARRAY_LITERAL.value:
+            elements = expression.get("elements", [])
+            # Empty arrays are considered comptime (will require explicit context anyway)
+            if not elements:
+                return True
+            # All elements must be comptime-only
+            return all(self.expression_has_comptime_only_operations(elem) for elem in elements)
+            
+        # Array access: both array and index must be comptime-only
+        elif expr_type == NodeType.ARRAY_ACCESS.value:
+            array_expr = expression.get("array")
+            index_expr = expression.get("index")
+            if array_expr and index_expr:
+                return (self.expression_has_comptime_only_operations(array_expr) and
+                       self.expression_has_comptime_only_operations(index_expr))
+            return False
+            
         # Explicit conversions: operand must be comptime-only (though result becomes concrete)
         elif expr_type == NodeType.EXPLICIT_CONVERSION_EXPRESSION.value:
             operand = expression.get("expression")
@@ -596,8 +614,14 @@ class BlockEvaluation:
                 symbol_info = self.symbol_table.lookup_symbol(var_name)
                 if symbol_info:
                     var_type = symbol_info.type
-                    # Concrete types indicate runtime variables
-                    return var_type not in [HexenType.COMPTIME_INT, HexenType.COMPTIME_FLOAT]
+                    # Comptime types (including arrays) are not runtime variables
+                    comptime_types = {
+                        HexenType.COMPTIME_INT, 
+                        HexenType.COMPTIME_FLOAT,
+                        HexenType.COMPTIME_ARRAY_INT,
+                        HexenType.COMPTIME_ARRAY_FLOAT
+                    }
+                    return var_type not in comptime_types
             return False
             
         # Binary operations: check both operands
@@ -627,6 +651,20 @@ class BlockEvaluation:
         elif expr_type == NodeType.BLOCK.value:
             statements = expression.get("statements", [])
             return self.has_runtime_variables(statements)
+            
+        # Array literals: check all elements for runtime variables
+        elif expr_type == NodeType.ARRAY_LITERAL.value:
+            elements = expression.get("elements", [])
+            return any(self.expression_has_runtime_variables(elem) for elem in elements)
+            
+        # Array access: check both array and index for runtime variables
+        elif expr_type == NodeType.ARRAY_ACCESS.value:
+            array_expr = expression.get("array")
+            index_expr = expression.get("index")
+            if array_expr and index_expr:
+                return (self.expression_has_runtime_variables(array_expr) or
+                       self.expression_has_runtime_variables(index_expr))
+            return False
             
         return False
     

@@ -23,6 +23,14 @@ NUMERIC_TYPES: FrozenSet[HexenType] = frozenset(
     }
 )
 
+# Array type constants
+COMPTIME_ARRAY_TYPES: FrozenSet[HexenType] = frozenset(
+    {
+        HexenType.COMPTIME_ARRAY_INT,
+        HexenType.COMPTIME_ARRAY_FLOAT,
+    }
+)
+
 FLOAT_TYPES: FrozenSet[HexenType] = frozenset(
     {
         HexenType.F32,
@@ -78,6 +86,8 @@ TYPE_STRING_TO_HEXEN_TYPE: Dict[str, HexenType] = {
     "void": HexenType.VOID,
     "comptime_int": HexenType.COMPTIME_INT,
     "comptime_float": HexenType.COMPTIME_FLOAT,
+    "comptime_array_int": HexenType.COMPTIME_ARRAY_INT,
+    "comptime_array_float": HexenType.COMPTIME_ARRAY_FLOAT,
 }
 
 # Type range constants for overflow detection per LITERAL_OVERFLOW_BEHAVIOR.md
@@ -381,3 +391,76 @@ def validate_literal_range(
 
 # validate_comptime_literal_coercion moved to ComptimeAnalyzer
 # extract_literal_info moved to ComptimeAnalyzer
+
+
+# =============================================================================
+# ARRAY TYPE UTILITIES - Added for Task 5
+# =============================================================================
+
+def is_array_type(type_: HexenType) -> bool:
+    """Check if type represents an array (comptime or concrete)."""
+    # For now, only handle comptime array types
+    # Concrete array types (like "[3]i32") would need string-based checking
+    return type_ in COMPTIME_ARRAY_TYPES
+
+
+def is_comptime_array_type(type_: HexenType) -> bool:
+    """Check if type is a comptime array type."""
+    return type_ in COMPTIME_ARRAY_TYPES
+
+
+def can_comptime_array_coerce_to(from_type: HexenType, to_element_type: HexenType) -> bool:
+    """
+    Check if comptime array type can coerce to target element type.
+    
+    Implements the four-pattern system from TYPE_SYSTEM.md:
+    1. comptime_array_int → any numeric element type (implicit)
+    2. comptime_array_float → float element types (implicit)
+    3. comptime_array_float → integer element types (explicit conversion required)
+    """
+    if from_type == HexenType.COMPTIME_ARRAY_INT:
+        # comptime_array_int can coerce to any numeric element type
+        return to_element_type in NUMERIC_TYPES
+    
+    elif from_type == HexenType.COMPTIME_ARRAY_FLOAT:
+        # comptime_array_float can coerce to float element types implicitly
+        if to_element_type in FLOAT_TYPES:
+            return True
+        # Requires explicit conversion to integer element types
+        return False
+    
+    return False
+
+
+def get_array_element_type(array_type: HexenType) -> HexenType:
+    """Extract element type from comptime array type."""
+    if array_type == HexenType.COMPTIME_ARRAY_INT:
+        return HexenType.COMPTIME_INT
+    elif array_type == HexenType.COMPTIME_ARRAY_FLOAT:
+        return HexenType.COMPTIME_FLOAT
+    else:
+        # For concrete array types, this would require parsing the type string
+        # e.g., "[3]i32" → HexenType.I32
+        # For now, return UNKNOWN for unsupported types
+        return HexenType.UNKNOWN
+
+
+def can_array_assign_to(from_array_type: HexenType, to_array_element_type: HexenType) -> bool:
+    """
+    Check if array type can be assigned to target array element type.
+    
+    Rules:
+    1. Comptime arrays can adapt to compatible concrete element types
+    2. Element types must be compatible (follow standard type rules)
+    3. Same comptime array types are always compatible
+    """
+    # Same type assignment
+    if from_array_type == to_array_element_type:
+        return True
+    
+    # Comptime array to element type coercion
+    if is_comptime_array_type(from_array_type):
+        from_element_type = get_array_element_type(from_array_type)
+        return can_coerce(from_element_type, to_array_element_type)
+    
+    return False

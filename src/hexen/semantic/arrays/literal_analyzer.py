@@ -15,6 +15,8 @@ Key Integration Points:
 from typing import Dict, List, Any, Optional, Callable
 from ..types import HexenType
 from .array_types import ArrayTypeInfo, ArrayDimension
+from .multidim_analyzer import MultidimensionalArrayAnalyzer
+from .error_messages import ArrayErrorFactory, ArrayErrorMessages
 
 
 class ArrayLiteralAnalyzer:
@@ -30,6 +32,9 @@ class ArrayLiteralAnalyzer:
         """
         self._error = error_callback
         self.comptime_analyzer = comptime_analyzer
+        
+        # Initialize multidimensional analyzer
+        self.multidim_analyzer = MultidimensionalArrayAnalyzer(error_callback, comptime_analyzer)
     
     def analyze_array_literal(self, node: Dict[str, Any], target_type: Optional[HexenType] = None) -> HexenType:
         """
@@ -47,16 +52,17 @@ class ArrayLiteralAnalyzer:
         # Handle empty arrays - require explicit context
         if not elements:
             if target_type is None:
-                self._error("Empty array literal requires explicit type context", node)
+                self._error(ArrayErrorMessages.empty_array_context_required(), node)
                 return HexenType.UNKNOWN
             return target_type
         
-        # For now, return comptime array types for non-empty arrays
-        # This is a simplified implementation that will be enhanced in later tasks
-        
-        # Analyze first element to determine base type
-        # In a full implementation, we'd analyze all elements and unify types
+        # Check if this is a multidimensional array (first element is array literal)
         first_element = elements[0]
+        if first_element.get("type") == "array_literal":
+            # Delegate to multidimensional analyzer
+            return self.multidim_analyzer.analyze_multidimensional_literal(node, target_type)
+        
+        # Analyze first element to determine base type for 1D arrays
         element_type_str = first_element.get("type")
         
         if element_type_str == "comptime_int":
@@ -72,13 +78,13 @@ class ArrayLiteralAnalyzer:
             # Check if it's a string literal
             first_value = first_element.get("value")
             if isinstance(first_value, str):
-                self._error("String arrays not yet supported", node)
+                self._error("String arrays not yet supported in current implementation", node)
                 return HexenType.UNKNOWN
         
         # For other types or mixed types, require explicit context
         if target_type is None:
             if len(set(elem.get("type") for elem in elements)) > 1:
-                self._error("Mixed concrete/comptime element types require explicit array context", node)
+                self._error(ArrayErrorMessages.comptime_context_required_for_mixed_types(), node)
             else:
                 self._error("Array literal type inference not yet implemented for this element type", node)
             return HexenType.UNKNOWN
@@ -100,7 +106,7 @@ class ArrayLiteralAnalyzer:
         index_expr = node.get("index")
         
         if not array_expr or not index_expr:
-            self._error("Invalid array access: missing array or index", node)
+            self._error("Invalid array access: missing array or index expression", node)
             return HexenType.UNKNOWN
         
         # For now, implement basic array access validation
@@ -113,7 +119,7 @@ class ArrayLiteralAnalyzer:
         # Check index type - must be integer
         index_type_str = index_expr.get("type")
         if index_type_str not in ["comptime_int", "i32", "i64"]:
-            self._error("Array index must be an integer type", node)
+            self._error(ArrayErrorMessages.invalid_index_type(index_type_str), node)
             return HexenType.UNKNOWN
         
         # For now, assume array access of comptime arrays returns comptime element type
