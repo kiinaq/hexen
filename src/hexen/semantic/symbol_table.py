@@ -5,10 +5,10 @@ Symbol table implementation for managing variable declarations, scoping,
 and symbol lookup during semantic analysis.
 """
 
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Union
 from dataclasses import dataclass
 
-from .types import HexenType, Mutability
+from .types import HexenType, Mutability, ConcreteArrayType
 from .type_util import parse_type
 
 
@@ -23,7 +23,7 @@ class Parameter:
     """
 
     name: str
-    param_type: HexenType
+    param_type: Union[HexenType, ConcreteArrayType]
     is_mutable: bool
 
 
@@ -43,7 +43,7 @@ class FunctionSignature:
 
     name: str
     parameters: List[Parameter]
-    return_type: HexenType
+    return_type: Union[HexenType, ConcreteArrayType]
     declared_line: Optional[int] = None  # For better error reporting (future)
 
 
@@ -63,7 +63,7 @@ class Symbol:
     """
 
     name: str
-    type: HexenType
+    type: Union[HexenType, ConcreteArrayType]
     mutability: Mutability
     declared_line: Optional[int] = None  # For better error reporting (future)
     initialized: bool = True  # False for undef variables - prevents use-before-init
@@ -326,13 +326,18 @@ def create_function_signature_from_ast(
         ValueError: If types cannot be parsed
     """
     name = function_node["name"]
-    return_type = parse_type(function_node["return_type"])
+    # Use enhanced type parsing for return types to handle array types
+    return_type_raw = function_node["return_type"]
+    return_type = _parse_parameter_type(return_type_raw)
 
     # Parse parameters
     parameters = []
     for param_node in function_node.get("parameters", []):
         param_name = param_node["name"]
-        param_type = parse_type(param_node["param_type"])
+        param_type_raw = param_node["param_type"]
+        
+        # Use enhanced type parsing for parameters to handle array types
+        param_type = _parse_parameter_type(param_type_raw)
         is_mutable = param_node.get("is_mutable", False)
 
         parameter = Parameter(
@@ -341,6 +346,86 @@ def create_function_signature_from_ast(
         parameters.append(parameter)
 
     return FunctionSignature(name=name, parameters=parameters, return_type=return_type)
+
+
+def _parse_parameter_type(param_type_raw):
+    """
+    Parse parameter type that can be either a simple string or complex AST node.
+    
+    This is similar to DeclarationAnalyzer._parse_type_annotation but in the 
+    symbol_table module for function signature creation.
+    
+    Args:
+        param_type_raw: Either a string (like "i32") or AST node (like array types)
+        
+    Returns:
+        HexenType enum or ConcreteArrayType representing the parameter type
+    """
+    # Handle simple string types
+    if isinstance(param_type_raw, str):
+        return parse_type(param_type_raw)
+    
+    # Handle complex AST node types (like array types)
+    if isinstance(param_type_raw, dict):
+        node_type = param_type_raw.get("type")
+        
+        if node_type == "array_type":
+            return _parse_array_parameter_type(param_type_raw)
+        else:
+            # Unknown complex type - return unknown for graceful degradation
+            return HexenType.UNKNOWN
+    
+    # Fallback for unexpected parameter type format
+    return HexenType.UNKNOWN
+
+
+def _parse_array_parameter_type(array_type_node: Dict) -> ConcreteArrayType:
+    """
+    Parse array type AST node for function parameters into ConcreteArrayType.
+    
+    Similar to DeclarationAnalyzer._parse_array_type_annotation but without error reporting.
+    """
+    from .types import ConcreteArrayType  # Import here to avoid circular imports
+    
+    # Extract element type
+    element_type_str = array_type_node.get("element_type", "unknown")
+    element_type = parse_type(element_type_str)
+    
+    # Validate that the element type is valid and concrete
+    if element_type == HexenType.UNKNOWN:
+        return HexenType.UNKNOWN
+    
+    # Validate element type is concrete (not comptime)
+    if element_type in {HexenType.COMPTIME_INT, HexenType.COMPTIME_FLOAT, 
+                       HexenType.COMPTIME_ARRAY_INT, HexenType.COMPTIME_ARRAY_FLOAT}:
+        return HexenType.UNKNOWN
+    
+    # Extract dimensions
+    dimensions = []
+    dimension_nodes = array_type_node.get("dimensions", [])
+    
+    for dim_node in dimension_nodes:
+        size = dim_node.get("size")
+        if size == "_":
+            # Inferred dimensions not supported yet
+            return HexenType.UNKNOWN
+        
+        try:
+            dim_size = int(size)
+            if dim_size < 0:
+                return HexenType.UNKNOWN
+            dimensions.append(dim_size)
+        except (ValueError, TypeError):
+            return HexenType.UNKNOWN
+    
+    if not dimensions:
+        return HexenType.UNKNOWN
+    
+    # Create and return concrete array type
+    try:
+        return ConcreteArrayType(element_type, dimensions)
+    except ValueError:
+        return HexenType.UNKNOWN
 
 
 def validate_function_parameters(parameters: List[Parameter]) -> List[str]:

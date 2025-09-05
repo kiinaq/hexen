@@ -96,3 +96,62 @@ class BlockEvaluability(Enum):
     
     COMPILE_TIME = "compile_time"  # Can preserve comptime types
     RUNTIME = "runtime"            # Requires explicit context (includes mixed operations)
+
+
+class ConcreteArrayType:
+    """
+    Represents explicit concrete array types like [3]i32, [2][4]f64.
+    
+    Unlike comptime array types (which are flexible), concrete array types have:
+    - Fixed dimensions with specific sizes
+    - Concrete element types
+    - Explicit type annotation requirements
+    """
+    
+    def __init__(self, element_type: HexenType, dimensions: list[int]):
+        """
+        Create a concrete array type.
+        
+        Args:
+            element_type: The concrete element type (I32, F64, etc.)
+            dimensions: List of dimension sizes, e.g., [3] for [3]i32, [2, 4] for [2][4]f64
+        """
+        if element_type in {HexenType.COMPTIME_INT, HexenType.COMPTIME_FLOAT, 
+                           HexenType.COMPTIME_ARRAY_INT, HexenType.COMPTIME_ARRAY_FLOAT}:
+            raise ValueError(f"ConcreteArrayType cannot use comptime element type: {element_type}")
+        
+        self.element_type = element_type
+        self.dimensions = dimensions
+    
+    def __str__(self) -> str:
+        """String representation: [3]i32, [2][4]f64"""
+        dim_str = ''.join(f'[{dim}]' for dim in self.dimensions)
+        return f"{dim_str}{self.element_type.value}"
+    
+    def __repr__(self) -> str:
+        return f"ConcreteArrayType({self.element_type!r}, {self.dimensions!r})"
+    
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, ConcreteArrayType):
+            return False
+        return self.element_type == other.element_type and self.dimensions == other.dimensions
+    
+    def __hash__(self) -> int:
+        return hash((self.element_type, tuple(self.dimensions)))
+    
+    def total_elements(self) -> int:
+        """Calculate total number of elements (product of all dimensions)"""
+        result = 1
+        for dim in self.dimensions:
+            result *= dim
+        return result
+    
+    def is_compatible_with(self, comptime_array_type: HexenType) -> bool:
+        """Check if this concrete array type is compatible with a comptime array type"""
+        if comptime_array_type == HexenType.COMPTIME_ARRAY_INT:
+            # comptime_array_int can coerce to integer element types
+            return self.element_type in {HexenType.I32, HexenType.I64}
+        elif comptime_array_type == HexenType.COMPTIME_ARRAY_FLOAT:
+            # comptime_array_float can coerce to any numeric element types
+            return self.element_type in {HexenType.I32, HexenType.I64, HexenType.F32, HexenType.F64}
+        return False

@@ -502,7 +502,7 @@ class HexenTransformer(Transformer):
             result["statements"] = statements
         return result
 
-    # Terminal handlers for new grammar elements (Phase 1 additions)
+    # Terminal handlers for new grammar elements
     def STRING(self, token):
         # Parse string literals: "hello" -> {type: "literal", value: "hello"}
         # Remove surrounding quotes from the token

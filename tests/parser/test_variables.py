@@ -9,7 +9,7 @@ from src.hexen.ast_nodes import NodeType
 
 
 class TestVariableDeclarations:
-    """Test the val/mut variable declaration system (Phase 3 features)"""
+    """Test the val/mut variable declaration system"""
 
     def setup_method(self):
         self.parser = HexenParser()

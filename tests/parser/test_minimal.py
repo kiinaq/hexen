@@ -190,7 +190,7 @@ class TestMinimalHexen:
             self.parser.parse(source)
 
     def test_multiple_statements_supported(self):
-        """Test that multiple statements are now supported (Phase 2 feature)"""
+        """Test that multiple statements are now supported"""
         source = """
         func main() : i32  = {
             return 0
@@ -198,7 +198,6 @@ class TestMinimalHexen:
         }
         """
 
-        # This should now parse successfully due to our Phase 2 grammar extension
         ast = self.parser.parse(source)
 
         # Verify the function parsed correctly

@@ -6,10 +6,10 @@ Performs semantic analysis on the AST including type checking,
 symbol table management, and validation.
 """
 
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 from ..ast_nodes import NodeType
-from .types import HexenType
+from .types import HexenType, ConcreteArrayType
 from .symbol_table import SymbolTable
 from .errors import SemanticError
 from .binary_ops_analyzer import BinaryOpsAnalyzer
@@ -45,7 +45,7 @@ class SemanticAnalyzer:
     def __init__(self):
         self.symbol_table = SymbolTable()
         self.errors: List[SemanticError] = []  # Collect all errors for batch reporting
-        self.current_function_return_type: Optional[HexenType] = None
+        self.current_function_return_type: Optional[Union[HexenType, ConcreteArrayType]] = None
 
         # Context tracking for unified block concept
         self.block_context: List[str] = []  # Track: "function", "expression", etc.
@@ -312,7 +312,7 @@ class SemanticAnalyzer:
         else:
             self._error("'assign' statement requires an expression", node)
 
-    def _set_function_context(self, name: str, return_type: HexenType) -> None:
+    def _set_function_context(self, name: str, return_type: Union[HexenType, ConcreteArrayType]) -> None:
         """Set the current function context for return type validation."""
         self.symbol_table.current_function = name
         self.current_function_return_type = return_type

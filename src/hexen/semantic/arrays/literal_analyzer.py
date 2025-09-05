@@ -12,8 +12,8 @@ Key Integration Points:
 - Follows established error reporting patterns
 """
 
-from typing import Dict, List, Any, Optional, Callable
-from ..types import HexenType
+from typing import Dict, List, Any, Optional, Callable, Union
+from ..types import HexenType, ConcreteArrayType
 from .array_types import ArrayTypeInfo, ArrayDimension
 from .multidim_analyzer import MultidimensionalArrayAnalyzer
 from .error_messages import ArrayErrorFactory, ArrayErrorMessages
@@ -22,7 +22,7 @@ from .error_messages import ArrayErrorFactory, ArrayErrorMessages
 class ArrayLiteralAnalyzer:
     """Analyzes array literal expressions integrated with expression framework"""
     
-    def __init__(self, error_callback: Callable[[str, Optional[Dict]], None], comptime_analyzer, analyze_expression_callback: Optional[Callable[[Dict, Optional[HexenType]], HexenType]] = None):
+    def __init__(self, error_callback: Callable[[str, Optional[Dict]], None], comptime_analyzer, analyze_expression_callback: Optional[Callable[[Dict, Optional[Union[HexenType, ConcreteArrayType]]], HexenType]] = None):
         """
         Initialize with callback pattern for integration.
         
@@ -38,13 +38,13 @@ class ArrayLiteralAnalyzer:
         # Initialize multidimensional analyzer
         self.multidim_analyzer = MultidimensionalArrayAnalyzer(error_callback, comptime_analyzer)
     
-    def analyze_array_literal(self, node: Dict[str, Any], target_type: Optional[HexenType] = None) -> HexenType:
+    def analyze_array_literal(self, node: Dict[str, Any], target_type: Optional[Union[HexenType, ConcreteArrayType]] = None) -> HexenType:
         """
         Analyze array literal and return inferred HexenType.
         
         Args:
             node: Array literal AST node
-            target_type: Optional target type for context-guided resolution
+            target_type: Optional target type for context-guided resolution (HexenType or ConcreteArrayType)
             
         Returns:
             HexenType enum representing the array literal's type
@@ -56,6 +56,13 @@ class ArrayLiteralAnalyzer:
             if target_type is None:
                 self._error(ArrayErrorMessages.empty_array_context_required(), node)
                 return HexenType.UNKNOWN
+            
+            # For ConcreteArrayType, return the concrete type (no longer comptime)
+            if isinstance(target_type, ConcreteArrayType):
+                # For empty arrays with concrete context, we create a concrete array
+                # This prevents empty arrays from staying comptime
+                return HexenType.UNKNOWN  # Will be handled by proper concrete type system later
+            
             return target_type
         
         # Check if this is a multidimensional array (first element is array literal)
@@ -63,6 +70,10 @@ class ArrayLiteralAnalyzer:
         if first_element.get("type") == "array_literal":
             # Delegate to multidimensional analyzer
             return self.multidim_analyzer.analyze_multidimensional_literal(node, target_type)
+        
+        # Handle ConcreteArrayType context
+        if isinstance(target_type, ConcreteArrayType):
+            return self._analyze_with_concrete_context(node, target_type)
         
         # If we have an expression analyzer callback, use it to analyze each element
         if self._analyze_expression is not None:
@@ -144,6 +155,121 @@ class ArrayLiteralAnalyzer:
         # Other mixed types require explicit context
         self._error("Mixed concrete/comptime element types require explicit array context", node)
         return HexenType.UNKNOWN
+    
+    def _analyze_with_concrete_context(self, node: Dict[str, Any], target_type: ConcreteArrayType) -> HexenType:
+        """
+        Analyze array literal with explicit concrete array type context.
+        
+        Implementation for explicit array type contexts like:
+        val arr : [3]i32 = [1, 2, 3]
+        
+        Args:
+            node: Array literal AST node
+            target_type: ConcreteArrayType specifying expected dimensions and element type
+            
+        Returns:
+            HexenType representing the resolved type (usually the concrete type)
+        """
+        elements = node.get("elements", [])
+        
+        # Validate element count matches first dimension
+        expected_count = target_type.dimensions[0]
+        actual_count = len(elements)
+        
+        if expected_count != actual_count:
+            self._error(
+                f"Array size mismatch: expected {expected_count} elements, got {actual_count}",
+                node
+            )
+            return HexenType.UNKNOWN
+        
+        # For multidimensional arrays, validate structure recursively
+        if len(target_type.dimensions) > 1:
+            return self._analyze_multidim_concrete_context(node, target_type)
+        
+        # Single dimension array - validate each element against target element type
+        if self._analyze_expression is not None:
+            for i, element in enumerate(elements):
+                element_type = self._analyze_expression(element, target_type.element_type)
+                
+                # Check if element can coerce to target element type
+                if element_type == HexenType.UNKNOWN:
+                    # Error already reported by expression analyzer
+                    continue
+                
+                if not self._can_coerce_to_concrete_element(element_type, target_type.element_type):
+                    self._error(
+                        f"Element {i} type mismatch: cannot coerce {element_type.value} to {target_type.element_type.value}",
+                        element
+                    )
+        
+        # Return a type that represents successful concrete array validation
+        # Since the array literal validated successfully against the concrete type context,
+        # we can return a comptime array type that represents the successful validation
+        # This allows the function call system to proceed with successful type matching
+        if target_type.element_type in {HexenType.I32, HexenType.I64}:
+            return HexenType.COMPTIME_ARRAY_INT
+        elif target_type.element_type in {HexenType.F32, HexenType.F64}:
+            return HexenType.COMPTIME_ARRAY_FLOAT
+        else:
+            # For other element types, return a compatible comptime array
+            return HexenType.COMPTIME_ARRAY_INT  # Default fallback
+    
+    def _analyze_multidim_concrete_context(self, node: Dict[str, Any], target_type: ConcreteArrayType) -> HexenType:
+        """
+        Analyze multidimensional array literal with concrete context.
+        
+        For arrays like: val matrix : [2][3]i32 = [[1, 2, 3], [4, 5, 6]]
+        """
+        elements = node.get("elements", [])
+        
+        # Each element should be an array literal matching the inner dimensions
+        inner_target_type = ConcreteArrayType(
+            target_type.element_type,
+            target_type.dimensions[1:]  # Remove first dimension
+        )
+        
+        for i, element in enumerate(elements):
+            if element.get("type") != "array_literal":
+                self._error(
+                    f"Element {i} is not an array in multidimensional array literal",
+                    element
+                )
+                continue
+            
+            # Recursively validate inner array
+            self._analyze_with_concrete_context(element, inner_target_type)
+        
+        # Return appropriate comptime array type for successful multidimensional validation
+        if target_type.element_type in {HexenType.I32, HexenType.I64}:
+            return HexenType.COMPTIME_ARRAY_INT
+        elif target_type.element_type in {HexenType.F32, HexenType.F64}:
+            return HexenType.COMPTIME_ARRAY_FLOAT
+        else:
+            return HexenType.COMPTIME_ARRAY_INT  # Default fallback
+    
+    def _can_coerce_to_concrete_element(self, from_type: HexenType, to_type: HexenType) -> bool:
+        """
+        Check if from_type can coerce to to_type for concrete array elements.
+        
+        Rules:
+        1. Same type: always OK
+        2. Comptime types can coerce to compatible concrete types
+        3. Concrete types require explicit conversion (not handled here)
+        """
+        if from_type == to_type:
+            return True
+        
+        # Comptime int can coerce to any integer type
+        if from_type == HexenType.COMPTIME_INT and to_type in {HexenType.I32, HexenType.I64}:
+            return True
+        
+        # Comptime float can coerce to any numeric type  
+        if from_type == HexenType.COMPTIME_FLOAT and to_type in {HexenType.I32, HexenType.I64, HexenType.F32, HexenType.F64}:
+            return True
+        
+        # All other combinations require explicit conversion
+        return False
     
     def analyze_array_access(self, node: Dict[str, Any], target_type: Optional[HexenType] = None) -> HexenType:
         """

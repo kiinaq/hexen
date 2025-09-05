@@ -7,7 +7,7 @@ the semantic analysis phase.
 """
 
 from typing import Optional, Dict, FrozenSet, Union
-from .types import HexenType
+from .types import HexenType, ConcreteArrayType
 from ..ast_nodes import NodeType
 
 
@@ -151,7 +151,7 @@ def is_integer_type(type_: HexenType) -> bool:
     return type_ in INTEGER_TYPES
 
 
-def can_coerce(from_type: HexenType, to_type: HexenType) -> bool:
+def can_coerce(from_type: Union[HexenType, ConcreteArrayType], to_type: Union[HexenType, ConcreteArrayType]) -> bool:
     """
     Check if from_type can be automatically coerced to to_type.
 
@@ -160,6 +160,7 @@ def can_coerce(from_type: HexenType, to_type: HexenType) -> bool:
     1. Comptime types (ergonomic literals):
        - comptime_int can coerce to any integer or float type
        - comptime_float can coerce to any float type
+       - comptime_array types can coerce to compatible concrete array types
 
     2. Identity coercion:
        - Any type can coerce to itself
@@ -167,9 +168,13 @@ def can_coerce(from_type: HexenType, to_type: HexenType) -> bool:
     3. NO automatic widening for concrete types:
        - All concrete type conversions require explicit syntax per TYPE_SYSTEM.md
 
+    4. Array type coercion:
+       - Comptime array types can coerce to compatible ConcreteArrayType
+       - ConcreteArrayType only coerces to identical ConcreteArrayType
+
     Args:
-        from_type: The source type
-        to_type: The target type
+        from_type: The source type (HexenType or ConcreteArrayType)
+        to_type: The target type (HexenType or ConcreteArrayType)
 
     Returns:
         True if coercion is allowed
@@ -177,6 +182,24 @@ def can_coerce(from_type: HexenType, to_type: HexenType) -> bool:
     # Identity coercion - type can always coerce to itself
     if from_type == to_type:
         return True
+
+    # Handle ConcreteArrayType cases
+    if isinstance(to_type, ConcreteArrayType):
+        # Comptime array types can coerce to compatible ConcreteArrayType
+        if from_type == HexenType.COMPTIME_ARRAY_INT:
+            return to_type.is_compatible_with(HexenType.COMPTIME_ARRAY_INT)
+        elif from_type == HexenType.COMPTIME_ARRAY_FLOAT:
+            return to_type.is_compatible_with(HexenType.COMPTIME_ARRAY_FLOAT)
+        # ConcreteArrayType only coerces to identical ConcreteArrayType (handled by identity above)
+        return False
+
+    # ConcreteArrayType cannot coerce to HexenType
+    if isinstance(from_type, ConcreteArrayType):
+        return False
+
+    # Standard HexenType coercion rules
+    if not isinstance(from_type, HexenType) or not isinstance(to_type, HexenType):
+        return False
 
     # comptime type coercion (ergonomic literals)
     if from_type == HexenType.COMPTIME_INT:

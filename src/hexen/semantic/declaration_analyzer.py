@@ -12,7 +12,7 @@ Handles analysis of declarations including:
 from typing import Dict, Optional, Callable, Tuple
 
 from ..ast_nodes import NodeType
-from .types import HexenType, Mutability
+from .types import HexenType, Mutability, ConcreteArrayType
 from .symbol_table import (
     Symbol,
     SymbolTable,
@@ -205,7 +205,8 @@ class DeclarationAnalyzer:
                 return
 
             # Set up function analysis context for return type validation
-            return_type = parse_type(return_type_str)
+            # Use enhanced type parsing to handle both simple and complex return types
+            return_type = self._parse_type_annotation(return_type_str)
             self._set_function_context(name, return_type)
 
             # Analyze function body - block handles scope + return requirements
@@ -250,7 +251,7 @@ class DeclarationAnalyzer:
             ):
                 is_initialized = False
 
-                # PHASE 3: Validate val + undef prohibition
+                # Validate val + undef prohibition
                 if mutability == Mutability.IMMUTABLE:
                     self._error(
                         f"Invalid usage: val variable '{name}' declared with undef creates unusable variable. "
@@ -292,7 +293,7 @@ class DeclarationAnalyzer:
                 )
                 return
 
-            # PHASE 3: Special handling for undef without explicit type
+            # Special handling for undef without explicit type
             if (
                 value.get("type") == NodeType.IDENTIFIER.value
                 and value.get("name") == "undef"
@@ -354,7 +355,7 @@ class DeclarationAnalyzer:
         if not self._declare_symbol(symbol):
             self._error(f"Failed to declare variable '{name}'", node)
     
-    def _parse_type_annotation(self, type_annotation) -> HexenType:
+    def _parse_type_annotation(self, type_annotation):
         """
         Parse a type annotation that can be either a simple string or complex AST node.
         
@@ -362,7 +363,7 @@ class DeclarationAnalyzer:
             type_annotation: Either a string (like "i32") or AST node (like array types)
             
         Returns:
-            HexenType enum representing the type
+            HexenType enum or ConcreteArrayType representing the type
         """
         # Handle simple string types
         if isinstance(type_annotation, str):
@@ -381,29 +382,62 @@ class DeclarationAnalyzer:
         # Fallback for unexpected type annotation format
         return HexenType.UNKNOWN
     
-    def _parse_array_type_annotation(self, array_type_node: Dict) -> HexenType:
+    def _parse_array_type_annotation(self, array_type_node: Dict) -> ConcreteArrayType:
         """
-        Parse array type AST node into appropriate HexenType.
+        Parse array type AST node into ConcreteArrayType.
         
-        For now, we'll map all explicit array types to UNKNOWN since they represent 
-        concrete array types that aren't fully implemented yet. This allows the
-        semantic analysis to continue without crashing.
+        Creates proper ConcreteArrayType instances for
+        explicit array type contexts like [3]i32, [2][4]f64.
         
-        Future implementation will return proper concrete array types.
+        Args:
+            array_type_node: AST node with "dimensions" and "element_type" fields
+            
+        Returns:
+            ConcreteArrayType instance representing the explicit array type
         """
-        # For Phase 2, we acknowledge explicit array type contexts but don't fully
-        # implement them. This prevents the "unhashable type: 'dict'" error while
-        # maintaining semantic analysis flow.
-        
-        # Extract element type for basic validation
+        # Extract element type
         element_type_str = array_type_node.get("element_type", "unknown")
         element_type = parse_type(element_type_str)
         
-        # Validate that the element type is valid
+        # Validate that the element type is valid and concrete
         if element_type == HexenType.UNKNOWN:
+            self._error(f"Invalid element type in array annotation: {element_type_str}", array_type_node)
             return HexenType.UNKNOWN
         
-        # For now, return UNKNOWN to indicate this is recognized but not fully implemented
-        # This allows tests to run without crashing while marking the functionality as incomplete
-        return HexenType.UNKNOWN
+        # Validate element type is concrete (not comptime)
+        if element_type in {HexenType.COMPTIME_INT, HexenType.COMPTIME_FLOAT, 
+                           HexenType.COMPTIME_ARRAY_INT, HexenType.COMPTIME_ARRAY_FLOAT}:
+            self._error(f"Array type annotation must use concrete element type, got {element_type_str}", array_type_node)
+            return HexenType.UNKNOWN
+        
+        # Extract dimensions
+        dimensions = []
+        dimension_nodes = array_type_node.get("dimensions", [])
+        
+        for dim_node in dimension_nodes:
+            size = dim_node.get("size")
+            if size == "_":
+                self._error("Inferred array dimensions ([_]) not yet supported in explicit contexts", array_type_node)
+                return HexenType.UNKNOWN
+            
+            try:
+                dim_size = int(size)
+                if dim_size < 0:
+                    self._error(f"Array dimension must be non-negative, got {dim_size}", array_type_node)
+                    return HexenType.UNKNOWN
+                dimensions.append(dim_size)
+            except (ValueError, TypeError):
+                self._error(f"Invalid array dimension size: {size}", array_type_node)
+                return HexenType.UNKNOWN
+        
+        if not dimensions:
+            self._error("Array type annotation must have at least one dimension", array_type_node)
+            return HexenType.UNKNOWN
+        
+        # Create and return concrete array type
+        try:
+            return ConcreteArrayType(element_type, dimensions)
+        except ValueError as e:
+            self._error(f"Invalid array type: {e}", array_type_node)
+            return HexenType.UNKNOWN
 

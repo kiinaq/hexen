@@ -1193,13 +1193,109 @@ Since this phase focuses on semantic analysis, all tests validate type checking 
 **Files Modified**: 4 existing files with clean, minimal extensions  
 **Total Lines Added**: ~1,200 lines (efficient, focused implementation)
 
-## Next Phase Preview
+## Phase 3: Future Features Implementation
 
-After completing the semantic analysis implementation, **Phase 3** will focus on code generation and optimization:
-- LLVM IR generation for array operations
-- Memory layout optimization for multidimensional arrays
-- Runtime bounds checking implementation
-- Array operation optimization passes
-- Integration with Hexen's broader compilation pipeline
+**Phase 3** will implement the remaining "future" features currently marked with `@pytest.mark.xfail` in the test suite:
 
-This semantic-focused approach ensures robust type checking and integration before moving to code generation, following the established pattern of the existing Hexen implementation.
+### Phase 3 Scope: Explicit Array Type Contexts
+
+Currently, 20 tests are marked as `xfail` because they require **explicit array type context** functionality (e.g., `[3]i32` syntax). Phase 3 will implement:
+
+#### 3.1 Explicit Array Type Context System
+- **Target**: Enable `val arr : [3]i32 = [1, 2, 3]` syntax 
+- **Status**: Parser supports it, semantic analysis returns `HexenType.UNKNOWN`
+- **Implementation**: Extend `_parse_array_type_annotation()` to return concrete array types
+
+#### 3.2 Array Size Validation
+- **Target**: Detect size mismatches like `val arr : [3]i32 = [1, 2]`
+- **Current**: Marked as xfail with "Array size validation with explicit contexts not yet implemented"
+- **Implementation**: Add size checking logic to array literal analyzer
+
+#### 3.3 Context-Driven Array Resolution
+- **Target**: Array literals adapt to explicit type contexts
+- **Current**: `test_context_driven_resolution` and `test_comptime_array_flexibility` marked as xfail
+- **Implementation**: Enhanced type coercion with explicit array contexts
+
+#### 3.4 Function Parameter Array Context
+- **Target**: Array literals work in function calls: `process([1, 2, 3])` where `process(arr: [3]i32)`
+- **Current**: `test_array_literals_in_function_parameters` marked as xfail
+- **Implementation**: Function parameter type context propagation
+
+#### 3.5 Return Type Array Context  
+- **Target**: Array literals in return statements: `return [1, 2, 3]` with `func() : [3]i32`
+- **Current**: `test_array_literals_in_return_statements` marked as xfail
+- **Implementation**: Return type context propagation
+
+### Phase 3 Implementation Tasks
+
+#### Task 3.1: Concrete Array Type System
+```python
+# Extend HexenType enum with concrete array type representation
+class ConcreteArrayType:
+    def __init__(self, element_type: HexenType, dimensions: List[int]):
+        self.element_type = element_type
+        self.dimensions = dimensions
+    
+    def __str__(self) -> str:
+        return f"[{']['.join(map(str, self.dimensions))}]{self.element_type.value}"
+```
+
+#### Task 3.2: Enhanced Declaration Analyzer
+```python
+def _parse_array_type_annotation(self, array_type_node: Dict) -> HexenType:
+    """Parse explicit array type contexts like [3]i32"""
+    # Extract dimensions: [3][2] -> [3, 2]
+    dimensions = []
+    for dim in array_type_node.get("dimensions", []):
+        if dim.get("size") == "_":
+            dimensions.append(None)  # Inferred dimension
+        else:
+            dimensions.append(int(dim.get("size")))
+    
+    # Extract element type
+    element_type_str = array_type_node.get("element_type")
+    element_type = parse_type(element_type_str)
+    
+    # Return concrete array type instead of UNKNOWN
+    return ConcreteArrayType(element_type, dimensions)
+```
+
+#### Task 3.3: Context-Guided Array Literal Analysis
+```python
+def analyze_array_literal_with_context(self, node, target_context: ConcreteArrayType):
+    """Analyze array literal with explicit concrete array context"""
+    elements = node.get("elements", [])
+    
+    # Validate element count matches context
+    if len(elements) != target_context.dimensions[0]:
+        self._error(f"Array size mismatch: expected {target_context.dimensions[0]} elements, got {len(elements)}")
+    
+    # Validate each element against target element type
+    for i, element in enumerate(elements):
+        element_type = self._analyze_expression(element, target_context.element_type)
+        if not can_coerce(element_type, target_context.element_type):
+            self._error(f"Element {i} type mismatch: cannot coerce {element_type} to {target_context.element_type}")
+```
+
+### Phase 3 Success Criteria
+
+**Functional**:
+- ✅ All 20 xfail tests convert to passing tests
+- ✅ Explicit array type contexts work: `val arr : [3]i32 = [1, 2, 3]`
+- ✅ Array size validation: detect mismatches and provide helpful errors  
+- ✅ Function parameter context: `func(arr: [3]i32)` accepts `[1, 2, 3]`
+- ✅ Return type context: `func() : [3]i32` can `return [1, 2, 3]`
+
+**Quality**:
+- ✅ No regression in existing 945 passing tests
+- ✅ All array features from ARRAY_TYPE_SYSTEM.md fully implemented
+- ✅ Performance remains acceptable for typical usage
+
+**Integration**:
+- ✅ Seamless integration with existing comptime type system
+- ✅ Maintains compatibility with four-pattern coercion rules
+- ✅ Consistent with existing type annotation patterns
+
+### Phase 3 vs Code Generation
+
+**Note**: This revised Phase 3 focuses on **completing semantic analysis** rather than code generation. The explicit array type context system is the missing piece for full semantic completeness. Code generation (LLVM IR, memory layout, etc.) will be addressed in a future phase after semantic analysis is 100% complete.

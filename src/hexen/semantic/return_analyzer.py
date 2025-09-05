@@ -11,9 +11,9 @@ Implements UNIFIED_BLOCK_SYSTEM.md return semantics:
 - Precision loss detection for return values
 """
 
-from typing import Dict, List, Optional, Callable
+from typing import Dict, List, Optional, Callable, Union
 
-from .types import HexenType
+from .types import HexenType, ConcreteArrayType
 from .type_util import is_precision_loss_operation
 
 
@@ -34,9 +34,9 @@ class ReturnAnalyzer:
     def __init__(
         self,
         error_callback: Callable[[str, Optional[Dict]], None],
-        analyze_expression_callback: Callable[[Dict, Optional[HexenType]], HexenType],
+        analyze_expression_callback: Callable[[Dict, Optional[Union[HexenType, ConcreteArrayType]]], HexenType],
         get_block_context_callback: Callable[[], List[str]],
-        get_current_function_return_type_callback: Callable[[], Optional[HexenType]],
+        get_current_function_return_type_callback: Callable[[], Optional[Union[HexenType, ConcreteArrayType]]],
         comptime_analyzer,
     ):
         """
@@ -84,7 +84,7 @@ class ReturnAnalyzer:
     def _analyze_bare_return(
         self,
         node: Dict,
-        current_function_return_type: Optional[HexenType],
+        current_function_return_type: Optional[Union[HexenType, ConcreteArrayType]],
         block_context: List[str],
     ) -> None:
         """
@@ -125,7 +125,7 @@ class ReturnAnalyzer:
         self,
         node: Dict,
         value: Dict,
-        current_function_return_type: Optional[HexenType],
+        current_function_return_type: Optional[Union[HexenType, ConcreteArrayType]],
         block_context: List[str],
     ) -> None:
         """
@@ -155,7 +155,7 @@ class ReturnAnalyzer:
         node: Dict,
         value: Dict,
         return_type: HexenType,
-        expected_return_type: HexenType,
+        expected_return_type: Union[HexenType, ConcreteArrayType],
     ) -> None:
         """Validate return statement against function signature."""
         if expected_return_type == HexenType.VOID:
@@ -163,7 +163,9 @@ class ReturnAnalyzer:
             self._error("Void function cannot return a value", node)
         elif return_type != HexenType.UNKNOWN:
             # Check for precision loss operations that require explicit conversion
-            if is_precision_loss_operation(return_type, expected_return_type):
+            # Skip precision loss check for ConcreteArrayType (not applicable)
+            if (isinstance(expected_return_type, HexenType) and 
+                is_precision_loss_operation(return_type, expected_return_type)):
                 # For non-explicit-conversion expressions, require explicit conversion
                 if value.get("type") != "explicit_conversion_expression":
                     self._generate_precision_loss_error(
@@ -171,8 +173,9 @@ class ReturnAnalyzer:
                     )
                     return
 
-            # Check for literal overflow before type coercion
-            if return_type in {HexenType.COMPTIME_INT, HexenType.COMPTIME_FLOAT}:
+            # Check for literal overflow before type coercion (only for simple types)
+            if (return_type in {HexenType.COMPTIME_INT, HexenType.COMPTIME_FLOAT} and
+                isinstance(expected_return_type, HexenType)):
                 literal_value, source_text = self.comptime_analyzer.extract_literal_info(value)
                 if literal_value is not None:
                     try:
@@ -190,9 +193,12 @@ class ReturnAnalyzer:
             from .type_util import can_coerce
 
             if not can_coerce(return_type, expected_return_type):
+                # Handle error message for both HexenType and ConcreteArrayType
+                expected_str = expected_return_type.value if hasattr(expected_return_type, 'value') else str(expected_return_type)
+                return_str = return_type.value if hasattr(return_type, 'value') else str(return_type)
+                
                 self._error(
-                    f"Return type mismatch: expected {expected_return_type.value}, "
-                    f"got {return_type.value}",
+                    f"Return type mismatch: expected {expected_str}, got {return_str}",
                     node,
                 )
 
