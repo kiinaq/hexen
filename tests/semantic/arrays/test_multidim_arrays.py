@@ -135,7 +135,6 @@ class TestMultidimensionalArrays:
         # Should work with larger consistent 3D structure
         assert_no_errors(errors)
     
-    @pytest.mark.xfail(reason="Deep 3D validation not yet fully implemented")
     def test_deeply_inconsistent_3d_error(self):
         """Test error detection in deeply nested inconsistent structure"""
         source = """
@@ -151,6 +150,23 @@ class TestMultidimensionalArrays:
         errors = self.analyzer.analyze(ast)
         
         # Should detect inconsistent inner structure
+        assert_error_contains(errors, "Inconsistent inner array dimensions")
+    
+    def test_deeply_inconsistent_3d_error_detailed(self):
+        """Test error detection in deeply nested inconsistent structure"""
+        source = """
+        func test() : void = {
+            val bad_cube = [
+                [[1, 2], [3, 4]],
+                [[5, 6, 7], [8, 9]]
+            ]
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+        
+        # Should detect inconsistent inner structure in 3D arrays
         assert_error_contains(errors, "Inconsistent inner array dimensions")
 
 
