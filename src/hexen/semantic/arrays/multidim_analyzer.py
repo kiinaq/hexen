@@ -141,7 +141,38 @@ class MultidimensionalArrayAnalyzer:
                     f"got {row_length} at row {i}"
                 )
         
+        # Recursively validate nested structures (for 3D, 4D, etc.)
+        self._validate_nested_structure_consistency(elements)
+        
         # Structure is consistent
+    
+    def _validate_nested_structure_consistency(self, elements: List[Dict[str, Any]]) -> None:
+        """
+        Recursively validate deep nested structure consistency for 3D, 4D, etc. arrays.
+        
+        This method validates that if the array has multiple dimensions,
+        all sub-arrays at each level have consistent internal structure.
+        """
+        if not elements:
+            return
+            
+        # Check if the first element is itself a multidimensional array
+        first_element = elements[0]
+        if not self._is_array_literal(first_element):
+            return  # Not multidimensional, no nested validation needed
+            
+        first_sub_elements = first_element.get("elements", [])
+        if not first_sub_elements or not self._is_array_literal(first_sub_elements[0]):
+            return  # Not 3D or deeper, no nested validation needed
+            
+        # This is a 3D+ array, validate each 2D slice independently
+        for i, element in enumerate(elements):
+            try:
+                # Recursively validate each 2D slice
+                self._validate_multidim_structure(element.get("elements", []))
+            except ValueError as e:
+                # Convert ValueError to proper error reporting
+                raise ValueError(f"Inconsistent inner array dimensions in dimension {i}: {str(e)}")
     
     def _is_array_literal(self, node: Dict[str, Any]) -> bool:
         """Check if a node represents an array literal"""
