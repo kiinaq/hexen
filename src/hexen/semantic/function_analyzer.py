@@ -13,8 +13,8 @@ Implements the unified type resolution strategy from FUNCTION_SYSTEM.md.
 
 from typing import Dict, Optional, Callable, Union
 
-from .types import HexenType, ConcreteArrayType
 from .type_util import can_coerce
+from .types import HexenType, ConcreteArrayType
 
 
 class FunctionAnalyzer:
@@ -34,7 +34,9 @@ class FunctionAnalyzer:
     def __init__(
         self,
         error_callback: Callable[[str, Optional[Dict]], None],
-        analyze_expression_callback: Callable[[Dict, Optional[Union[HexenType, ConcreteArrayType]]], HexenType],
+        analyze_expression_callback: Callable[
+            [Dict, Optional[Union[HexenType, ConcreteArrayType]]], HexenType
+        ],
         lookup_function_callback: Callable[[str], Optional[object]],
     ):
         """Initialize with callbacks to main analyzer functionality."""
@@ -121,9 +123,17 @@ class FunctionAnalyzer:
         # Validate type compatibility using TYPE_SYSTEM.md conversion rules
         if not can_coerce(argument_type, parameter.param_type):
             # Handle error message for both HexenType and ConcreteArrayType
-            param_type_str = parameter.param_type.value if hasattr(parameter.param_type, 'value') else str(parameter.param_type)
-            arg_type_str = argument_type.value if hasattr(argument_type, 'value') else str(argument_type)
-            
+            param_type_str = (
+                parameter.param_type.value
+                if hasattr(parameter.param_type, "value")
+                else str(parameter.param_type)
+            )
+            arg_type_str = (
+                argument_type.value
+                if hasattr(argument_type, "value")
+                else str(argument_type)
+            )
+
             self._error(
                 f"Function '{function_name}' argument {position}: "
                 f"Cannot assign {arg_type_str} to parameter '{parameter.name}' of type {param_type_str}. "

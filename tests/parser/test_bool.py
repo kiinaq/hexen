@@ -5,9 +5,10 @@ Part of the consolidated Hexen parser test suite.
 Tests: Boolean literals, logical operators, precedence, and error cases.
 """
 
-from src.hexen.parser import HexenParser
-from src.hexen.ast_nodes import NodeType
 import pytest
+
+from src.hexen.ast_nodes import NodeType
+from src.hexen.parser import HexenParser
 from .test_utils import (
     verify_binary_operation_ast,
     verify_unary_operation_ast,

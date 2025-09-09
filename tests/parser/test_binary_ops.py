@@ -11,8 +11,9 @@ Focuses on:
 """
 
 import pytest
-from src.hexen.parser import HexenParser
+
 from src.hexen.ast_nodes import NodeType
+from src.hexen.parser import HexenParser
 from .test_utils import verify_binary_operation_ast, create_comptime_int_ast
 
 

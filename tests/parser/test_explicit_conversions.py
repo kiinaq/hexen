@@ -5,8 +5,8 @@ Tests the parsing of explicit type conversions on expressions (`:type` syntax).
 This is critical for the Hexen type system's explicit conversion pattern.
 """
 
-from src.hexen.parser import HexenParser
 from src.hexen.ast_nodes import NodeType
+from src.hexen.parser import HexenParser
 
 
 class TestExplicitConversions:

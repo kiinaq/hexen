@@ -6,8 +6,9 @@ Tests all function syntax variations before semantic analysis.
 """
 
 import pytest
-from src.hexen.parser import HexenParser
+
 from src.hexen.ast_nodes import NodeType
+from src.hexen.parser import HexenParser
 
 
 class TestFunctionDeclarations:

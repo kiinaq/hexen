@@ -69,9 +69,7 @@ class TestExplicitConversionErrorMessages(StandardTestBase):
         assert len(errors) >= 1
 
         # Should have mixed concrete type operation error
-        mixed_errors = [
-            e for e in errors if "Mixed concrete types" in e.message
-        ]
+        mixed_errors = [e for e in errors if "Mixed concrete types" in e.message]
         assert len(mixed_errors) >= 1
 
     def test_conversion_guidance_consistency(self):

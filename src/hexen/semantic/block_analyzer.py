@@ -12,10 +12,10 @@ Analyzes all block types:
 
 from typing import Dict, List, Optional, Callable
 
-from ..ast_nodes import NodeType
-from .types import HexenType, BlockEvaluability
-from .symbol_table import SymbolTable
 from .comptime import ComptimeAnalyzer
+from .symbol_table import SymbolTable
+from .types import HexenType, BlockEvaluability
+from ..ast_nodes import NodeType
 
 
 class BlockAnalyzer:
@@ -62,7 +62,7 @@ class BlockAnalyzer:
             get_current_function_return_type_callback
         )
         self.block_context_stack = block_context_stack
-        
+
         # Initialize comptime analyzer for block evaluability detection
         self.comptime_analyzer = ComptimeAnalyzer(symbol_table)
 
@@ -181,7 +181,9 @@ class BlockAnalyzer:
         if is_expression_block:
             # Classify block evaluability while still in scope
             # CRITICAL: Must happen before scope exit so variables are accessible
-            evaluability = self.comptime_analyzer.classify_block_evaluability(statements)
+            evaluability = self.comptime_analyzer.classify_block_evaluability(
+                statements
+            )
             return self._finalize_expression_block_with_evaluability(
                 has_assign, has_return, last_statement, node, evaluability
             )
@@ -260,23 +262,23 @@ class BlockAnalyzer:
     ) -> HexenType:
         """
         Finalize expression block analysis with evaluability-aware type resolution.
-        
+
         Comptime Type Preservation Logic
                 This implements the enhanced unified block system functionality:
         - COMPILE_TIME blocks: Preserve comptime types for maximum flexibility
         - RUNTIME blocks: Require explicit context validation and immediate resolution
-        
+
         Args:
             has_assign: Whether block has assign statement
-            has_return: Whether block has return statement  
+            has_return: Whether block has return statement
             last_statement: The final statement in the block
             node: Block node for error reporting
             evaluability: Block evaluability classification
-            
+
         Returns:
             Type of the expression block result
         """
-        
+
         if not (has_assign or has_return):
             self._error(
                 "Expression block must end with 'assign' statement or 'return' statement",
@@ -334,151 +336,159 @@ class BlockAnalyzer:
     def _analyze_expression_preserve_comptime(self, expression: Dict) -> HexenType:
         """
         Analyze expression while preserving comptime types for maximum flexibility.
-        
-        This is used for compile-time evaluable expression blocks to enable the 
+
+        This is used for compile-time evaluable expression blocks to enable the
         "one computation, multiple uses" pattern from UNIFIED_BLOCK_SYSTEM.md.
-        
+
         Key behavior:
         - Comptime types (COMPTIME_INT, COMPTIME_FLOAT) are preserved as-is
         - No target type context provided (preserves flexibility)
         - All operations remain in comptime space until explicit context forces resolution
-        
+
         Args:
             expression: Expression AST node to analyze
-            
+
         Returns:
             Expression type with comptime types preserved for later context-driven resolution
         """
         # No target type context provided - this preserves comptime type flexibility
         return self._analyze_expression(expression, None)
 
-    def _analyze_expression_with_context(self, expression: Dict, target_type: Optional[HexenType]) -> HexenType:
+    def _analyze_expression_with_context(
+        self, expression: Dict, target_type: Optional[HexenType]
+    ) -> HexenType:
         """
         Analyze expression with explicit target context for immediate resolution.
-        
+
         This is used for runtime blocks that require explicit context due to
         runtime operations (function calls, conditionals, concrete variables).
-        
+
         Key behavior:
         - Target type provides explicit context for type resolution
         - Comptime types resolve immediately to concrete types
         - All conversions happen with explicit context guidance
-        
+
         Args:
             expression: Expression AST node to analyze
             target_type: Target type providing explicit context for resolution
-            
+
         Returns:
             Expression type with immediate context-driven resolution
         """
         # Target type context provided - this forces immediate resolution
         return self._analyze_expression(expression, target_type)
 
-    def _validate_runtime_block_context_requirement(self, evaluability: BlockEvaluability, node: Dict) -> bool:
+    def _validate_runtime_block_context_requirement(
+        self, evaluability: BlockEvaluability, node: Dict
+    ) -> bool:
         """
         Validate that runtime blocks have the required explicit type context.
-        
+
         This enforces the specification requirement:
         "Runtime blocks require explicit type context due to runtime operations"
-        
+
         The validation logic provides foundation for comprehensive error messages
         and suggestions for proper usage patterns.
-        
+
         Args:
             evaluability: Block evaluability classification
             node: Block node for error reporting context
-            
+
         Returns:
             True if validation passes, False if context is required but missing
         """
         if evaluability == BlockEvaluability.COMPILE_TIME:
             # Compile-time blocks don't require explicit context
             return True
-            
+
         # Runtime blocks validation logic
         if evaluability == BlockEvaluability.RUNTIME:
             # Runtime blocks in expression context need explicit type context
             # This validation provides foundation for detailed error messages
-            
+
             # Currently, we assume function return type provides adequate context
             # Future enhancements will add comprehensive context validation for variable declarations
             function_return_type = self._get_current_function_return_type()
             if function_return_type is None:
                 # No function context - this would be an error condition
                 return False
-                
+
             # Function provides explicit type context
             return True
-            
+
         # Unknown evaluability - assume validation fails for safety
         return False
 
     # =========================================================================
     # BACKWARD COMPATIBILITY METHODS FOR TESTS
     # =========================================================================
-    
+
     def _classify_block_evaluability(self, statements: List[Dict]) -> BlockEvaluability:
         """Delegate to comptime analyzer for backward compatibility."""
         return self.comptime_analyzer.classify_block_evaluability(statements)
-    
+
     def _contains_runtime_operations(self, statements: List[Dict]) -> bool:
         """Delegate to comptime analyzer for backward compatibility."""
         return self.comptime_analyzer._contains_runtime_operations(statements)
-    
+
     def _contains_function_calls(self, statements: List[Dict]) -> bool:
         """Delegate to comptime analyzer for backward compatibility."""
         return self.comptime_analyzer._contains_function_calls(statements)
-    
+
     def _contains_conditionals(self, statements: List[Dict]) -> bool:
         """Delegate to comptime analyzer for backward compatibility."""
         return self.comptime_analyzer._contains_conditionals(statements)
-    
+
     def _has_comptime_only_operations(self, statements: List[Dict]) -> bool:
         """Delegate to comptime analyzer for backward compatibility."""
         return self.comptime_analyzer.has_comptime_only_operations(statements)
-    
+
     def _has_runtime_variables(self, statements: List[Dict]) -> bool:
         """Delegate to comptime analyzer for backward compatibility."""
         return self.comptime_analyzer.has_runtime_variables(statements)
-    
-    def _validate_runtime_block_context(self, statements: List[Dict], evaluability: BlockEvaluability) -> Optional[str]:
+
+    def _validate_runtime_block_context(
+        self, statements: List[Dict], evaluability: BlockEvaluability
+    ) -> Optional[str]:
         """Delegate to comptime analyzer for backward compatibility."""
-        return self.comptime_analyzer.validate_runtime_block_context(statements, evaluability)
-    
+        return self.comptime_analyzer.validate_runtime_block_context(
+            statements, evaluability
+        )
+
     def _get_runtime_operation_reason(self, statements: List[Dict]) -> str:
         """Delegate to comptime analyzer for backward compatibility."""
         return self.comptime_analyzer.get_runtime_operation_reason(statements)
-    
+
     def _statement_has_comptime_only_operations(self, statement: Dict) -> bool:
         """Delegate to comptime analyzer for backward compatibility."""
         return self.comptime_analyzer.statement_has_comptime_only_operations(statement)
-    
+
     def _expression_has_comptime_only_operations(self, expression: Dict) -> bool:
         """Delegate to comptime analyzer for backward compatibility."""
-        return self.comptime_analyzer.expression_has_comptime_only_operations(expression)
-    
+        return self.comptime_analyzer.expression_has_comptime_only_operations(
+            expression
+        )
+
     def _statement_has_runtime_variables(self, statement: Dict) -> bool:
         """Delegate to comptime analyzer for backward compatibility."""
         return self.comptime_analyzer.statement_has_runtime_variables(statement)
-    
+
     def _expression_has_runtime_variables(self, expression: Dict) -> bool:
         """Delegate to comptime analyzer for backward compatibility."""
         return self.comptime_analyzer.expression_has_runtime_variables(expression)
-    
+
     def _statement_contains_function_calls(self, statement: Dict) -> bool:
         """Delegate to comptime analyzer for backward compatibility."""
         return self.comptime_analyzer._statement_contains_function_calls(statement)
-    
+
     def _statement_contains_conditionals(self, statement: Dict) -> bool:
         """Delegate to comptime analyzer for backward compatibility."""
         return self.comptime_analyzer._statement_contains_conditionals(statement)
-    
+
     def _expression_contains_function_calls(self, expression: Dict) -> bool:
         """Delegate to comptime analyzer for backward compatibility."""
         return self.comptime_analyzer._expression_contains_function_calls(expression)
-    
+
     def _expression_contains_conditionals(self, expression: Dict) -> bool:
         """Delegate to comptime analyzer for backward compatibility."""
         return self.comptime_analyzer._expression_contains_conditionals(expression)
-
-

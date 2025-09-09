@@ -6,8 +6,9 @@ for the foundation of the conditional system implementation.
 """
 
 import pytest
-from src.hexen.parser import HexenParser
+
 from src.hexen.ast_nodes import NodeType
+from src.hexen.parser import HexenParser
 
 
 class TestConditionalParsing:
@@ -25,14 +26,14 @@ class TestConditionalParsing:
             }
         }
         """
-        
+
         ast = self.parser.parse(source)
-        
+
         # Navigate to the conditional statement
         func = ast["functions"][0]
         block = func["body"]
         conditional = block["statements"][0]
-        
+
         # Verify conditional structure
         assert conditional["type"] == NodeType.CONDITIONAL_STATEMENT.value
         assert conditional["condition"]["type"] == NodeType.LITERAL.value
@@ -51,21 +52,21 @@ class TestConditionalParsing:
             }
         }
         """
-        
+
         ast = self.parser.parse(source)
-        
+
         # Navigate to the conditional statement
         func = ast["functions"][0]
         block = func["body"]
         conditional = block["statements"][0]
-        
+
         # Verify conditional structure
         assert conditional["type"] == NodeType.CONDITIONAL_STATEMENT.value
         assert conditional["condition"]["type"] == NodeType.LITERAL.value
         assert conditional["condition"]["value"] == False
         assert conditional["if_branch"]["type"] == NodeType.BLOCK.value
         assert len(conditional["else_clauses"]) == 1
-        
+
         # Verify else clause
         else_clause = conditional["else_clauses"][0]
         assert else_clause["type"] == NodeType.ELSE_CLAUSE.value
@@ -85,18 +86,18 @@ class TestConditionalParsing:
             }
         }
         """
-        
+
         ast = self.parser.parse(source)
-        
+
         # Navigate to the conditional statement
         func = ast["functions"][0]
         block = func["body"]
         conditional = block["statements"][0]
-        
+
         # Verify conditional structure
         assert conditional["type"] == NodeType.CONDITIONAL_STATEMENT.value
         assert len(conditional["else_clauses"]) == 2
-        
+
         # Verify else-if clause
         else_if_clause = conditional["else_clauses"][0]
         assert else_if_clause["type"] == NodeType.ELSE_CLAUSE.value
@@ -104,7 +105,7 @@ class TestConditionalParsing:
         assert else_if_clause["condition"]["type"] == NodeType.LITERAL.value
         assert else_if_clause["condition"]["value"] == True
         assert else_if_clause["branch"]["type"] == NodeType.BLOCK.value
-        
+
         # Verify final else clause
         final_else_clause = conditional["else_clauses"][1]
         assert final_else_clause["type"] == NodeType.ELSE_CLAUSE.value
@@ -120,14 +121,14 @@ class TestConditionalParsing:
             }
         }
         """
-        
+
         ast = self.parser.parse(source)
-        
+
         # Navigate to the conditional statement
         func = ast["functions"][0]
         block = func["body"]
         conditional = block["statements"][0]
-        
+
         # Verify condition is a binary operation
         condition = conditional["condition"]
         assert condition["type"] == NodeType.BINARY_OPERATION.value
@@ -146,14 +147,14 @@ class TestConditionalParsing:
             }
         }
         """
-        
+
         ast = self.parser.parse(source)
-        
+
         # Navigate to the conditional statement
         func = ast["functions"][0]
         block = func["body"]
         conditional = block["statements"][0]
-        
+
         # Verify condition is a logical operation
         condition = conditional["condition"]
         assert condition["type"] == NodeType.BINARY_OPERATION.value
@@ -174,20 +175,20 @@ class TestConditionalParsing:
             }
         }
         """
-        
+
         ast = self.parser.parse(source)
-        
+
         # Navigate to outer conditional
         func = ast["functions"][0]
         block = func["body"]
         outer_conditional = block["statements"][0]
-        
+
         assert outer_conditional["type"] == NodeType.CONDITIONAL_STATEMENT.value
-        
+
         # Navigate to inner conditional
         outer_if_branch = outer_conditional["if_branch"]
         inner_conditional = outer_if_branch["statements"][0]
-        
+
         assert inner_conditional["type"] == NodeType.CONDITIONAL_STATEMENT.value
         assert inner_conditional["condition"]["operator"] == ">"
 
@@ -204,21 +205,21 @@ class TestConditionalParsing:
             }
         }
         """
-        
+
         ast = self.parser.parse(source)
-        
+
         # Navigate to conditional
         func = ast["functions"][0]
         block = func["body"]
         conditional = block["statements"][0]
-        
+
         # Check if branch has multiple statements
         if_branch = conditional["if_branch"]
         assert len(if_branch["statements"]) == 2
         assert if_branch["statements"][0]["type"] == NodeType.VAL_DECLARATION.value
         assert if_branch["statements"][1]["type"] == NodeType.RETURN_STATEMENT.value
-        
-        # Check else branch has multiple statements  
+
+        # Check else branch has multiple statements
         else_clause = conditional["else_clauses"][0]
         else_branch = else_clause["branch"]
         assert len(else_branch["statements"]) == 2
@@ -234,18 +235,18 @@ class TestConditionalParsing:
             }
         }
         """
-        
+
         ast = self.parser.parse(source)
-        
+
         # Navigate to conditional
         func = ast["functions"][0]
         block = func["body"]
         conditional = block["statements"][0]
-        
+
         # Verify empty branches parse correctly
         assert conditional["type"] == NodeType.CONDITIONAL_STATEMENT.value
         assert len(conditional["if_branch"]["statements"]) == 0
-        
+
         else_clause = conditional["else_clauses"][0]
         assert len(else_clause["branch"]["statements"]) == 0
 
@@ -266,7 +267,7 @@ class TestConditionalParsingErrors:
             }
         }
         """
-        
+
         # This should parse successfully since we don't require parentheses
         ast = self.parser.parse(source)
         assert ast is not None
@@ -279,7 +280,7 @@ class TestConditionalParsingErrors:
                 return
         }
         """
-        
+
         # This should fail to parse due to missing braces
         with pytest.raises((Exception, SyntaxError)):
             self.parser.parse(source)
@@ -295,7 +296,7 @@ class TestConditionalParsingErrors:
             }
         }
         """
-        
+
         # Should fail because missing braces in else-if branch
         with pytest.raises((Exception, SyntaxError)):
             ast = self.parser.parse(source)
@@ -309,7 +310,7 @@ class TestConditionalParsingErrors:
             }
         }
         """
-        
+
         # Should fail because else without if is invalid
         with pytest.raises((Exception, SyntaxError)):
             self.parser.parse(source)
@@ -330,17 +331,17 @@ class TestConditionalSemanticFoundation:
             }
         }
         """
-        
+
         ast = self.parser.parse(source)
-        
+
         # Verify AST structure
         func = ast["functions"][0]
         conditional = func["body"]["statements"][0]
-        
+
         # Test node type constants
         assert conditional["type"] == NodeType.CONDITIONAL_STATEMENT.value
         assert conditional["type"] == "conditional_statement"
-        
+
         # Verify all required fields are present
         required_fields = ["type", "condition", "if_branch", "else_clauses"]
         for field in required_fields:
@@ -359,24 +360,24 @@ class TestConditionalSemanticFoundation:
             }
         }
         """
-        
+
         ast = self.parser.parse(source)
-        
+
         # Navigate to else clauses
         func = ast["functions"][0]
         conditional = func["body"]["statements"][0]
-        
+
         # Test else-if clause
         else_if_clause = conditional["else_clauses"][0]
         assert else_if_clause["type"] == NodeType.ELSE_CLAUSE.value
         assert else_if_clause["type"] == "else_clause"
         assert else_if_clause["condition"] is not None
-        
+
         # Test final else clause
         final_else_clause = conditional["else_clauses"][1]
         assert final_else_clause["type"] == NodeType.ELSE_CLAUSE.value
         assert final_else_clause["condition"] is None
-        
+
         # Verify all required fields are present
         required_fields = ["type", "condition", "branch"]
         for clause in conditional["else_clauses"]:

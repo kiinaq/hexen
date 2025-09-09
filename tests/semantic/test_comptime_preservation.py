@@ -2,34 +2,39 @@
 Comptime Type Preservation Logic Tests
 
 Tests the core comptime type preservation functionality for the enhanced unified block system:
-- Compile-time evaluable blocks preserve comptime types for maximum flexibility  
+- Compile-time evaluable blocks preserve comptime types for maximum flexibility
 - Runtime blocks use explicit context for immediate resolution
 - "One computation, multiple uses" pattern from UNIFIED_BLOCK_SYSTEM.md
 - Integration with existing type system and comptime infrastructure
 """
 
 import pytest
-from src.hexen.semantic.analyzer import SemanticAnalyzer
+
 from src.hexen.parser import HexenParser
+from src.hexen.semantic.analyzer import SemanticAnalyzer
 
 
 class TestComptimePreservationInfrastructure:
     """Test comptime preservation infrastructure is properly integrated."""
-    
+
     def test_comptime_preservation_infrastructure_available(self):
         """Test comptime preservation methods are available and functional."""
         analyzer = SemanticAnalyzer()
-        
+
         # Test that comptime preservation methods exist
-        assert hasattr(analyzer.block_analyzer, '_analyze_expression_preserve_comptime')
-        assert hasattr(analyzer.block_analyzer, '_analyze_expression_with_context')
-        assert hasattr(analyzer.block_analyzer, '_validate_runtime_block_context_requirement')
-        
+        assert hasattr(analyzer.block_analyzer, "_analyze_expression_preserve_comptime")
+        assert hasattr(analyzer.block_analyzer, "_analyze_expression_with_context")
+        assert hasattr(
+            analyzer.block_analyzer, "_validate_runtime_block_context_requirement"
+        )
+
         # Test that methods are callable (basic infrastructure test)
         assert callable(analyzer.block_analyzer._analyze_expression_preserve_comptime)
         assert callable(analyzer.block_analyzer._analyze_expression_with_context)
-        assert callable(analyzer.block_analyzer._validate_runtime_block_context_requirement)
-    
+        assert callable(
+            analyzer.block_analyzer._validate_runtime_block_context_requirement
+        )
+
     def test_comptime_preservation_enhanced_finalization_method(self):
         """Test enhanced _finalize_expression_block_with_evaluability handles different evaluabilities."""
         # Test compile-time evaluable block
@@ -42,19 +47,19 @@ class TestComptimePreservationInfrastructure:
             return result
         }
         """
-        
+
         parser = HexenParser()
         ast = parser.parse(source)
         analyzer = SemanticAnalyzer()
         errors = analyzer.analyze(ast)
-        
+
         # Should have no errors - compile-time evaluable block works
         assert len(errors) == 0, f"Unexpected errors: {[e.message for e in errors]}"
 
 
 class TestComptimePreservationBasics:
     """Test basic comptime type preservation for compile-time evaluable blocks."""
-    
+
     def test_comptime_arithmetic_block_preserves_comptime_int(self):
         """Test compile-time evaluable block with integer arithmetic preserves comptime_int."""
         source = """
@@ -68,15 +73,15 @@ class TestComptimePreservationBasics:
             return flexible
         }
         """
-        
+
         parser = HexenParser()
         ast = parser.parse(source)
         analyzer = SemanticAnalyzer()
         errors = analyzer.analyze(ast)
-        
+
         # Should have no errors - comptime arithmetic should work
         assert len(errors) == 0, f"Unexpected errors: {[e.message for e in errors]}"
-    
+
     def test_comptime_arithmetic_block_preserves_comptime_float(self):
         """Test compile-time evaluable block with float arithmetic preserves comptime_float."""
         source = """
@@ -90,12 +95,12 @@ class TestComptimePreservationBasics:
             return flexible
         }
         """
-        
+
         parser = HexenParser()
         ast = parser.parse(source)
         analyzer = SemanticAnalyzer()
         errors = analyzer.analyze(ast)
-        
+
         # Should have no errors - mixed comptime arithmetic should work
         assert len(errors) == 0, f"Unexpected errors: {[e.message for e in errors]}"
 
@@ -112,19 +117,19 @@ class TestComptimePreservationBasics:
             return computation
         }
         """
-        
+
         parser = HexenParser()
         ast = parser.parse(source)
         analyzer = SemanticAnalyzer()
         errors = analyzer.analyze(ast)
-        
+
         # Should have no errors - complex comptime operations should work
         assert len(errors) == 0, f"Unexpected errors: {[e.message for e in errors]}"
 
 
 class TestRuntimeBlockContextResolution:
     """Test runtime blocks use explicit context for immediate resolution."""
-    
+
     def test_function_call_triggers_runtime_context(self):
         """Test blocks with function calls use explicit context resolution."""
         source = """
@@ -140,15 +145,15 @@ class TestRuntimeBlockContextResolution:
             return result
         }
         """
-        
+
         parser = HexenParser()
         ast = parser.parse(source)
         analyzer = SemanticAnalyzer()
         errors = analyzer.analyze(ast)
-        
+
         # Should have no errors - runtime blocks work with explicit context
         assert len(errors) == 0, f"Unexpected errors: {[e.message for e in errors]}"
-        
+
     def test_mixed_comptime_runtime_block(self):
         """Test blocks mixing comptime and runtime operations."""
         source = """
@@ -166,19 +171,19 @@ class TestRuntimeBlockContextResolution:
             return result
         }
         """
-        
+
         parser = HexenParser()
         ast = parser.parse(source)
         analyzer = SemanticAnalyzer()
         errors = analyzer.analyze(ast)
-        
+
         # Should have no errors - mixed operations work with explicit context
         assert len(errors) == 0, f"Unexpected errors: {[e.message for e in errors]}"
 
 
 class TestOneComputationMultipleUsesPattern:
     """Test the 'one computation, multiple uses' pattern from specification."""
-    
+
     def test_same_computation_different_function_contexts(self):
         """Test same comptime computation used in different function return contexts."""
         source = """
@@ -206,15 +211,15 @@ class TestOneComputationMultipleUsesPattern:
             return another_calc  // comptime_int -> f64 (different function context)
         }
         """
-        
+
         parser = HexenParser()
         ast = parser.parse(source)
         analyzer = SemanticAnalyzer()
         errors = analyzer.analyze(ast)
-        
+
         # Should have no errors - same computation adapts to different contexts
         assert len(errors) == 0, f"Unexpected errors: {[e.message for e in errors]}"
-    
+
     def test_float_computation_different_contexts(self):
         """Test comptime float computation used in different precision contexts."""
         source = """
@@ -234,19 +239,19 @@ class TestOneComputationMultipleUsesPattern:
             return same_calc  // comptime_float -> f64 (higher precision)
         }
         """
-        
+
         parser = HexenParser()
         ast = parser.parse(source)
         analyzer = SemanticAnalyzer()
         errors = analyzer.analyze(ast)
-        
+
         # Should have no errors - same comptime float adapts to different precisions
         assert len(errors) == 0, f"Unexpected errors: {[e.message for e in errors]}"
 
 
 class TestNestedExpressionBlocks:
     """Test nested expression blocks with different evaluabilities."""
-    
+
     def test_nested_comptime_blocks(self):
         """Test nested compile-time evaluable blocks."""
         source = """
@@ -262,15 +267,15 @@ class TestNestedExpressionBlocks:
             return outer  // comptime_float -> f64
         }
         """
-        
+
         parser = HexenParser()
         ast = parser.parse(source)
         analyzer = SemanticAnalyzer()
         errors = analyzer.analyze(ast)
-        
+
         # Should have no errors - nested comptime blocks should work
         assert len(errors) == 0, f"Unexpected errors: {[e.message for e in errors]}"
-    
+
     def test_mixed_nested_blocks(self):
         """Test nested blocks with mixed evaluabilities."""
         source = """
@@ -291,19 +296,19 @@ class TestNestedExpressionBlocks:
             return outer
         }
         """
-        
+
         parser = HexenParser()
         ast = parser.parse(source)
         analyzer = SemanticAnalyzer()
         errors = analyzer.analyze(ast)
-        
+
         # Should have no errors - mixed nested scenarios should work
         assert len(errors) == 0, f"Unexpected errors: {[e.message for e in errors]}"
 
 
 class TestDivisionOperatorsInBlocks:
     """Test division operators work correctly in expression blocks."""
-    
+
     def test_float_division_in_comptime_block(self):
         """Test float division (/) in compile-time evaluable blocks."""
         source = """
@@ -316,15 +321,15 @@ class TestDivisionOperatorsInBlocks:
             return precise  // comptime_float -> f64 (adapts to function return type)
         }
         """
-        
+
         parser = HexenParser()
         ast = parser.parse(source)
         analyzer = SemanticAnalyzer()
         errors = analyzer.analyze(ast)
-        
+
         # Should have no errors - comptime float division should work per BINARY_OPS.md
         assert len(errors) == 0, f"Unexpected errors: {[e.message for e in errors]}"
-    
+
     def test_integer_division_in_comptime_block(self):
         """Test integer division (\\) in compile-time evaluable blocks."""
         source = """
@@ -338,19 +343,19 @@ class TestDivisionOperatorsInBlocks:
             return efficient  // comptime_int -> i32
         }
         """
-        
+
         parser = HexenParser()
         ast = parser.parse(source)
         analyzer = SemanticAnalyzer()
         errors = analyzer.analyze(ast)
-        
+
         # Should have no errors - comptime integer division should work
         assert len(errors) == 0, f"Unexpected errors: {[e.message for e in errors]}"
 
 
 class TestExpressionBlocksWithConditionals:
     """Test expression blocks containing conditionals (should be runtime)."""
-    
+
     def test_conditional_triggers_runtime_classification(self):
         """Test conditionals in expression blocks trigger runtime classification."""
         source = """
@@ -363,19 +368,19 @@ class TestExpressionBlocksWithConditionals:
             return result
         }
         """
-        
+
         parser = HexenParser()
         ast = parser.parse(source)
         analyzer = SemanticAnalyzer()
         errors = analyzer.analyze(ast)
-        
+
         # Should have no errors - conditional blocks work with explicit type annotation
         assert len(errors) == 0, f"Unexpected errors: {[e.message for e in errors]}"
 
 
 class TestReturnStatementsInExpressionBlocks:
     """Test return statements work correctly in expression blocks."""
-    
+
     def test_return_statement_in_comptime_block(self):
         """Test return statements in compile-time evaluable expression blocks."""
         source = """
@@ -389,15 +394,15 @@ class TestReturnStatementsInExpressionBlocks:
             return result  // Uses the computed result
         }
         """
-        
+
         parser = HexenParser()
         ast = parser.parse(source)
         analyzer = SemanticAnalyzer()
         errors = analyzer.analyze(ast)
-        
+
         # Should have no errors - comptime blocks preserve flexibility
         assert len(errors) == 0, f"Unexpected errors: {[e.message for e in errors]}"
-    
+
     def test_return_statement_in_runtime_block(self):
         """Test return statements in runtime expression blocks."""
         source = """
@@ -414,19 +419,19 @@ class TestReturnStatementsInExpressionBlocks:
             return result
         }
         """
-        
+
         parser = HexenParser()
         ast = parser.parse(source)
         analyzer = SemanticAnalyzer()
         errors = analyzer.analyze(ast)
-        
+
         # Should have no errors - runtime blocks work with explicit type annotation
         assert len(errors) == 0, f"Unexpected errors: {[e.message for e in errors]}"
 
 
 class TestComptimePreservationFoundationComplete:
     """Test Comptime Preservation foundation is complete and ready for Enhanced Error Messages."""
-    
+
     def test_all_comptime_preservation_patterns_working(self):
         """Test all comptime preservation patterns work together correctly."""
         source = """
@@ -452,29 +457,29 @@ class TestComptimePreservationFoundationComplete:
             return runtime_calc
         }
         """
-        
+
         parser = HexenParser()
         ast = parser.parse(source)
         analyzer = SemanticAnalyzer()
         errors = analyzer.analyze(ast)
-        
+
         # Should have no errors - all comptime preservation patterns work together
         assert len(errors) == 0, f"Unexpected errors: {[e.message for e in errors]}"
-    
+
     def test_comptime_preservation_ready_for_enhanced_error_messages(self):
         """Test comptime preservation infrastructure is ready for enhanced error message enhancements."""
         analyzer = SemanticAnalyzer()
-        
+
         # Test that all comptime preservation infrastructure is available for enhanced error messages
-        assert hasattr(analyzer.block_analyzer, '_validate_runtime_block_context')
-        assert hasattr(analyzer.block_analyzer, '_get_runtime_operation_reason')
-        
+        assert hasattr(analyzer.block_analyzer, "_validate_runtime_block_context")
+        assert hasattr(analyzer.block_analyzer, "_get_runtime_operation_reason")
+
         # Test that runtime detection infrastructure is still available
-        assert hasattr(analyzer.block_analyzer, '_contains_runtime_operations')
-        assert hasattr(analyzer.block_analyzer, '_contains_function_calls')
-        assert hasattr(analyzer.block_analyzer, '_contains_conditionals')
-        
+        assert hasattr(analyzer.block_analyzer, "_contains_runtime_operations")
+        assert hasattr(analyzer.block_analyzer, "_contains_function_calls")
+        assert hasattr(analyzer.block_analyzer, "_contains_conditionals")
+
         # Test that evaluability infrastructure is still available
-        assert hasattr(analyzer.block_analyzer, '_classify_block_evaluability')
-        assert hasattr(analyzer.block_analyzer, '_has_comptime_only_operations')
-        assert hasattr(analyzer.block_analyzer, '_has_runtime_variables')
+        assert hasattr(analyzer.block_analyzer, "_classify_block_evaluability")
+        assert hasattr(analyzer.block_analyzer, "_has_comptime_only_operations")
+        assert hasattr(analyzer.block_analyzer, "_has_runtime_variables")

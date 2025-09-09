@@ -10,8 +10,9 @@ Tests array literal syntax parsing including:
 """
 
 import pytest
-from src.hexen.parser import HexenParser
+
 from src.hexen.ast_nodes import NodeType
+from src.hexen.parser import HexenParser
 
 
 class TestArrayLiterals:
@@ -29,12 +30,12 @@ class TestArrayLiterals:
         }
         """
         ast = self.parser.parse(source)
-        
+
         # Navigate to variable declaration
         func = ast["functions"][0]
         val_decl = func["body"]["statements"][0]
         array_literal = val_decl["value"]
-        
+
         assert array_literal["type"] == NodeType.ARRAY_LITERAL.value
         assert array_literal["elements"] == []
 
@@ -44,9 +45,9 @@ class TestArrayLiterals:
             ("[42]", NodeType.COMPTIME_INT.value, 42),
             ("[3.14]", NodeType.COMPTIME_FLOAT.value, 3.14),
             ("[true]", NodeType.LITERAL.value, True),
-            ("[\"hello\"]", NodeType.LITERAL.value, "hello"),
+            ('["hello"]', NodeType.LITERAL.value, "hello"),
         ]
-        
+
         for array_str, expected_element_type, expected_value in test_cases:
             source = f"""
             func test() : void = {{
@@ -54,15 +55,15 @@ class TestArrayLiterals:
             }}
             """
             ast = self.parser.parse(source)
-            
+
             # Navigate to array literal
             func = ast["functions"][0]
             val_decl = func["body"]["statements"][0]
             array_literal = val_decl["value"]
-            
+
             assert array_literal["type"] == NodeType.ARRAY_LITERAL.value
             assert len(array_literal["elements"]) == 1
-            
+
             element = array_literal["elements"][0]
             assert element["type"] == expected_element_type
             assert element["value"] == expected_value
@@ -75,15 +76,15 @@ class TestArrayLiterals:
         }
         """
         ast = self.parser.parse(source)
-        
+
         # Navigate to array literal
         func = ast["functions"][0]
         val_decl = func["body"]["statements"][0]
         array_literal = val_decl["value"]
-        
+
         assert array_literal["type"] == NodeType.ARRAY_LITERAL.value
         assert len(array_literal["elements"]) == 5
-        
+
         expected_values = [1, 2, 3, 4, 5]
         for i, element in enumerate(array_literal["elements"]):
             assert element["type"] == NodeType.COMPTIME_INT.value
@@ -97,15 +98,15 @@ class TestArrayLiterals:
         }
         """
         ast = self.parser.parse(source)
-        
+
         # Navigate to array literal
         func = ast["functions"][0]
         val_decl = func["body"]["statements"][0]
         array_literal = val_decl["value"]
-        
+
         assert array_literal["type"] == NodeType.ARRAY_LITERAL.value
         assert len(array_literal["elements"]) == 3
-        
+
         expected_values = [3.14, 2.71, 1.41]
         for i, element in enumerate(array_literal["elements"]):
             assert element["type"] == NodeType.COMPTIME_FLOAT.value
@@ -119,15 +120,15 @@ class TestArrayLiterals:
         }
         """
         ast = self.parser.parse(source)
-        
+
         # Navigate to array literal
         func = ast["functions"][0]
         val_decl = func["body"]["statements"][0]
         array_literal = val_decl["value"]
-        
+
         assert array_literal["type"] == NodeType.ARRAY_LITERAL.value
         assert len(array_literal["elements"]) == 3
-        
+
         expected_values = ["hello", "world", "!"]
         for i, element in enumerate(array_literal["elements"]):
             assert element["type"] == NodeType.LITERAL.value
@@ -141,15 +142,15 @@ class TestArrayLiterals:
         }
         """
         ast = self.parser.parse(source)
-        
+
         # Navigate to array literal
         func = ast["functions"][0]
         val_decl = func["body"]["statements"][0]
         array_literal = val_decl["value"]
-        
+
         assert array_literal["type"] == NodeType.ARRAY_LITERAL.value
         assert len(array_literal["elements"]) == 3
-        
+
         expected_values = [True, False, True]
         for i, element in enumerate(array_literal["elements"]):
             assert element["type"] == NodeType.LITERAL.value
@@ -163,27 +164,27 @@ class TestArrayLiterals:
         }
         """
         ast = self.parser.parse(source)
-        
+
         # Navigate to array literal
         func = ast["functions"][0]
         val_decl = func["body"]["statements"][0]
         array_literal = val_decl["value"]
-        
+
         assert array_literal["type"] == NodeType.ARRAY_LITERAL.value
         assert len(array_literal["elements"]) == 4
-        
+
         # Check each element type and value
         elements = array_literal["elements"]
-        
+
         assert elements[0]["type"] == NodeType.COMPTIME_INT.value
         assert elements[0]["value"] == 42
-        
+
         assert elements[1]["type"] == NodeType.COMPTIME_FLOAT.value
         assert elements[1]["value"] == 3.14
-        
+
         assert elements[2]["type"] == NodeType.LITERAL.value
         assert elements[2]["value"] == True
-        
+
         assert elements[3]["type"] == NodeType.LITERAL.value
         assert elements[3]["value"] == "hello"
 
@@ -195,15 +196,15 @@ class TestArrayLiterals:
         }
         """
         ast = self.parser.parse(source)
-        
+
         # Navigate to array literal
         func = ast["functions"][0]
         val_decl = func["body"]["statements"][0]
         array_literal = val_decl["value"]
-        
+
         assert array_literal["type"] == NodeType.ARRAY_LITERAL.value
         assert len(array_literal["elements"]) == 2
-        
+
         # First row: [1, 2]
         row1 = array_literal["elements"][0]
         assert row1["type"] == NodeType.ARRAY_LITERAL.value
@@ -212,7 +213,7 @@ class TestArrayLiterals:
         assert row1["elements"][0]["value"] == 1
         assert row1["elements"][1]["type"] == NodeType.COMPTIME_INT.value
         assert row1["elements"][1]["value"] == 2
-        
+
         # Second row: [3, 4]
         row2 = array_literal["elements"][1]
         assert row2["type"] == NodeType.ARRAY_LITERAL.value
@@ -234,25 +235,21 @@ class TestArrayLiterals:
         }
         """
         ast = self.parser.parse(source)
-        
+
         # Navigate to array literal
         func = ast["functions"][0]
         val_decl = func["body"]["statements"][0]
         array_literal = val_decl["value"]
-        
+
         assert array_literal["type"] == NodeType.ARRAY_LITERAL.value
         assert len(array_literal["elements"]) == 3
-        
-        expected_values = [
-            [1, 2, 3],
-            [4, 5, 6],
-            [7, 8, 9]
-        ]
-        
+
+        expected_values = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
+
         for i, row in enumerate(array_literal["elements"]):
             assert row["type"] == NodeType.ARRAY_LITERAL.value
             assert len(row["elements"]) == 3
-            
+
             for j, element in enumerate(row["elements"]):
                 assert element["type"] == NodeType.COMPTIME_INT.value
                 assert element["value"] == expected_values[i][j]
@@ -265,31 +262,30 @@ class TestArrayLiterals:
         }
         """
         ast = self.parser.parse(source)
-        
+
         # Navigate to array literal
         func = ast["functions"][0]
         val_decl = func["body"]["statements"][0]
         array_literal = val_decl["value"]
-        
+
         assert array_literal["type"] == NodeType.ARRAY_LITERAL.value
         assert len(array_literal["elements"]) == 2
-        
-        expected_values = [
-            [[1, 2], [3, 4]],
-            [[5, 6], [7, 8]]
-        ]
-        
+
+        expected_values = [[[1, 2], [3, 4]], [[5, 6], [7, 8]]]
+
         for layer_idx, layer in enumerate(array_literal["elements"]):
             assert layer["type"] == NodeType.ARRAY_LITERAL.value
             assert len(layer["elements"]) == 2
-            
+
             for row_idx, row in enumerate(layer["elements"]):
                 assert row["type"] == NodeType.ARRAY_LITERAL.value
                 assert len(row["elements"]) == 2
-                
+
                 for col_idx, element in enumerate(row["elements"]):
                     assert element["type"] == NodeType.COMPTIME_INT.value
-                    assert element["value"] == expected_values[layer_idx][row_idx][col_idx]
+                    assert (
+                        element["value"] == expected_values[layer_idx][row_idx][col_idx]
+                    )
 
     def test_array_literal_with_expressions(self):
         """Test array literals containing expressions: [1 + 2, 3 * 4, 5 / 2]"""
@@ -299,15 +295,15 @@ class TestArrayLiterals:
         }
         """
         ast = self.parser.parse(source)
-        
+
         # Navigate to array literal
         func = ast["functions"][0]
         val_decl = func["body"]["statements"][0]
         array_literal = val_decl["value"]
-        
+
         assert array_literal["type"] == NodeType.ARRAY_LITERAL.value
         assert len(array_literal["elements"]) == 3
-        
+
         # Each element should be a binary operation
         for element in array_literal["elements"]:
             assert element["type"] == NodeType.BINARY_OPERATION.value
@@ -320,15 +316,15 @@ class TestArrayLiterals:
         }
         """
         ast = self.parser.parse(source)
-        
+
         # Navigate to array literal
         func = ast["functions"][0]
         val_decl = func["body"]["statements"][0]
         array_literal = val_decl["value"]
-        
+
         assert array_literal["type"] == NodeType.ARRAY_LITERAL.value
         assert len(array_literal["elements"]) == 3
-        
+
         expected_names = ["x", "y", "z"]
         for i, element in enumerate(array_literal["elements"]):
             assert element["type"] == NodeType.IDENTIFIER.value
@@ -342,15 +338,15 @@ class TestArrayLiterals:
         }
         """
         ast = self.parser.parse(source)
-        
+
         # Navigate to array literal
         func = ast["functions"][0]
         val_decl = func["body"]["statements"][0]
         array_literal = val_decl["value"]
-        
+
         assert array_literal["type"] == NodeType.ARRAY_LITERAL.value
         assert len(array_literal["elements"]) == 2
-        
+
         expected_names = ["func1", "func2"]
         for i, element in enumerate(array_literal["elements"]):
             assert element["type"] == NodeType.FUNCTION_CALL.value
@@ -364,16 +360,16 @@ class TestArrayLiterals:
         }
         """
         ast = self.parser.parse(source)
-        
+
         # Navigate to function call
         func = ast["functions"][0]
         func_call_stmt = func["body"]["statements"][0]
         func_call = func_call_stmt["function_call"]
-        
+
         assert func_call["type"] == NodeType.FUNCTION_CALL.value
         assert func_call["function_name"] == "process"
         assert len(func_call["arguments"]) == 1
-        
+
         array_literal = func_call["arguments"][0]
         assert array_literal["type"] == NodeType.ARRAY_LITERAL.value
         assert len(array_literal["elements"]) == 3
@@ -386,13 +382,13 @@ class TestArrayLiterals:
         }
         """
         ast = self.parser.parse(source)
-        
+
         # Navigate to return statement
         func = ast["functions"][0]
         return_stmt = func["body"]["statements"][0]
-        
+
         assert return_stmt["type"] == NodeType.RETURN_STATEMENT.value
-        
+
         array_literal = return_stmt["value"]
         assert array_literal["type"] == NodeType.ARRAY_LITERAL.value
         assert len(array_literal["elements"]) == 3
@@ -409,27 +405,27 @@ class TestArrayLiterals:
         }
         """
         ast = self.parser.parse(source)
-        
+
         # Navigate to array literal
         func = ast["functions"][0]
         val_decl = func["body"]["statements"][0]
         array_literal = val_decl["value"]
-        
+
         assert array_literal["type"] == NodeType.ARRAY_LITERAL.value
         assert len(array_literal["elements"]) == 3
-        
+
         # First sub-array: [1, 2]
         row1 = array_literal["elements"][0]
         assert row1["type"] == NodeType.ARRAY_LITERAL.value
         assert row1["elements"][0]["type"] == NodeType.COMPTIME_INT.value
         assert row1["elements"][1]["type"] == NodeType.COMPTIME_INT.value
-        
+
         # Second sub-array: ["hello", "world"]
         row2 = array_literal["elements"][1]
         assert row2["type"] == NodeType.ARRAY_LITERAL.value
         assert row2["elements"][0]["type"] == NodeType.LITERAL.value
         assert row2["elements"][1]["type"] == NodeType.LITERAL.value
-        
+
         # Third sub-array: [true, false]
         row3 = array_literal["elements"][2]
         assert row3["type"] == NodeType.ARRAY_LITERAL.value

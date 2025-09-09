@@ -8,20 +8,20 @@ symbol table management, and validation.
 
 from typing import Dict, List, Optional, Union
 
-from ..ast_nodes import NodeType
-from .types import HexenType, ConcreteArrayType
-from .symbol_table import SymbolTable
-from .errors import SemanticError
-from .binary_ops_analyzer import BinaryOpsAnalyzer
-from .unary_ops_analyzer import UnaryOpsAnalyzer
-from .declaration_analyzer import DeclarationAnalyzer
 from .assignment_analyzer import AssignmentAnalyzer
-from .return_analyzer import ReturnAnalyzer
+from .binary_ops_analyzer import BinaryOpsAnalyzer
 from .block_analyzer import BlockAnalyzer
-from .expression_analyzer import ExpressionAnalyzer
-from .conversion_analyzer import ConversionAnalyzer
-from .function_analyzer import FunctionAnalyzer
 from .comptime import ComptimeAnalyzer
+from .conversion_analyzer import ConversionAnalyzer
+from .declaration_analyzer import DeclarationAnalyzer
+from .errors import SemanticError
+from .expression_analyzer import ExpressionAnalyzer
+from .function_analyzer import FunctionAnalyzer
+from .return_analyzer import ReturnAnalyzer
+from .symbol_table import SymbolTable
+from .types import HexenType, ConcreteArrayType
+from .unary_ops_analyzer import UnaryOpsAnalyzer
+from ..ast_nodes import NodeType
 
 
 class SemanticAnalyzer:
@@ -45,7 +45,9 @@ class SemanticAnalyzer:
     def __init__(self):
         self.symbol_table = SymbolTable()
         self.errors: List[SemanticError] = []  # Collect all errors for batch reporting
-        self.current_function_return_type: Optional[Union[HexenType, ConcreteArrayType]] = None
+        self.current_function_return_type: Optional[
+            Union[HexenType, ConcreteArrayType]
+        ] = None
 
         # Context tracking for unified block concept
         self.block_context: List[str] = []  # Track: "function", "expression", etc.
@@ -312,7 +314,9 @@ class SemanticAnalyzer:
         else:
             self._error("'assign' statement requires an expression", node)
 
-    def _set_function_context(self, name: str, return_type: Union[HexenType, ConcreteArrayType]) -> None:
+    def _set_function_context(
+        self, name: str, return_type: Union[HexenType, ConcreteArrayType]
+    ) -> None:
         """Set the current function context for return type validation."""
         self.symbol_table.current_function = name
         self.current_function_return_type = return_type
@@ -328,7 +332,7 @@ class SemanticAnalyzer:
     def _analyze_conditional_statement(self, node: Dict) -> None:
         """
         Analyze conditional statement (if/else if/else) in statement context.
-        
+
         Statement context analysis:
         1. Validate condition is boolean type
         2. Analyze each branch as statement block with scope isolation
@@ -339,23 +343,23 @@ class SemanticAnalyzer:
         if not condition:
             self._error("Conditional statement missing condition", node)
             return
-            
+
         condition_type = self._analyze_expression(condition)
         if condition_type != HexenType.BOOL:
             self._error(
-                f"Condition must be of type bool, got {condition_type.name.lower()}", 
-                condition
+                f"Condition must be of type bool, got {condition_type.name.lower()}",
+                condition,
             )
-        
+
         # 2. Analyze if branch as statement block
-        if_branch = node.get("if_branch") 
+        if_branch = node.get("if_branch")
         if if_branch:
             self.symbol_table.enter_scope()
             try:
                 self._analyze_block(if_branch, node, context="statement")
             finally:
                 self.symbol_table.exit_scope()
-        
+
         # 3. Analyze each else clause
         else_clauses = node.get("else_clauses", [])
         for else_clause in else_clauses:
@@ -365,10 +369,10 @@ class SemanticAnalyzer:
                 clause_condition_type = self._analyze_expression(clause_condition)
                 if clause_condition_type != HexenType.BOOL:
                     self._error(
-                        f"Condition must be of type bool, got {clause_condition_type.name.lower()}", 
-                        clause_condition
+                        f"Condition must be of type bool, got {clause_condition_type.name.lower()}",
+                        clause_condition,
                     )
-            
+
             # Analyze else clause branch as statement block
             clause_branch = else_clause.get("branch")
             if clause_branch:
@@ -381,7 +385,7 @@ class SemanticAnalyzer:
     def _analyze_function_call_statement(self, node: Dict) -> None:
         """
         Analyze function call statement - validates function call in statement context.
-        
+
         Function call statements are used for side effects like calling void functions
         or functions where the return value is intentionally discarded.
         The result type is discarded since it's used in statement context.

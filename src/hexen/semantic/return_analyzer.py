@@ -13,8 +13,8 @@ Implements UNIFIED_BLOCK_SYSTEM.md return semantics:
 
 from typing import Dict, List, Optional, Callable, Union
 
-from .types import HexenType, ConcreteArrayType
 from .type_util import is_precision_loss_operation
+from .types import HexenType, ConcreteArrayType
 
 
 class ReturnAnalyzer:
@@ -34,9 +34,13 @@ class ReturnAnalyzer:
     def __init__(
         self,
         error_callback: Callable[[str, Optional[Dict]], None],
-        analyze_expression_callback: Callable[[Dict, Optional[Union[HexenType, ConcreteArrayType]]], HexenType],
+        analyze_expression_callback: Callable[
+            [Dict, Optional[Union[HexenType, ConcreteArrayType]]], HexenType
+        ],
         get_block_context_callback: Callable[[], List[str]],
-        get_current_function_return_type_callback: Callable[[], Optional[Union[HexenType, ConcreteArrayType]]],
+        get_current_function_return_type_callback: Callable[
+            [], Optional[Union[HexenType, ConcreteArrayType]]
+        ],
         comptime_analyzer,
     ):
         """
@@ -164,8 +168,9 @@ class ReturnAnalyzer:
         elif return_type != HexenType.UNKNOWN:
             # Check for precision loss operations that require explicit conversion
             # Skip precision loss check for ConcreteArrayType (not applicable)
-            if (isinstance(expected_return_type, HexenType) and 
-                is_precision_loss_operation(return_type, expected_return_type)):
+            if isinstance(
+                expected_return_type, HexenType
+            ) and is_precision_loss_operation(return_type, expected_return_type):
                 # For non-explicit-conversion expressions, require explicit conversion
                 if value.get("type") != "explicit_conversion_expression":
                     self._generate_precision_loss_error(
@@ -174,9 +179,13 @@ class ReturnAnalyzer:
                     return
 
             # Check for literal overflow before type coercion (only for simple types)
-            if (return_type in {HexenType.COMPTIME_INT, HexenType.COMPTIME_FLOAT} and
-                isinstance(expected_return_type, HexenType)):
-                literal_value, source_text = self.comptime_analyzer.extract_literal_info(value)
+            if return_type in {
+                HexenType.COMPTIME_INT,
+                HexenType.COMPTIME_FLOAT,
+            } and isinstance(expected_return_type, HexenType):
+                literal_value, source_text = (
+                    self.comptime_analyzer.extract_literal_info(value)
+                )
                 if literal_value is not None:
                     try:
                         self.comptime_analyzer.validate_comptime_literal_coercion(
@@ -194,9 +203,17 @@ class ReturnAnalyzer:
 
             if not can_coerce(return_type, expected_return_type):
                 # Handle error message for both HexenType and ConcreteArrayType
-                expected_str = expected_return_type.value if hasattr(expected_return_type, 'value') else str(expected_return_type)
-                return_str = return_type.value if hasattr(return_type, 'value') else str(return_type)
-                
+                expected_str = (
+                    expected_return_type.value
+                    if hasattr(expected_return_type, "value")
+                    else str(expected_return_type)
+                )
+                return_str = (
+                    return_type.value
+                    if hasattr(return_type, "value")
+                    else str(return_type)
+                )
+
                 self._error(
                     f"Return type mismatch: expected {expected_str}, got {return_str}",
                     node,

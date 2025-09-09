@@ -7,6 +7,7 @@ This test ensures that the grammar enforces tight binding for conversion syntax:
 """
 
 import pytest
+
 from src.hexen.parser import HexenParser
 
 

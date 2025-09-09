@@ -13,8 +13,8 @@ This analyzer handles:
 
 from typing import Dict, Optional, Callable
 
-from .types import HexenType
 from .type_util import parse_type
+from .types import HexenType
 
 
 class ConversionAnalyzer:

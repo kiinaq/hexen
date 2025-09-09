@@ -12,18 +12,19 @@ and that the enhanced unified block system provides the expected behavior.
 """
 
 import pytest
+
 from src.hexen.parser import HexenParser
 from src.hexen.semantic.analyzer import SemanticAnalyzer
-from tests.semantic import assert_no_errors, assert_error_count
+from tests.semantic import assert_no_errors
 
 
 class TestUnifiedBlockSystemIntegration:
     """Comprehensive integration tests for enhanced unified block system."""
-    
+
     def setup_method(self):
         self.parser = HexenParser()
         self.analyzer = SemanticAnalyzer()
-    
+
     def test_complete_specification_examples(self):
         """Test all examples from UNIFIED_BLOCK_SYSTEM.md work correctly."""
         # Example 1: Compile-time evaluable block preserves comptime types
@@ -48,7 +49,7 @@ class TestUnifiedBlockSystemIntegration:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         assert_no_errors(errors)
-    
+
     def test_runtime_blocks_require_explicit_context(self):
         """Test runtime blocks with mixed concrete types require explicit context."""
         # Runtime block with function call and mixed concrete types should require explicit context
@@ -66,13 +67,14 @@ class TestUnifiedBlockSystemIntegration:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        
+
         # Should have error about mixed concrete types requiring explicit conversion
         assert len(errors) >= 1
         error_messages = [str(e) for e in errors]
-        assert any("Mixed concrete types" in msg for msg in error_messages), \
+        assert any("Mixed concrete types" in msg for msg in error_messages), (
             f"Expected mixed concrete types error, got: {error_messages}"
-    
+        )
+
     def test_conditional_runtime_classification(self):
         """Test conditional expressions trigger runtime classification."""
         source = """
@@ -93,7 +95,7 @@ class TestUnifiedBlockSystemIntegration:
         errors = self.analyzer.analyze(ast)
         # This should work with explicit type annotation
         assert_no_errors(errors)
-    
+
     def test_complex_nested_scenarios(self):
         """Test complex nesting with mixed evaluability - should error without explicit context."""
         source = """
@@ -119,13 +121,17 @@ class TestUnifiedBlockSystemIntegration:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        
+
         # Should have error about runtime block requiring explicit context
         assert len(errors) >= 1
         error_messages = [str(e) for e in errors]
         # Check for either runtime context error or mixed concrete types error
-        assert any("context" in msg.lower() or "mixed concrete" in msg.lower() for msg in error_messages), \
+        assert any(
+            "context" in msg.lower() or "mixed concrete" in msg.lower()
+            for msg in error_messages
+        ), (
             f"Expected runtime context or mixed concrete types error, got: {error_messages}"
+        )
 
     def test_performance_optimization_patterns(self):
         """Test caching and optimization patterns work correctly."""
@@ -154,7 +160,7 @@ class TestUnifiedBlockSystemIntegration:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         assert_no_errors(errors)
-    
+
     def test_error_handling_with_guards(self):
         """Test error handling patterns with early returns."""
         source = """
@@ -178,7 +184,7 @@ class TestUnifiedBlockSystemIntegration:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         assert_no_errors(errors)
-    
+
     def test_real_world_usage_scenarios(self):
         """Test realistic usage patterns developers might use."""
         source = """
@@ -206,7 +212,7 @@ class TestUnifiedBlockSystemIntegration:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         assert_no_errors(errors)
-    
+
     def test_enhanced_error_message_integration(self):
         """Test enhanced error messages provide actionable guidance in real scenarios."""
         # Test mixed concrete types with enhanced error message
@@ -220,7 +226,7 @@ class TestUnifiedBlockSystemIntegration:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        
+
         assert len(errors) >= 1
         error_message = str(errors[0])
         assert "Mixed concrete types" in error_message
@@ -230,11 +236,11 @@ class TestUnifiedBlockSystemIntegration:
 
 class TestBackwardCompatibilityValidation:
     """Test that enhanced block system maintains backward compatibility."""
-    
+
     def setup_method(self):
         self.parser = HexenParser()
         self.analyzer = SemanticAnalyzer()
-    
+
     def test_existing_expression_blocks_still_work(self):
         """Test that existing expression block patterns continue to work."""
         source = """
@@ -257,7 +263,7 @@ class TestBackwardCompatibilityValidation:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         assert_no_errors(errors)
-    
+
     def test_existing_statement_blocks_unchanged(self):
         """Test that statement blocks behavior is unchanged."""
         source = """
@@ -283,7 +289,7 @@ class TestBackwardCompatibilityValidation:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         assert_no_errors(errors)
-    
+
     def test_existing_function_blocks_unchanged(self):
         """Test that function block behavior is unchanged."""
         source = """
@@ -312,11 +318,11 @@ class TestBackwardCompatibilityValidation:
 
 class TestSpecificationComplianceValidation:
     """Test complete compliance with UNIFIED_BLOCK_SYSTEM.md specification."""
-    
+
     def setup_method(self):
         self.parser = HexenParser()
         self.analyzer = SemanticAnalyzer()
-    
+
     def test_compile_time_vs_runtime_distinction(self):
         """Test the core compile-time vs runtime distinction works correctly."""
         source = """
@@ -338,7 +344,7 @@ class TestSpecificationComplianceValidation:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         assert_no_errors(errors)
-    
+
     def test_function_call_runtime_treatment(self):
         """Test that function calls trigger runtime classification."""
         source = """
@@ -357,7 +363,7 @@ class TestSpecificationComplianceValidation:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         assert_no_errors(errors)
-    
+
     def test_mixed_block_classification(self):
         """Test mixed comptime/runtime operations are classified as runtime."""
         source = """
@@ -376,7 +382,7 @@ class TestSpecificationComplianceValidation:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         assert_no_errors(errors)
-    
+
     def test_dual_capability_semantics(self):
         """Test -> + return dual capability in expression blocks."""
         source = """
@@ -400,11 +406,11 @@ class TestSpecificationComplianceValidation:
 
 class TestSessionIntegrationValidation:
     """Test that all Sessions 1-4 work together correctly."""
-    
+
     def setup_method(self):
         self.parser = HexenParser()
         self.analyzer = SemanticAnalyzer()
-    
+
     def test_session1_infrastructure_integration(self):
         """Test Session 1 block evaluability detection integrates correctly."""
         source = """
@@ -424,7 +430,7 @@ class TestSessionIntegrationValidation:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         assert_no_errors(errors)
-    
+
     def test_session2_runtime_detection_integration(self):
         """Test Session 2 function call and conditional detection integrates correctly."""
         source = """
@@ -453,7 +459,7 @@ class TestSessionIntegrationValidation:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         assert_no_errors(errors)
-    
+
     def test_session3_comptime_preservation_integration(self):
         """Test Session 3 comptime type preservation integrates correctly."""
         source = """
@@ -474,7 +480,7 @@ class TestSessionIntegrationValidation:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         assert_no_errors(errors)
-    
+
     def test_session4_enhanced_errors_integration(self):
         """Test Session 4 enhanced error messages integrate correctly with analysis."""
         # This tests that enhanced errors work but don't break analysis

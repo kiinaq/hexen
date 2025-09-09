@@ -7,8 +7,9 @@ consistent testing patterns.
 """
 
 import pytest
-from src.hexen.parser import HexenParser
+
 from src.hexen.ast_nodes import NodeType
+from src.hexen.parser import HexenParser
 
 
 def verify_binary_operation_ast(ast, expected_operator, expected_left, expected_right):

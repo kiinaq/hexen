@@ -11,6 +11,7 @@ Tests comprehensive literal overflow detection including:
 """
 
 import pytest
+
 from src.hexen.parser import HexenParser
 from src.hexen.semantic.analyzer import SemanticAnalyzer
 from . import assert_no_errors, assert_error_contains

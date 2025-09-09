@@ -5,8 +5,9 @@ Tests basic function parsing, return statements, and core syntax.
 """
 
 import pytest
-from src.hexen.parser import HexenParser
+
 from src.hexen.ast_nodes import NodeType
+from src.hexen.parser import HexenParser
 
 
 class TestMinimalHexen:

@@ -4,8 +4,8 @@ Hexen Parser
 Parser for Hexen language with variable declarations using Lark.
 """
 
-from pathlib import Path
 from lark import Lark, Transformer, v_args
+from pathlib import Path
 from typing import Dict, Any
 
 from .ast_nodes import NodeType
@@ -147,7 +147,7 @@ class HexenTransformer(Transformer):
         condition = args[0]
         if_branch = args[1]
         else_clauses = args[2:] if len(args) > 2 else []
-        
+
         return {
             "type": NodeType.CONDITIONAL_STATEMENT.value,
             "condition": condition,
@@ -368,14 +368,14 @@ class HexenTransformer(Transformer):
         # postfix: primary (array_access)*
         if len(children) == 1:
             return children[0]  # No array access
-        
+
         # Chain array accesses: arr[i][j][k]
         expr = children[0]  # Base expression
         for access in children[1:]:
             # Each array_access contains the index, we need to set the array
             access["array"] = expr
             expr = access
-        
+
         return expr
 
     def array_access(self, children):
@@ -390,7 +390,9 @@ class HexenTransformer(Transformer):
     def array_literal(self, children):
         # array_literal: "[" [expression ("," expression)*] "]"
         # Filter out None values that might come from empty optional groups
-        elements = [child for child in children if child is not None] if children else []
+        elements = (
+            [child for child in children if child is not None] if children else []
+        )
         return {
             "type": NodeType.ARRAY_LITERAL.value,
             "elements": elements,

@@ -7,7 +7,6 @@ for common array-related errors across all array features.
 
 from src.hexen.parser import HexenParser
 from src.hexen.semantic.analyzer import SemanticAnalyzer
-from .. import assert_error_contains
 
 
 class TestArrayLiteralErrorMessages:
@@ -50,7 +49,10 @@ class TestArrayLiteralErrorMessages:
 
         assert len(errors) == 1
         error_msg = str(errors[0])
-        assert "Mixed concrete/comptime element types require explicit array context" in error_msg
+        assert (
+            "Mixed concrete/comptime element types require explicit array context"
+            in error_msg
+        )
 
     def test_type_mismatch_in_array_elements_error_message(self):
         """Test clear error message for incompatible element types."""
@@ -66,13 +68,16 @@ class TestArrayLiteralErrorMessages:
 
         assert len(errors) >= 1
         error_messages = [str(error) for error in errors]
-        
+
         # Should indicate type compatibility issues
         has_type_guidance = any(
-            "type" in msg.lower() and ("mismatch" in msg.lower() or "incompatible" in msg.lower())
+            "type" in msg.lower()
+            and ("mismatch" in msg.lower() or "incompatible" in msg.lower())
             for msg in error_messages
         )
-        assert has_type_guidance, f"Missing type compatibility guidance in: {error_messages}"
+        assert has_type_guidance, (
+            f"Missing type compatibility guidance in: {error_messages}"
+        )
 
 
 class TestMultidimensionalArrayErrorMessages:
@@ -97,9 +102,12 @@ class TestMultidimensionalArrayErrorMessages:
 
         assert len(errors) == 1
         error_msg = str(errors[0])
-        
+
         # Should clearly describe the structural problem
-        assert "Inconsistent inner array dimensions" in error_msg or "dimensions" in error_msg.lower()
+        assert (
+            "Inconsistent inner array dimensions" in error_msg
+            or "dimensions" in error_msg.lower()
+        )
         # Should provide specific details about the mismatch
         assert "3" in error_msg and "2" in error_msg
 
@@ -117,9 +125,12 @@ class TestMultidimensionalArrayErrorMessages:
 
         assert len(errors) == 1
         error_msg = str(errors[0])
-        
+
         # Should clearly identify the mixed element types
-        assert "not an array" in error_msg.lower() or "multidimensional" in error_msg.lower()
+        assert (
+            "not an array" in error_msg.lower()
+            or "multidimensional" in error_msg.lower()
+        )
 
     def test_deep_3d_inconsistency_error_message(self):
         """Test error message for deep 3D structural inconsistencies."""
@@ -138,13 +149,15 @@ class TestMultidimensionalArrayErrorMessages:
 
         assert len(errors) >= 1
         error_messages = [str(error) for error in errors]
-        
+
         # Should detect structural inconsistency
         structural_error = any(
             "inconsistent" in msg.lower() or "dimensions" in msg.lower()
             for msg in error_messages
         )
-        assert structural_error, f"Missing structural consistency error in: {error_messages}"
+        assert structural_error, (
+            f"Missing structural consistency error in: {error_messages}"
+        )
 
 
 class TestArrayAccessErrorMessages:
@@ -170,7 +183,7 @@ class TestArrayAccessErrorMessages:
 
         assert len(errors) == 1
         error_msg = str(errors[0])
-        
+
         # Should clearly state index type requirement
         assert "Array index must be integer type" in error_msg
         # Should provide guidance on valid types
@@ -191,7 +204,7 @@ class TestArrayAccessErrorMessages:
 
         assert len(errors) >= 1
         error_messages = [str(error) for error in errors]
-        
+
         # Should clearly indicate non-array indexing attempt
         indexing_error = any(
             "cannot index" in msg.lower() or "not an array" in msg.lower()
@@ -215,7 +228,7 @@ class TestArrayAccessErrorMessages:
 
         assert len(errors) == 1
         error_msg = str(errors[0])
-        
+
         # Should specify that integers are required
         assert "integer type" in error_msg.lower()
         assert "f64" in error_msg
@@ -243,7 +256,7 @@ class TestArrayTypeContextErrorMessages:
 
         assert len(errors) >= 1
         error_messages = [str(error) for error in errors]
-        
+
         # Should indicate type mismatch between expected and actual
         type_mismatch = any(
             "type mismatch" in msg.lower() or ("i32" in msg and "string" in msg.lower())
@@ -265,10 +278,11 @@ class TestArrayTypeContextErrorMessages:
 
         assert len(errors) >= 1
         error_messages = [str(error) for error in errors]
-        
+
         # Should clearly indicate size mismatch
         size_mismatch = any(
-            ("expected" in msg.lower() and "got" in msg.lower()) or "size mismatch" in msg.lower()
+            ("expected" in msg.lower() and "got" in msg.lower())
+            or "size mismatch" in msg.lower()
             for msg in error_messages
         )
         assert size_mismatch, f"Missing size mismatch guidance in: {error_messages}"
@@ -301,13 +315,16 @@ class TestArrayFunctionIntegrationErrorMessages:
 
         assert len(errors) >= 1
         error_messages = [str(error) for error in errors]
-        
+
         # Should indicate parameter type mismatch
         param_mismatch = any(
-            ("parameter" in msg.lower() or "argument" in msg.lower()) and "type" in msg.lower()
+            ("parameter" in msg.lower() or "argument" in msg.lower())
+            and "type" in msg.lower()
             for msg in error_messages
         )
-        assert param_mismatch, f"Missing parameter type mismatch error in: {error_messages}"
+        assert param_mismatch, (
+            f"Missing parameter type mismatch error in: {error_messages}"
+        )
 
     def test_array_return_type_mismatch_error_message(self):
         """Test error message for array return type mismatches."""
@@ -322,11 +339,11 @@ class TestArrayFunctionIntegrationErrorMessages:
 
         assert len(errors) >= 1
         error_messages = [str(error) for error in errors]
-        
+
         # Should indicate element type mismatch or return type mismatch
         type_mismatch = any(
-            ("return" in msg.lower() and "type" in msg.lower()) or
-            ("element" in msg.lower() and "type mismatch" in msg.lower())
+            ("return" in msg.lower() and "type" in msg.lower())
+            or ("element" in msg.lower() and "type mismatch" in msg.lower())
             for msg in error_messages
         )
         assert type_mismatch, f"Missing type mismatch error in: {error_messages}"
@@ -382,7 +399,8 @@ class TestComplexArrayScenarioErrorMessages:
 
         # Should provide clear guidance about the indexing error
         indexing_guidance = any(
-            "index" in msg.lower() and ("integer" in msg.lower() or "type" in msg.lower())
+            "index" in msg.lower()
+            and ("integer" in msg.lower() or "type" in msg.lower())
             for msg in error_messages
         )
         assert indexing_guidance, f"Missing indexing guidance in: {error_messages}"
@@ -406,7 +424,10 @@ class TestComplexArrayScenarioErrorMessages:
         error_msg = str(errors[0])
 
         # Should report the empty array error clearly
-        assert "empty array" in error_msg.lower() or "explicit type context" in error_msg.lower()
+        assert (
+            "empty array" in error_msg.lower()
+            or "explicit type context" in error_msg.lower()
+        )
 
 
 class TestErrorMessageConsistency:
@@ -427,7 +448,7 @@ class TestErrorMessageConsistency:
         }
         """
 
-        # Test in array access context  
+        # Test in array access context
         access_code = """
         func test2() : void = {
             val numbers = [1, 2, 3]
@@ -451,9 +472,7 @@ class TestErrorMessageConsistency:
         error_messages = [str(error) for error in all_errors]
 
         # Check for consistent type terminology
-        type_consistency = all(
-            "type" in msg.lower() for msg in error_messages
-        )
+        type_consistency = all("type" in msg.lower() for msg in error_messages)
         assert type_consistency, f"Inconsistent type messages: {error_messages}"
 
     def test_actionable_guidance_consistency(self):

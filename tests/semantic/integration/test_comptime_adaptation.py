@@ -27,13 +27,13 @@ This file focuses on the comptime adaptation mechanisms themselves.
 NOTE: This file uses parser-based test code following established patterns.
 """
 
+from src.hexen.ast_nodes import NodeType
+from src.hexen.semantic import HexenType
 from tests.semantic import (
     StandardTestBase,
     assert_no_errors,
     assert_error_count,
 )
-from src.hexen.semantic import HexenType
-from src.hexen.ast_nodes import NodeType
 
 
 class TestComptimeAdaptationMechanisms(StandardTestBase):

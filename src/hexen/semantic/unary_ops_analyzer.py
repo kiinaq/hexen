@@ -9,10 +9,10 @@ Handles analysis of unary operations including:
 
 from typing import Dict, Optional, Callable
 
-from .types import HexenType
 from .type_util import (
     is_numeric_type,
 )
+from .types import HexenType
 
 
 class UnaryOpsAnalyzer:
@@ -82,7 +82,9 @@ class UnaryOpsAnalyzer:
                 return HexenType.UNKNOWN
 
             # Use centralized comptime type preservation logic
-            result_type = self.comptime_analyzer.preserve_comptime_type_in_unary_op(operand_type, operator)
+            result_type = self.comptime_analyzer.preserve_comptime_type_in_unary_op(
+                operand_type, operator
+            )
             if result_type != HexenType.UNKNOWN:
                 return result_type
 

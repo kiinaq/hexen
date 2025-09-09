@@ -17,14 +17,14 @@ duplicating the existing comptime type system.
 """
 
 from .array_types import ArrayTypeInfo, ArrayDimension
-from .literal_analyzer import ArrayLiteralAnalyzer
 from .error_messages import ArraySemanticError, ArrayErrorMessages, ArrayErrorFactory
+from .literal_analyzer import ArrayLiteralAnalyzer
 
 __all__ = [
-    'ArrayTypeInfo', 
-    'ArrayDimension', 
-    'ArrayLiteralAnalyzer',
-    'ArraySemanticError',
-    'ArrayErrorMessages', 
-    'ArrayErrorFactory'
+    "ArrayTypeInfo",
+    "ArrayDimension",
+    "ArrayLiteralAnalyzer",
+    "ArraySemanticError",
+    "ArrayErrorMessages",
+    "ArrayErrorFactory",
 ]

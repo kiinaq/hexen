@@ -3,11 +3,11 @@ Semantic tests for conditional statements and expressions.
 
 Tests Statement Context Analysis
 - Conditional statement analysis
-- Boolean condition type checking  
+- Boolean condition type checking
 - Scope management for branches
 - Integration with function bodies
 
-Tests Expression Context Analysis  
+Tests Expression Context Analysis
 - Conditional expression analysis
 - Assign/return validation in branches
 - Type unification across branches
@@ -15,17 +15,14 @@ Tests Expression Context Analysis
 
 Tests Type System Integration
 - Runtime treatment of all conditionals with comptime type handling
-- Target type context propagation to branches and parameter contexts  
+- Target type context propagation to branches and parameter contexts
 - Explicit conversion requirements for mixed concrete types
 - Comprehensive type integration with val/mut and expression blocks
 """
 
 import pytest
-from tests.semantic import (
-    parse_and_analyze, 
-    assert_no_errors, 
-    assert_error_contains
-)
+
+from tests.semantic import parse_and_analyze, assert_no_errors, assert_error_contains
 
 
 class TestConditionalStatements:
@@ -33,20 +30,20 @@ class TestConditionalStatements:
 
     def test_basic_if_statement(self):
         """Test basic if statement with boolean condition."""
-        code = '''
+        code = """
         func test() : void = {
             if true {
                 val x = 42
             }
             return
         }
-        '''
+        """
         ast, errors = parse_and_analyze(code)
         assert_no_errors(errors)
-        
+
     def test_if_else_statement(self):
         """Test if-else statement."""
-        code = '''
+        code = """
         func test() : void = {
             if true {
                 val x = 42
@@ -55,13 +52,13 @@ class TestConditionalStatements:
             }
             return
         }
-        '''
+        """
         ast, errors = parse_and_analyze(code)
         assert_no_errors(errors)
-        
+
     def test_else_if_chain(self):
         """Test if-else if-else chain."""
-        code = '''
+        code = """
         func test(input : i32) : void = {
             if input < 0 {
                 val negative = -1
@@ -72,13 +69,13 @@ class TestConditionalStatements:
             }
             return
         }
-        '''
+        """
         ast, errors = parse_and_analyze(code)
         assert_no_errors(errors)
-        
+
     def test_nested_conditionals(self):
         """Test nested conditional statements."""
-        code = '''
+        code = """
         func test(a : i32, b : i32) : void = {
             if a > 0 {
                 if b > 0 {
@@ -91,7 +88,7 @@ class TestConditionalStatements:
             }
             return
         }
-        '''
+        """
         ast, errors = parse_and_analyze(code)
         assert_no_errors(errors)
 
@@ -101,7 +98,7 @@ class TestConditionValidation:
 
     def test_boolean_condition_validation(self):
         """Test that boolean conditions are accepted."""
-        code = '''
+        code = """
         func test() : void = {
             val flag : bool = true
             if flag {
@@ -109,13 +106,13 @@ class TestConditionValidation:
             }
             return
         }
-        '''
+        """
         ast, errors = parse_and_analyze(code)
         assert_no_errors(errors)
-        
+
     def test_comparison_conditions(self):
         """Test comparison operations as conditions."""
-        code = '''
+        code = """
         func test(x : i32, y : i32) : void = {
             if x > y {
                 val greater = 1
@@ -137,13 +134,13 @@ class TestConditionValidation:
             }
             return
         }
-        '''
+        """
         ast, errors = parse_and_analyze(code)
         assert_no_errors(errors)
-        
+
     def test_logical_conditions(self):
         """Test logical operations as conditions."""
-        code = '''
+        code = """
         func test(a : bool, b : bool) : void = {
             if a && b {
                 val both_true = 1
@@ -156,14 +153,14 @@ class TestConditionValidation:
             }
             return
         }
-        '''
+        """
         ast, errors = parse_and_analyze(code)
         assert_no_errors(errors)
-        
+
     def test_invalid_condition_types(self):
         """Test that non-boolean conditions produce errors."""
         # i32 condition
-        code = '''
+        code = """
         func test() : void = {
             val x : i32 = 42
             if x {
@@ -171,12 +168,12 @@ class TestConditionValidation:
             }
             return
         }
-        '''
+        """
         ast, errors = parse_and_analyze(code)
         assert_error_contains(errors, "Condition must be of type bool, got i32")
-        
-        # string condition  
-        code = '''
+
+        # string condition
+        code = """
         func test() : void = {
             val message = "hello"
             if message {
@@ -184,12 +181,12 @@ class TestConditionValidation:
             }
             return
         }
-        '''
+        """
         ast, errors = parse_and_analyze(code)
         assert_error_contains(errors, "Condition must be of type bool, got string")
-        
+
         # f64 condition
-        code = '''
+        code = """
         func test() : void = {
             val pi : f64 = 3.14
             if pi {
@@ -197,17 +194,17 @@ class TestConditionValidation:
             }
             return
         }
-        '''
+        """
         ast, errors = parse_and_analyze(code)
         assert_error_contains(errors, "Condition must be of type bool, got f64")
 
 
 class TestScopeManagement:
     """Test scope isolation and management in conditional branches."""
-    
+
     def test_scope_isolation(self):
         """Test that variables in branches are scoped properly."""
-        code = '''
+        code = """
         func test() : void = {
             if true {
                 val scoped = 42
@@ -215,13 +212,13 @@ class TestScopeManagement:
             // scoped should not be accessible here
             return
         }
-        '''
+        """
         ast, errors = parse_and_analyze(code)
         assert_no_errors(errors)
-        
+
     def test_variable_shadowing(self):
         """Test variable shadowing within conditional branches."""
-        code = '''
+        code = """
         func test() : void = {
             val x = 10
             if true {
@@ -230,13 +227,13 @@ class TestScopeManagement:
             // outer x should still be 10
             return
         }
-        '''
+        """
         ast, errors = parse_and_analyze(code)
         assert_no_errors(errors)
-        
+
     def test_lexical_scoping(self):
         """Test access to outer scope variables from conditional branches."""
-        code = '''
+        code = """
         func test() : void = {
             val outer = 42
             if true {
@@ -244,13 +241,13 @@ class TestScopeManagement:
             }
             return
         }
-        '''
+        """
         ast, errors = parse_and_analyze(code)
         assert_no_errors(errors)
-        
+
     def test_scope_cleanup(self):
         """Test that variables are cleaned up after branch exit."""
-        code = '''
+        code = """
         func test() : void = {
             if true {
                 val temp = 100
@@ -259,17 +256,17 @@ class TestScopeManagement:
             }
             return
         }
-        '''
+        """
         ast, errors = parse_and_analyze(code)
         assert_no_errors(errors)
 
 
 class TestIntegrationWithFunctions:
     """Test conditional statements within function contexts."""
-    
+
     def test_conditionals_in_functions(self):
         """Test conditional statements within function bodies."""
-        code = '''
+        code = """
         func process(input : i32) : void = {
             if input > 0 {
                 val positive_message = "Positive number"
@@ -280,13 +277,13 @@ class TestIntegrationWithFunctions:
             }
             return
         }
-        '''
+        """
         ast, errors = parse_and_analyze(code)
         assert_no_errors(errors)
-        
+
     def test_return_statements_in_conditionals(self):
         """Test early return statements within conditionals."""
-        code = '''
+        code = """
         func validate(input : i32) : i32 = {
             if input < 0 {
                 return -1  // Early return for negative input
@@ -296,13 +293,13 @@ class TestIntegrationWithFunctions:
             }
             return input  // Normal return
         }
-        '''
+        """
         ast, errors = parse_and_analyze(code)
         assert_no_errors(errors)
-        
+
     def test_empty_branches(self):
         """Test conditional statements with empty branches."""
-        code = '''
+        code = """
         func test() : void = {
             if true {
                 // Empty if branch
@@ -314,30 +311,30 @@ class TestIntegrationWithFunctions:
             }
             return
         }
-        '''
+        """
         ast, errors = parse_and_analyze(code)
         assert_no_errors(errors)
 
 
 class TestErrorConditions:
     """Test various error conditions for conditional statements."""
-    
+
     def test_undefined_variable_in_condition(self):
         """Test error for undefined variable in condition."""
-        code = '''
+        code = """
         func test() : void = {
             if undefined_var {
                 val x = 42
             }
             return
         }
-        '''
+        """
         ast, errors = parse_and_analyze(code)
         assert_error_contains(errors, "Undefined variable: 'undefined_var'")
-        
+
     def test_type_mismatch_in_condition(self):
         """Test error for type mismatch in condition expressions."""
-        code = '''
+        code = """
         func test() : void = {
             val x : i32 = 10
             val y : f64 = 3.14
@@ -346,7 +343,7 @@ class TestErrorConditions:
             }
             return
         }
-        '''
+        """
         # Note: This might pass depending on comptime type handling
         # Will be refined in later sessions
         ast, errors = parse_and_analyze(code)
@@ -355,10 +352,10 @@ class TestErrorConditions:
 
 class TestAdvancedPatterns:
     """Test advanced conditional patterns."""
-    
+
     def test_multiple_conditions_same_scope(self):
         """Test multiple conditionals in same scope level."""
-        code = '''
+        code = """
         func test(a : i32, b : i32, c : i32) : void = {
             if a > 0 {
                 val pos_a = true
@@ -371,13 +368,13 @@ class TestAdvancedPatterns:
             }
             return
         }
-        '''
+        """
         ast, errors = parse_and_analyze(code)
         assert_no_errors(errors)
-        
+
     def test_conditional_with_function_calls(self):
         """Test conditionals with function call conditions (basic case)."""
-        code = '''
+        code = """
         func is_valid(x : i32) : bool = {
             return x > 0
         }
@@ -388,7 +385,7 @@ class TestAdvancedPatterns:
             }
             return
         }
-        '''
+        """
         ast, errors = parse_and_analyze(code)
         assert_no_errors(errors)
 
@@ -398,7 +395,7 @@ class TestConditionalExpressions:
 
     def test_basic_conditional_expression(self):
         """Test basic conditional expression with -> statements."""
-        code = '''
+        code = """
         func test() : i32 = {
             val result = if true {
                 -> 42
@@ -409,13 +406,13 @@ class TestConditionalExpressions:
                 return result
             }
         }
-        '''
+        """
         ast, errors = parse_and_analyze(code)
         assert_no_errors(errors)
 
     def test_conditional_expression_with_comptime_values(self):
         """Test conditional expression with comptime literals."""
-        code = '''
+        code = """
         func get_value(flag : bool) : f64 = {
             val result : f64 = if flag {
                 -> 42       // comptime_int -> f64
@@ -426,13 +423,13 @@ class TestConditionalExpressions:
                 return result
             }
         }
-        '''
+        """
         ast, errors = parse_and_analyze(code)
         assert_no_errors(errors)
-        
+
     def test_conditional_expression_with_variables(self):
         """Test conditional expression using variables."""
-        code = '''
+        code = """
         func select(flag : bool, a : i32, b : i32) : i32 = {
             val result = if flag {
                 -> a
@@ -443,13 +440,13 @@ class TestConditionalExpressions:
                 return result
             }
         }
-        '''
+        """
         ast, errors = parse_and_analyze(code)
         assert_no_errors(errors)
 
     def test_conditional_expression_with_early_return(self):
         """Test conditional expression with return statements for early exit."""
-        code = '''
+        code = """
         func process(input : i32) : i32 = {
             val result = if input < 0 {
                 return -1          // Early function exit
@@ -460,13 +457,13 @@ class TestConditionalExpressions:
                 return result
             }
         }
-        '''
+        """
         ast, errors = parse_and_analyze(code)
         assert_no_errors(errors)
 
     def test_conditional_expression_else_if_chain(self):
         """Test conditional expression with else-if chains."""
-        code = '''
+        code = """
         func classify(score : i32) : string = {
             val grade = if score >= 90 {
                 -> "A"
@@ -479,13 +476,13 @@ class TestConditionalExpressions:
             }
             return grade
         }
-        '''
+        """
         ast, errors = parse_and_analyze(code)
         assert_no_errors(errors)
 
     def test_mixed_return_and_assign(self):
         """Test conditional expression mixing return and -> statements."""
-        code = '''
+        code = """
         func validate_and_process(input : i32) : i32 = {
             val result = if input < 0 {
                 return -1          // Early exit: error case
@@ -498,7 +495,7 @@ class TestConditionalExpressions:
                 return result
             }
         }
-        '''
+        """
         ast, errors = parse_and_analyze(code)
         assert_no_errors(errors)
 
@@ -508,7 +505,7 @@ class TestConditionalExpressionErrors:
 
     def test_non_boolean_condition_in_expression(self):
         """Test error for non-boolean condition in conditional expression."""
-        code = '''
+        code = """
         func test(x : i32) : i32 = {
             val result = if x {  // Error: i32 not bool
                 -> 42
@@ -519,7 +516,7 @@ class TestConditionalExpressionErrors:
                 return result
             }
         }
-        '''
+        """
         ast, errors = parse_and_analyze(code)
         assert_error_contains(errors, "Condition must be of type bool, got i32")
 
@@ -529,7 +526,7 @@ class TestConditionalExpressionTypeResolution:
 
     def test_comptime_type_unification(self):
         """Test type unification with comptime types."""
-        code = '''
+        code = """
         func get_number(use_int : bool) : f64 = {
             val result : f64 = if use_int {
                 -> 42       // comptime_int -> f64
@@ -540,13 +537,13 @@ class TestConditionalExpressionTypeResolution:
                 return result
             }
         }
-        '''
+        """
         ast, errors = parse_and_analyze(code)
         assert_no_errors(errors)
 
     def test_explicit_type_context_propagation(self):
         """Test that target type context propagates to branches."""
-        code = '''
+        code = """
         func get_value(flag : bool) : i32 = {
             val result : i32 = if flag {
                 -> 42       // comptime_int adapts to i32 context
@@ -557,13 +554,13 @@ class TestConditionalExpressionTypeResolution:
                 return result
             }
         }
-        '''
+        """
         ast, errors = parse_and_analyze(code)
         assert_no_errors(errors)
 
     def test_nested_conditional_expressions(self):
         """Test nested conditional expressions."""
-        code = '''
+        code = """
         func complex_logic(a : bool, b : bool) : i32 = {
             val result = if a {
                 -> if b {
@@ -582,7 +579,7 @@ class TestConditionalExpressionTypeResolution:
                 return result
             }
         }
-        '''
+        """
         ast, errors = parse_and_analyze(code)
         assert_no_errors(errors)
 
@@ -592,7 +589,7 @@ class TestConditionalIntegrationPatterns:
 
     def test_conditionals_in_expression_blocks(self):
         """Test conditional expressions within expression blocks."""
-        code = '''
+        code = """
         func calculate(base : i32) : f64 = {
             val result : f64 = {
                 val multiplier = if base > 100 {
@@ -606,13 +603,13 @@ class TestConditionalIntegrationPatterns:
                 return result
             }
         }
-        '''
+        """
         ast, errors = parse_and_analyze(code)
         assert_no_errors(errors)
 
     def test_conditionals_with_function_calls_in_conditions(self):
         """Test conditionals with function calls in conditions."""
-        code = '''
+        code = """
         func is_valid(x : i32) : bool = {
             return x > 0
         }
@@ -627,13 +624,13 @@ class TestConditionalIntegrationPatterns:
                 return result
             }
         }
-        '''
+        """
         ast, errors = parse_and_analyze(code)
         assert_no_errors(errors)
 
     def test_conditionals_with_binary_operations(self):
         """Test conditionals with complex condition expressions."""
-        code = '''
+        code = """
         func categorize(x : i32, y : i32) : string = {
             val category = if x > 0 && y > 0 {
                 -> "positive"
@@ -644,7 +641,7 @@ class TestConditionalIntegrationPatterns:
             }
             return category
         }
-        '''
+        """
         ast, errors = parse_and_analyze(code)
         assert_no_errors(errors)
 
@@ -654,7 +651,7 @@ class TestTypeSystemIntegration:
 
     def test_comptime_type_runtime_treatment(self):
         """Test that all conditionals are treated as runtime with comptime types."""
-        code = '''
+        code = """
         func test_runtime_treatment() : f64 = {
             // Mixed comptime types require explicit target context (runtime treatment)
             val result : f64 = if true {    // Runtime condition (even though constant)
@@ -666,13 +663,13 @@ class TestTypeSystemIntegration:
                 return result
             }
         }
-        '''
+        """
         ast, errors = parse_and_analyze(code)
         assert_no_errors(errors)
 
     def test_target_type_context_propagation(self):
         """Test target type propagation to conditional branches."""
-        code = '''
+        code = """
         func test_context_propagation() : i32 = {
             // Target type i32 should propagate to both branches
             val result : i32 = if true {
@@ -684,13 +681,13 @@ class TestTypeSystemIntegration:
                 return result
             }
         }
-        '''
+        """
         ast, errors = parse_and_analyze(code)
         assert_no_errors(errors)
 
     def test_mixed_comptime_types_with_context(self):
         """Test mixed comptime types resolve correctly with target context."""
-        code = '''
+        code = """
         func test_mixed_comptime() : f64 = {
             val result : f64 = if true {
                 -> 42       // comptime_int -> f64 (target context)
@@ -701,13 +698,13 @@ class TestTypeSystemIntegration:
                 return result
             }
         }
-        '''
+        """
         ast, errors = parse_and_analyze(code)
         assert_no_errors(errors)
 
     def test_mixed_concrete_types_require_explicit_conversion(self):
         """Test that mixed concrete types require explicit conversions."""
-        code = '''
+        code = """
         func get_i32() : i32 = { return 42 }
         func get_f64() : f64 = { return 3.14 }
         
@@ -721,13 +718,13 @@ class TestTypeSystemIntegration:
                 return result
             }
         }
-        '''
+        """
         ast, errors = parse_and_analyze(code)
         assert_no_errors(errors)
 
     def test_mixed_concrete_types_error_without_conversion(self):
         """Test error for mixed concrete types without explicit conversion."""
-        code = '''
+        code = """
         func get_i32() : i32 = { return 42 }
         func get_f64() : f64 = { return 3.14 }
         
@@ -741,13 +738,16 @@ class TestTypeSystemIntegration:
                 return result
             }
         }
-        '''
+        """
         ast, errors = parse_and_analyze(code)
-        assert_error_contains(errors, "Branch type mismatch in conditional branch: i32 incompatible with target type f64. Use explicit conversion: value:f64")
+        assert_error_contains(
+            errors,
+            "Branch type mismatch in conditional branch: i32 incompatible with target type f64. Use explicit conversion: value:f64",
+        )
 
     def test_function_parameter_context_propagation(self):
         """Test context propagation from function parameters."""
-        code = '''
+        code = """
         func process_f64(value : f64) : void = { return }
         
         func test_parameter_context() : void = {
@@ -759,13 +759,13 @@ class TestTypeSystemIntegration:
             })
             return
         }
-        '''
+        """
         ast, errors = parse_and_analyze(code)
         assert_no_errors(errors)
 
     def test_function_return_context_propagation(self):
         """Test context propagation from function return type."""
-        code = '''
+        code = """
         func test_return_context() : f64 = {
             // Function return type provides context for conditional
             return if true {
@@ -774,13 +774,13 @@ class TestTypeSystemIntegration:
                 -> 3.14         // comptime_float -> f64 (return context)
             }
         }
-        '''
+        """
         ast, errors = parse_and_analyze(code)
         assert_no_errors(errors)
 
     def test_val_vs_mut_with_conditionals(self):
         """Test conditional expressions with val vs mut declarations."""
-        code = '''
+        code = """
         func test_val_vs_mut() : void = {
             // val with conditional (can preserve flexibility with target type)
             val val_result : f64 = if true {
@@ -804,13 +804,13 @@ class TestTypeSystemIntegration:
             
             return
         }
-        '''
+        """
         ast, errors = parse_and_analyze(code)
         assert_no_errors(errors)
 
     def test_expression_blocks_with_conditionals_require_context(self):
         """Test that expression blocks containing conditionals require explicit context."""
-        code = '''
+        code = """
         func test_expression_block_context() : f64 = {
             val result : f64 = {        // Context REQUIRED (runtime block)!
                 val base = 42           // comptime_int
@@ -825,13 +825,13 @@ class TestTypeSystemIntegration:
                 return result
             }
         }
-        '''
+        """
         ast, errors = parse_and_analyze(code)
         assert_no_errors(errors)
 
     def test_nested_conditionals_with_type_propagation(self):
         """Test nested conditional expressions with type propagation."""
-        code = '''
+        code = """
         func test_nested_conditionals() : f64 = {
             val result : f64 = if true {
                 -> if false {
@@ -850,7 +850,7 @@ class TestTypeSystemIntegration:
                 return result
             }
         }
-        '''
+        """
         ast, errors = parse_and_analyze(code)
         assert_no_errors(errors)
 
@@ -860,7 +860,7 @@ class TestTypeSystemErrorHandling:
 
     def test_mixed_types_without_target_context_error(self):
         """Test error when mixed comptime types lack target context."""
-        code = '''
+        code = """
         func test_missing_context() : void = {
             val result = if true {      // Missing explicit type
                 -> 42               // comptime_int
@@ -869,13 +869,13 @@ class TestTypeSystemErrorHandling:
             }
             return
         }
-        '''
+        """
         ast, errors = parse_and_analyze(code)
         assert_error_contains(errors, "Type ambiguity detected in conditional branches")
 
     def test_helpful_conversion_error_messages(self):
         """Test that concrete type conversion errors provide helpful messages."""
-        code = '''
+        code = """
         func get_i32() : i32 = { return 42 }
         
         func test_conversion_error() : f64 = {
@@ -888,7 +888,7 @@ class TestTypeSystemErrorHandling:
                 return result
             }
         }
-        '''
+        """
         ast, errors = parse_and_analyze(code)
         # Should suggest explicit conversion syntax
         assert_error_contains(errors, "Use explicit conversion: value:f64")
@@ -896,10 +896,10 @@ class TestTypeSystemErrorHandling:
 
 class TestAdvancedValidationPatterns:
     """Test advanced validation patterns from CONDITIONAL_SYSTEM.md."""
-    
+
     def test_validation_chains_with_early_returns(self):
         """Test validation chains using early returns (from specification)."""
-        code = '''
+        code = """
         func validate_and_process(input: i32) : string = {
             val result = if input < 0 {
                 return "ERROR: Negative input"     // Early function exit
@@ -912,13 +912,13 @@ class TestAdvancedValidationPatterns:
             // Additional processing only happens for valid input
             return result
         }
-        '''
+        """
         ast, errors = parse_and_analyze(code)
         assert_no_errors(errors)
-        
+
     def test_guard_clause_pattern(self):
         """Test guard clause patterns with early returns."""
-        code = '''
+        code = """
         func safe_divide(a: f64, b: f64) : f64 = {
             val result : f64 = if b == 0.0 {
                 return 0.0         // Early exit: division by zero
@@ -927,13 +927,13 @@ class TestAdvancedValidationPatterns:
             }
             return result
         }
-        '''
+        """
         ast, errors = parse_and_analyze(code)
         assert_no_errors(errors)
-        
+
     def test_nested_validation_pattern(self):
         """Test multiple levels of validation with nested conditionals."""
-        code = '''
+        code = """
         func validate_user_data(name_id: i32, age: i32) : string = {
             val result = if name_id < 1 {
                 return "ERROR: Name ID required"
@@ -951,17 +951,17 @@ class TestAdvancedValidationPatterns:
             }
             return result
         }
-        '''
+        """
         ast, errors = parse_and_analyze(code)
         assert_no_errors(errors)
 
 
 class TestAdvancedCachingPatterns:
     """Test performance optimization patterns with caching."""
-    
+
     def test_caching_pattern_with_early_returns(self):
         """Test caching pattern using early returns (from specification)."""
-        code = '''
+        code = """
         func lookup_cache(key: i32) : f64 = { return -1.0 }  // -1.0 means cache miss
         func very_expensive_operation(key: i32) : f64 = { return key:f64 * 2.0 }
         func save_to_cache(key: i32, value: f64) : void = { return }
@@ -982,13 +982,13 @@ class TestAdvancedCachingPatterns:
             log_cache_miss(key)
             return result
         }
-        '''
+        """
         ast, errors = parse_and_analyze(code)
         assert_no_errors(errors)
-        
+
     def test_short_circuit_optimization_pattern(self):
         """Test short-circuit optimization using conditionals."""
-        code = '''
+        code = """
         func optimized_calculation(use_fast_path: bool, input: f64) : f64 = {
             val fast_result : f64 = input * 2.0
             val slow_result : f64 = (input * input / 3.14159) + 1.0
@@ -1000,13 +1000,13 @@ class TestAdvancedCachingPatterns:
             }
             return result
         }
-        '''
+        """
         ast, errors = parse_and_analyze(code)
         assert_no_errors(errors)
-        
+
     def test_conditional_computation_pattern(self):
         """Test conditional computation to avoid expensive operations."""
-        code = '''
+        code = """
         func smart_processing(enable_advanced: bool, data: f64) : f64 = {
             val base_result = data * 1.5
             
@@ -1019,17 +1019,17 @@ class TestAdvancedCachingPatterns:
             
             return enhanced_result
         }
-        '''
+        """
         ast, errors = parse_and_analyze(code)
         assert_no_errors(errors)
 
 
 class TestAdvancedFallbackPatterns:
     """Test configuration and fallback patterns."""
-    
+
     def test_fallback_configuration_pattern(self):
         """Test primary -> fallback -> default configuration pattern (from specification)."""
-        code = '''
+        code = """
         func primary_config_exists() : bool = { return true }
         func load_primary_config() : i32 = { return 100 }  // PRIMARY config ID
         func fallback_config_exists() : bool = { return true }
@@ -1054,13 +1054,13 @@ class TestAdvancedFallbackPatterns:
             
             return config
         }
-        '''
+        """
         ast, errors = parse_and_analyze(code)
         assert_no_errors(errors)
-        
+
     def test_conditional_feature_selection(self):
         """Test feature flag controlled behavior."""
-        code = '''
+        code = """
         func process_with_feature_flags(enable_feature_a: bool, enable_feature_b: bool) : i32 = {
             val feature_a_result = if enable_feature_a {
                 -> 1    // Feature A enabled
@@ -1076,13 +1076,13 @@ class TestAdvancedFallbackPatterns:
             
             return feature_a_result + feature_b_result  // Combined feature flags
         }
-        '''
+        """
         ast, errors = parse_and_analyze(code)
         assert_no_errors(errors)
-        
+
     def test_graceful_degradation_pattern(self):
         """Test graceful degradation on errors."""
-        code = '''
+        code = """
         func process_with_degradation(input: f64, use_advanced: bool) : f64 = {
             val result = if use_advanced {
                 val advanced_result = if input > 0.0 {
@@ -1100,17 +1100,17 @@ class TestAdvancedFallbackPatterns:
             
             return result
         }
-        '''
+        """
         ast, errors = parse_and_analyze(code)
         assert_no_errors(errors)
 
 
 class TestComplexIntegrationPatterns:
     """Test complex integration patterns with existing language features."""
-    
+
     def test_conditionals_with_complex_binary_operations(self):
         """Test conditionals integrated with complex binary operations."""
-        code = '''
+        code = """
         func complex_calculation(a: f64, b: f64, c: f64) : f64 = {
             val result : f64 = if (a + b) > c {
                 -> (a * b) + c
@@ -1122,13 +1122,13 @@ class TestComplexIntegrationPatterns:
             
             return result
         }
-        '''
+        """
         ast, errors = parse_and_analyze(code)
         assert_no_errors(errors)
-        
+
     def test_conditionals_with_function_call_chains(self):
         """Test conditionals with complex function call chains."""
-        code = '''
+        code = """
         func transform_data(input: f64) : f64 = { return input * 2.0 }
         func validate_result(value: f64) : bool = { return value > 0.0 }
         func apply_correction(value: f64) : f64 = { return value + 1.0 }
@@ -1149,13 +1149,13 @@ class TestComplexIntegrationPatterns:
             
             return result
         }
-        '''
+        """
         ast, errors = parse_and_analyze(code)
         assert_no_errors(errors)
-        
+
     def test_conditionals_in_complex_expression_blocks(self):
         """Test conditionals within complex expression blocks with mixed contexts."""
-        code = '''
+        code = """
         func get_base_price() : f64 = { return 50.0 }
         func get_user_tier() : i32 = { return 1 }  // 1 = basic, 2 = gold, 3 = premium
         func is_first_time_user() : bool = { return false }
@@ -1190,17 +1190,17 @@ class TestComplexIntegrationPatterns:
             
             return final_price
         }
-        '''
+        """
         ast, errors = parse_and_analyze(code)
         assert_no_errors(errors)
 
 
 class TestRealWorldScenarios:
     """Test complete real-world scenarios using all conditional patterns."""
-    
+
     def test_complete_validation_function(self):
         """Test complete validation function using all validation patterns."""
-        code = '''
+        code = """
         func comprehensive_data_validator(name_id: i32, age: i32, score: f64) : i32 = {
             // Input validation chain - return error codes
             val validation_result = if name_id <= 0 {
@@ -1234,13 +1234,13 @@ class TestRealWorldScenarios:
             
             return validation_result + grade_points  // Combined result
         }
-        '''
+        """
         ast, errors = parse_and_analyze(code)
         assert_no_errors(errors)
-        
+
     def test_complete_configuration_loader(self):
         """Test complete configuration loader with all fallback patterns."""
-        code = '''
+        code = """
         // Forward declare helper functions first
         func get_environment() : i32 = { return 2 }  // 2 = development
         func production_config_exists() : bool = { return true }
@@ -1275,13 +1275,13 @@ class TestRealWorldScenarios:
                 return get_default_config()
             }
         }
-        '''
+        """
         ast, errors = parse_and_analyze(code)
         assert_no_errors(errors)
-        
+
     def test_complete_calculation_function(self):
         """Test complete calculation function with conditional computation patterns."""
-        code = '''
+        code = """
         // Forward declare helper functions first
         func check_cache(input: f64, mode: i32) : f64 = { return -1.0 }  // -1 means miss
         func store_in_cache(input: f64, mode: i32, result: f64) : void = { return }
@@ -1322,6 +1322,6 @@ class TestRealWorldScenarios:
             
             return result
         }
-        '''
+        """
         ast, errors = parse_and_analyze(code)
         assert_no_errors(errors)

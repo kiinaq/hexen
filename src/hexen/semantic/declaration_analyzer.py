@@ -11,8 +11,6 @@ Handles analysis of declarations including:
 
 from typing import Dict, Optional, Callable, Tuple
 
-from ..ast_nodes import NodeType
-from .types import HexenType, Mutability, ConcreteArrayType
 from .symbol_table import (
     Symbol,
     SymbolTable,
@@ -21,9 +19,9 @@ from .symbol_table import (
 )
 from .type_util import (
     parse_type,
-    can_coerce,
-    is_precision_loss_operation,
 )
+from .types import HexenType, Mutability, ConcreteArrayType
+from ..ast_nodes import NodeType
 
 
 class DeclarationAnalyzer:
@@ -306,33 +304,40 @@ class DeclarationAnalyzer:
                 return
 
             inferred_type = self._analyze_expression(value)
-            
+
             # Runtime blocks without explicit type annotation should trigger enhanced error
             if value and value.get("type") == "block":
                 # Classify block evaluability to determine if explicit context is required
                 block_statements = value.get("statements", [])
-                evaluability = self.comptime_analyzer.classify_block_evaluability(block_statements)
-                
+                evaluability = self.comptime_analyzer.classify_block_evaluability(
+                    block_statements
+                )
+
                 # If block is runtime evaluable, it requires explicit type context
                 from .types import BlockEvaluability
+
                 if evaluability == BlockEvaluability.RUNTIME:
                     # REFINED: Only flag blocks that actually produce values with assign statements
                     # Blocks with only return statements (early exits) don't need explicit context
                     has_assign_statement = any(
-                        stmt.get("type") == "assign_statement" 
+                        stmt.get("type") == "assign_statement"
                         for stmt in block_statements
                     )
-                    
+
                     if has_assign_statement:
                         # Generate enhanced error message with actionable guidance
-                        runtime_reason = self.comptime_analyzer.get_runtime_operation_reason(block_statements)
+                        runtime_reason = (
+                            self.comptime_analyzer.get_runtime_operation_reason(
+                                block_statements
+                            )
+                        )
                         self._error(
                             f"Context REQUIRED! Runtime block requires explicit type annotation because it {runtime_reason.lower()}. "
-                            f"Suggestion: val {name} : <type> = {{ ... }}", 
-                            node
+                            f"Suggestion: val {name} : <type> = {{ ... }}",
+                            node,
                         )
                         return
-            
+
             # Use centralized type inference error analysis
             if self.comptime_analyzer.analyze_declaration_type_inference_error(
                 value, inferred_type, name, self._error, node
@@ -354,90 +359,108 @@ class DeclarationAnalyzer:
 
         if not self._declare_symbol(symbol):
             self._error(f"Failed to declare variable '{name}'", node)
-    
+
     def _parse_type_annotation(self, type_annotation):
         """
         Parse a type annotation that can be either a simple string or complex AST node.
-        
+
         Args:
             type_annotation: Either a string (like "i32") or AST node (like array types)
-            
+
         Returns:
             HexenType enum or ConcreteArrayType representing the type
         """
         # Handle simple string types
         if isinstance(type_annotation, str):
             return parse_type(type_annotation)
-        
+
         # Handle complex AST node types (like array types)
         if isinstance(type_annotation, dict):
             node_type = type_annotation.get("type")
-            
+
             if node_type == "array_type":
                 return self._parse_array_type_annotation(type_annotation)
             else:
                 # Unknown complex type - return unknown for graceful degradation
                 return HexenType.UNKNOWN
-        
+
         # Fallback for unexpected type annotation format
         return HexenType.UNKNOWN
-    
+
     def _parse_array_type_annotation(self, array_type_node: Dict) -> ConcreteArrayType:
         """
         Parse array type AST node into ConcreteArrayType.
-        
+
         Creates proper ConcreteArrayType instances for
         explicit array type contexts like [3]i32, [2][4]f64.
-        
+
         Args:
             array_type_node: AST node with "dimensions" and "element_type" fields
-            
+
         Returns:
             ConcreteArrayType instance representing the explicit array type
         """
         # Extract element type
         element_type_str = array_type_node.get("element_type", "unknown")
         element_type = parse_type(element_type_str)
-        
+
         # Validate that the element type is valid and concrete
         if element_type == HexenType.UNKNOWN:
-            self._error(f"Invalid element type in array annotation: {element_type_str}", array_type_node)
+            self._error(
+                f"Invalid element type in array annotation: {element_type_str}",
+                array_type_node,
+            )
             return HexenType.UNKNOWN
-        
+
         # Validate element type is concrete (not comptime)
-        if element_type in {HexenType.COMPTIME_INT, HexenType.COMPTIME_FLOAT, 
-                           HexenType.COMPTIME_ARRAY_INT, HexenType.COMPTIME_ARRAY_FLOAT}:
-            self._error(f"Array type annotation must use concrete element type, got {element_type_str}", array_type_node)
+        if element_type in {
+            HexenType.COMPTIME_INT,
+            HexenType.COMPTIME_FLOAT,
+            HexenType.COMPTIME_ARRAY_INT,
+            HexenType.COMPTIME_ARRAY_FLOAT,
+        }:
+            self._error(
+                f"Array type annotation must use concrete element type, got {element_type_str}",
+                array_type_node,
+            )
             return HexenType.UNKNOWN
-        
+
         # Extract dimensions
         dimensions = []
         dimension_nodes = array_type_node.get("dimensions", [])
-        
+
         for dim_node in dimension_nodes:
             size = dim_node.get("size")
             if size == "_":
-                self._error("Inferred array dimensions ([_]) not yet supported in explicit contexts", array_type_node)
+                self._error(
+                    "Inferred array dimensions ([_]) not yet supported in explicit contexts",
+                    array_type_node,
+                )
                 return HexenType.UNKNOWN
-            
+
             try:
                 dim_size = int(size)
                 if dim_size < 0:
-                    self._error(f"Array dimension must be non-negative, got {dim_size}", array_type_node)
+                    self._error(
+                        f"Array dimension must be non-negative, got {dim_size}",
+                        array_type_node,
+                    )
                     return HexenType.UNKNOWN
                 dimensions.append(dim_size)
             except (ValueError, TypeError):
                 self._error(f"Invalid array dimension size: {size}", array_type_node)
                 return HexenType.UNKNOWN
-        
+
         if not dimensions:
-            self._error("Array type annotation must have at least one dimension", array_type_node)
+            self._error(
+                "Array type annotation must have at least one dimension",
+                array_type_node,
+            )
             return HexenType.UNKNOWN
-        
+
         # Create and return concrete array type
         try:
             return ConcreteArrayType(element_type, dimensions)
         except ValueError as e:
             self._error(f"Invalid array type: {e}", array_type_node)
             return HexenType.UNKNOWN
-

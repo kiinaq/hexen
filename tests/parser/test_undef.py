@@ -4,8 +4,8 @@ Test module for undef declarations
 Tests uninitialized variable declarations with undef keyword.
 """
 
-from src.hexen.parser import HexenParser
 from src.hexen.ast_nodes import NodeType
+from src.hexen.parser import HexenParser
 
 
 class TestUndefDeclarations:

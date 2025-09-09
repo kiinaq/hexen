@@ -4,11 +4,11 @@ Tests for Function Call & Conditional Detection and Runtime Classification
 Tests the enhanced block evaluability detection that classifies blocks containing
 function calls or conditionals as runtime evaluable.
 
-Covers detection for runtime operations that require explicit type context 
+Covers detection for runtime operations that require explicit type context
 (function calls and conditionals).
 """
 
-from src.hexen.parser import HexenParser  
+from src.hexen.parser import HexenParser
 from src.hexen.semantic.analyzer import SemanticAnalyzer
 from src.hexen.semantic.types import BlockEvaluability
 
@@ -23,23 +23,23 @@ class TestRuntimeOperationsInfrastructure:
     def test_runtime_operation_detection_methods_exist(self):
         """Test that Runtime Operations runtime operation detection methods are available"""
         block_analyzer = self.analyzer.block_analyzer
-        
+
         # Runtime Operations: Runtime operation detection infrastructure
-        assert hasattr(block_analyzer, '_contains_runtime_operations')
-        assert hasattr(block_analyzer, '_contains_function_calls')
-        assert hasattr(block_analyzer, '_contains_conditionals')
-        
+        assert hasattr(block_analyzer, "_contains_runtime_operations")
+        assert hasattr(block_analyzer, "_contains_function_calls")
+        assert hasattr(block_analyzer, "_contains_conditionals")
+
         # Runtime Operations: Statement-level detection methods
-        assert hasattr(block_analyzer, '_statement_contains_function_calls')
-        assert hasattr(block_analyzer, '_statement_contains_conditionals')
-        
+        assert hasattr(block_analyzer, "_statement_contains_function_calls")
+        assert hasattr(block_analyzer, "_statement_contains_conditionals")
+
         # Runtime Operations: Expression-level detection methods
-        assert hasattr(block_analyzer, '_expression_contains_function_calls')
-        assert hasattr(block_analyzer, '_expression_contains_conditionals')
-        
+        assert hasattr(block_analyzer, "_expression_contains_function_calls")
+        assert hasattr(block_analyzer, "_expression_contains_conditionals")
+
         # Runtime Operations: Context validation methods (ready for Comptime Preservation)
-        assert hasattr(block_analyzer, '_validate_runtime_block_context')
-        assert hasattr(block_analyzer, '_get_runtime_operation_reason')
+        assert hasattr(block_analyzer, "_validate_runtime_block_context")
+        assert hasattr(block_analyzer, "_get_runtime_operation_reason")
 
 
 class TestFunctionCallDetection:
@@ -66,7 +66,7 @@ class TestFunctionCallDetection:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        
+
         # Runtime Operations: Should analyze without errors with explicit type annotation
         assert errors == []
 
@@ -91,7 +91,7 @@ class TestFunctionCallDetection:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        
+
         # Runtime Operations: Should analyze without errors with explicit type annotation
         assert errors == []
 
@@ -112,7 +112,7 @@ class TestFunctionCallDetection:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        
+
         # Runtime Operations: Should analyze without errors (infrastructure doesn't break functionality)
         assert errors == []
 
@@ -133,7 +133,7 @@ class TestFunctionCallDetection:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        
+
         # Runtime Operations: Should analyze without errors (infrastructure doesn't break functionality)
         assert errors == []
 
@@ -154,7 +154,7 @@ class TestFunctionCallDetection:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        
+
         # Runtime Operations: Should analyze without errors (infrastructure doesn't break functionality)
         assert errors == []
 
@@ -175,7 +175,7 @@ class TestFunctionCallDetection:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        
+
         # Runtime Operations: Should analyze without errors (infrastructure doesn't break functionality)
         assert errors == []
 
@@ -203,7 +203,7 @@ class TestConditionalDetection:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        
+
         # Runtime Operations: Should analyze without errors (infrastructure doesn't break functionality)
         assert errors == []
 
@@ -227,7 +227,7 @@ class TestConditionalDetection:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        
+
         # Runtime Operations: Should analyze without errors with explicit type annotation
         assert errors == []
 
@@ -250,7 +250,7 @@ class TestConditionalDetection:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        
+
         # Runtime Operations: Should analyze without errors with explicit type annotation
         assert errors == []
 
@@ -284,7 +284,7 @@ class TestCombinedRuntimeOperations:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        
+
         # Runtime Operations: Should analyze without errors with explicit type annotation
         assert errors == []
 
@@ -308,7 +308,7 @@ class TestCombinedRuntimeOperations:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        
+
         # Runtime Operations: Should analyze without errors with explicit type annotation
         assert errors == []
 
@@ -339,7 +339,7 @@ class TestCombinedRuntimeOperations:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        
+
         # Runtime Operations: Should analyze without errors with explicit type annotation
         assert errors == []
 
@@ -371,17 +371,19 @@ class TestRuntimeOperationValidation:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        
+
         # Runtime Operations: Should analyze without errors with explicit type annotation
         assert errors == []
-        
+
         # Test that validation infrastructure exists and can be used
         block_analyzer = self.analyzer.block_analyzer
-        
+
         # Test validation method with empty statements (safe for Runtime Operations)
-        validation_result = block_analyzer._validate_runtime_block_context([], BlockEvaluability.COMPILE_TIME)
+        validation_result = block_analyzer._validate_runtime_block_context(
+            [], BlockEvaluability.COMPILE_TIME
+        )
         assert validation_result is None  # Compile-time blocks don't need validation
-        
+
         # Test reason method with empty statements (safe for Runtime Operations)
         reason = block_analyzer._get_runtime_operation_reason([])
         assert isinstance(reason, str)  # Should return a string
@@ -397,28 +399,28 @@ class TestRuntimeOperationsFoundationComplete:
     def test_session2_infrastructure_ready_for_session3(self):
         """Test that Runtime Operations infrastructure is complete and ready for Comptime Preservation"""
         block_analyzer = self.analyzer.block_analyzer
-        
+
         # Evaluability Infrastructure infrastructure still exists
-        assert hasattr(block_analyzer, '_classify_block_evaluability')
-        assert hasattr(block_analyzer, '_has_comptime_only_operations')
-        assert hasattr(block_analyzer, '_has_runtime_variables')
-        
+        assert hasattr(block_analyzer, "_classify_block_evaluability")
+        assert hasattr(block_analyzer, "_has_comptime_only_operations")
+        assert hasattr(block_analyzer, "_has_runtime_variables")
+
         # Runtime Operations infrastructure is complete
-        assert hasattr(block_analyzer, '_contains_runtime_operations')
-        assert hasattr(block_analyzer, '_contains_function_calls')
-        assert hasattr(block_analyzer, '_contains_conditionals')
-        assert hasattr(block_analyzer, '_statement_contains_function_calls')
-        assert hasattr(block_analyzer, '_statement_contains_conditionals')
-        assert hasattr(block_analyzer, '_expression_contains_function_calls')
-        assert hasattr(block_analyzer, '_expression_contains_conditionals')
-        
+        assert hasattr(block_analyzer, "_contains_runtime_operations")
+        assert hasattr(block_analyzer, "_contains_function_calls")
+        assert hasattr(block_analyzer, "_contains_conditionals")
+        assert hasattr(block_analyzer, "_statement_contains_function_calls")
+        assert hasattr(block_analyzer, "_statement_contains_conditionals")
+        assert hasattr(block_analyzer, "_expression_contains_function_calls")
+        assert hasattr(block_analyzer, "_expression_contains_conditionals")
+
         # Runtime Operations validation infrastructure ready for Comptime Preservation
-        assert hasattr(block_analyzer, '_validate_runtime_block_context')
-        assert hasattr(block_analyzer, '_get_runtime_operation_reason')
-        
+        assert hasattr(block_analyzer, "_validate_runtime_block_context")
+        assert hasattr(block_analyzer, "_get_runtime_operation_reason")
+
         # Enhanced finalization method from Evaluability Infrastructure
-        assert hasattr(block_analyzer, '_finalize_expression_block_with_evaluability')
-        
+        assert hasattr(block_analyzer, "_finalize_expression_block_with_evaluability")
+
         # BlockEvaluability enum ready
         assert BlockEvaluability.COMPILE_TIME
         assert BlockEvaluability.RUNTIME
@@ -444,9 +446,9 @@ class TestRuntimeOperationsFoundationComplete:
             return comptime_only + concrete_mixed  // comptime_int + i32 -> i32 (comptime adapts)
         }
         """
-        
+
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        
+
         # Runtime Operations: All Evaluability Infrastructure functionality should continue working
         assert errors == []

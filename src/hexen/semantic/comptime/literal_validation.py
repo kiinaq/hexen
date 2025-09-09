@@ -16,26 +16,27 @@ from type_util.py during the centralization effort.
 """
 
 from typing import Dict, Optional, Union, Tuple
-from ...ast_nodes import NodeType
+
 from ..types import HexenType
+from ...ast_nodes import NodeType
 
 
 class LiteralValidation:
     """
     Comptime literal validation and coercion checking.
-    
+
     Handles overflow detection and range validation for comptime literals
     being coerced to concrete types.
     """
-    
+
     def __init__(self):
         """Initialize literal validation (no dependencies)."""
         pass
-    
+
     # =========================================================================
     # LITERAL EXTRACTION
     # =========================================================================
-    
+
     def extract_literal_info(self, node: Dict) -> Tuple[Union[int, float], str]:
         """
         Extract literal value and source text from AST node.
@@ -46,16 +47,21 @@ class LiteralValidation:
         Returns:
             Tuple of (value, source_text) or (None, None) if not a literal
         """
-        if node.get("type") in {NodeType.COMPTIME_INT.value, NodeType.COMPTIME_FLOAT.value}:
+        if node.get("type") in {
+            NodeType.COMPTIME_INT.value,
+            NodeType.COMPTIME_FLOAT.value,
+        }:
             value = node.get("value")
-            source_text = node.get("source_text", str(value) if value is not None else None)
+            source_text = node.get(
+                "source_text", str(value) if value is not None else None
+            )
             return value, source_text
         return None, None
-    
+
     # =========================================================================
     # COMPTIME LITERAL COERCION VALIDATION
     # =========================================================================
-    
+
     def validate_comptime_literal_coercion(
         self,
         value: Union[int, float],
@@ -83,7 +89,7 @@ class LiteralValidation:
             None if coercion is safe
         """
         from ..type_util import validate_literal_range, TYPE_RANGES
-        
+
         # Only validate comptime type coercions to concrete types
         if from_type not in {HexenType.COMPTIME_INT, HexenType.COMPTIME_FLOAT}:
             return
@@ -102,38 +108,42 @@ class LiteralValidation:
         else:
             # Standard range validation
             validate_literal_range(value, to_type, source_text)
-    
+
     # =========================================================================
     # ASSIGNMENT CONTEXT VALIDATION
     # =========================================================================
-    
-    def validate_assignment_comptime_literal(self, value_node: Dict, value_type: HexenType, target_type: HexenType) -> Optional[str]:
+
+    def validate_assignment_comptime_literal(
+        self, value_node: Dict, value_type: HexenType, target_type: HexenType
+    ) -> Optional[str]:
         """
         Validate comptime literal coercion in assignment context.
-        
+
         Centralizes the comptime literal validation logic from AssignmentAnalyzer
         lines 177-186, providing comprehensive literal overflow checking.
-        
+
         Args:
             value_node: AST node for the assigned value
-            value_type: Inferred type of the value  
+            value_type: Inferred type of the value
             target_type: Target type for the assignment
-            
+
         Returns:
             Error message string if validation fails, None if validation passes
         """
         # Only validate comptime literals
         if value_type not in {HexenType.COMPTIME_INT, HexenType.COMPTIME_FLOAT}:
             return None
-            
+
         # Extract literal information
         literal_value, source_text = self.extract_literal_info(value_node)
         if literal_value is None:
             return None
-            
+
         # Validate literal coercion
         try:
-            self.validate_comptime_literal_coercion(literal_value, value_type, target_type, source_text)
+            self.validate_comptime_literal_coercion(
+                literal_value, value_type, target_type, source_text
+            )
             return None  # Validation passed
         except TypeError as e:
             return str(e)  # Return error message

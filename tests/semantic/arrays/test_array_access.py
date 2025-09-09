@@ -5,6 +5,7 @@ Tests for array access (indexing) operations with end-to-end Hexen source code.
 """
 
 import pytest
+
 from src.hexen.parser import HexenParser
 from src.hexen.semantic.analyzer import SemanticAnalyzer
 from .. import assert_no_errors, assert_error_contains
@@ -12,12 +13,12 @@ from .. import assert_no_errors, assert_error_contains
 
 class TestArrayAccessSemantics:
     """Test semantic analysis of array access operations with real Hexen source code"""
-    
+
     def setup_method(self):
         """Standard setup method used by all semantic test classes."""
         self.parser = HexenParser()
         self.analyzer = SemanticAnalyzer()
-    
+
     def test_basic_array_access(self):
         """Test basic array access with integer index"""
         source = """
@@ -29,10 +30,10 @@ class TestArrayAccessSemantics:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        
+
         # Should work with basic array access
         assert_no_errors(errors)
-    
+
     def test_array_access_with_comptime_index(self):
         """Test array access with comptime integer index"""
         source = """
@@ -45,10 +46,10 @@ class TestArrayAccessSemantics:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        
+
         # Should work with comptime integer indices
         assert_no_errors(errors)
-    
+
     def test_array_access_in_return(self):
         """Test array access in return statement"""
         source = """
@@ -59,10 +60,10 @@ class TestArrayAccessSemantics:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        
+
         # Should work with array access in return
         assert_no_errors(errors)
-    
+
     def test_array_access_with_expressions(self):
         """Test array access with expression results"""
         source = """
@@ -75,10 +76,10 @@ class TestArrayAccessSemantics:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        
+
         # Should work with array access in expressions
         assert_no_errors(errors)
-    
+
     def test_invalid_string_index(self):
         """Test error for non-integer index"""
         source = """
@@ -90,10 +91,10 @@ class TestArrayAccessSemantics:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        
+
         # Should detect invalid index type
         assert_error_contains(errors, "Array index must be integer type")
-    
+
     def test_float_array_access(self):
         """Test array access on float arrays"""
         source = """
@@ -105,10 +106,10 @@ class TestArrayAccessSemantics:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        
+
         # Should work with float array access
         assert_no_errors(errors)
-    
+
     def test_nested_array_access_2d(self):
         """Test 2D array access"""
         source = """
@@ -120,10 +121,10 @@ class TestArrayAccessSemantics:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        
+
         # Should work with 2D array access
         assert_no_errors(errors)
-    
+
     def test_array_access_as_function_argument(self):
         """Test array access as function argument"""
         source = """
@@ -139,7 +140,7 @@ class TestArrayAccessSemantics:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        
+
         # Should work with array access as function argument
         assert_no_errors(errors)
 

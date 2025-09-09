@@ -4,9 +4,10 @@ Test module for parser error handling
 Tests error messages and invalid syntax detection.
 """
 
+import os
 import pytest
 import tempfile
-import os
+
 from .test_utils import assert_parse_error, BaseParserTest
 
 

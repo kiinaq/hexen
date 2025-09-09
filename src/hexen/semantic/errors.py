@@ -8,7 +8,6 @@ Enhanced with Session 4 context-specific error messages for the unified block sy
 """
 
 from typing import Dict, List, Optional
-from .types import HexenType, BlockEvaluability
 
 
 class SemanticError(Exception):
@@ -35,31 +34,33 @@ class SemanticError(Exception):
 class BlockAnalysisError:
     """
     Context-specific error messages for block analysis with actionable guidance.
-    
+
     Implements Session 4 objectives:
     - Context-specific error messages with actionable guidance
-    - "Context REQUIRED!" messages for runtime blocks  
+    - "Context REQUIRED!" messages for runtime blocks
     - Explicit conversion suggestions
     - Specification-aligned error messages
     """
-    
+
     @staticmethod
-    def runtime_context_required(reasons: List[str], context_type: str = "type annotation") -> str:
+    def runtime_context_required(
+        reasons: List[str], context_type: str = "type annotation"
+    ) -> str:
         """
         Generate context requirement error with actionable suggestion.
-        
+
         Args:
             reasons: List of reasons why runtime context is required
             context_type: Type of context needed (e.g., "type annotation", "target type")
-            
+
         Returns:
             Detailed error message with specific suggestion
         """
         if not reasons:
             return f"Runtime block requires explicit {context_type}."
-            
+
         reason_text = " and ".join(reasons)
-        
+
         # Context-specific suggestions based on reason type
         if any("function call" in reason for reason in reasons):
             suggestion = f"Add explicit {context_type} like: val result : i32 = {{ /* function call block */ }}"
@@ -69,22 +70,24 @@ class BlockAnalysisError:
             suggestion = f"Add explicit {context_type} like: val result : i64 = {{ /* mixed types block */ }}"
         else:
             suggestion = f"Add explicit {context_type} to the target variable"
-            
+
         return (
             f"Context REQUIRED! Runtime block requires explicit {context_type} because it {reason_text}. "
             f"Suggestion: {suggestion}"
         )
-    
+
     @staticmethod
-    def mixed_types_need_conversion(from_type: str, to_type: str, operation_context: str = "operation") -> str:
+    def mixed_types_need_conversion(
+        from_type: str, to_type: str, operation_context: str = "operation"
+    ) -> str:
         """
         Generate conversion requirement error with syntax example.
-        
+
         Args:
             from_type: Source type name
-            to_type: Target type name  
+            to_type: Target type name
             operation_context: Context where conversion is needed
-            
+
         Returns:
             Error message with explicit conversion syntax
         """
@@ -93,17 +96,19 @@ class BlockAnalysisError:
             f"Transparent costs principle requires explicit conversion. "
             f"Use explicit conversion syntax: value:{to_type}"
         )
-    
-    @staticmethod  
-    def branch_type_mismatch(branch_type: str, target_type: str, branch_context: str = "conditional branch") -> str:
+
+    @staticmethod
+    def branch_type_mismatch(
+        branch_type: str, target_type: str, branch_context: str = "conditional branch"
+    ) -> str:
         """
         Generate branch type mismatch error with conversion suggestion.
-        
+
         Args:
             branch_type: Type from the problematic branch
             target_type: Expected target type
             branch_context: Context description (e.g., "conditional branch", "assign statement")
-            
+
         Returns:
             Error message with explicit conversion suggestion
         """
@@ -111,16 +116,16 @@ class BlockAnalysisError:
             f"Branch type mismatch in {branch_context}: {branch_type} incompatible with target type {target_type}. "
             f"Use explicit conversion: value:{target_type}"
         )
-    
+
     @staticmethod
     def comptime_preservation_explanation(block_type: str, suggestion: str) -> str:
         """
         Explain comptime type preservation behavior with usage guidance.
-        
+
         Args:
             block_type: Type of block (compile-time or runtime)
             suggestion: Specific usage suggestion
-            
+
         Returns:
             Educational error message explaining comptime preservation
         """
@@ -136,15 +141,15 @@ class BlockAnalysisError:
                 f"This ensures transparent costs for all runtime operations. "
                 f"Suggestion: {suggestion}"
             )
-    
+
     @staticmethod
     def function_call_runtime_explanation(function_name: Optional[str] = None) -> str:
         """
         Explain why function calls trigger runtime classification.
-        
+
         Args:
             function_name: Optional function name for specific context
-            
+
         Returns:
             Explanation of function call runtime behavior
         """
@@ -156,12 +161,12 @@ class BlockAnalysisError:
             f"3. Results cannot be computed at compile-time\n"
             f"Specification: All blocks containing function calls require explicit type context."
         )
-    
+
     @staticmethod
     def conditional_runtime_explanation() -> str:
         """
         Explain why conditionals trigger runtime classification.
-        
+
         Returns:
             Explanation of conditional runtime behavior per CONDITIONAL_SYSTEM.md
         """
@@ -172,16 +177,18 @@ class BlockAnalysisError:
             f"3. Branch selection cannot be determined at compile-time\n"
             f"Specification: Blocks with conditionals require explicit type context."
         )
-    
+
     @staticmethod
-    def ambiguity_resolution_guidance(ambiguous_element: str, resolution_options: List[str]) -> str:
+    def ambiguity_resolution_guidance(
+        ambiguous_element: str, resolution_options: List[str]
+    ) -> str:
         """
         Provide guidance for resolving type ambiguities.
-        
+
         Args:
             ambiguous_element: What element is ambiguous (e.g., "literal", "expression")
             resolution_options: List of resolution options
-            
+
         Returns:
             Guidance for resolving the ambiguity
         """
@@ -197,31 +204,35 @@ class BlockAnalysisError:
 class ContextualErrorMessages:
     """
     Context-aware error message generation based on analysis context.
-    
+
     Provides different error messages based on where the error occurs:
     - Variable declaration context
-    - Function return context  
+    - Function return context
     - Expression block context
     - Assignment context
     """
-    
+
     @staticmethod
-    def for_variable_declaration(var_name: str, error_details: str, suggestion: str) -> str:
+    def for_variable_declaration(
+        var_name: str, error_details: str, suggestion: str
+    ) -> str:
         """Generate error message for variable declaration context."""
         return (
             f"Variable declaration error for '{var_name}': {error_details}. "
             f"Declaration context suggestion: {suggestion}"
         )
-    
+
     @staticmethod
-    def for_function_return(func_name: Optional[str], error_details: str, suggestion: str) -> str:
+    def for_function_return(
+        func_name: Optional[str], error_details: str, suggestion: str
+    ) -> str:
         """Generate error message for function return context."""
         func_text = f"function '{func_name}'" if func_name else "function"
         return (
             f"Function return error in {func_text}: {error_details}. "
             f"Return context suggestion: {suggestion}"
         )
-    
+
     @staticmethod
     def for_expression_block(error_details: str, suggestion: str) -> str:
         """Generate error message for expression block context."""
@@ -229,7 +240,7 @@ class ContextualErrorMessages:
             f"Expression block error: {error_details}. "
             f"Block context suggestion: {suggestion}"
         )
-    
+
     @staticmethod
     def for_assignment(target: str, error_details: str, suggestion: str) -> str:
         """Generate error message for assignment context."""
@@ -242,11 +253,11 @@ class ContextualErrorMessages:
 class SpecificationExamples:
     """
     Error messages that reference specification examples for educational purposes.
-    
+
     Helps developers understand the unified block system by referencing
     concrete examples from the specification documents.
     """
-    
+
     @staticmethod
     def comptime_preservation_example() -> str:
         """Provide example of comptime type preservation."""
@@ -256,7 +267,7 @@ class SpecificationExamples:
             "val as_i32 : i32 = flexible  // Same source → i32\n"
             "val as_f64 : f64 = flexible  // Same source → f64"
         )
-    
+
     @staticmethod
     def runtime_context_example() -> str:
         """Provide example of runtime context requirement."""
@@ -265,7 +276,7 @@ class SpecificationExamples:
             "val result : i32 = { val x = get_input(); assign x * 2 }  // Context required\n"
             "// Function call triggers runtime → explicit type needed"
         )
-    
+
     @staticmethod
     def mixed_types_example() -> str:
         """Provide example of mixed type explicit conversion."""

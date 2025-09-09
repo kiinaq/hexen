@@ -4,9 +4,10 @@ Hexen CLI
 Command-line interface for Hexen compiler.
 """
 
-import sys
 import json
+import sys
 from pathlib import Path
+
 from .parser import HexenParser
 from .semantic import SemanticAnalyzer
 

@@ -6,6 +6,7 @@ parameters, and complex call patterns without significant performance degradatio
 """
 
 import time
+
 from src.hexen.parser import HexenParser
 from src.hexen.semantic.analyzer import SemanticAnalyzer
 

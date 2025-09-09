@@ -11,11 +11,11 @@ Handles analysis of assignment statements including:
 
 from typing import Dict, Optional, Callable
 
-from .types import HexenType, Mutability
 from .type_util import (
     can_coerce,
     is_precision_loss_operation,
 )
+from .types import HexenType, Mutability
 
 
 class AssignmentAnalyzer:
@@ -118,7 +118,7 @@ class AssignmentAnalyzer:
                 left = value.get("left", {})
                 right = value.get("right", {})
 
-                # Get operand types  
+                # Get operand types
                 left_type = (
                     self._analyze_expression(left, symbol.type)
                     if left
@@ -131,8 +131,10 @@ class AssignmentAnalyzer:
                 )
 
                 # Use centralized logic to determine if precision loss check should be skipped
-                should_skip_check = self.comptime_analyzer.analyze_assignment_comptime_operands(
-                    left_type, right_type, symbol.type
+                should_skip_check = (
+                    self.comptime_analyzer.analyze_assignment_comptime_operands(
+                        left_type, right_type, symbol.type
+                    )
                 )
 
                 if not should_skip_check:

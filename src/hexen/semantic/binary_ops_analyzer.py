@@ -12,7 +12,6 @@ Handles analysis of binary operations including:
 
 from typing import Dict, Optional, Callable, Set
 
-from .types import HexenType
 from .type_util import (
     is_numeric_type,
     is_float_type,
@@ -20,8 +19,8 @@ from .type_util import (
     to_integer_type,
     get_wider_type,
     is_integer_type,
-    can_coerce,
 )
+from .types import HexenType
 
 # Set of comparison operators
 COMPARISON_OPERATORS: Set[str] = {"<", ">", "<=", ">=", "==", "!="}
@@ -168,8 +167,10 @@ class BinaryOpsAnalyzer:
         if operator in EQUALITY_OPERATORS:
             # For numeric types, follow same rules as arithmetic operations
             if is_numeric_type(left_type) and is_numeric_type(right_type):
-                mixed_comparison_result = self.comptime_analyzer.handle_mixed_type_comparison(
-                    operator, left_type, right_type, self._error, node
+                mixed_comparison_result = (
+                    self.comptime_analyzer.handle_mixed_type_comparison(
+                        operator, left_type, right_type, self._error, node
+                    )
                 )
                 if mixed_comparison_result is not None:
                     return mixed_comparison_result
@@ -247,22 +248,32 @@ class BinaryOpsAnalyzer:
     ) -> HexenType:
         """Analyze float division operation."""
         # Check if both operands are comptime types
-        both_comptime = (left_type == HexenType.COMPTIME_INT or left_type == HexenType.COMPTIME_FLOAT) and \
-                       (right_type == HexenType.COMPTIME_INT or right_type == HexenType.COMPTIME_FLOAT)
-        
+        both_comptime = (
+            left_type == HexenType.COMPTIME_INT or left_type == HexenType.COMPTIME_FLOAT
+        ) and (
+            right_type == HexenType.COMPTIME_INT
+            or right_type == HexenType.COMPTIME_FLOAT
+        )
+
         # For comptime operations, always produce comptime_float (following BINARY_OPS.md)
         if both_comptime:
             return HexenType.COMPTIME_FLOAT
-        
+
         # For mixed comptime + concrete operations, require explicit target type
-        one_comptime = (left_type == HexenType.COMPTIME_INT or left_type == HexenType.COMPTIME_FLOAT) or \
-                      (right_type == HexenType.COMPTIME_INT or right_type == HexenType.COMPTIME_FLOAT)
-        
+        one_comptime = (
+            left_type == HexenType.COMPTIME_INT or left_type == HexenType.COMPTIME_FLOAT
+        ) or (
+            right_type == HexenType.COMPTIME_INT
+            or right_type == HexenType.COMPTIME_FLOAT
+        )
+
         if one_comptime and target_type is None and node is not None:
-            self._error("Mixed comptime/concrete division requires explicit result type", node)
+            self._error(
+                "Mixed comptime/concrete division requires explicit result type", node
+            )
             return HexenType.UNKNOWN
-        
-        # For concrete + concrete operations, require explicit target type  
+
+        # For concrete + concrete operations, require explicit target type
         if not one_comptime and target_type is None and node is not None:
             self._error("Concrete type division requires explicit result type", node)
             return HexenType.UNKNOWN
@@ -339,15 +350,21 @@ class BinaryOpsAnalyzer:
             if target_type and (
                 is_float_type(target_type) or is_integer_type(target_type)
             ):
-                context_result = self.comptime_analyzer.resolve_context_guided_arithmetic(
-                    left_type, right_type, target_type
+                context_result = (
+                    self.comptime_analyzer.resolve_context_guided_arithmetic(
+                        left_type, right_type, target_type
+                    )
                 )
                 if context_result is not None:
                     return context_result
 
             # For mixed concrete types or other cases, resolve to defaults and get wider type
-            left_resolved = self.comptime_analyzer.resolve_comptime_type(left_type, None)
-            right_resolved = self.comptime_analyzer.resolve_comptime_type(right_type, None)
+            left_resolved = self.comptime_analyzer.resolve_comptime_type(
+                left_type, None
+            )
+            right_resolved = self.comptime_analyzer.resolve_comptime_type(
+                right_type, None
+            )
 
             # Standard arithmetic type resolution
             return get_wider_type(left_resolved, right_resolved)

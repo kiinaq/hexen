@@ -7,8 +7,8 @@ Tests the new -> token functionality according to UNIFIED_BLOCK_SYSTEM.md:
 - -> with various expressions
 """
 
-from src.hexen.parser import HexenParser
 from src.hexen.ast_nodes import NodeType
+from src.hexen.parser import HexenParser
 
 
 class TestAssignStatementParsing:

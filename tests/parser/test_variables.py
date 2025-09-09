@@ -4,8 +4,8 @@ Test module for variable declarations
 Tests val/mut variable declaration system with type inference.
 """
 
-from src.hexen.parser import HexenParser
 from src.hexen.ast_nodes import NodeType
+from src.hexen.parser import HexenParser
 
 
 class TestVariableDeclarations:

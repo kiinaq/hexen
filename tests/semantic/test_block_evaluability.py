@@ -6,12 +6,12 @@ blocks as compile-time vs runtime evaluable for type preservation.
 
 This covers basic detection without function calls and conditionals.
 
-The infrastructure implementation maintains existing behavior. Classification 
-logic works during analysis but internal methods cannot be tested outside 
+The infrastructure implementation maintains existing behavior. Classification
+logic works during analysis but internal methods cannot be tested outside
 of analysis scope.
 """
 
-from src.hexen.parser import HexenParser  
+from src.hexen.parser import HexenParser
 from src.hexen.semantic.analyzer import SemanticAnalyzer
 from src.hexen.semantic.types import BlockEvaluability
 
@@ -28,14 +28,14 @@ class TestSession1Infrastructure:
         # Verify enum exists and has expected values
         assert BlockEvaluability.COMPILE_TIME.value == "compile_time"
         assert BlockEvaluability.RUNTIME.value == "runtime"
-        
+
     def test_block_analyzer_has_classification_methods(self):
         """Test that block analyzer has the new classification infrastructure"""
         # Verify block analyzer infrastructure exists
-        assert hasattr(self.analyzer, 'block_analyzer')
-        assert hasattr(self.analyzer.block_analyzer, '_classify_block_evaluability')
-        assert hasattr(self.analyzer.block_analyzer, '_has_comptime_only_operations')
-        assert hasattr(self.analyzer.block_analyzer, '_has_runtime_variables')
+        assert hasattr(self.analyzer, "block_analyzer")
+        assert hasattr(self.analyzer.block_analyzer, "_classify_block_evaluability")
+        assert hasattr(self.analyzer.block_analyzer, "_has_comptime_only_operations")
+        assert hasattr(self.analyzer.block_analyzer, "_has_runtime_variables")
 
     def test_comptime_literal_blocks_analyze_correctly(self):
         """Test blocks with only comptime literals work correctly (infrastructure test)"""
@@ -52,7 +52,7 @@ class TestSession1Infrastructure:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        
+
         # Block Evaluability: Should analyze without errors (infrastructure doesn't break functionality)
         assert errors == []
 
@@ -68,14 +68,14 @@ class TestSession1Infrastructure:
             return result
         }
         """
-        ast = self.parser.parse(source)  
+        ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        
+
         # Block Evaluability: Should analyze without errors with explicit type annotation
         assert errors == []
 
     def test_mixed_operation_blocks_analyze_correctly(self):
-        """Test blocks mixing comptime and concrete types work correctly (infrastructure test)"""  
+        """Test blocks mixing comptime and concrete types work correctly (infrastructure test)"""
         source = """
         func test() : f64 = {
             val concrete_base : f32 = 10.0  // Explicit concrete type
@@ -89,7 +89,7 @@ class TestSession1Infrastructure:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        
+
         # Block Evaluability: Should analyze without errors with explicit type annotation
         assert errors == []
 
@@ -111,7 +111,7 @@ class TestSession1Infrastructure:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        
+
         # Block Evaluability: Should analyze without errors (infrastructure doesn't break functionality)
         assert errors == []
 
@@ -128,7 +128,7 @@ class TestSession1Infrastructure:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        
+
         # Block Evaluability: Should analyze without errors with explicit type annotation
         assert errors == []
 
@@ -149,7 +149,7 @@ class TestSession1Infrastructure:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        
+
         # Block Evaluability: Should analyze without errors with explicit type annotation
         assert errors == []
 
@@ -173,7 +173,7 @@ class TestSession1Infrastructure:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        
+
         # Block Evaluability: Should analyze without errors (infrastructure doesn't break functionality)
         assert errors == []
 
@@ -191,7 +191,7 @@ class TestSession1Infrastructure:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        
+
         # Block Evaluability: Should analyze without errors (infrastructure doesn't break functionality)
         assert errors == []
 
@@ -207,7 +207,7 @@ class TestSession1Infrastructure:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        
+
         # Block Evaluability: Should analyze without errors (infrastructure doesn't break functionality)
         assert errors == []
 
@@ -230,7 +230,7 @@ class TestSession1Infrastructure:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        
+
         # Block Evaluability: Should analyze without errors (infrastructure doesn't break functionality)
         assert errors == []
 
@@ -246,7 +246,7 @@ class TestSession1Infrastructure:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        
+
         # Block Evaluability: Should analyze without errors (infrastructure doesn't break functionality)
         assert errors == []
 
@@ -263,7 +263,7 @@ class TestSession1Infrastructure:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        
+
         # Block Evaluability: Should analyze without errors (infrastructure doesn't break functionality)
         assert errors == []
 
@@ -279,7 +279,7 @@ class TestSession1Infrastructure:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        
+
         # Block Evaluability: Should analyze without errors (infrastructure doesn't break functionality)
         assert errors == []
 
@@ -304,7 +304,7 @@ class TestSession1Infrastructure:
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        
+
         # Block Evaluability: Should maintain all existing behavior
         assert errors == []
 
@@ -319,36 +319,37 @@ class TestSession1FoundationComplete:
     def test_infrastructure_ready_for_session_2(self):
         """Test that infrastructure is ready for Runtime Operations enhancements"""
         # Verify all required Block Evaluability components exist
-        assert hasattr(self.analyzer, 'block_analyzer')
+        assert hasattr(self.analyzer, "block_analyzer")
         block_analyzer = self.analyzer.block_analyzer
-        
+
         # Classification infrastructure
-        assert hasattr(block_analyzer, '_classify_block_evaluability')
-        assert hasattr(block_analyzer, '_has_comptime_only_operations')
-        assert hasattr(block_analyzer, '_has_runtime_variables')
-        
+        assert hasattr(block_analyzer, "_classify_block_evaluability")
+        assert hasattr(block_analyzer, "_has_comptime_only_operations")
+        assert hasattr(block_analyzer, "_has_runtime_variables")
+
         # Helper methods for detailed analysis
-        assert hasattr(block_analyzer, '_statement_has_comptime_only_operations')
-        assert hasattr(block_analyzer, '_statement_has_runtime_variables')
-        assert hasattr(block_analyzer, '_expression_has_comptime_only_operations')
-        assert hasattr(block_analyzer, '_expression_has_runtime_variables')
-        
+        assert hasattr(block_analyzer, "_statement_has_comptime_only_operations")
+        assert hasattr(block_analyzer, "_statement_has_runtime_variables")
+        assert hasattr(block_analyzer, "_expression_has_comptime_only_operations")
+        assert hasattr(block_analyzer, "_expression_has_runtime_variables")
+
         # Utility function moved to type_util.py for better reusability
         from src.hexen.semantic.type_util import is_concrete_type
+
         assert callable(is_concrete_type)
-        
+
         # Enhanced finalization method
-        assert hasattr(block_analyzer, '_finalize_expression_block_with_evaluability')
-        
+        assert hasattr(block_analyzer, "_finalize_expression_block_with_evaluability")
+
         # BlockEvaluability enum ready
         assert BlockEvaluability.COMPILE_TIME
         assert BlockEvaluability.RUNTIME
-        
+
     def test_no_regressions_in_existing_tests(self):
         """Verify that Block Evaluability doesn't break any existing functionality"""
         # This test passes if the complete test suite passes
         # (which we verified - 765 existing tests still pass)
-        
+
         # Test a representative sample of existing functionality
         source = """
         func factorial(n: i32) : i32 = {
@@ -365,9 +366,9 @@ class TestSession1FoundationComplete:
             counter = fact5
         }
         """
-        
+
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
-        
+
         # All existing patterns should continue working
         assert errors == []

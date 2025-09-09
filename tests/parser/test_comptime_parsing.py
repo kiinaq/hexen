@@ -6,8 +6,8 @@ This validates parser implementation: parser generates comptime_int
 and comptime_float nodes for the semantic analyzer's type system.
 """
 
-from src.hexen.parser import HexenParser
 from src.hexen.ast_nodes import NodeType
+from src.hexen.parser import HexenParser
 
 
 class TestComptimeParsing:
