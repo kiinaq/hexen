@@ -141,9 +141,13 @@ class DeclarationSupport:
 
         # Check for remaining type compatibility
         if not can_coerce(value_type, var_type):
+            # Handle both HexenType and ConcreteArrayType for error messages
+            var_type_str = var_type.value if hasattr(var_type, 'value') else str(var_type)
+            value_type_str = value_type.value if hasattr(value_type, 'value') else str(value_type)
+            
             error_callback(
-                f"Type mismatch: variable '{variable_name}' declared as {var_type.value} "
-                f"but assigned value of type {value_type.value}",
+                f"Type mismatch: variable '{variable_name}' declared as {var_type_str} "
+                f"but assigned value of type {value_type_str}",
                 node,
             )
             return False

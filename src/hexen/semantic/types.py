@@ -149,9 +149,9 @@ class ConcreteArrayType:
     def is_compatible_with(self, comptime_array_type: HexenType) -> bool:
         """Check if this concrete array type is compatible with a comptime array type"""
         if comptime_array_type == HexenType.COMPTIME_ARRAY_INT:
-            # comptime_array_int can coerce to integer element types
-            return self.element_type in {HexenType.I32, HexenType.I64}
-        elif comptime_array_type == HexenType.COMPTIME_ARRAY_FLOAT:
-            # comptime_array_float can coerce to any numeric element types
+            # comptime_array_int can coerce to any numeric element types (following comptime_int rules)
             return self.element_type in {HexenType.I32, HexenType.I64, HexenType.F32, HexenType.F64}
+        elif comptime_array_type == HexenType.COMPTIME_ARRAY_FLOAT:
+            # comptime_array_float can coerce to float element types only (following comptime_float rules)
+            return self.element_type in {HexenType.F32, HexenType.F64}
         return False

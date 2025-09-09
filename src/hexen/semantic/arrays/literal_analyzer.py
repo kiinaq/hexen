@@ -198,8 +198,12 @@ class ArrayLiteralAnalyzer:
                     continue
                 
                 if not self._can_coerce_to_concrete_element(element_type, target_type.element_type):
+                    # Handle both HexenType and ConcreteArrayType for error messages
+                    from_type_str = element_type.value if hasattr(element_type, 'value') else str(element_type)
+                    to_type_str = target_type.element_type.value if hasattr(target_type.element_type, 'value') else str(target_type.element_type)
+                    
                     self._error(
-                        f"Element {i} type mismatch: cannot coerce {element_type.value} to {target_type.element_type.value}",
+                        f"Element {i} type mismatch: cannot coerce {from_type_str} to {to_type_str}",
                         element
                     )
         

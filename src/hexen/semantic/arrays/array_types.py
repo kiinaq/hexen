@@ -76,4 +76,6 @@ class ArrayTypeInfo:
         elif self.element_type == HexenType.COMPTIME_ARRAY_FLOAT:
             return dimension_str + "comptime_float"
         else:
-            return dimension_str + self.element_type.value
+            # Handle both HexenType and ConcreteArrayType
+            element_str = self.element_type.value if hasattr(self.element_type, 'value') else str(self.element_type)
+            return dimension_str + element_str
