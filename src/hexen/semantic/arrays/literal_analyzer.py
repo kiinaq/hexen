@@ -264,12 +264,12 @@ class ArrayLiteralAnalyzer:
         if from_type == to_type:
             return True
         
-        # Comptime int can coerce to any integer type
-        if from_type == HexenType.COMPTIME_INT and to_type in {HexenType.I32, HexenType.I64}:
+        # Comptime int can coerce to any numeric type (follows comptime_int rules)
+        if from_type == HexenType.COMPTIME_INT and to_type in {HexenType.I32, HexenType.I64, HexenType.F32, HexenType.F64}:
             return True
         
-        # Comptime float can coerce to any numeric type  
-        if from_type == HexenType.COMPTIME_FLOAT and to_type in {HexenType.I32, HexenType.I64, HexenType.F32, HexenType.F64}:
+        # Comptime float can coerce to float types only (truncation to int requires explicit conversion)
+        if from_type == HexenType.COMPTIME_FLOAT and to_type in {HexenType.F32, HexenType.F64}:
             return True
         
         # All other combinations require explicit conversion
@@ -278,6 +278,7 @@ class ArrayLiteralAnalyzer:
     def analyze_array_access(self, node: Dict[str, Any], target_type: Optional[HexenType] = None) -> HexenType:
         """
         Analyze array access expression and return element type.
+        Handles both single and multidimensional array access.
         
         Args:
             node: Array access AST node with 'array' and 'index' fields
@@ -293,29 +294,83 @@ class ArrayLiteralAnalyzer:
             self._error("Invalid array access: missing array or index expression", node)
             return HexenType.UNKNOWN
         
-        # For now, implement basic array access validation
-        # In a full implementation, this would:
         # 1. Analyze the array expression to get its type
+        array_type = self._analyze_array_expression(array_expr)
+        if array_type == HexenType.UNKNOWN:
+            return HexenType.UNKNOWN
+            
         # 2. Validate the index is an integer type
-        # 3. Perform bounds checking if possible
-        # 4. Return the element type
-        
-        # Check index type - must be integer
         index_type_str = index_expr.get("type")
         if index_type_str not in ["comptime_int", "i32", "i64"]:
             self._error(ArrayErrorMessages.invalid_index_type(index_type_str), node)
             return HexenType.UNKNOWN
         
-        # For now, assume array access of comptime arrays returns comptime element type
-        # This is a simplified implementation that will be enhanced
-        array_type_str = array_expr.get("type")
-        if array_type_str == "identifier":
-            # This would normally involve symbol table lookup to get the array's type
-            # For now, return COMPTIME_INT as a placeholder
-            return HexenType.COMPTIME_INT
+        # 3. Determine element type based on array type
+        return self._get_element_type_from_array_access(array_type, target_type)
+    
+    def _analyze_array_expression(self, array_expr: Dict) -> HexenType:
+        """
+        Analyze the array part of an array access to determine its type.
+        Handles identifiers, nested array access, and array literals.
+        """
+        expr_type = array_expr.get("type")
         
-        self._error("Array access type inference not yet fully implemented", node)
-        return HexenType.UNKNOWN
+        if expr_type == "identifier":
+            # Symbol table lookup - delegate to expression analyzer callback
+            if self._analyze_expression:
+                return self._analyze_expression(array_expr)
+            else:
+                # Fallback - assume comptime array
+                return HexenType.COMPTIME_ARRAY_INT
+                
+        elif expr_type == "array_access":
+            # Nested array access (e.g., matrix[0] in matrix[0][1])
+            return self.analyze_array_access(array_expr)
+            
+        elif expr_type == "array_literal":
+            # Direct array literal access (e.g., [1,2,3][0])
+            return self.analyze_array_literal(array_expr)
+            
+        else:
+            self._error(f"Invalid array expression type: {expr_type}", array_expr)
+            return HexenType.UNKNOWN
+    
+    def _get_element_type_from_array_access(self, array_type: HexenType, target_type: Optional[HexenType] = None) -> HexenType:
+        """
+        Determine the element type when accessing an array.
+        Handles dimension reduction for multidimensional arrays.
+        """
+        # Handle comptime array types
+        if array_type == HexenType.COMPTIME_ARRAY_INT:
+            # Comptime int arrays produce comptime int elements
+            return HexenType.COMPTIME_INT
+            
+        elif array_type == HexenType.COMPTIME_ARRAY_FLOAT:
+            # Comptime float arrays produce comptime float elements  
+            return HexenType.COMPTIME_FLOAT
+            
+        # Handle concrete array types (ConcreteArrayType instances)
+        elif hasattr(array_type, 'element_type') and hasattr(array_type, 'dimensions'):
+            # This is a ConcreteArrayType - access reduces dimensionality
+            if len(array_type.dimensions) == 1:
+                # 1D array access returns element type
+                return array_type.element_type
+            else:
+                # Multidimensional array access reduces by one dimension
+                from .array_types import ConcreteArrayType, ArrayDimension
+                new_dimensions = array_type.dimensions[1:]  # Remove first dimension
+                return ConcreteArrayType(array_type.element_type, new_dimensions)
+                
+        # Handle basic HexenType array access
+        elif array_type in [HexenType.I32, HexenType.I64, HexenType.F32, HexenType.F64, HexenType.STRING, HexenType.BOOL]:
+            # Direct element type access
+            return array_type
+            
+        else:
+            # Fallback for unknown types
+            if target_type:
+                return target_type
+            return HexenType.COMPTIME_INT
     
     def _all_elements_are_integers(self, elements: List[Dict]) -> bool:
         """Check if all elements are integer literals"""

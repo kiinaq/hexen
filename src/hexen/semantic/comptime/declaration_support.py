@@ -182,9 +182,10 @@ class DeclarationSupport:
             True if specific error was reported, False if generic error should be used
         """
         if inferred_type == HexenType.UNKNOWN:
-            # Check if this is likely a mixed-type operation that already reported a specific error
-            if value_node.get("type") == "binary_operation":
-                # Binary operation analyzer already provided a specific error about mixed types
+            # Check if this is likely an operation that already reported a specific error
+            node_type = value_node.get("type")
+            if node_type in ["binary_operation", "array_literal", "array_access"]:
+                # These analyzers already provided specific errors about the issue
                 # Don't add a generic "Cannot infer type" error - just return
                 return True
             else:

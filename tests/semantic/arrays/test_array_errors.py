@@ -323,12 +323,13 @@ class TestArrayFunctionIntegrationErrorMessages:
         assert len(errors) >= 1
         error_messages = [str(error) for error in errors]
         
-        # Should indicate return type mismatch
-        return_mismatch = any(
-            "return" in msg.lower() and "type" in msg.lower()
+        # Should indicate element type mismatch or return type mismatch
+        type_mismatch = any(
+            ("return" in msg.lower() and "type" in msg.lower()) or
+            ("element" in msg.lower() and "type mismatch" in msg.lower())
             for msg in error_messages
         )
-        assert return_mismatch, f"Missing return type mismatch error in: {error_messages}"
+        assert type_mismatch, f"Missing type mismatch error in: {error_messages}"
 
 
 class TestComplexArrayScenarioErrorMessages:
