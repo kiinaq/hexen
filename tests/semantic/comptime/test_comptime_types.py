@@ -26,11 +26,11 @@ from tests.semantic import (
 class TestComptimeIntCoercion(StandardTestBase):
     """Test comptime_int coercion to all allowed numeric types"""
 
-    def test_comptime_int_to_i32_default(self):
-        """Test comptime_int defaults to i32 when no explicit type provided"""
+    def test_comptime_int_to_i32_context_driven(self):
+        """Test comptime_int resolves to i32 based on function return context"""
         source = """
         func test() : i32 = {
-            val x = 42  // comptime_int → i32 (default)
+            val x = 42  // comptime_int → i32 (function return context)
             return x
         }
         """
@@ -118,11 +118,11 @@ class TestComptimeIntCoercion(StandardTestBase):
 class TestComptimeFloatCoercion(StandardTestBase):
     """Test comptime_float coercion to allowed float types"""
 
-    def test_comptime_float_to_f64_default(self):
-        """Test comptime_float defaults to f64 when no explicit type provided"""
+    def test_comptime_float_to_f64_context_driven(self):
+        """Test comptime_float resolves to f64 based on function return context"""
         source = """
         func test() : f64 = {
-            val x = 3.14  // comptime_float → f64 (default)
+            val x = 3.14  // comptime_float → f64 (function return context)
             return x
         }
         """
@@ -391,14 +391,14 @@ class TestComptimeMixedOperations(StandardTestBase):
         assert_no_errors(errors)
 
 
-class TestComptimeDefaults(StandardTestBase):
-    """Test default type resolution for comptime types without context"""
+class TestComptimeContextResolution(StandardTestBase):
+    """Test context-driven type resolution for comptime types"""
 
-    def test_comptime_int_default_to_i32(self):
-        """Test comptime_int defaults to i32 when no context provided"""
+    def test_comptime_int_preserves_flexibility(self):
+        """Test comptime_int preserves flexibility until context forces resolution"""
         source = """
         func test() : void = {
-            val default_int = 42          // comptime_int → i32 (default)
+            val flexible_int = 42         // comptime_int (preserved for flexibility)
             mut mutable_int : i32 = 123   // comptime_int → i32 (explicit type required for mut)
             mutable_int = 456            // comptime_int → i32 (assignment context)
         }
@@ -407,11 +407,11 @@ class TestComptimeDefaults(StandardTestBase):
         errors = self.analyzer.analyze(ast)
         assert_no_errors(errors)
 
-    def test_comptime_float_default_to_f64(self):
-        """Test comptime_float defaults to f64 when no context provided"""
+    def test_comptime_float_preserves_flexibility(self):
+        """Test comptime_float preserves flexibility until context forces resolution"""
         source = """
         func test() : void = {
-            val default_float = 3.14      // comptime_float → f64 (default)
+            val flexible_float = 3.14     // comptime_float (preserved for flexibility)
             mut mutable_float : f64 = 2.718     // comptime_float → f64 (explicit type required for mut)
             mutable_float = 1.414        // comptime_float → f64 (assignment context)
         }
@@ -420,12 +420,12 @@ class TestComptimeDefaults(StandardTestBase):
         errors = self.analyzer.analyze(ast)
         assert_no_errors(errors)
 
-    def test_comptime_mixed_defaults(self):
-        """Test mixed comptime types with default resolution"""
+    def test_comptime_mixed_flexibility(self):
+        """Test mixed comptime types preserve flexibility until context forces resolution"""
         source = """
         func test() : void = {
-            val int_default = 42          // comptime_int → i32
-            val float_default = 3.14      // comptime_float → f64
+            val flexible_int = 42         // comptime_int (preserved)
+            val flexible_float = 3.14     // comptime_float (preserved)
             val explicit_mix : f32 = 42   // comptime_int → f32 (explicit context)
         }
         """

@@ -8,7 +8,7 @@ Tests expression block behavior (NEW assign/return semantics):
 - Allow access to outer scope variables
 - Support variable shadowing
 - Support nested blocks with proper scope management
-- Comptime type default resolution from -> statements
+- Comptime type context-driven resolution from -> statements
 
 Part of the unified block system described in UNIFIED_BLOCK_SYSTEM.md:
 - Single { } syntax for all contexts with context-driven behavior
@@ -81,13 +81,13 @@ class TestExpressionBlocks(StandardTestBase):
         errors = self.analyzer.analyze(ast)
         assert errors == []
 
-    def test_expression_block_comptime_type_defaults(self):
-        """Test expression blocks with comptime type default resolution"""
+    def test_expression_block_comptime_type_context(self):
+        """Test expression blocks with comptime type context-driven resolution"""
         source = """
         func test() : i32 = {
-            // Expression block with comptime type default resolution
-            val int_result = {
-                -> 42              // comptime_int → i32 (default)
+            // Expression block with comptime type flexibility
+            val flexible_result = {
+                -> 42              // comptime_int (preserved for flexibility)
             }
             
             val string_result = {
@@ -98,7 +98,7 @@ class TestExpressionBlocks(StandardTestBase):
                 -> true            // bool (concrete)
             }
             
-            return int_result
+            return flexible_result
         }
         """
         ast = self.parser.parse(source)

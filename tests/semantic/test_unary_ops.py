@@ -124,7 +124,7 @@ class TestNegativeNumberLiterals(StandardTestBase):
         """Test negative integer coercion to different types"""
         source = """
         func test() : f64 = {
-            val as_i32 = -42       // comptime_int -> i32 (default)
+            val as_i32 = -42       // comptime_int (preserved flexibility)
             val as_i64:i64 = -42 // comptime_int -> i64 (coerced)
             val as_f32:f32 = -42 // comptime_int -> f32 (coerced)
             val as_f64:f64 = -42 // comptime_int -> f64 (coerced)
@@ -153,7 +153,7 @@ class TestNegativeNumberLiterals(StandardTestBase):
         """Test negative float coercion to different float types"""
         source = """
         func test() : f32 = {
-            val as_f64 = -2.718        // comptime_float -> f64 (default)
+            val as_f64 = -2.718        // comptime_float (preserved flexibility)
             val as_f32:f32 = -2.718  // comptime_float -> f32 (coerced)
             return as_f32
         }

@@ -37,9 +37,9 @@ class TestValVariableSemantics(StandardTestBase):
             val flag:bool = true
             val precise:f64 = 3.14159
             
-            // ✅ Val with comptime type defaults
-            val inferred_int = 42        // comptime_int → i32 (default)
-            val inferred_float = 3.14    // comptime_float → f64 (default)
+            // ✅ Val with comptime type flexibility
+            val flexible_int = 42        // comptime_int (preserved for flexibility)
+            val flexible_float = 3.14    // comptime_float (preserved for flexibility)
             val inferred_string = "test" // string
             val inferred_bool = true     // bool
             

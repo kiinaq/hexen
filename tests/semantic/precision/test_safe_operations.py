@@ -70,10 +70,10 @@ class TestValidOperationsWithExplicitConversions(StandardTestBase):
         source = """
         func test() : void = {
             // ✅ All comptime type coercions are safe and implicit
-            val int_default = 42            // comptime_int → i32 (default)
+            val flexible_int = 42           // comptime_int (preserved flexibility)
             val int_explicit:i64 = 42     // comptime_int → i64 (safe)
             val float_from_int:f64 = 42   // comptime_int → f64 (safe)
-            val float_default = 3.14        // comptime_float → f64 (default)
+            val flexible_float = 3.14       // comptime_float (preserved flexibility)
             val float_explicit:f32 = 3.14 // comptime_float → f32 (safe)
             
             // mut variables follow same rules
