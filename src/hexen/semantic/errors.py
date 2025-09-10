@@ -37,42 +37,42 @@ class BlockAnalysisError:
 
     Implements Session 4 objectives:
     - Context-specific error messages with actionable guidance
-    - "Context REQUIRED!" messages for runtime blocks
+    - "Explicit type annotation REQUIRED!" messages for runtime blocks
     - Explicit conversion suggestions
     - Specification-aligned error messages
     """
 
     @staticmethod
-    def runtime_context_required(
-        reasons: List[str], context_type: str = "type annotation"
+    def explicit_type_annotation_required(
+        reasons: List[str], annotation_type: str = "type annotation"
     ) -> str:
         """
-        Generate context requirement error with actionable suggestion.
+        Generate explicit type annotation requirement error with actionable suggestion.
 
         Args:
-            reasons: List of reasons why runtime context is required
-            context_type: Type of context needed (e.g., "type annotation", "target type")
+            reasons: List of reasons why explicit type annotation is required
+            annotation_type: Type of annotation needed (e.g., "type annotation", "concrete type")
 
         Returns:
             Detailed error message with specific suggestion
         """
         if not reasons:
-            return f"Runtime block requires explicit {context_type}."
+            return f"Runtime block requires explicit {annotation_type}."
 
         reason_text = " and ".join(reasons)
 
-        # Context-specific suggestions based on reason type
+        # Type annotation-specific suggestions based on reason type
         if any("function call" in reason for reason in reasons):
-            suggestion = f"Add explicit {context_type} like: val result : i32 = {{ /* function call block */ }}"
+            suggestion = f"Add explicit {annotation_type} like: val result : i32 = {{ /* function call block */ }}"
         elif any("conditional" in reason for reason in reasons):
-            suggestion = f"Add explicit {context_type} like: val result : f64 = {{ /* conditional block */ }}"
+            suggestion = f"Add explicit {annotation_type} like: val result : f64 = {{ /* conditional block */ }}"
         elif any("concrete type variable" in reason for reason in reasons):
-            suggestion = f"Add explicit {context_type} like: val result : i64 = {{ /* mixed types block */ }}"
+            suggestion = f"Add explicit {annotation_type} like: val result : i64 = {{ /* mixed types block */ }}"
         else:
-            suggestion = f"Add explicit {context_type} to the target variable"
+            suggestion = f"Add explicit {annotation_type} to the target variable"
 
         return (
-            f"Context REQUIRED! Runtime block requires explicit {context_type} because it {reason_text}. "
+            f"Explicit type annotation REQUIRED! Runtime block requires explicit {annotation_type} because it {reason_text}. "
             f"Suggestion: {suggestion}"
         )
 
@@ -201,11 +201,11 @@ class BlockAnalysisError:
         )
 
 
-class ContextualErrorMessages:
+class TypeAnnotationErrorMessages:
     """
-    Context-aware error message generation based on analysis context.
+    Type annotation-aware error message generation based on analysis context.
 
-    Provides different error messages based on where the error occurs:
+    Provides different error messages based on where type annotation errors occur:
     - Variable declaration context
     - Function return context
     - Expression block context
@@ -269,12 +269,12 @@ class SpecificationExamples:
         )
 
     @staticmethod
-    def runtime_context_example() -> str:
-        """Provide example of runtime context requirement."""
+    def runtime_type_annotation_example() -> str:
+        """Provide example of explicit type annotation requirement."""
         return (
-            "Example of runtime context requirement:\n"
-            "val result : i32 = { val x = get_input(); assign x * 2 }  // Context required\n"
-            "// Function call triggers runtime → explicit type needed"
+            "Example of explicit type annotation requirement:\n"
+            "val result : i32 = { val x = get_input(); assign x * 2 }  // Type annotation required\n"
+            "// Function call triggers runtime → explicit type annotation needed"
         )
 
     @staticmethod

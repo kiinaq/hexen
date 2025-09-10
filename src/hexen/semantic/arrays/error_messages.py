@@ -74,10 +74,10 @@ class ArrayErrorMessages:
         )
 
     @staticmethod
-    def empty_array_context_required() -> str:
-        """Generate error message for empty arrays without context."""
+    def empty_array_type_annotation_required() -> str:
+        """Generate error message for empty arrays without explicit type annotation."""
         return (
-            "Empty array literal requires explicit type context\n"
+            "Empty array literal requires explicit type annotation\n"
             "Use: val array : [N]T = [] or val array : [_]T = []"
         )
 
@@ -160,10 +160,10 @@ class ArrayErrorMessages:
         )
 
     @staticmethod
-    def comptime_context_required_for_mixed_types() -> str:
-        """Generate error message for mixed types requiring context."""
+    def explicit_type_annotation_required_for_mixed_types() -> str:
+        """Generate error message for mixed types requiring explicit type annotation."""
         return (
-            "Mixed concrete/comptime element types require explicit array context\n"
+            "Mixed concrete/comptime element types require explicit array type annotation\n"
             "Type mismatch: incompatible element types in array literal\n"
             "Provide explicit type annotation: val array : [N]T = [elements...]"
         )
@@ -191,11 +191,11 @@ class ArrayErrorFactory:
         return ArraySemanticError(message, node, suggestion)
 
     @staticmethod
-    def create_empty_context_error(
+    def create_empty_array_type_annotation_error(
         node: Optional[Dict[str, Any]] = None,
     ) -> ArraySemanticError:
-        """Create an empty array context required error."""
-        message = ArrayErrorMessages.empty_array_context_required()
+        """Create an empty array type annotation required error."""
+        message = ArrayErrorMessages.empty_array_type_annotation_required()
         suggestion = "Add explicit type annotation: val array : [N]T = []"
         return ArraySemanticError(message, node, suggestion)
 

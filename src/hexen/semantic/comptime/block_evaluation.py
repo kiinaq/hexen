@@ -751,7 +751,7 @@ class BlockEvaluation:
             # Use enhanced error message generation from Session 4
             from ..errors import BlockAnalysisError
 
-            return BlockAnalysisError.runtime_context_required(
+            return BlockAnalysisError.explicit_type_annotation_required(
                 reasons, "type annotation"
             )
 

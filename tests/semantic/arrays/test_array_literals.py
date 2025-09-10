@@ -65,8 +65,8 @@ class TestArrayLiteralSemantics:
         # Comptime arrays should adapt to all numeric contexts
         assert_no_errors(errors)
 
-    def test_empty_array_context_requirement(self):
-        """Test empty array literal requires explicit context"""
+    def test_empty_array_type_annotation_requirement(self):
+        """Test empty array literal requires explicit type annotation"""
         source = """
         func test() : void = {
             val empty = []
@@ -76,13 +76,13 @@ class TestArrayLiteralSemantics:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
 
-        # Empty arrays should require explicit type context
+        # Empty arrays should require explicit type annotation
         assert_error_contains(
-            errors, "Empty array literal requires explicit type context"
+            errors, "Empty array literal requires explicit type annotation"
         )
 
-    def test_empty_array_with_context(self):
-        """Test empty array literal with explicit context works"""
+    def test_empty_array_with_type_annotation(self):
+        """Test empty array literal with explicit type annotation works"""
         source = """
         func test() : void = {
             val empty : [0]i32 = []
@@ -92,11 +92,11 @@ class TestArrayLiteralSemantics:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
 
-        # Should work with explicit context
+        # Should work with explicit type annotation
         assert_no_errors(errors)
 
-    def test_context_driven_resolution(self):
-        """Test array literal resolution with explicit context"""
+    def test_type_annotation_driven_resolution(self):
+        """Test array literal resolution with explicit type annotation"""
         source = """
         func test() : void = {
             val numbers : [3]i32 = [1, 2, 3]
@@ -106,11 +106,11 @@ class TestArrayLiteralSemantics:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
 
-        # Context-driven resolution should work
+        # Type annotation-driven resolution should work
         assert_no_errors(errors)
 
     def test_array_size_mismatch_error(self):
-        """Test error when array size doesn't match context"""
+        """Test error when array size doesn't match type annotation"""
         source = """
         func test() : void = {
             val numbers : [3]i32 = [1, 2]
@@ -124,7 +124,7 @@ class TestArrayLiteralSemantics:
         assert_error_contains(errors, "Array size mismatch: expected 3 elements, got 2")
 
     def test_mixed_concrete_types_error(self):
-        """Test error for mixed concrete/comptime types without context"""
+        """Test error for mixed concrete/comptime types without type annotation"""
         source = """
         func test(x: i32) : void = {
             val mixed = [1, x]
@@ -134,14 +134,14 @@ class TestArrayLiteralSemantics:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
 
-        # Should require explicit context for mixed types
+        # Should require explicit type annotation for mixed types
         assert_error_contains(
             errors,
-            "Mixed concrete/comptime element types require explicit array context",
+            "Mixed concrete/comptime element types require explicit array type annotation",
         )
 
-    def test_mixed_concrete_types_with_context(self):
-        """Test mixed concrete/comptime types work with explicit context"""
+    def test_mixed_concrete_types_with_type_annotation(self):
+        """Test mixed concrete/comptime types work with explicit type annotation"""
         source = """
         func test(x: i32) : void = {
             val mixed : [2]i32 = [1, x]
@@ -151,7 +151,7 @@ class TestArrayLiteralSemantics:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
 
-        # Should work with explicit context
+        # Should work with explicit type annotation
         assert_no_errors(errors)
 
     def test_array_literals_in_function_parameters(self):
@@ -213,8 +213,8 @@ class TestArrayLiteralSemantics:
         # Large arrays should work
         assert_no_errors(errors)
 
-    def test_type_mismatch_in_context(self):
-        """Test type mismatch with explicit context"""
+    def test_type_mismatch_with_explicit_type_annotation(self):
+        """Test type mismatch with explicit type annotation"""
         source = """
         func test() : void = {
             val strings : [2]i32 = ["hello", "world"]

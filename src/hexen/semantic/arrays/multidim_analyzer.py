@@ -51,7 +51,7 @@ class MultidimensionalArrayAnalyzer:
 
         if not elements:
             if target_type is None:
-                self._error(ArrayErrorMessages.empty_array_context_required(), node)
+                self._error(ArrayErrorMessages.empty_array_type_annotation_required(), node)
                 return HexenType.UNKNOWN
             return target_type
 

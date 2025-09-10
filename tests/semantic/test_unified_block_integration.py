@@ -50,13 +50,13 @@ class TestUnifiedBlockSystemIntegration:
         errors = self.analyzer.analyze(ast)
         assert_no_errors(errors)
 
-    def test_runtime_blocks_require_explicit_context(self):
-        """Test runtime blocks with mixed concrete types require explicit context."""
-        # Runtime block with function call and mixed concrete types should require explicit context
+    def test_runtime_blocks_require_explicit_type_annotation(self):
+        """Test runtime blocks with mixed concrete types require explicit type annotation."""
+        # Runtime block with function call and mixed concrete types should require explicit type annotation
         source = """
         func get_user_input() : i64 = { return 42 }
         
-        func test_runtime_context_required() : void = {
+        func test_runtime_type_annotation_required() : void = {
             val runtime_result = {              // Should require explicit type annotation
                 val user_input = get_user_input()     // Function call -> runtime block returns i64
                 val base : i32 = 42                   // concrete i32
@@ -97,13 +97,13 @@ class TestUnifiedBlockSystemIntegration:
         assert_no_errors(errors)
 
     def test_complex_nested_scenarios(self):
-        """Test complex nesting with mixed evaluability - should error without explicit context."""
+        """Test complex nesting with mixed evaluability - should error without explicit type annotation."""
         source = """
         func helper() : i32 = { return 42 }
         
         func test_complex_nesting() : void = {
             // Nested blocks with different evaluability
-            val outer_result = {     // Missing explicit context - should error!
+            val outer_result = {     // Missing explicit type annotation - should error!
                 val comptime_block = {
                     val calc = 42 + 100
                     -> calc  // Compile-time evaluable
@@ -122,15 +122,15 @@ class TestUnifiedBlockSystemIntegration:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
 
-        # Should have error about runtime block requiring explicit context
+        # Should have error about runtime block requiring explicit type annotation
         assert len(errors) >= 1
         error_messages = [str(e) for e in errors]
-        # Check for either runtime context error or mixed concrete types error
+        # Check for either runtime type annotation error or mixed concrete types error
         assert any(
-            "context" in msg.lower() or "mixed concrete" in msg.lower()
+            "explicit type annotation" in msg.lower() or "mixed concrete" in msg.lower()
             for msg in error_messages
         ), (
-            f"Expected runtime context or mixed concrete types error, got: {error_messages}"
+            f"Expected runtime type annotation or mixed concrete types error, got: {error_messages}"
         )
 
     def test_performance_optimization_patterns(self):
@@ -351,7 +351,7 @@ class TestSpecificationComplianceValidation:
         func get_value() : i32 = { return 42 }
         
         func test_function_calls() : void = {
-            // Block with function call requires explicit context
+            // Block with function call requires explicit type annotation
             val runtime_block : i32 = {
                 val value = get_value()  // Function call → runtime
                 -> value

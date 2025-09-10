@@ -332,7 +332,7 @@ class DeclarationAnalyzer:
                             )
                         )
                         self._error(
-                            f"Context REQUIRED! Runtime block requires explicit type annotation because it {runtime_reason.lower()}. "
+                            f"Explicit type annotation REQUIRED! Runtime block requires explicit type annotation because it {runtime_reason.lower()}. "
                             f"Suggestion: val {name} : <type> = {{ ... }}",
                             node,
                         )

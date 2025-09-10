@@ -17,7 +17,7 @@ class TestArrayLiteralErrorMessages:
         self.parser = HexenParser()
         self.analyzer = SemanticAnalyzer()
 
-    def test_empty_array_context_required_error_message(self):
+    def test_empty_array_type_annotation_required_error_message(self):
         """Test clear error message for empty array literals."""
         code = """
         func test() : void = {
@@ -31,7 +31,7 @@ class TestArrayLiteralErrorMessages:
 
         assert len(errors) == 1
         error_msg = str(errors[0])
-        assert "Empty array literal requires explicit type context" in error_msg
+        assert "Empty array literal requires explicit type annotation" in error_msg
         # Should provide actionable guidance
         assert "val array : [N]T = []" in error_msg or "[0]" in error_msg
 
@@ -50,7 +50,7 @@ class TestArrayLiteralErrorMessages:
         assert len(errors) == 1
         error_msg = str(errors[0])
         assert (
-            "Mixed concrete/comptime element types require explicit array context"
+            "Mixed concrete/comptime element types require explicit array type annotation"
             in error_msg
         )
 
@@ -234,16 +234,16 @@ class TestArrayAccessErrorMessages:
         assert "f64" in error_msg
 
 
-class TestArrayTypeContextErrorMessages:
-    """Test error message quality for array type context issues."""
+class TestArrayTypeAnnotationErrorMessages:
+    """Test error message quality for array type annotation issues."""
 
     def setup_method(self):
         """Set up fresh parser and analyzer for each test."""
         self.parser = HexenParser()
         self.analyzer = SemanticAnalyzer()
 
-    def test_explicit_context_type_mismatch_error_message(self):
-        """Test error message for type mismatch with explicit context."""
+    def test_explicit_type_annotation_type_mismatch_error_message(self):
+        """Test error message for type mismatch with explicit type annotation."""
         code = """
         func test() : void = {
             val strings : [2]i32 = ["hello", "world"]
@@ -265,7 +265,7 @@ class TestArrayTypeContextErrorMessages:
         assert type_mismatch, f"Missing type mismatch guidance in: {error_messages}"
 
     def test_array_size_mismatch_error_message(self):
-        """Test error message for array size mismatches with explicit context."""
+        """Test error message for array size mismatches with explicit type annotation."""
         code = """
         func test() : void = {
             val numbers : [3]i32 = [1, 2]
@@ -376,7 +376,7 @@ class TestComplexArrayScenarioErrorMessages:
 
         # Should catch empty array error
         empty_error = any(
-            "empty array" in msg.lower() or "explicit type context" in msg.lower()
+            "empty array" in msg.lower() or "explicit type annotation" in msg.lower()
             for msg in error_messages
         )
         assert empty_error, f"Missing empty array error in: {error_messages}"
@@ -426,7 +426,7 @@ class TestComplexArrayScenarioErrorMessages:
         # Should report the empty array error clearly
         assert (
             "empty array" in error_msg.lower()
-            or "explicit type context" in error_msg.lower()
+            or "explicit type annotation" in error_msg.lower()
         )
 
 
@@ -439,8 +439,8 @@ class TestErrorMessageConsistency:
         self.analyzer = SemanticAnalyzer()
 
     def test_type_mismatch_message_consistency(self):
-        """Test that type mismatch error messages are consistent across contexts."""
-        # Test in array literal context
+        """Test that type mismatch error messages are consistent across different scenarios."""
+        # Test in array literal scenario
         literal_code = """
         func test1() : void = {
             val mixed : [2]i32 = ["hello", "world"]
@@ -448,7 +448,7 @@ class TestErrorMessageConsistency:
         }
         """
 
-        # Test in array access context
+        # Test in array access scenario
         access_code = """
         func test2() : void = {
             val numbers = [1, 2, 3]
@@ -457,7 +457,7 @@ class TestErrorMessageConsistency:
         }
         """
 
-        # Analyze both contexts
+        # Analyze both scenarios
         literal_ast = self.parser.parse(literal_code)
         literal_errors = self.analyzer.analyze(literal_ast)
 
@@ -479,7 +479,7 @@ class TestErrorMessageConsistency:
         """Test that error messages consistently provide actionable guidance."""
         code = """
         func guidance_test() : void = {
-            val empty = []                    // Should suggest explicit context
+            val empty = []                    // Should suggest explicit type annotation
             val numbers = [1, 2, 3]
             val bad = numbers["invalid"]      // Should suggest integer types
             return

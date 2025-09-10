@@ -68,7 +68,7 @@ class ArrayLiteralAnalyzer:
         # Handle empty arrays - require explicit context
         if not elements:
             if target_type is None:
-                self._error(ArrayErrorMessages.empty_array_context_required(), node)
+                self._error(ArrayErrorMessages.empty_array_type_annotation_required(), node)
                 return HexenType.UNKNOWN
 
             # For ConcreteArrayType, return the concrete type (no longer comptime)
@@ -129,7 +129,7 @@ class ArrayLiteralAnalyzer:
         if target_type is None:
             if len(set(elem.get("type") for elem in elements)) > 1:
                 self._error(
-                    ArrayErrorMessages.comptime_context_required_for_mixed_types(), node
+                    ArrayErrorMessages.explicit_type_annotation_required_for_mixed_types(), node
                 )
             else:
                 self._error(
@@ -184,7 +184,7 @@ class ArrayLiteralAnalyzer:
 
         # Other mixed types require explicit context
         self._error(
-            ArrayErrorMessages.comptime_context_required_for_mixed_types(), node
+            ArrayErrorMessages.explicit_type_annotation_required_for_mixed_types(), node
         )
         return HexenType.UNKNOWN
 
