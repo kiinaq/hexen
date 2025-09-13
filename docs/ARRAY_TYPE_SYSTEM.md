@@ -8,7 +8,9 @@
 
 ## Overview
 
-Hexen's array type system extends the language's comptime philosophy to collections, making array literals seamless to work with while keeping all runtime computational costs visible. Arrays follow the same ergonomic principles as individual values - comptime arrays adapt seamlessly while concrete array operations require explicit conversions.
+Hexen's array type system extends the language's comptime philosophy to collections, making array literals seamless to work with while keeping all runtime computational costs visible. Arrays follow the same ergonomic principles as individual values - comptime arrays adapt seamlessly while concrete array conversions require explicit conversions.
+
+**Core Language Focus**: The array type system focuses purely on **type safety**, **memory layout**, and **element access**. Advanced array operations (filtering, mapping, sorting, etc.) are intentionally **not part of the core language** and will be provided by a future standard library to keep the language specification clean and focused.
 
 ## Core Philosophy
 
@@ -181,9 +183,11 @@ val materialized_i64 : [_]i64 = comptime_array    // → Runtime: [42, 100, 200]
 // comptime_array itself never exists at runtime - only materialized versions do
 ```
 
-**Complex Comptime Operations - Zero Runtime Cost:**
+**Complex Comptime Computations - Future Standard Library:**
 ```hexen
-// Complex computation at compile time
+// Note: Advanced array operations will be provided by future standard library - not yet specified
+// The core language focuses on type safety and element access only
+
 val complex_comptime = {
     val base = [1, 2, 3, 4, 5]
     val transformed = base * [10, 20, 30, 40, 50]          // Element-wise multiplication
@@ -212,44 +216,6 @@ val widened_elem : i64 = concrete[0]:i64 // Explicit conversion: i32 → i64
 ```
 
 ## Array Type Conversion Rules
-
-### The Four Patterns Applied to Arrays
-
-Arrays follow the same four-pattern system as individual values:
-
-#### 1. ✨ Comptime + Comptime = Comptime (Flexible)
-```hexen
-val array1 = [1, 2, 3]          // comptime_array_int
-val array2 = [4, 5, 6]          // comptime_array_int
-val combined = array1 + array2   // comptime_array_int (concatenation - flexible!)
-
-val as_i32 : [_]i32 = combined  // → [6]i32
-val as_i64 : [_]i64 = combined  // Same source → [6]i64
-val as_f64 : [_]f64 = combined  // Same source → [6]f64
-```
-
-#### 2. 🔄 Comptime + Concrete = Concrete (Adapts)
-```hexen
-val concrete : [_]i32 = [10, 20, 30]    // Concrete [3]i32
-val comptime_array = [1, 2, 3]          // comptime_array_int
-val mixed_result = concrete + comptime_array  // Comptime adapts to i32 → [6]i32
-```
-
-#### 3. 🔧 Concrete + Concrete = Explicit (Visible Costs)
-```hexen
-val array_i32 : [_]i32 = [1, 2, 3]      // [3]i32
-val array_i64 : [_]i64 = [4, 5, 6]      // [3]i64
-
-// val mixed = array_i32 + array_i64    // ❌ Error: requires explicit conversion
-val explicit = array_i32:[_]i64 + array_i64  // ✅ Explicit: [3]i32 → [3]i64
-```
-
-#### 4. ⚡ Same Concrete = Same Concrete (Identity)
-```hexen
-val array1 : [_]i32 = [1, 2, 3]         // [3]i32
-val array2 : [_]i32 = [4, 5, 6]         // [3]i32
-val result = array1 + array2             // [3]i32 + [3]i32 → [6]i32 (identity)
-```
 
 ### Element-Level Conversions
 For mixed-type array construction, conversions happen at the element level:
@@ -305,9 +271,9 @@ floats[0] = 3.14             // comptime_float → f32 (adapts)
 floats[1] = double_val:f32   // f64 → f32 (explicit conversion)
 ```
 
-## Array Operations
+## Core Array Features
 
-### Basic Array Operations
+### Array Creation and Element Access
 
 ```hexen
 // Array creation
@@ -354,8 +320,8 @@ Blocks containing only comptime array operations preserve flexibility:
 val flexible_array_computation = {
     val base = [1, 2, 3]                 // comptime_array_int
     val multiplier = [2, 2, 2]           // comptime_array_int
-    val result = base * multiplier        // Element-wise multiplication → comptime_array_int
-    -> result                        // Preserves comptime_array_int (flexible!)
+    val result = base.mul(multiplier)    // Element-wise multiplication → comptime_array_int - 'mul' not yet specified
+    -> result                            // Preserves comptime_array_int (flexible!)
 }
 
 // Same computation, different target types
@@ -368,10 +334,10 @@ val as_f64 : [_]f64 = flexible_array_computation    // Same source → [3]f64
 Blocks with function calls or concrete arrays require explicit context:
 
 ```hexen
-val runtime_array_result : [_]i32 = {               // Explicit context required
-    val input_data : [_]i32 = load_array_data()    // Function call → runtime (explicit type required)
-    val processed = input_data * [2, 2, 2]          // Mixed: concrete + comptime
-    -> processed                                // Result type determined by context
+val runtime_array_result : [_]i32 = {                   // Explicit context required
+    val input_data : [_]i32 = load_array_data()         // Function call → runtime (explicit type required)
+    val processed : [_]i32 = input_data.mul([2, 2, 2])  // Mixed: concrete + comptime - 'mul' not yet specified
+    -> processed                                
 }
 ```
 
@@ -592,9 +558,9 @@ val elem_f64 : f64 = comptime_matrix[1][1]     // → Runtime: 300.0 as f64 valu
 val complex_matrix = {
     val m1 = [[1, 2], [3, 4]]
     val m2 = [[5, 6], [7, 8]] 
-    val multiplied = m1 * m2                    // Matrix multiplication
-    val transposed = multiplied.transpose()     // Matrix transposition
-    val scaled = transposed.map(|row| row.map(|x| x * 2 + 10))  // Complex element transformation
+    val multiplied = m1.mul(m2)                    // Matrix multiplication - 'mul' not yet specified
+    val transposed = multiplied.transpose()     // Matrix transposition - 'transpose' not yet specified
+    val scaled = transposed.map(|row| row.map(|x| x * 2 + 10))  // Complex element transformation - 'map' not yet specified
     -> scaled                               // Result: comptime_array of comptime_array_int
 }
 
@@ -660,7 +626,7 @@ val uniform : [_][3]i32 = [
 
 #### Matrix Operations and Transformations
 ```hexen
-// Matrix with explicit conversions
+// Matrix type conversions - core language feature
 val int_matrix : [_][_]i32 = [[1, 2], [3, 4]]
 val float_matrix : [_][_]f64 = [[1.1, 2.2], [3.3, 4.4]]
 
@@ -700,7 +666,7 @@ grid[2] = [7, 8, 9]                // comptime_array_int → [3]i32 (adapts)
 val computed_matrix = {
     val base = [[1, 2], [3, 4]]      // comptime_array of comptime_array_int
     val scale = [[2, 2], [2, 2]]     // comptime_array of comptime_array_int  
-    val result = base * scale         // Element-wise multiplication
+    val result = base.mul(scale)         // Element-wise multiplication - 'mul' not yet specified
     -> result                    // Preserves comptime type (flexible!)
 }
 
@@ -711,7 +677,7 @@ val as_f64_matrix : [_][_]f64 = computed_matrix    // Same source → [2][2]f64
 // Runtime evaluable matrix operations require explicit context
 val runtime_matrix : [_][_]f32 = {                 // Context required
     val data : [_][_]f32 = load_matrix_data()      // Function call → runtime
-    val processed = data * [[1.5, 1.5], [1.5, 1.5]] // Mixed: concrete + comptime
+    val processed = data.mul([[1.5, 1.5], [1.5, 1.5]]) // Mixed: concrete + comptime - 'mul' not yet specified
     -> processed
 }
 ```
@@ -908,14 +874,13 @@ func demonstrate_array_system() : void = {
     val concrete_elem : i32 = concrete[0]       // Explicit type required
     val widened_elem : i64 = concrete[0]:i64    // Explicit conversion
     
-    // ===== Array Operations =====
+    // ===== Array Type Conversions =====
     val numbers1 : [_]i32 = [1, 2, 3]           // [3]i32
     val numbers2 : [_]i32 = [4, 5, 6]           // [3]i32
-    val combined = numbers1 + numbers2           // [3]i32 + [3]i32 → [6]i32
-    
+
     val floats1 : [_]f32 = [1.1, 2.2]           // [2]f32
     val floats2 : [_]f64 = [3.3, 4.4]           // [2]f64
-    val converted = floats1:[_]f64 + floats2     // Explicit conversion then combine
+    val converted: [_]f64  = floats1:[_]f64               // Explicit array type conversion
     
     // ===== Mutable Arrays =====
     mut dynamic : [_]i32 = [10, 20, 30]         // Explicit type required
@@ -931,16 +896,16 @@ func demonstrate_array_system() : void = {
     // Compile-time evaluable (preserves flexibility)
     val flexible_computation = {
         val base = [1, 2, 3, 4]                 // comptime_array_int
-        val scaled = base * [2, 2, 2, 2]        // comptime array ops
+        val scaled = base.mul([2, 2, 2, 2])       // comptime array ops - 'mul' not yet specified
         -> scaled                           // Preserves comptime_array_int
     }
     val comp_as_i32 : [_]i32 = flexible_computation  // → [4]i32
     val comp_as_f64 : [_]f64 = flexible_computation  // Same source → [4]f64
-    
+
     // Runtime evaluable (requires explicit context)
     val runtime_result : [_]f64 = {             // Context required
         val data = load_data_array()            // Function call → runtime
-        val processed = data * [1.5, 1.5, 1.5] // Mixed concrete + comptime
+        val processed = data.mul([1.5, 1.5, 1.5]) // Mixed concrete + comptime - 'mul' not yet specified
         -> processed
     }
     
@@ -1050,14 +1015,16 @@ func demonstrate_array_system() : void = {
 - **Explicit Conversions**: Same `value:type` conversion syntax
 - **val/mut Semantics**: Same mutability rules apply to arrays
 
-### Compatibility with BINARY_OPS.md  
-- **Element-wise Operations**: Array operations follow binary operation rules
-- **Mixed-Type Operations**: Same explicit conversion requirements
-- **Transparent Costs**: All array arithmetic costs visible
+### Compatibility with BINARY_OPS.md
+- **Element Access**: Individual array elements follow binary operation rules
+- **Type Conversions**: Same explicit conversion requirements for array types
+- **Transparent Costs**: All array type conversion costs visible
 
 ### Compatibility with UNIFIED_BLOCK_SYSTEM.md
 - **Expression Block Integration**: Arrays work seamlessly in expression blocks
 - **Compile-time vs Runtime**: Same classification rules for array operations
 - **Block Type Preservation**: Comptime arrays preserve flexibility through blocks
 
-This array type system extends Hexen's proven comptime philosophy to collections, maintaining consistency with existing language patterns while providing the ergonomics and safety that developers expect from a modern systems programming language.
+This array type system extends Hexen's proven comptime philosophy to collections, maintaining consistency with existing language patterns while focusing on the core essentials: **type safety**, **memory layout**, and **element access**. Advanced array operations are intentionally left to a future standard library, keeping the core language clean and focused.
+
+The result is a minimal yet powerful array system that provides the ergonomics and safety that developers expect from a modern systems programming language, without bloating the core language specification.
