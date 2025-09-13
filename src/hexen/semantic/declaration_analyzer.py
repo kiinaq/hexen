@@ -21,6 +21,7 @@ from .type_util import (
     parse_type,
 )
 from .types import HexenType, Mutability, ConcreteArrayType
+from .arrays.multidim_analyzer import MultidimensionalArrayAnalyzer
 from ..ast_nodes import NodeType
 
 
@@ -76,6 +77,12 @@ class DeclarationAnalyzer:
         self._get_current_scope = get_current_scope_callback
         self.symbol_table = symbol_table
         self.comptime_analyzer = comptime_analyzer
+        
+        # Initialize multidimensional array analyzer for flattening operations
+        self.multidim_analyzer = MultidimensionalArrayAnalyzer(
+            error_callback=error_callback,
+            comptime_analyzer=comptime_analyzer
+        )
 
     def analyze_declaration(self, node: Dict) -> None:
         """
@@ -268,11 +275,22 @@ class DeclarationAnalyzer:
                     # Explicit conversions are handled in _analyze_expression using value:type syntax
                     # If we get here without errors, the operation was either safe or explicitly converted
 
-                    # Use centralized declaration type compatibility validation
-                    # Don't return early to avoid cascading errors - still create the symbol
-                    self.comptime_analyzer.validate_variable_declaration_type_compatibility(
-                        value_type, var_type, value, name, self._error, node
-                    )
+                    # Check for array flattening before type compatibility validation
+                    flattening_handled = False
+                    if self._is_flattening_assignment(var_type, value_type):
+                        if self._handle_flattening_assignment(node, var_type, value_type, name):
+                            # Flattening successful - skip regular type compatibility check
+                            flattening_handled = True
+                        else:
+                            # Flattening failed - error already reported
+                            return
+
+                    # Use centralized declaration type compatibility validation only if not flattening
+                    if not flattening_handled:
+                        # Don't return early to avoid cascading errors - still create the symbol
+                        self.comptime_analyzer.validate_variable_declaration_type_compatibility(
+                            value_type, var_type, value, name, self._error, node
+                        )
         else:
             # Type inference path - must have value
             if not value:
@@ -432,24 +450,21 @@ class DeclarationAnalyzer:
         for dim_node in dimension_nodes:
             size = dim_node.get("size")
             if size == "_":
-                self._error(
-                    "Inferred array dimensions ([_]) not yet supported in explicit contexts",
-                    array_type_node,
-                )
-                return HexenType.UNKNOWN
-
-            try:
-                dim_size = int(size)
-                if dim_size < 0:
-                    self._error(
-                        f"Array dimension must be non-negative, got {dim_size}",
-                        array_type_node,
-                    )
+                # Allow [_] dimensions - they will be resolved during flattening or other inference contexts
+                dimensions.append("_")
+            else:
+                try:
+                    dim_size = int(size)
+                    if dim_size < 0:
+                        self._error(
+                            f"Array dimension must be non-negative, got {dim_size}",
+                            array_type_node,
+                        )
+                        return HexenType.UNKNOWN
+                    dimensions.append(dim_size)
+                except (ValueError, TypeError):
+                    self._error(f"Invalid array dimension size: {size}", array_type_node)
                     return HexenType.UNKNOWN
-                dimensions.append(dim_size)
-            except (ValueError, TypeError):
-                self._error(f"Invalid array dimension size: {size}", array_type_node)
-                return HexenType.UNKNOWN
 
         if not dimensions:
             self._error(
@@ -464,3 +479,90 @@ class DeclarationAnalyzer:
         except ValueError as e:
             self._error(f"Invalid array type: {e}", array_type_node)
             return HexenType.UNKNOWN
+
+    def _is_flattening_assignment(self, target_type: HexenType, source_type: HexenType) -> bool:
+        """
+        Detect if assignment is array flattening operation.
+        
+        Flattening occurs when:
+        - Both target and source are array types
+        - Target is 1D array 
+        - Source is multidimensional array (2D+)
+        - Element types are compatible
+        """
+        return (
+            isinstance(target_type, ConcreteArrayType) and
+            isinstance(source_type, ConcreteArrayType) and 
+            len(target_type.dimensions) == 1 and  # Target is 1D
+            len(source_type.dimensions) > 1       # Source is multidimensional
+        )
+
+    def _handle_flattening_assignment(self, node: Dict, target_type: ConcreteArrayType, 
+                                    source_type: ConcreteArrayType, var_name: str) -> bool:
+        """
+        Handle array flattening assignment with proper validation.
+        
+        Args:
+            node: AST node for error reporting
+            target_type: Target 1D array type
+            source_type: Source multidimensional array type
+            var_name: Variable name for error messages
+            
+        Returns:
+            True if flattening is valid and processed, False if error occurred
+        """
+        # 1. Element type compatibility check
+        if source_type.element_type != target_type.element_type:
+            self._error(
+                f"Array flattening type mismatch for variable '{var_name}': "
+                f"cannot flatten {source_type.element_type} array to {target_type.element_type} array. "
+                f"Element types must match exactly",
+                node
+            )
+            return False
+        
+        # 2. Calculate source array total element count
+        source_element_count = 1
+        for dim_size in source_type.dimensions:
+            if dim_size == "_":
+                self._error(
+                    f"Cannot flatten array with inferred source dimensions for variable '{var_name}'. "
+                    f"Source array must have explicit dimensions",
+                    node
+                )
+                return False
+            source_element_count *= dim_size
+
+        # 3. Handle size inference for [_] targets  
+        if target_type.dimensions[0] == "_":
+            # Infer the size from source array element count
+            target_type.dimensions[0] = source_element_count
+            # Size inference complete - no need for further validation
+        else:
+            # 4. Explicit target size - validate against source
+            target_size = target_type.dimensions[0]
+            if source_element_count != target_size:
+                self._error(
+                    f"Array flattening element count mismatch for variable '{var_name}': "
+                    f"source array has {source_element_count} elements "
+                    f"({' × '.join(map(str, source_type.dimensions))}) "
+                    f"but target array expects {target_size} elements. "
+                    f"Element counts must match exactly for safe flattening",
+                    node
+                )
+                return False
+        
+        # All validation passed - flattening is valid
+        return True
+
+    def _extract_array_type_info(self, array_type: ConcreteArrayType) -> Dict:
+        """
+        Extract array type information for multidim analyzer.
+        
+        Converts ConcreteArrayType to the format expected by MultidimensionalArrayAnalyzer.
+        """
+        return {
+            "element_type": array_type.element_type,
+            "dimensions": array_type.dimensions,
+            "is_concrete": True
+        }
