@@ -14,16 +14,18 @@ Hexen's array type system extends the language's comptime philosophy to collecti
 
 ## Core Philosophy
 
-### Design Principle: Array Integration with Comptime Types
+### Design Principle: Array Integration with Comptime Types and Reference System
 
-Hexen's arrays follow the same **"Ergonomic Literals + Transparent Runtime Costs"** philosophy:
+Hexen's arrays follow the same **"Ergonomic Literals + Transparent Runtime Costs"** philosophy while integrating seamlessly with the reference system:
 
 - **Ergonomic Array Literals**: Comptime array types adapt seamlessly (zero runtime cost)
 - **Transparent Runtime Costs**: All concrete array conversions require explicit syntax (`value:type`)
+- **Safe Array Data Sharing**: Array references (`&arr: [N]T`) enable efficient zero-copy data access
+- **Explicit Copy vs Reference Choice**: Clear distinction between `arr` (copy) and `&arr` (share) in function parameters
 - **Consistent with Individual Values**: Arrays follow identical patterns to single-value type system
 - **Natural Usage**: Common array literal patterns work without ceremony (`[1, 2, 3]`, `[3.14, 2.71]`)
 - **Size-as-Type**: Array size is part of the type itself, enabling compile-time safety
-- **Safe Memory Layout Access**: Row-major layout enables zero-cost dimensional flattening
+- **Reference-Only Flattening**: True zero-cost dimensional flattening only works with references
 - **Proven Approach**: Following some Zig's successful array design patterns
 
 This philosophy ensures that **everyday array usage feels natural**, while **runtime performance costs** are always explicit and visible.
@@ -309,6 +311,147 @@ val element : i32 = numbers[dynamic_index]  // Runtime bounds check inserted
 - **Runtime bounds checking**: For dynamic indices (inserted automatically)
 - **Safety by default**: Following Hexen's safety-first philosophy
 
+## Array Reference Parameters
+
+Arrays integrate seamlessly with Hexen's reference system, enabling efficient data sharing for function parameters without copying large data structures.
+
+### Basic Array Reference Syntax
+
+Array references follow the same patterns as other reference types, with array-specific considerations:
+
+```hexen
+// Array reference parameter declarations
+func process_array(&data: [_]i32) : i32 = {
+    // Reference parameter provides direct access to original array (no copy)
+    return data[0] + data[data.length - 1]  // Automatic dereferencing
+}
+
+func sum_large_dataset(&dataset: [10000]f64) : f64 = {
+    // Efficient: no copying of 80KB of data
+    val first : f64 = dataset[0]            // Direct access to original
+    val last : f64 = dataset[9999]          // No memory allocation
+    return first + last
+}
+
+// Mutable array reference parameters
+func normalize_array(mut &array: [_]f64, factor: f64) : void = {
+    // Modify original array in-place
+    array[0] = array[0] / factor            // Direct modification
+    array[1] = array[1] / factor            // No copying overhead
+    // ... process remaining elements
+}
+```
+
+### Array Reference Call Patterns
+
+Array reference parameters require explicit reference passing with `&` syntax:
+
+```hexen
+// Calling functions with array references
+val data : [1000]i32 = initialize_data()   // Concrete array required
+val result : i32 = process_array(&data)    // ✅ Pass reference to concrete array
+
+val large_set : [10000]f64 = load_scientific_data()
+val sum : f64 = sum_large_dataset(&large_set)  // ✅ No copying - efficient!
+
+// Mutable array processing
+mut values : [100]f64 = load_values()
+normalize_array(&values, 2.0)              // ✅ Modify original array in-place
+
+// ❌ Cannot pass comptime arrays by reference
+val flexible_array = [1, 2, 3, 4, 5]       // comptime_array_int
+// process_array(&flexible_array)          // Error: Cannot reference comptime type
+```
+
+### Performance Comparison: Copy vs Reference
+
+Array references provide significant performance benefits for large data structures:
+
+```hexen
+// Value parameter approach (copying)
+func process_by_copy(data: [10000]f64) : f64 = {
+    // This function receives a COPY of 80KB of data
+    return data[0] * data[9999]
+}
+
+// Reference parameter approach (zero-copy)
+func process_by_reference(&data: [10000]f64) : f64 = {
+    // This function receives a REFERENCE (~8 bytes)
+    return data[0] * data[9999]             // Same computation, no copying
+}
+
+// Usage demonstrates performance difference
+val scientific_data : [10000]f64 = load_experiment_results()
+
+// Expensive: copies 80KB for each call
+val result1 : f64 = process_by_copy(scientific_data)      // 80KB copied
+val result2 : f64 = process_by_copy(scientific_data)      // Another 80KB copied
+
+// Efficient: shares original data
+val efficient1 : f64 = process_by_reference(&scientific_data)  // ~8 bytes reference
+val efficient2 : f64 = process_by_reference(&scientific_data)  // ~8 bytes reference
+```
+
+### Array Reference Mutability
+
+Array references follow the same mutability rules as other references:
+
+```hexen
+// Read-only array reference (default)
+func analyze_data(&data: [_]i32, threshold: i32) : i32 = {
+    val count : i32 = 0
+    // data[0] = 999                        // ❌ Error: Cannot modify through read-only reference
+    val analysis : i32 = data[0] + data[1] // ✅ Read access through reference
+    return analysis
+}
+
+// Mutable array reference (explicit)
+func scale_values(mut &values: [_]f64, factor: f64) : void = {
+    values[0] = values[0] * factor          // ✅ Can modify through mutable reference
+    values[1] = values[1] * factor          // ✅ Direct in-place processing
+}
+
+// Calling mutable array reference functions
+val data : [100]i32 = load_data()
+analyze_data(&data, 50)                     // ✅ Read-only access with immutable array
+
+mut processable : [100]f64 = load_values()
+scale_values(&processable, 1.5)             // ✅ In-place modification with mutable array
+
+val immutable : [100]f64 = load_constants()
+// scale_values(&immutable, 1.5)           // ❌ Error: Cannot create mutable reference to immutable array
+```
+
+### Array Reference with Multidimensional Arrays
+
+Array references work seamlessly with multidimensional arrays and flattening:
+
+```hexen
+// 2D array reference parameters
+func process_matrix(&matrix: [_][_]f64, factor: f64) : f64 = {
+    // Direct access to 2D array without copying
+    return matrix[0][0] * matrix[matrix.length-1][matrix[0].length-1] * factor
+}
+
+// In-place 2D array processing
+func transform_matrix(mut &matrix: [_][_]f64, scale: f64) : void = {
+    // Modify original 2D array in-place
+    matrix[0][0] = matrix[0][0] * scale     // Direct modification
+    matrix[1][1] = matrix[1][1] * scale     // No memory allocation
+}
+
+// Array flattening with references (zero-cost)
+func process_flat_view(&matrix: [4][4]f64) : f64 = {
+    val &flattened : [_]f64 = &matrix       // Zero-cost flattened view
+    return flattened[0] + flattened[15]     // Access via flat view: matrix[0][0] + matrix[3][3]
+}
+
+// Usage with multidimensional arrays
+val matrix_2d : [4][4]f64 = load_transformation_matrix()
+val result : f64 = process_matrix(&matrix_2d, 2.0)     // No copying of 128 bytes
+process_flat_view(&matrix_2d)                          // Zero-cost flattened access
+```
+
 ## Integration with Expression Blocks
 
 Arrays work seamlessly with Hexen's unified block system:
@@ -464,15 +607,24 @@ val matrix : [3][4]i32 = [
 - **Compile-time size**: All dimensions known at compile time enable optimizations
 - **No indirection**: Single contiguous memory block, not array of pointers
 
-#### Array Flattening: Leveraging Row-Major Layout
-The row-major memory layout enables **safe array flattening** - converting multidimensional arrays to 1D arrays without runtime cost:
+#### Array Flattening: Reference-Only Zero-Cost Views
+The row-major memory layout enables **true zero-cost array flattening** - but only through references, which provide different views of the same memory:
 
+**❌ Value-Based Flattening (Copying - Not Zero Cost):**
+```hexen
+val matrix : [2][3]i32 = [[1, 2, 3], [4, 5, 6]]  // 6 elements total
+val flattened : [_]i32 = matrix                   // ❌ Copies entire array! (24 bytes)
+// This creates a NEW array in memory with a different layout
+```
+
+**✅ Reference-Based Flattening (True Zero Cost):**
 ```hexen
 val matrix : [2][3]i32 = [[1, 2, 3], [4, 5, 6]]  // 6 elements total in row-major order
-val flattened : [_]i32 = matrix                   // → [6]i32 automatically inferred!
+val &flattened : [_]i32 = &matrix                 // → &[6]i32 reference view!
 
 // Memory layout unchanged: [1, 2, 3, 4, 5, 6]
-// Same memory addresses, different type view - zero runtime cost
+// Same memory addresses, different type view - TRUE zero runtime cost
+// flattened[0] == matrix[0][0], flattened[3] == matrix[1][0]
 ```
 
 **Safe Alternative to Pointer Arithmetic:**
@@ -481,10 +633,16 @@ val flattened : [_]i32 = matrix                   // → [6]i32 automatically in
 // val ptr = &matrix[0][0]               // Raw pointer - dangerous!
 // process_buffer(ptr, 6)                // Manual count - error prone!
 
-// Hexen safe approach:
-val vertices : [_]f32 = matrix           // Type-safe, size-known automatically
-process_buffer(vertices)                 // Bounds checked, no manual calculations
+// Hexen safe approach - Reference-based:
+val matrix : [4][6]f32 = load_vertex_positions()
+val &vertices : [_]f32 = &matrix         // Type-safe reference view, size-known automatically
+process_buffer(&vertices)                // Pass reference - bounds checked, no copying
 ```
+
+**Why References Are Required for Zero-Cost Flattening:**
+- **Value assignment** (`val flat = matrix`) **must copy** because it creates a new variable with different memory layout
+- **Reference view** (`val &flat = &matrix`) **shares memory** because it's just a different way to access the same data
+- **True zero cost** is only achievable when no memory allocation or copying occurs
 
 ### Element Access and Indexing
 
@@ -582,6 +740,77 @@ val concrete_elem : i32 = concrete_matrix[1][0]     // Explicit type required: i
 val concrete_row : [2]i32 = concrete_matrix[0]      // Explicit type required: [2]i32
 val widened_elem : i64 = concrete_matrix[1][0]:i64  // Explicit conversion: i32 → i64
 ```
+
+#### Element and Row References
+References to individual elements or rows from concrete arrays enable zero-copy access patterns:
+
+**Single Element References:**
+```hexen
+val numbers : [_]i32 = [10, 20, 30, 40, 50]     // [5]i32
+
+// Element references - zero copy access to individual elements
+val &first_ref : i32 = &numbers[0]              // Reference to first element
+val &last_ref : i32 = &numbers[4]               // Reference to last element
+
+// Using element references
+func process_element(&elem: i32) : i32 = {
+    return elem * 2                              // Automatic dereferencing
+}
+
+val doubled : i32 = process_element(&numbers[2]) // Pass element by reference
+```
+
+**Row References from Multidimensional Arrays:**
+```hexen
+val matrix : [_][_]f64 = [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]]  // [3][3]f64
+
+// Row references - zero copy access to entire rows
+val &first_row : [3]f64 = &matrix[0]            // Reference to [1.0, 2.0, 3.0]
+val &middle_row : [3]f64 = &matrix[1]           // Reference to [4.0, 5.0, 6.0]
+
+// Using row references in functions
+func compute_row_sum(&row: [3]f64) : f64 = {
+    return row[0] + row[1] + row[2]             // Automatic dereferencing
+}
+
+val sum1 : f64 = compute_row_sum(&matrix[0])    // Process first row by reference
+val sum2 : f64 = compute_row_sum(&matrix[2])    // Process third row by reference
+
+// Mutable element and row references
+mut mutable_matrix : [_][_]i32 = [[1, 2], [3, 4]]  // [2][2]i32
+
+func increment_element(mut &elem: i32) : void = {
+    elem = elem + 1                             // Direct modification via reference
+}
+
+func scale_row(mut &row: [2]i32, factor: i32) : void = {
+    row[0] = row[0] * factor                    // Direct row modification
+    row[1] = row[1] * factor
+}
+
+increment_element(&mutable_matrix[0][0])        // Modify single element: [1,2] → [2,2]
+scale_row(&mutable_matrix[1], 10)               // Modify entire row: [3,4] → [30,40]
+```
+
+**Element References with Mixed Types:**
+```hexen
+val mixed_data : [_]f64 = [1.5, 2.7, 3.9]      // [3]f64
+
+// Element reference in different contexts
+func process_as_int(mut &value: f64) : i32 = {
+    value = value * 2.0                         // Modify original via reference
+    return value:i32                            // Return converted copy
+}
+
+val result : i32 = process_as_int(&mixed_data[1])  // mixed_data[1] becomes 5.4, returns 5
+```
+
+**Benefits of Element and Row References:**
+- **Zero Copy Access**: No data duplication when accessing array elements or rows
+- **Efficient Processing**: Pass large rows to functions without copying
+- **In-Place Modification**: Direct mutation of specific elements or rows
+- **Memory Efficiency**: Work with subsets of large arrays without allocation
+- **Cache Locality**: References maintain original memory layout for better performance
 
 ### Advanced Multidimensional Patterns
 
@@ -685,38 +914,49 @@ val runtime_matrix : [_][_]f32 = {                 // Context required
 ### Common Use Cases and Patterns
 
 #### Array Flattening for Systems Programming
-Leveraging row-major layout for safe pointer replacement:
+Leveraging row-major layout with reference-based flattening for true zero-cost performance:
 
+**❌ Copy-Based Approach (Expensive):**
 ```hexen
-// Graphics: Vertex data (positions + colors)
+// Graphics: Vertex data (positions + colors) - COPYING APPROACH
 val vertex_data : [100][6]f32 = generate_vertices()  // 100 vertices, 6 components each
-val gpu_buffer : [_]f32 = vertex_data                // → [600]f32 for GPU upload
-upload_to_gpu(gpu_buffer)                            // Type-safe, size-automatic
+val gpu_buffer : [_]f32 = vertex_data                // ❌ Copies 2.4KB! Creates new flat array
+upload_to_gpu(gpu_buffer)                            // Pass copy to GPU
+```
+
+**✅ Reference-Based Approach (Zero-Cost):**
+```hexen
+// Graphics: Vertex data (positions + colors) - REFERENCE APPROACH
+val vertex_data : [100][6]f32 = generate_vertices()  // 100 vertices, 6 components each
+val &gpu_buffer : [_]f32 = &vertex_data              // ✅ Zero cost! Same memory, flat view
+upload_to_gpu(&gpu_buffer)                           // Pass reference to GPU
 
 // Scientific computing: Matrix for linear algebra libraries
 val matrix : [512][512]f64 = load_matrix()
-val linear_data : [_]f64 = matrix                    // → [262144]f64 for BLAS/LAPACK
-blas_gemv(linear_data, vector)
+val &linear_data : [_]f64 = &matrix                  // ✅ Zero-cost view of 2MB matrix
+blas_gemv(&linear_data, &vector)                     // No copying - pass references
 
 // Image processing: RGB pixel data
 val image : [height][width][3]u8 = load_image()
-val pixel_buffer : [_]u8 = image                     // Flat buffer for codecs
-compress_jpeg(pixel_buffer)
+val &pixel_buffer : [_]u8 = &image                   // ✅ Zero-cost flat view
+compress_jpeg(&pixel_buffer)                         // Process via reference
 
 // Game development: 3D world serialization
 val chunk : [16][16][16]u8 = generate_chunk()
-val serialized : [_]u8 = chunk                       // → [4096]u8 for disk/network
-save_chunk_data(serialized)
+val &serialized : [_]u8 = &chunk                     // ✅ Zero-cost flat view of 4KB
+save_chunk_data(&serialized)                         // Serialize via reference
 ```
 
-**Comptime Flattening with Type Flexibility:**
+**Comptime Flattening with Type Flexibility (Copy-Based):**
 ```hexen
+// Comptime arrays can be materialized as different flattened types (copying)
 val comptime_matrix = [[42, 100], [200, 300]]        // comptime 2D array
-val flat_i32 : [_]i32 = comptime_matrix              // → [4]i32 
-val flat_f64 : [_]f64 = comptime_matrix              // Same source → [4]f64
-val flat_f32 : [_]f32 = comptime_matrix              // Same source → [4]f32
+val flat_i32 : [_]i32 = comptime_matrix              // → [4]i32 (materialized copy)
+val flat_f64 : [_]f64 = comptime_matrix              // → [4]f64 (different materialized copy)
+val flat_f32 : [_]f32 = comptime_matrix              // → [4]f32 (another materialized copy)
 
-// One comptime source, multiple flattened materializations!
+// Multiple runtime materializations from single comptime source
+// Each creates a separate concrete array in memory
 ```
 
 **Element Count Validation (Compile-time Safety):**
@@ -948,27 +1188,165 @@ func demonstrate_array_system() : void = {
     grid[0][1] = 42                              // Element assignment
     grid[1] = [7, 8]                             // Row assignment
     
-    // ===== Array Flattening (Safe Pointer Replacement) =====
-    // Multidimensional → 1D flattening leverages row-major layout
+    // ===== Array Flattening (Reference-Based Zero-Cost) =====
+    // True zero-cost flattening only works with references
     val matrix_3d : [2][3][4]i32 = generate_3d_data()  // 24 elements total
-    val flattened_24 : [_]i32 = matrix_3d               // → [24]i32 (automatic size!)
-    
-    // Zero runtime cost - same memory, different type view
+    val &flattened_24 : [_]i32 = &matrix_3d             // ✅ Zero cost! Reference view → &[24]i32
+
+    // True zero runtime cost - same memory, reference view
     val matrix_2d : [4][6]f32 = load_vertex_positions()
-    val vertex_buffer : [_]f32 = matrix_2d              // → [24]f32 for GPU
-    render_vertices(vertex_buffer)                       // Type-safe, bounds-checked
-    
-    // Comptime flattening with type flexibility
+    val &vertex_buffer : [_]f32 = &matrix_2d            // ✅ Zero cost! → &[24]f32 reference
+    render_vertices(&vertex_buffer)                      // Pass reference - no copying
+
+    // ===== Copy-Based vs Reference-Based Comparison =====
+    val large_matrix : [100][100]f64 = load_matrix()    // 80KB matrix
+
+    // Copy-based (expensive):
+    val copied_flat : [_]f64 = large_matrix             // ❌ Copies 80KB!
+    process_flat_copy(copied_flat)                       // Process copy
+
+    // Reference-based (zero-cost):
+    val &ref_flat : [_]f64 = &large_matrix             // ✅ Zero cost! Same memory
+    process_flat_reference(&ref_flat)                   // Process original via reference
+
+    // ===== Comptime Arrays (Copy-Based Materialization) =====
+    // Comptime arrays create copies when materialized as concrete types
     val comptime_3x3 = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]  // comptime 2D array
-    val flat_i32 : [_]i32 = comptime_3x3                   // → [9]i32
-    val flat_f64 : [_]f64 = comptime_3x3                   // Same source → [9]f64
-    val flat_f32 : [_]f32 = comptime_3x3                   // Same source → [9]f32
-    
-    // Element count validation at compile time
+    val flat_i32 : [_]i32 = comptime_3x3                   // → [9]i32 (materialized copy)
+    val flat_f64 : [_]f64 = comptime_3x3                   // → [9]f64 (different materialized copy)
+    val flat_f32 : [_]f32 = comptime_3x3                   // → [9]f32 (another materialized copy)
+
+    // Element count validation at compile time (reference-based)
     val small_matrix : [2][2]i32 = [[1, 2], [3, 4]]        // 4 elements total
-    val flattened_4 : [_]i32 = small_matrix                 // ✅ → [4]i32
-    // val wrong_size : [3]i32 = small_matrix               // ❌ Compile error: 4 ≠ 3
+    val &flattened_4 : [_]i32 = &small_matrix               // ✅ Zero cost → &[4]i32
+    // val &wrong_size : [3]i32 = &small_matrix             // ❌ Compile error: &[4]i32 ≠ &[3]i32
 }
+```
+
+## Array Reference Safety and Error Handling
+
+### Array Reference Safety Guarantees
+
+Array references maintain all safety guarantees from the reference system while adding array-specific protections:
+
+```hexen
+// ✅ Safe array reference patterns
+func safe_array_processing() : f64 = {
+    val data : [1000]f64 = load_scientific_data()      // Concrete array in function scope
+
+    // Reference stays within data's lifetime - compiler ensures safety
+    val result : f64 = process_by_reference(&data)     // ✅ Safe: reference doesn't escape
+
+    // Array flattening with references is also safe
+    val matrix : [10][100]f64 = reshape_data(&data)    // Create 2D view
+    val &flattened : [_]f64 = &matrix                  // ✅ Zero-cost flat view
+
+    return result
+    // data and matrix destroyed here, but references already used - no dangling reference risk
+}
+
+// ❌ Unsafe patterns caught at compile-time
+func create_dangling_array_ref() : &[100]i32 = {
+    val local_array : [100]i32 = initialize_array()
+    return &local_array                                // ❌ Error: Reference to local array escaping scope
+}
+```
+
+### Array Reference Lifetime Management
+
+Array references follow strict lifetime rules to prevent memory safety issues:
+
+```hexen
+// ✅ Valid: Reference lifetime within target scope
+val global_data : [1000]i32 = load_global_data()
+val &global_ref : [_]i32 = &global_data               // ✅ Valid: both have same lifetime
+
+// ✅ Valid: Reference passed to function, used immediately
+func process_immediately(&data: [_]f64) : f64 = {
+    return data[0] + data[data.length - 1]             // ✅ Valid: immediate use
+}
+
+// ❌ Invalid: Reference escaping its target's scope
+val &escaped_ref : [_]i32 = {
+    val temp_array : [100]i32 = create_temp_array()
+    -> &temp_array                                     // ❌ Error: Reference escaping block scope
+}
+```
+
+### Array Reference Error Messages
+
+Hexen provides clear, actionable error messages for array reference issues:
+
+#### Array Reference Declaration Errors
+```
+Error: Cannot create reference to comptime array type 'comptime_array_int'
+  Array reference '&flexible_ref' requires concrete array type
+  Comptime arrays exist only during compilation and cannot be referenced
+  Suggestion: Use explicit type annotation to create concrete array:
+    val concrete : [_]i32 = [1, 2, 3]
+    val &array_ref : [_]i32 = &concrete
+```
+
+#### Array Reference Assignment Errors
+```
+Error: Cannot create mutable reference to immutable array
+  Array 'immutable_data' is declared with 'val' (immutable)
+  Cannot create 'mut &array_ref' (writable view) of immutable array
+  Suggestion: Use read-only reference instead:
+    val &readonly_ref : [_]i32 = &immutable_data
+```
+
+#### Array Flattening Reference Errors
+```
+Error: Array flattening requires reference syntax for zero-cost operation
+  Assignment 'val flat = matrix' would copy entire array (expensive)
+  For true zero-cost flattening, use reference syntax:
+    val &flat : [_]i32 = &matrix
+```
+
+#### Array Reference Function Call Errors
+```
+Error: Function expects array reference parameter, got array value
+  Function 'process_array' expects '&data: [_]i32' but received array value
+  Use reference syntax in function call:
+    process_array(&my_array)  // Pass reference to array
+```
+
+#### Array Reference Size Mismatch Errors
+```
+Error: Array reference size mismatch in flattening operation
+  Cannot create reference '&flat : [10]i32' to array '[2][3]i32'
+  Source has 6 elements but target expects 10 elements
+  Suggestion: Use inferred size for automatic calculation:
+    val &flat : [_]i32 = &matrix  // Automatically infers [6]i32
+```
+
+### Array Reference Integration with Comptime Types
+
+Array references maintain the clean separation between comptime and concrete types:
+
+```hexen
+// ===== COMPTIME ARRAYS (No References Allowed) =====
+val flexible_array = [1, 2, 3, 4, 5]           // comptime_array_int (flexible!)
+// val &invalid_ref = &flexible_array          // ❌ Error: Cannot reference comptime type
+
+// These preserve comptime flexibility for later materialization
+val as_i32 : [_]i32 = flexible_array           // comptime_array_int → [5]i32 (copy)
+val as_i64 : [_]i64 = flexible_array           // Same source → [5]i64 (different copy)
+val as_f64 : [_]f64 = flexible_array           // Same source → [5]f64 (another copy)
+
+// ===== CONCRETE ARRAYS (References Allowed) =====
+val concrete : [_]i32 = [1, 2, 3, 4, 5]        // Explicit concrete array
+val concrete_2d : [_][_]i32 = [[1, 2], [3, 4]] // Explicit concrete 2D array
+
+// References work with concrete arrays only
+val &ref_1d : [_]i32 = &concrete                // ✅ OK: Reference to concrete 1D array
+val &ref_2d : [_][_]i32 = &concrete_2d          // ✅ OK: Reference to concrete 2D array
+val &ref_flat : [_]i32 = &concrete_2d           // ✅ OK: Zero-cost flattened reference view
+
+// ===== THE BOUNDARY IS CLEAR =====
+// Comptime arrays: Flexible, no references, compile-time evaluation
+// Concrete arrays: Fixed, can be referenced, runtime memory allocation
 ```
 
 ## Benefits
@@ -988,8 +1366,11 @@ func demonstrate_array_system() : void = {
 3. **No Hidden Allocations**: All array operations are explicit
 4. **Bounds Check Optimization**: Compile-time bounds checking where possible
 5. **Memory Layout Predictable**: Fixed-size arrays have predictable layout
-6. **Zero-Cost Flattening**: Multidimensional → 1D conversion with no runtime overhead
-7. **Safe Pointer Replacement**: Eliminates unsafe pointer arithmetic patterns
+6. **Zero-Cost Array References**: Reference-based array sharing (`&arr`) with no copying overhead
+7. **Reference-Only Flattening**: True zero-cost dimensional flattening only with references (`&arr`)
+8. **Copy vs Reference Choice**: Explicit distinction between copying (`arr`) and sharing (`&arr`) data
+9. **Safe Pointer Replacement**: Eliminates unsafe pointer arithmetic patterns with automatic dereferencing
+10. **Efficient Large Array Processing**: References enable processing of large arrays without memory duplication
 
 ### Type Safety
 
@@ -997,7 +1378,10 @@ func demonstrate_array_system() : void = {
 2. **Element Type Safety**: All element conversions follow standard type rules
 3. **Bounds Safety**: Index out of bounds errors caught early
 4. **No Silent Coercion**: All array type changes require explicit syntax
-5. **Integration Safety**: Arrays integrate seamlessly with expression blocks
+5. **Array Reference Safety**: Immutable references prevent accidental mutation (`val &arr`)
+6. **Mutable Reference Requirements**: Mutable array references require explicit mutable targets (`mut &arr`)
+7. **Automatic Dereferencing Safety**: References work like values with compile-time lifetime checking
+8. **Integration Safety**: Arrays integrate seamlessly with expression blocks
 
 ### Maintainability
 
@@ -1024,6 +1408,13 @@ func demonstrate_array_system() : void = {
 - **Expression Block Integration**: Arrays work seamlessly in expression blocks
 - **Compile-time vs Runtime**: Same classification rules for array operations
 - **Block Type Preservation**: Comptime arrays preserve flexibility through blocks
+
+### Compatibility with REFERENCE_SYSTEM.md
+- **Unified Reference Syntax**: Arrays use same reference syntax (`&arr: [N]T`)
+- **Automatic Dereferencing**: Array references work transparently like values
+- **Mutability Rules**: Same `val &` vs `mut &` patterns for array references
+- **Safety Guarantees**: Same compile-time lifetime and mutability checking
+- **Function Integration**: Array references integrate seamlessly with function parameters
 
 This array type system extends Hexen's proven comptime philosophy to collections, maintaining consistency with existing language patterns while focusing on the core essentials: **type safety**, **memory layout**, and **element access**. Advanced array operations are intentionally left to a future standard library, keeping the core language clean and focused.
 
