@@ -2,7 +2,7 @@
 
 *Design Exploration & Specification*
 
-> **Design Note**: This document describes Hexen's reference system for achieving "pointers without pointers" - providing safe, efficient data sharing and access patterns without exposing dangerous low-level pointer syntax. References work exclusively with concrete types, maintaining Hexen's fundamental comptime/concrete type boundary.
+> **Design Note**: This document describes Hexen's reference system - providing safe, efficient data sharing and access patterns. References work exclusively with concrete types, maintaining Hexen's fundamental comptime/concrete type boundary.
 >
 > **NOT YET IMPLEMENTED!**
 
