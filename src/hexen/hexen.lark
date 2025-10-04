@@ -52,10 +52,13 @@ multiplicative: unary (MUL_OP unary)*
 unary: UNARY_OP unary
      | conversion
 conversion: postfix (CONVERSION_OP type)?
-postfix: primary (array_access)*
+postfix: primary (array_suffix | property_access)*
 primary: NUMBER | STRING | BOOLEAN | function_call | IDENTIFIER | block | conditional_stmt | array_literal | "(" expression ")"
 
+array_suffix: array_access | array_copy
 array_access: "[" expression "]"
+array_copy: "[" ".." "]"
+property_access: "." IDENTIFIER
 array_literal: "[" [expression ("," expression)*] "]"
 
 function_call: IDENTIFIER "(" argument_list? ")"

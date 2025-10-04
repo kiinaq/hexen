@@ -491,6 +491,23 @@ func demonstrate_mixed_types() : void = {
         save_result(temp_result)
         // temp_result not accessible outside block
     }
+
+    // 🔄 Mixed array operations (concrete types = runtime, explicit context required)
+    val mixed_array_result : [_]f64 = {                // Context REQUIRED!
+        val int_array : [_]i32 = [10, 20, 30]          // Concrete array (first materialization)
+        val float_multiplier : f64 = get_multiplier()  // Function call → concrete f64
+        val converted_array : [_]f64 = int_array:[_]f64  // Explicit array conversion (TYPE_SYSTEM.md)
+        val scaled_array = scale_array(converted_array, float_multiplier)  // Function call → concrete array
+        -> scaled_array[..]                             // Explicit copy required for assignment
+    }
+
+    // Array copying with explicit performance costs
+    {
+        val source_array : [_]i32 = [100, 200, 300]    // Concrete array (first materialization)
+        val backup_array : [_]i32 = source_array[..]   // Explicit copy (performance cost visible)
+        process_backup(backup_array)
+        // backup_array scoped to this block
+    }
 }
 ```
 
@@ -527,6 +544,10 @@ func process_data(input: f64) : f64 = {
     return input * 2.0
 }
 
+func process_array(input: [_]f64) : [_]f64 = {
+    return scale_array(input, 2.0)
+}
+
 func demonstrate_function_integration() : void = {
     // ✅ Compile-time evaluable block result used as function argument
     val computation = {
@@ -534,15 +555,31 @@ func demonstrate_function_integration() : void = {
         val adjusted = base / 3   // comptime_int / comptime_int → comptime_float
         -> adjusted
     }
-    
+
     // Function parameter provides context (TYPE_SYSTEM.md pattern)
     val result : f64 = process_data(computation)  // Function returns concrete f64, explicit type required
-    
+
     // ✅ Compile-time evaluable block in nested pattern
     val complex_result : f64 = process_data({
         val temp = 100 + 50      // comptime_int + comptime_int → comptime_int
         -> temp * 3.14       // comptime_int * comptime_float → comptime_float
     })  // Expression block → comptime_float → f64 (parameter context), function returns concrete f64
+
+    // ✅ Compile-time evaluable array block used as function argument
+    val array_computation = {
+        val base_array = [1, 2, 3, 4]     // comptime_array_int
+        val scaled = [2, 4, 6, 8]         // comptime_array_int
+        -> base_array                     // Preserves comptime_array_int flexibility
+    }
+
+    // Array function parameter provides context (ARRAY_TYPE_SYSTEM.md pattern)
+    val array_result : [_]f64 = process_array(array_computation)  // Function returns concrete array, explicit type required
+
+    // ✅ Compile-time evaluable array block in nested pattern
+    val complex_array_result : [_]f64 = process_array({
+        val temp_array = [10, 20, 30]    // comptime_array_int
+        -> temp_array                    // comptime_array_int preserved
+    })  // Expression block → comptime_array_int → [_]f64 (parameter context), function returns concrete array
 }
 ```
 
@@ -566,8 +603,25 @@ mut concrete_result : f64 = {
 }
 // No flexibility preserved - concrete_result is concrete f64
 
+// ✅ val with compile-time evaluable array block preserves comptime array types (maximum flexibility)
+val flexible_array_block = {
+    val arr_calc = [42, 100, 200]    // comptime_array_int
+    val element = arr_calc[0]        // comptime_int
+    -> arr_calc                      // Preserves comptime_array_int
+}
+val as_i32_array : [_]i32 = flexible_array_block  // comptime_array_int → [3]i32 (preserved until now!)
+val as_f64_array : [_]f64 = flexible_array_block  // SAME source → [3]f64 (different context!)
+
+// 🔴 mut with compile-time evaluable array block cannot preserve comptime types (safety over flexibility)
+mut concrete_array_result : [_]i32 = {
+    val arr_calc = [10, 20, 30]     // Same comptime operations
+    -> arr_calc                     // comptime_array_int → [3]i32 (immediately resolved!)
+}
+// No flexibility preserved - concrete_array_result is concrete [3]i32
+
 // Explicit conversions required for mut results (TYPE_SYSTEM.md pattern)
 mut narrow_result : f32 = concrete_result:f32  // f64 → f32 (explicit conversion)
+mut widened_array : [_]i64 = concrete_array_result:[_]i64  // [3]i32 → [3]i64 (explicit conversion)
 ```
 
 ### Design Consistency Benefits
@@ -579,6 +633,228 @@ This integration demonstrates Hexen's unified design philosophy:
 3. **Explicit Costs**: Mixed concrete types require visible conversions everywhere
 4. **Context Propagation**: Parameter types provide context through block boundaries
 5. **Predictable Behavior**: Same simple patterns work across all language features
+6. **Array Integration**: Array operations in blocks follow ARRAY_TYPE_SYSTEM.md explicit copy requirements while preserving comptime array flexibility
+
+## Array Operations in Expression Blocks
+
+### Core Integration Philosophy
+
+Array operations in expression blocks follow the same **compile-time vs runtime distinction** while integrating seamlessly with the **explicit copy syntax** from [ARRAY_TYPE_SYSTEM.md](ARRAY_TYPE_SYSTEM.md). This maintains consistency with both the unified block system and transparent runtime costs principle.
+
+**Key Principles:**
+- **Compile-time evaluable** array blocks preserve comptime array types
+- **Runtime evaluable** array blocks require explicit context for concrete arrays
+- **Explicit copying** always required with `[..]` syntax for performance transparency
+- **Dual capability** enables powerful array validation and processing patterns
+
+### Compile-Time Array Blocks (Comptime Type Preservation)
+
+**✅ Compile-time evaluable** array blocks preserve comptime array types for maximum flexibility:
+
+```hexen
+// ✅ Compile-time evaluable (preserves comptime array flexibility)
+val flexible_array_creation = {
+    val base_array = [1, 2, 3, 4, 5]     // comptime_array_int
+    val multiplier_array = [2, 2, 2, 2, 2]  // comptime_array_int
+    -> base_array                         // Preserves comptime_array_int (flexible!)
+}
+
+// Same array source adapts to different contexts (maximum flexibility!)
+val as_i32_array : [_]i32 = flexible_array_creation    // → [5]i32
+val as_i64_array : [_]i64 = flexible_array_creation    // Same source → [5]i64
+val as_f64_array : [_]f64 = flexible_array_creation    // Same source → [5]f64
+
+// ✅ Compile-time array element access (preserves element flexibility)
+val flexible_element_access = {
+    val source = [42, 100, 200]          // comptime_array_int
+    val first_element = source[0]        // comptime_int (preserved!)
+    -> first_element                     // Preserves comptime_int flexibility
+}
+
+// Same element adapts to different contexts
+val elem_as_i32 : i32 = flexible_element_access    // comptime_int → i32
+val elem_as_f64 : f64 = flexible_element_access    // Same source → f64
+
+// ✅ Compile-time multidimensional array operations
+val flexible_matrix_ops = {
+    val matrix = [[1, 2], [3, 4]]        // comptime_array of comptime_array_int
+    val first_row = matrix[0]            // comptime_array_int (preserved!)
+    val element = matrix[1][0]           // comptime_int (preserved!)
+    -> first_row                         // Preserves comptime_array_int flexibility
+}
+
+// Row adapts to different contexts
+val row_as_i32 : [_]i32 = flexible_matrix_ops     // → [2]i32
+val row_as_f64 : [_]f64 = flexible_matrix_ops     // Same source → [2]f64
+```
+
+**Key Benefits:**
+- **Maximum Flexibility**: Same comptime array block result adapts to multiple concrete types
+- **Zero Runtime Cost**: All array operations happen at compile-time
+- **Element Preservation**: Individual array elements maintain comptime flexibility
+- **Consistent with TYPE_SYSTEM.md**: Follows same comptime type preservation patterns
+
+### Runtime Array Blocks (Explicit Context Required)
+
+**❌ Runtime evaluable** array blocks require explicit context due to function calls or concrete array operations:
+
+```hexen
+// ❌ Runtime evaluable (explicit context required)
+val concrete_array_result : [_]i32 = {           // Context REQUIRED!
+    val input_array = load_array_data()          // Function call → concrete array
+    val processed = transform_array(input_array) // Function call → concrete array
+    -> processed[..]                              // Explicit copy required for assignment
+}
+
+// ❌ Runtime array copying (explicit context required)
+val array_copy_result : [_]f64 = {               // Context REQUIRED!
+    val source : [_]f64 = [1.1, 2.2, 3.3]        // Concrete array (first materialization)
+    val backup = source[..]                       // Explicit copy → concrete [3]f64
+    -> backup                                     // Assign concrete array, explicit type required
+}
+
+// ❌ Mixed comptime + concrete array operations (explicit context required)
+val mixed_array_ops : [_]f64 = {                 // Context REQUIRED!
+    val comptime_array = [42, 100, 200]          // comptime_array_int
+    val concrete_multiplier : f64 = get_multiplier()  // Function call → concrete f64
+    val concrete_base : [_]f64 = comptime_array  // comptime_array_int → [3]f64 (materialization)
+    val scaled = scale_array(concrete_base, concrete_multiplier)  // Function call → concrete array
+    -> scaled[..]                                 // Explicit copy required
+}
+
+// ❌ Runtime array element access from concrete arrays
+val concrete_element_access : f64 = {            // Context REQUIRED!
+    val source : [_]f64 = load_source_array()    // Function call → concrete array
+    val element : f64 = source[0]                 // Access concrete element → concrete f64
+    -> element                                    // Assign concrete value, explicit type required
+}
+
+// ❌ Runtime multidimensional array operations
+val matrix_operation_result : [_]i32 = {         // Context REQUIRED!
+    val matrix : [_][_]i32 = load_matrix()       // Function call → concrete matrix
+    val row_copy = matrix[0][..]                  // Explicit copy of row → concrete [N]i32
+    val processed = process_row(row_copy)         // Function call → concrete array
+    -> processed[..]                              // Explicit copy required
+}
+```
+
+**Key Requirements:**
+- **Explicit Type Annotation**: Target variable must specify concrete array type
+- **Explicit Copying**: All array copying must use `[..]` syntax (performance transparency)
+- **Function Call Effects**: Any function call makes the block runtime evaluable
+- **Concrete Type Mixing**: Requires explicit conversions following TYPE_SYSTEM.md rules
+
+### Array-Specific Dual Capability Patterns
+
+Expression blocks with arrays leverage the powerful **`->` + `return` dual capability** for validation, error handling, and optimization patterns:
+
+#### **Array Validation with Early Returns**
+```hexen
+func process_user_array() : [_]i32 = {
+    // ❌ Runtime evaluable block (explicit context required)
+    val validated_array : [_]i32 = {              // Context REQUIRED!
+        val input = get_user_input_array()        // Function call → concrete array
+        if input.length == 0 {                    // Runtime condition
+            return [0, 0, 0]                      // Early function exit with default array
+        }
+        if input.length > 1000 {                  // Runtime condition
+            return [-1]                           // Early function exit with error indicator
+        }
+        -> input[..]                              // Success: explicit copy of validated array
+    }
+
+    // This processing only runs if validation succeeded
+    return process_array(validated_array)
+}
+```
+
+#### **Array Caching with Performance Optimization**
+```hexen
+func get_expensive_array_computation(key: string) : [_]f64 = {
+    // ❌ Runtime evaluable block (explicit context required)
+    val result_array : [_]f64 = {                // Context REQUIRED!
+        val cached = lookup_cached_array(key)    // Function call → concrete array or null
+        if cached != null {                      // Runtime condition
+            return cached[..]                    // Early function exit with cached result (explicit copy)
+        }
+
+        val computed = very_expensive_array_operation(key)  // Function call → concrete array
+        save_array_to_cache(key, computed)      // Runtime side effect
+        -> computed[..]                          // Cache miss: explicit copy of computed array
+    }
+
+    // This logging only happens for cache misses
+    log_cache_miss(key)
+    return result_array
+}
+```
+
+#### **Array Bounds Checking with Fallbacks**
+```hexen
+func safe_array_access(data: [_]f64, index: i32) : f64 = {
+    // ❌ Runtime evaluable block (explicit context required)
+    val safe_element : f64 = {                   // Context REQUIRED!
+        if index < 0 {                           // Runtime condition
+            return 0.0                           // Early function exit: negative index
+        }
+        if index >= data.length {                // Runtime condition
+            return 0.0                           // Early function exit: index out of bounds
+        }
+        -> data[index]                           // Success: access element (f64)
+    }
+
+    return safe_element
+}
+```
+
+#### **Array Processing with Error Recovery**
+```hexen
+func load_configuration_array() : [_]Config = {
+    // ❌ Runtime evaluable block (explicit context required)
+    val config_array : [_]Config = {             // Context REQUIRED!
+        val primary = try_load_primary_configs() // Function call → concrete array or null
+        if primary != null && primary.length > 0 {  // Runtime conditions
+            -> primary[..]                       // Success: explicit copy of primary configs
+        }
+
+        val fallback = try_load_fallback_configs()  // Function call → concrete array or null
+        if fallback != null && fallback.length > 0 {  // Runtime conditions
+            -> fallback[..]                      // Fallback: explicit copy of backup configs
+        }
+
+        return get_default_config_array()       // Complete failure: function exit with defaults
+    }
+
+    // This validation only runs if we loaded configuration files
+    validate_config_array(config_array)
+    return config_array
+}
+```
+
+#### **Matrix Operations with Validation Guards**
+```hexen
+func safe_matrix_multiply(a: [_][_]f64, b: [_][_]f64) : [_][_]f64 = {
+    // ❌ Runtime evaluable block (explicit context required)
+    val result_matrix : [_][_]f64 = {            // Context REQUIRED!
+        if a[0].length != b.length {             // Runtime condition (dimension check)
+            return create_identity_matrix()      // Early function exit: dimension mismatch
+        }
+
+        val computed = matrix_multiply_impl(a, b)  // Function call → concrete matrix
+        -> computed[..]                          // Success: explicit copy of result matrix
+    }
+
+    return result_matrix
+}
+```
+
+**Benefits of Array + Dual Capability:**
+- **🎯 Natural Array Validation**: Guards and bounds checking fit naturally within array operations
+- **⚡ Array Performance Optimization**: Caching and early returns work seamlessly with arrays
+- **🛡️ Memory Safety**: Explicit copying requirements make performance costs visible
+- **📖 Clear Intent**: `->` = array assignment, `return` = function exit (consistent semantics)
+- **🔄 Error Recovery**: Complex array fallback patterns with clear control flow
+- **🧠 Reduced Complexity**: Avoid deeply nested array processing logic
 
 ## Scope Management
 

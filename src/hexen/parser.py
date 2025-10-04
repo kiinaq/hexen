@@ -365,18 +365,28 @@ class HexenTransformer(Transformer):
             return children[1]
 
     def postfix(self, children):
-        # postfix: primary (array_access)*
+        # postfix: primary (array_suffix | property_access)*
         if len(children) == 1:
-            return children[0]  # No array access
+            return children[0]  # No suffixes
 
-        # Chain array accesses: arr[i][j][k]
+        # Chain array access, array copy, and property access
         expr = children[0]  # Base expression
-        for access in children[1:]:
-            # Each array_access contains the index, we need to set the array
-            access["array"] = expr
-            expr = access
+        for suffix in children[1:]:
+            if suffix["type"] == NodeType.ARRAY_ACCESS.value:
+                suffix["array"] = expr
+                expr = suffix
+            elif suffix["type"] == NodeType.ARRAY_COPY.value:
+                suffix["array"] = expr
+                expr = suffix
+            elif suffix["type"] == NodeType.PROPERTY_ACCESS.value:
+                suffix["object"] = expr
+                expr = suffix
 
         return expr
+
+    def array_suffix(self, children):
+        # array_suffix: array_access | array_copy
+        return children[0]  # Pass through the child node
 
     def array_access(self, children):
         # array_access: "[" expression "]"
@@ -385,6 +395,23 @@ class HexenTransformer(Transformer):
             "type": NodeType.ARRAY_ACCESS.value,
             "array": None,  # Will be set by postfix handler
             "index": index,
+        }
+
+    def array_copy(self, children):
+        # array_copy: "[" ".." "]"
+        # No children - the ".." is implicit from grammar
+        return {
+            "type": NodeType.ARRAY_COPY.value,
+            "array": None,  # Will be set by postfix handler
+        }
+
+    def property_access(self, children):
+        # property_access: "." IDENTIFIER
+        property_name = children[0]  # IDENTIFIER node
+        return {
+            "type": NodeType.PROPERTY_ACCESS.value,
+            "object": None,  # Will be set by postfix handler
+            "property": property_name["name"],
         }
 
     def array_literal(self, children):

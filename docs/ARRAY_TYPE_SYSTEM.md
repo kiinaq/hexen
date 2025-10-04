@@ -12,18 +12,20 @@ Hexen's array type system extends the language's comptime philosophy to collecti
 
 **Core Language Focus**: The array type system focuses purely on **type safety**, **memory layout**, and **element access**. Advanced array operations (filtering, mapping, sorting, etc.) are intentionally **not part of the core language** and will be provided by a future standard library to keep the language specification clean and focused.
 
+**Explicit Copy Philosophy**: All concrete array copying operations require explicit `[..]` syntax to make performance costs visible and prevent accidental expensive operations.
+
 ## Core Philosophy
 
 ### Design Principle: Array Integration with Comptime Types
 
 Hexen's arrays follow the same **"Ergonomic Literals + Transparent Runtime Costs"** philosophy:
 
-- **Ergonomic Array Literals**: Comptime array types adapt seamlessly (zero runtime cost)
-- **Transparent Runtime Costs**: All concrete array conversions require explicit syntax (`value:type`)
+- **Ergonomic Array Literals**: Comptime array types adapt seamlessly during first materialization
+- **Transparent Runtime Costs**: All concrete array copying requires explicit `[..]` syntax to make performance costs visible
 - **Consistent with Individual Values**: Arrays follow identical patterns to single-value type system
 - **Natural Usage**: Common array literal patterns work without ceremony (`[1, 2, 3]`, `[3.14, 2.71]`)
 - **Size-as-Type**: Array size is part of the type itself, enabling compile-time safety
-- **Safe Memory Layout Access**: Row-major layout enables zero-cost dimensional flattening
+- **Safe Memory Layout Access**: Row-major layout enables predictable memory organization
 - **Proven Approach**: Following some Zig's successful array design patterns
 
 This philosophy ensures that **everyday array usage feels natural**, while **runtime performance costs** are always explicit and visible.
@@ -38,6 +40,20 @@ Array literals use square brackets with comma-separated elements:
 [3.14, 2.71, 1.41]     // Array literal with float elements
 [true, false, true]    // Array literal with boolean elements
 ["hello", "world"]     // Array literal with string elements
+```
+
+### Explicit Copy Operator
+The `[..]` operator explicitly copies array data, making performance costs visible:
+
+```hexen
+val source : [_]i32 = [1, 2, 3]
+val copy : [_]i32 = source[..]             // Explicit copy of entire array
+val row_copy : [_]i32 = matrix[0][..]      // Explicit copy of matrix row
+val flat_copy : [_]i32 = matrix[..]        // Explicit copy with flattening
+
+// ❌ Compilation errors - implicit copying not allowed:
+// val implicit = source                    // Error: missing explicit copy
+// val row_implicit = matrix[0]             // Error: missing explicit copy for assignment
 ```
 
 ### Array Type Declarations
@@ -196,11 +212,11 @@ val complex_comptime = {
     -> final                                            // Result: comptime_array_int
 }
 
-// All the above operations happen at COMPILE TIME - zero runtime cost!
+// All the above operations happen at COMPILE TIME!
 // Runtime only sees the pre-computed results:
 
-val as_i32 : [_]i32 = complex_comptime    // → Runtime: [1130, 1600, 2500] (pre-computed!)
-val as_f64 : [_]f64 = complex_comptime    // → Runtime: [1130.0, 1600.0, 2500.0] (same pre-computed values!)
+val as_i32 : [_]i32 = complex_comptime    // → Runtime: [1130, 1600, 2500] (first materialization)
+val as_f64 : [_]f64 = complex_comptime    // → Runtime: [1130.0, 1600.0, 2500.0] (another materialization)
 
 // No multiplication, filtering, mapping, or arithmetic happens at runtime
 // Just direct loading of pre-computed constant values
@@ -237,25 +253,35 @@ val converted_array : [_]f64 = int_array:[_]f64               // [3]f64
 Following the same principles as individual values:
 
 ```hexen
-val fixed_numbers : [3]i32 = [1, 2, 3]        // ✅ Fixed-size array
-val inferred_numbers : [_]i32 = [1, 2, 3]     // ✅ Inferred-size array
+val fixed_numbers : [3]i32 = [1, 2, 3]        // ✅ Fixed-size array (first materialization)
+val inferred_numbers : [_]i32 = [1, 2, 3]     // ✅ Inferred-size array (first materialization)
 val flexible_numbers = [1, 2, 3]              // ✅ Comptime array (flexible!)
 
-// Same flexible array in different contexts
-val as_i32_array : [_]i32 = flexible_numbers  // → [3]i32
-val as_i64_array : [_]i64 = flexible_numbers  // Same source → [3]i64
-val as_f64_array : [_]f64 = flexible_numbers  // Same source → [3]f64
+// Same flexible array in different contexts (comptime materialization)
+val as_i32_array : [_]i32 = flexible_numbers  // → [3]i32 (first materialization)
+val as_i64_array : [_]i64 = flexible_numbers  // Same source → [3]i64 (different materialization)
+val as_f64_array : [_]f64 = flexible_numbers  // Same source → [3]f64 (different materialization)
+
+// Concrete array copying requires explicit syntax
+val concrete_source : [_]i32 = [10, 20, 30]
+val array_copy : [_]i32 = concrete_source[..]  // ✅ Explicit copy required
+// val implicit_copy = concrete_source          // ❌ Error: missing explicit copy syntax
 ```
 
 ### `mut` - Mutable Arrays
 Mutable arrays require explicit type annotations, same as individual values:
 
 ```hexen
-mut dynamic : [_]i32 = [1, 2, 3]             // ✅ Explicit type required
+mut dynamic : [_]i32 = [1, 2, 3]             // ✅ Explicit type required (first materialization)
 dynamic[0] = 42                               // ✅ Element reassignment
 dynamic[1] = large_value:i32                  // ✅ Explicit conversion
 
 // mut flexible = [1, 2, 3]                  // ❌ Error: mut requires explicit type
+
+// Mutable array copying also requires explicit syntax
+mut source : [_]i32 = [10, 20, 30]
+mut backup : [_]i32 = source[..]              // ✅ Explicit copy required
+// mut implicit = source                      // ❌ Error: missing explicit copy syntax
 ```
 
 ### Array Element Reassignment
@@ -309,37 +335,6 @@ val element : i32 = numbers[dynamic_index]  // Runtime bounds check inserted
 - **Runtime bounds checking**: For dynamic indices (inserted automatically)
 - **Safety by default**: Following Hexen's safety-first philosophy
 
-## Integration with Expression Blocks
-
-Arrays work seamlessly with Hexen's unified block system:
-
-### Compile-Time Evaluable Array Blocks
-Blocks containing only comptime array operations preserve flexibility:
-
-```hexen
-val flexible_array_computation = {
-    val base = [1, 2, 3]                 // comptime_array_int
-    val multiplier = [2, 2, 2]           // comptime_array_int
-    val result = base.mul(multiplier)    // Element-wise multiplication → comptime_array_int - 'mul' not yet specified
-    -> result                            // Preserves comptime_array_int (flexible!)
-}
-
-// Same computation, different target types
-val as_i32 : [_]i32 = flexible_array_computation    // → [3]i32
-val as_i64 : [_]i64 = flexible_array_computation    // Same source → [3]i64
-val as_f64 : [_]f64 = flexible_array_computation    // Same source → [3]f64
-```
-
-### Runtime Evaluable Array Blocks
-Blocks with function calls or concrete arrays require explicit context:
-
-```hexen
-val runtime_array_result : [_]i32 = {                   // Explicit context required
-    val input_data : [_]i32 = load_array_data()         // Function call → runtime (explicit type required)
-    val processed : [_]i32 = input_data.mul([2, 2, 2])  // Mixed: concrete + comptime - 'mul' not yet specified
-    -> processed                                
-}
-```
 
 ## Advanced Patterns
 
@@ -465,14 +460,14 @@ val matrix : [3][4]i32 = [
 - **No indirection**: Single contiguous memory block, not array of pointers
 
 #### Array Flattening: Leveraging Row-Major Layout
-The row-major memory layout enables **safe array flattening** - converting multidimensional arrays to 1D arrays without runtime cost:
+The row-major memory layout enables **predictable array flattening** - converting multidimensional arrays to 1D arrays with explicit copying:
 
 ```hexen
 val matrix : [2][3]i32 = [[1, 2, 3], [4, 5, 6]]  // 6 elements total in row-major order
-val flattened : [_]i32 = matrix                   // → [6]i32 automatically inferred!
+val flattened : [_]i32 = matrix[..]               // → [6]i32 with explicit copy
 
-// Memory layout unchanged: [1, 2, 3, 4, 5, 6]
-// Same memory addresses, different type view - zero runtime cost
+// Memory layout: [1, 2, 3, 4, 5, 6] copied to new location
+// Explicit copy operation - performance cost is visible
 ```
 
 **Safe Alternative to Pointer Arithmetic:**
@@ -482,7 +477,7 @@ val flattened : [_]i32 = matrix                   // → [6]i32 automatically in
 // process_buffer(ptr, 6)                // Manual count - error prone!
 
 // Hexen safe approach:
-val vertices : [_]f32 = matrix           // Type-safe, size-known automatically
+val vertices : [_]f32 = matrix[..]       // Type-safe, size-known, explicit copy
 process_buffer(vertices)                 // Bounds checked, no manual calculations
 ```
 
@@ -494,7 +489,7 @@ val matrix : [_][_]i32 = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
 
 // Element access using double indexing
 val element : i32 = matrix[1][2]        // Access row 1, column 2 → 6
-val first_row : [3]i32 = matrix[0]      // Access entire first row → [1, 2, 3]
+val first_row : [3]i32 = matrix[0][..]  // Copy entire first row → [1, 2, 3]
 
 // Comptime bounds checking for constant indices
 val valid : i32 = matrix[0][0]          // ✅ Compile-time verified
@@ -530,8 +525,8 @@ val elem2_as_f64 : f64 = flexible_matrix[0][1]   // Second element → f64 (same
 val elem3_as_i64 : i64 = flexible_matrix[1][0]   // Third element → i64 (same source!)
 
 // Different rows from same matrix can resolve to different types  
-val row0_as_i32 : [_]i32 = flexible_matrix[0]    // First row → [2]i32
-val row1_as_f64 : [_]f64 = flexible_matrix[1]    // Second row → [2]f64 (same matrix!)
+val row0_as_i32 : [_]i32 = flexible_matrix[0]    // First row → [2]i32 (comptime, no copy)
+val row1_as_f64 : [_]f64 = flexible_matrix[1]    // Second row → [2]f64 (same comptime matrix!)
 ```
 
 **Multidimensional Runtime Materialization:**
@@ -542,8 +537,8 @@ val comptime_matrix = [[42, 100], [200, 300]]  // Exists ONLY in compiler memory
 val full_i32 : [_][_]i32 = comptime_matrix     // → Runtime: [[42, 100], [200, 300]] as i32 values
 val full_f64 : [_][_]f64 = comptime_matrix     // → Runtime: [[42.0, 100.0], [200.0, 300.0]] as f64 values
 
-val row_i32 : [_]i32 = comptime_matrix[0]      // → Runtime: [42, 100] as i32 values
-val row_f64 : [_]f64 = comptime_matrix[1]      // → Runtime: [200.0, 300.0] as f64 values
+val row_i32 : [_]i32 = comptime_matrix[0]      // → Runtime: [42, 100] as i32 values (comptime materialization)
+val row_f64 : [_]f64 = comptime_matrix[1]      // → Runtime: [200.0, 300.0] as f64 values (comptime materialization)
 
 val elem_i32 : i32 = comptime_matrix[0][0]     // → Runtime: 42 as i32 value  
 val elem_f64 : f64 = comptime_matrix[1][1]     // → Runtime: 300.0 as f64 value
@@ -564,11 +559,11 @@ val complex_matrix = {
     -> scaled                               // Result: comptime_array of comptime_array_int
 }
 
-// All matrix operations happen at COMPILE TIME - zero runtime cost!
+// All matrix operations happen at COMPILE TIME!
 // Runtime only sees the final pre-computed matrix:
 
-val as_i32_matrix : [_][_]i32 = complex_matrix  // → Runtime: pre-computed result matrix
-val as_f64_matrix : [_][_]f64 = complex_matrix  // → Runtime: same pre-computed values as f64
+val as_i32_matrix : [_][_]i32 = complex_matrix  // → Runtime: pre-computed result matrix (first materialization)
+val as_f64_matrix : [_][_]f64 = complex_matrix  // → Runtime: same pre-computed values as f64 (another materialization)
 
 // No matrix multiplication, transposition, or transformations at runtime
 // Just direct loading of pre-computed constant matrix data
@@ -579,8 +574,14 @@ Elements from concrete matrices need explicit types:
 ```hexen
 val concrete_matrix : [_][_]i32 = [[1, 2], [3, 4]]  // [2][2]i32
 val concrete_elem : i32 = concrete_matrix[1][0]     // Explicit type required: i32
-val concrete_row : [2]i32 = concrete_matrix[0]      // Explicit type required: [2]i32
+val concrete_row : [2]i32 = concrete_matrix[0][..]  // Explicit type and copy required: [2]i32
+val concrete_matrix_copy : [_][_]i32 = concrete_matrix[..]  // Explicit full matrix copy: [2][2]i32
+val concrete_flattened : [_]i32 = concrete_matrix[..]      // Explicit matrix flattening: [2][2]i32 → [4]i32
+
 val widened_elem : i64 = concrete_matrix[1][0]:i64  // Explicit conversion: i32 → i64
+val widened_row : [_]i64 = concrete_matrix[0][..]:[_]i64  // Explicit copy + conversion: [2]i32 → [2]i64
+val widened_matrix : [_][_]i64 = concrete_matrix[..]:[_][_]i64  // Explicit matrix copy + conversion: [2][2]i32 → [2][2]i64
+val widened_flattened : [_]i64 = concrete_matrix[..]:[_]i64    // Explicit flattening + conversion: [2][2]i32 → [4]i64
 ```
 
 ### Advanced Multidimensional Patterns
@@ -658,29 +659,6 @@ grid[2] = [7, 8, 9]                // comptime_array_int → [3]i32 (adapts)
 // grid[0] = [1, 2]                // ❌ Error: [2]i32 ≠ [3]i32 (size mismatch)
 ```
 
-### Integration with Expression Blocks
-
-#### Multidimensional Arrays in Expression Blocks
-```hexen
-// Compile-time evaluable matrix computation
-val computed_matrix = {
-    val base = [[1, 2], [3, 4]]      // comptime_array of comptime_array_int
-    val scale = [[2, 2], [2, 2]]     // comptime_array of comptime_array_int  
-    val result = base.mul(scale)         // Element-wise multiplication - 'mul' not yet specified
-    -> result                    // Preserves comptime type (flexible!)
-}
-
-// Same computation used in different contexts
-val as_i32_matrix : [_][_]i32 = computed_matrix    // → [2][2]i32
-val as_f64_matrix : [_][_]f64 = computed_matrix    // Same source → [2][2]f64
-
-// Runtime evaluable matrix operations require explicit context
-val runtime_matrix : [_][_]f32 = {                 // Context required
-    val data : [_][_]f32 = load_matrix_data()      // Function call → runtime
-    val processed = data.mul([[1.5, 1.5], [1.5, 1.5]]) // Mixed: concrete + comptime - 'mul' not yet specified
-    -> processed
-}
-```
 
 ### Common Use Cases and Patterns
 
@@ -690,22 +668,22 @@ Leveraging row-major layout for safe pointer replacement:
 ```hexen
 // Graphics: Vertex data (positions + colors)
 val vertex_data : [100][6]f32 = generate_vertices()  // 100 vertices, 6 components each
-val gpu_buffer : [_]f32 = vertex_data                // → [600]f32 for GPU upload
+val gpu_buffer : [_]f32 = vertex_data[..]            // → [600]f32 for GPU upload (explicit copy)
 upload_to_gpu(gpu_buffer)                            // Type-safe, size-automatic
 
 // Scientific computing: Matrix for linear algebra libraries
 val matrix : [512][512]f64 = load_matrix()
-val linear_data : [_]f64 = matrix                    // → [262144]f64 for BLAS/LAPACK
+val linear_data : [_]f64 = matrix[..]                // → [262144]f64 for BLAS/LAPACK (explicit copy)
 blas_gemv(linear_data, vector)
 
 // Image processing: RGB pixel data
 val image : [height][width][3]u8 = load_image()
-val pixel_buffer : [_]u8 = image                     // Flat buffer for codecs
+val pixel_buffer : [_]u8 = image[..]                 // Flat buffer for codecs (explicit copy)
 compress_jpeg(pixel_buffer)
 
 // Game development: 3D world serialization
 val chunk : [16][16][16]u8 = generate_chunk()
-val serialized : [_]u8 = chunk                       // → [4096]u8 for disk/network
+val serialized : [_]u8 = chunk[..]                   // → [4096]u8 for disk/network (explicit copy)
 save_chunk_data(serialized)
 ```
 
@@ -841,6 +819,27 @@ Cannot infer common type for concrete element types
 Suggestion: Specify target type: val array : [_]f64 = [elem1:f64, elem2]
 ```
 
+### Implicit Copy Errors
+```
+Error: Implicit array copying not allowed
+  Found: val dest = source_array
+  Arrays require explicit copy syntax to make performance costs visible
+  Suggestion: val dest = source_array[..] (copies all elements)
+
+  Performance note: This will copy 1000 elements (4KB)
+  Consider using references if copying is not intended
+```
+
+### Row Assignment Copy Errors
+```
+Error: Matrix row assignment requires explicit copy syntax
+  Found: val row = matrix[0]
+  Row access for assignment requires explicit copy syntax
+  Suggestion: val row = matrix[0][..] (copies row elements)
+
+  Performance note: This will copy 100 elements (400 bytes)
+```
+
 ## Examples
 
 ### Comprehensive Array Usage
@@ -892,22 +891,6 @@ func demonstrate_array_system() : void = {
     float_array[0] = 3.14                       // comptime_float → f32 (adapts)
     float_array[1] = double_precision:f32       // f64 → f32 (explicit)
     
-    // ===== Expression Blocks with Arrays =====
-    // Compile-time evaluable (preserves flexibility)
-    val flexible_computation = {
-        val base = [1, 2, 3, 4]                 // comptime_array_int
-        val scaled = base.mul([2, 2, 2, 2])       // comptime array ops - 'mul' not yet specified
-        -> scaled                           // Preserves comptime_array_int
-    }
-    val comp_as_i32 : [_]i32 = flexible_computation  // → [4]i32
-    val comp_as_f64 : [_]f64 = flexible_computation  // Same source → [4]f64
-
-    // Runtime evaluable (requires explicit context)
-    val runtime_result : [_]f64 = {             // Context required
-        val data = load_data_array()            // Function call → runtime
-        val processed = data.mul([1.5, 1.5, 1.5]) // Mixed concrete + comptime - 'mul' not yet specified
-        -> processed
-    }
     
     // ===== Size and Type Safety =====
     val short_array : [_]i32 = [1, 2]           // [2]i32
@@ -920,6 +903,11 @@ func demonstrate_array_system() : void = {
     val int_arr : [_]i32 = [10, 20, 30]         // [3]i32
     val float_arr : [_]f64 = [1.1, 2.2, 3.3]    // [3]f64
     val converted_arr : [_]f64 = int_arr:[_]f64  // Explicit array conversion
+
+    // ===== Explicit Copying Operations =====
+    val source_array : [_]i32 = [100, 200, 300] // [3]i32
+    val explicit_copy : [_]i32 = source_array[..]  // ✅ Explicit copy required
+    // val implicit_copy = source_array          // ❌ Error: missing explicit copy syntax
     
     // ===== Multidimensional Arrays =====
     val matrix_2d = [[1, 2, 3], [4, 5, 6]]     // comptime_array of comptime_array_int
@@ -929,7 +917,7 @@ func demonstrate_array_system() : void = {
     // Element access patterns
     val matrix_elem : i32 = as_i32_matrix[1][2] // Access row 1, column 2: 6
     val flexible_elem = matrix_2d[0][1]         // comptime_int (flexible!)
-    val whole_row : [3]i32 = as_i32_matrix[0]   // Access entire first row: [1, 2, 3]
+    val whole_row : [3]i32 = as_i32_matrix[0][..]   // Copy entire first row: [1, 2, 3]
     
     // 3D array example  
     val cube_3d = [[[1, 2], [3, 4]], [[5, 6], [7, 8]]]  // [2][2][2] comptime
@@ -951,11 +939,11 @@ func demonstrate_array_system() : void = {
     // ===== Array Flattening (Safe Pointer Replacement) =====
     // Multidimensional → 1D flattening leverages row-major layout
     val matrix_3d : [2][3][4]i32 = generate_3d_data()  // 24 elements total
-    val flattened_24 : [_]i32 = matrix_3d               // → [24]i32 (automatic size!)
+    val flattened_24 : [_]i32 = matrix_3d[..]           // → [24]i32 (explicit copy!)
     
-    // Zero runtime cost - same memory, different type view
+    // Explicit copy operation - performance cost is visible
     val matrix_2d : [4][6]f32 = load_vertex_positions()
-    val vertex_buffer : [_]f32 = matrix_2d              // → [24]f32 for GPU
+    val vertex_buffer : [_]f32 = matrix_2d[..]          // → [24]f32 for GPU (explicit copy)
     render_vertices(vertex_buffer)                       // Type-safe, bounds-checked
     
     // Comptime flattening with type flexibility
@@ -966,7 +954,7 @@ func demonstrate_array_system() : void = {
     
     // Element count validation at compile time
     val small_matrix : [2][2]i32 = [[1, 2], [3, 4]]        // 4 elements total
-    val flattened_4 : [_]i32 = small_matrix                 // ✅ → [4]i32
+    val flattened_4 : [_]i32 = small_matrix[..]             // ✅ → [4]i32 (explicit copy)
     // val wrong_size : [3]i32 = small_matrix               // ❌ Compile error: 4 ≠ 3
 }
 ```
@@ -997,7 +985,7 @@ func demonstrate_array_system() : void = {
 2. **Element Type Safety**: All element conversions follow standard type rules
 3. **Bounds Safety**: Index out of bounds errors caught early
 4. **No Silent Coercion**: All array type changes require explicit syntax
-5. **Integration Safety**: Arrays integrate seamlessly with expression blocks
+5. **Safe Memory Operations**: Clear distinction between element access and array copying
 
 ### Maintainability
 
@@ -1021,9 +1009,8 @@ func demonstrate_array_system() : void = {
 - **Transparent Costs**: All array type conversion costs visible
 
 ### Compatibility with UNIFIED_BLOCK_SYSTEM.md
-- **Expression Block Integration**: Arrays work seamlessly in expression blocks
-- **Compile-time vs Runtime**: Same classification rules for array operations
-- **Block Type Preservation**: Comptime arrays preserve flexibility through blocks
+- **Memory Safety Integration**: Arrays maintain safety guarantees with explicit operations
+- **Consistent Principles**: Array operations follow same explicit cost visibility principles
 
 This array type system extends Hexen's proven comptime philosophy to collections, maintaining consistency with existing language patterns while focusing on the core essentials: **type safety**, **memory layout**, and **element access**. Advanced array operations are intentionally left to a future standard library, keeping the core language clean and focused.
 

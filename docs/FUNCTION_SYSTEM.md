@@ -67,6 +67,17 @@ func setup(config_path: string) : void = { ... }
 
 ## Parameter Mutability System
 
+### Parameter Passing Semantics: Pass-by-Value
+
+Hexen follows **pass-by-value semantics** for function parameters:
+
+- **Parameters are copied** to the function's stack frame when called
+- **Modifications to parameters** affect only the local copy, never the caller's values
+- **`mut` parameters** allow local reassignment for multi-step computations
+- **Side effects** must be communicated through return values, not parameter mutation
+
+This design maintains Hexen's stack-only memory model and ensures predictable, safe behavior without requiring reference semantics or borrow checking.
+
 ### Immutable Parameters (Default)
 
 By default, function parameters are **immutable** - they cannot be reassigned within the function body:
@@ -87,27 +98,31 @@ func format_message(message: string, prefix: string) : string = {
 
 ### Mutable Parameters (`mut`)
 
-Functions can declare parameters as mutable using the `mut` keyword:
+Functions can declare parameters as mutable using the `mut` keyword for **local computation**:
 
 ```hexen
+// Local accumulator pattern - modify parameter copy for multi-step computation
 func increment_and_return(mut counter: i32) : i32 = {
-    counter = counter + 1       // ✅ OK: Mutable parameter can be reassigned
-    return counter
+    counter = counter + 1       // ✅ OK: Mutable parameter can be reassigned locally
+    return counter              // Return modified value (caller's value unchanged)
 }
 
+// Multi-step string transformation using mutable parameter
 func normalize_string(mut text: string) : string = {
     text = trim_whitespace(text)          // ✅ OK: Mutable parameter reassignment
     text = to_lowercase(text)             // ✅ OK: Subsequent reassignment
-    return text
+    return text                           // Return transformed result
 }
 
 // Mutable parameters with type constraints (same rules as mut variables)
 func process_with_precision_loss(mut result: f32, high_precision: f64) : f32 = {
     // result = high_precision              // ❌ Error: f64 → f32 requires explicit conversion
     result = high_precision:f32           // ✅ OK: Explicit conversion for precision loss
-    return result
+    return result                         // Return converted value
 }
 ```
+
+**Key Point**: Since Hexen uses pass-by-value, `mut` parameters modify a **local copy**. The caller's original values are never affected. To communicate changes, functions must **return** the modified values.
 
 ### Parameter vs Local Variable Distinction
 
@@ -115,16 +130,21 @@ Parameters and local variables follow the same mutability semantics but serve di
 
 ```hexen
 func demonstrate_scoping(input: i32, mut output: i32) : i32 = {
-    // Parameters are in function scope
+    // Parameters are in function scope (local copies due to pass-by-value)
     val local_immutable : i32 = input * 2         // ✅ Explicit type required for concrete result (i32 * comptime_int → i32)
     mut local_mutable : i32 = output        // ✅ OK: mut variable with explicit type required
-    
+
     // local_immutable = 42                 // ❌ Error: Cannot reassign val variable
     local_mutable = 42                      // ✅ OK: Can reassign mut variable
-    output = local_mutable                  // ✅ OK: Can reassign mut parameter
-    
-    return output
+    output = local_mutable                  // ✅ OK: Can reassign mut parameter (local copy)
+
+    return output                           // Return modified value (caller's 'output' unchanged)
 }
+
+// Usage demonstration
+val result : i32 = demonstrate_scoping(10, 5)
+// result = 42 (returned value)
+// Caller's arguments 10 and 5 remain unchanged
 ```
 
 ## Type System Integration
@@ -465,7 +485,8 @@ Hexen provides clear, actionable error messages for function parameter issues:
 func process(input: i32) : i32 = {
     // input = 42
     // Error: Cannot reassign immutable parameter 'input'
-    // Parameters are immutable by default. Use 'mut input: i32' for mutable parameters
+    // Parameters are immutable by default. Use 'mut input: i32' for mutable parameters.
+    // Note: Even with 'mut', only the local copy is modified (pass-by-value semantics).
 }
 ```
 
@@ -496,10 +517,13 @@ calculate(temp, 3.14)                       // f64 → f64 (identity)
 
 #### Mutable Parameter Type Errors
 ```hexen
-func modify_value(mut result: f32, input: f64) : f32 = {
+func convert_and_process(mut result: f32, input: f64) : f32 = {
     // result = input
     // Error: Assignment to mutable parameter 'result': f64 cannot assign to f32 without explicit conversion
     // Add explicit conversion: 'result = input:f32'
+
+    result = input:f32       // ✅ Correct: explicit conversion
+    return result            // Return modified local copy
 }
 ```
 
@@ -660,21 +684,395 @@ func is_valid_user(age: i32, has_license: bool, credit_score: i32) : bool = {
 ### Mutable Parameter Patterns
 
 ```hexen
-// In-place modification pattern
-func scale_vector(mut x: f64, mut y: f64, mut z: f64, scale_factor: f64) : void = {
-    // Direct modifications using mutable parameters
-    x = x * scale_factor      // ✅ Mutable parameter allows reassignment
-    y = y * scale_factor      // ✅ f64 * f64 → f64 (same type assignment)
-    z = z * scale_factor      // ✅ All operations use same concrete types
+// Local accumulator pattern - multi-step computation using mutable parameter
+func compute_vector_magnitude(mut x: f64, mut y: f64, mut z: f64) : f64 = {
+    // Square each component (local modifications)
+    x = x * x      // ✅ Mutable parameter allows reassignment
+    y = y * y      // ✅ f64 * f64 → f64 (same type assignment)
+    z = z * z      // ✅ All operations use same concrete types
+
+    // Return computed magnitude (caller's values unchanged)
+    return sqrt(x + y + z)
 }
 
-// Computation and modification pattern
-func transform_values(mut result: f64, input1: i32, input2: f32) : f64 = {
-    // Mutable parameter accumulates results
+val magnitude : f64 = compute_vector_magnitude(3.0, 4.0, 0.0)
+// magnitude = 5.0 (Pythagorean theorem)
+// Original values 3.0, 4.0, 0.0 are unchanged in caller
+
+// Accumulation pattern - building result through multiple operations
+func transform_and_accumulate(mut result: f64, input1: i32, input2: f32) : f64 = {
+    // Mutable parameter accumulates results step-by-step
     result = result + input1:f64         // ✅ Explicit conversion: i32 → f64, then f64 + f64 → f64
     result = result * input2:f64         // ✅ Explicit conversion: f32 → f64, then f64 * f64 → f64
     return result                        // ✅ Return the accumulated result
 }
+
+val final : f64 = transform_and_accumulate(10.0, 5, 2.0)
+// final = (10.0 + 5.0) * 2.0 = 30.0
+```
+
+**Design Note**: These patterns use `mut` for **local computation convenience**, not side effects. The caller's values remain unchanged because Hexen uses pass-by-value semantics.
+
+## Array-Function Integration
+
+### Overview: Arrays in Function Context
+
+Arrays integrate seamlessly with Hexen's function system, following the same **pass-by-value semantics** and **comptime type preservation** principles as scalar values. The array type system (ARRAY_TYPE_SYSTEM.md) extends naturally to function parameters, arguments, and returns while maintaining Hexen's core philosophy of "Ergonomic Literals + Transparent Costs".
+
+**Key Integration Points:**
+- **Array parameters** follow pass-by-value with explicit copy syntax
+- **Comptime arrays** preserve flexibility until parameter context forces resolution
+- **Array returns** leverage RVO (Return Value Optimization) for performance
+- **Mutable array parameters** modify local copies and return modified values
+- **Inferred-size parameters** `[_]T` accept any size array with `.length` available
+
+### Array Parameter Passing Semantics
+
+#### Fixed-Size Array Parameters
+
+Fixed-size array parameters enforce exact size matching:
+
+```hexen
+// Fixed-size parameter requires exact size match
+func process_triple(values: [3]i32) : i32 = {
+    return values[0] + values[1] + values[2]
+}
+
+val triple : [3]i32 = [10, 20, 30]
+val quad : [4]i32 = [10, 20, 30, 40]
+
+// Concrete arrays require explicit copy syntax
+val result1 : i32 = process_triple(triple[..])   // ✅ [3]i32 → [3]i32 (explicit copy)
+// val result2 : i32 = process_triple(quad[..])  // ❌ Error: [4]i32 ≠ [3]i32 (size mismatch)
+
+// Comptime arrays materialize to required size (first materialization, not a copy!)
+val comptime_triple = [1, 2, 3]                  // comptime_array_int
+val result3 : i32 = process_triple(comptime_triple)  // ✅ comptime → [3]i32 (materialization)
+```
+
+#### Inferred-Size Array Parameters `[_]T`
+
+Inferred-size parameters accept arrays of any size:
+
+```hexen
+// Inferred-size parameter accepts any size array
+func sum_array(numbers: [_]i32) : i32 = {
+    mut total : i32 = 0
+    mut i : i32 = 0
+    // numbers.length is compile-time constant (known at call site)
+    while i < numbers.length {
+        total = total + numbers[i]
+        i = i + 1
+    }
+    return total
+}
+
+val small : [3]i32 = [1, 2, 3]
+val large : [100]i32 = generate_numbers()
+
+val sum1 : i32 = sum_array(small[..])    // ✅ [3]i32 → [_]i32, .length = 3
+val sum2 : i32 = sum_array(large[..])    // ✅ [100]i32 → [_]i32, .length = 100
+
+// Comptime arrays materialize to inferred size
+val comptime_nums = [10, 20, 30, 40, 50]         // comptime_array_int
+val sum3 : i32 = sum_array(comptime_nums)        // ✅ comptime → [5]i32, .length = 5
+```
+
+**Key Point**: The `.length` property is a **compile-time constant** - the size is known when the function is called, enabling compile-time optimizations and bounds checking.
+
+### Comptime Array Type Preservation with Functions
+
+Comptime arrays preserve maximum flexibility until function parameters force resolution:
+
+```hexen
+func calculate_statistics(data: [_]f64) : f64 = {
+    // Implementation would calculate mean, std dev, etc.
+    return data[0]  // Simplified for example
+}
+
+func process_integers(values: [_]i32) : i32 = {
+    return values[0] + values[1]
+}
+
+// ✨ Comptime array preserves flexibility across different contexts
+val flexible_data = [42, 100, 200]              // comptime_array_int (preserved!)
+
+// Same source adapts to different parameter types
+val stats : f64 = calculate_statistics(flexible_data)  // comptime → [3]f64 (adapts!)
+val sum : i32 = process_integers(flexible_data)        // comptime → [3]i32 (adapts!)
+
+// Individual elements also preserve flexibility
+val first_as_f64 : f64 = flexible_data[0]       // comptime_int → f64
+val first_as_i32 : i32 = flexible_data[0]       // Same source → i32
+```
+
+### Array Element Access in Function Arguments
+
+Individual array elements follow standard type resolution rules:
+
+```hexen
+func calculate(x: f64, y: f64) : f64 = {
+    return x * y
+}
+
+val comptime_array = [42, 100, 200]         // comptime_array_int
+val concrete_array : [3]i32 = [10, 20, 30]  // [3]i32
+
+// Comptime array elements preserve flexibility
+val result1 : f64 = calculate(
+    comptime_array[0],    // comptime_int → f64 (adapts!)
+    comptime_array[1]     // comptime_int → f64 (adapts!)
+)
+
+// Concrete array elements require explicit conversion
+val result2 : f64 = calculate(
+    concrete_array[0]:f64,   // ✅ Explicit: i32 → f64
+    concrete_array[1]:f64    // ✅ Explicit: i32 → f64
+)
+```
+
+### Array Return Values and RVO
+
+Functions can return arrays following pass-by-value semantics with RVO optimization:
+
+```hexen
+// Return fixed-size array
+func create_sequence() : [5]i32 = {
+    return [1, 2, 3, 4, 5]    // comptime_array_int → [5]i32 (return type context)
+}
+
+val sequence : [5]i32 = create_sequence()
+// RVO optimization: array written directly to caller's stack space (zero-copy at implementation level)
+
+// Return inferred-size array
+func generate_range(start: i32, count: i32) : [_]i32 = {
+    // Implementation would build array
+    return [start, start + 1, start + 2]  // Example: returns [3]i32
+}
+
+val range : [_]i32 = generate_range(10, 3)
+// range = [10, 11, 12] of type [3]i32
+```
+
+**Performance Note**: While Hexen's semantics require value returns, the compiler applies **RVO (Return Value Optimization)** to eliminate physical copies. The array data is written directly to the caller's stack frame, achieving zero-copy performance while maintaining clean value semantics.
+
+### Mutable Array Parameters (Pass-by-Value Consistency)
+
+Mutable array parameters modify a **local copy** and must return the modified array:
+
+```hexen
+// Mutable array parameter - modifies local copy, returns result
+func scale_array(mut data: [_]f64, factor: f64) : [_]f64 = {
+    mut i : i32 = 0
+    while i < data.length {
+        data[i] = data[i] * factor
+        i = i + 1
+    }
+    return data  // Return modified local copy (RVO optimizes this!)
+}
+
+val source : [100]f64 = load_measurements()
+val scaled : [100]f64 = scale_array(source[..], 2.5)
+// source unchanged (pass-by-value semantics)
+// scaled contains modified values
+// RVO eliminates actual copy at implementation level
+
+// ❌ INCORRECT: Returning void loses modifications
+// func broken_scale(mut data: [_]f64, factor: f64) : void = {
+//     // Modifies local copy
+//     return  // Modifications lost! ❌
+// }
+```
+
+**Design Rationale**: This approach maintains consistency with scalar `mut` parameters while leveraging RVO for performance. The explicit return makes data flow visible in the code.
+
+### Multidimensional Arrays in Functions
+
+Multidimensional arrays follow the same patterns with added dimensionality:
+
+```hexen
+// Fixed-size 2D array parameter
+func sum_matrix(matrix: [3][3]i32) : i32 = {
+    mut total : i32 = 0
+    mut row : i32 = 0
+    while row < 3 {
+        mut col : i32 = 0
+        while col < 3 {
+            total = total + matrix[row][col]
+            col = col + 1
+        }
+        row = row + 1
+    }
+    return total
+}
+
+val matrix_2d : [3][3]i32 = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
+val sum : i32 = sum_matrix(matrix_2d[..])  // Explicit copy for concrete array
+
+// Inferred-size 2D array parameter
+func transpose(matrix: [_][_]f64) : [_][_]f64 = {
+    // Implementation would transpose matrix
+    // matrix.length gives row count
+    // matrix[0].length gives column count
+    return matrix  // Simplified example
+}
+
+// Comptime matrix preservation
+val comptime_matrix = [[1, 2], [3, 4]]           // comptime_array of comptime_array_int
+val as_f64 : [_][_]f64 = transpose(comptime_matrix)  // comptime → [2][2]f64 (materialization)
+```
+
+### Array Flattening in Function Context
+
+Leveraging row-major layout for systems programming patterns:
+
+```hexen
+// Accept multidimensional array, return flattened 1D array
+func flatten_for_gpu(matrix: [_][_]f32) : [_]f32 = {
+    return matrix[..]  // Explicit flattening with copy
+    // Element count: matrix.length * matrix[0].length (compile-time known)
+}
+
+val vertices : [100][3]f32 = load_vertex_positions()  // 100 vertices, 3 components each
+val gpu_buffer : [_]f32 = flatten_for_gpu(vertices[..])
+// gpu_buffer type: [300]f32 (compile-time calculated)
+// upload_to_gpu(gpu_buffer) - type-safe, size-known
+
+// Comptime flattening with type flexibility
+val comptime_3x3 = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
+val flat_i32 : [_]i32 = flatten_for_gpu(comptime_3x3)  // → [9]i32
+val flat_f32 : [_]f32 = flatten_for_gpu(comptime_3x3)  // Same source → [9]f32
+```
+
+### Mixed Array and Scalar Parameters
+
+Functions can mix array and scalar parameters naturally:
+
+```hexen
+func apply_transform(
+    data: [_]f64,
+    scale: f64,
+    offset: f64,
+    clamp_min: f64,
+    clamp_max: f64
+) : [_]f64 = {
+    mut result : [_]f64 = data[..]  // Explicit copy for modification
+    mut i : i32 = 0
+    while i < result.length {
+        mut value : f64 = result[i] * scale + offset
+        // Clamp to range
+        if value < clamp_min {
+            value = clamp_min
+        }
+        if value > clamp_max {
+            value = clamp_max
+        }
+        result[i] = value
+        i = i + 1
+    }
+    return result
+}
+
+val measurements : [1000]f64 = load_sensor_data()
+val normalized : [1000]f64 = apply_transform(
+    measurements[..],  // Array parameter (explicit copy)
+    2.5,              // Scalar parameters (comptime → f64)
+    -1.0,
+    0.0,
+    100.0
+)
+```
+
+### Performance Characteristics
+
+#### Stack-Only Memory Model Benefits
+
+1. **Predictable allocation**: All arrays live on the stack (or are compile-time constants)
+2. **No heap fragmentation**: Stack allocation/deallocation is trivial
+3. **Cache locality**: Stack-based arrays have excellent cache behavior
+4. **Compile-time sizing**: All sizes known at compile time enable optimizations
+
+#### Copy Semantics with RVO Optimization
+
+**Language semantics (explicit):**
+- Concrete arrays require `[..]` for copying (performance cost visible)
+- Comptime arrays materialize on first use (not a copy, zero cost)
+- Array returns semantically copy values
+
+**Implementation reality (optimized):**
+- Compiler applies **copy elision** for array arguments
+- **RVO eliminates** physical copies for array returns
+- Small arrays copy efficiently (typically registers or few cache lines)
+- Large arrays optimized away (pointer passing under the hood)
+
+**Result**: Clean value semantics in the language, zero-copy performance in practice.
+
+### Common Patterns
+
+#### Array Processing Pipeline
+
+```hexen
+func normalize_data(raw: [_]f64) : [_]f64 = {
+    // Step 1: Find min/max
+    val min_max = find_range(raw)
+
+    // Step 2: Normalize to [0, 1]
+    return scale_to_range(raw, min_max.min, min_max.max)
+}
+
+func find_range(data: [_]f64) : {min: f64, max: f64} = {
+    // Implementation
+}
+
+func scale_to_range(data: [_]f64, min: f64, max: f64) : [_]f64 = {
+    // Implementation
+}
+
+val sensor_data : [10000]f64 = read_sensors()
+val normalized : [10000]f64 = normalize_data(sensor_data[..])
+// Clear data flow, RVO optimizes away intermediate copies
+```
+
+#### In-Place Transformation Pattern
+
+```hexen
+func apply_filter_in_place(mut signal: [_]f64, kernel: [_]f64) : [_]f64 = {
+    mut i : i32 = 0
+    while i < signal.length {
+        // Apply convolution filter
+        signal[i] = convolve_at(signal, kernel, i)
+        i = i + 1
+    }
+    return signal  // Return modified local copy
+}
+
+val audio : [48000]f64 = load_audio_buffer()
+val filtered : [48000]f64 = apply_filter_in_place(audio[..], low_pass_kernel)
+```
+
+### Error Messages
+
+Array-specific function errors:
+
+```
+Error: Array size mismatch in function call
+  Function: process_triple(values: [3]i32)
+  Argument: quad of type [4]i32
+  Expected: [3]i32
+  Found: [4]i32
+  Array sizes must match exactly for fixed-size parameters
+
+Error: Missing explicit copy syntax for array argument
+  Function: analyze(data: [100]f64)
+  Argument: measurements (concrete array [100]f64)
+  Arrays require explicit copy syntax to make performance costs visible
+  Suggestion: analyze(measurements[..])
+
+Error: Mutable array parameter function must return array
+  Function: scale_vector(mut data: [3]f64, factor: f64) : void
+  Mutable array parameters modify local copies due to pass-by-value semantics
+  To communicate changes, function must return the modified array
+  Suggestion: Change return type to [3]f64 and add 'return data'
 ```
 
 ## Benefits and Trade-offs

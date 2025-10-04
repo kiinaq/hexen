@@ -61,6 +61,8 @@ class NodeType(Enum):
     ARRAY_DIMENSION = "array_dimension"
     ARRAY_LITERAL = "array_literal"
     ARRAY_ACCESS = "array_access"
+    ARRAY_COPY = "array_copy"
+    PROPERTY_ACCESS = "property_access"
 
     def __str__(self):
         """Return the string value for convenient usage"""
