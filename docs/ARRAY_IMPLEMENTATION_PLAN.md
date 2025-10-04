@@ -4,6 +4,25 @@
 
 > **Purpose**: This document provides a detailed implementation plan for updating the Hexen array system to align with the enhanced specifications in ARRAY_TYPE_SYSTEM.md, FUNCTION_SYSTEM.md, and UNIFIED_BLOCK_SYSTEM.md.
 
+## 🎯 Implementation Progress
+
+**Current Status**: Week 1 Complete ✅
+
+| Phase | Status | Tests | Notes |
+|-------|--------|-------|-------|
+| Week 0: Parser Extensions | ✅ Complete | 21/21 passing | `[..]` and `.length` syntax working |
+| Week 1: Semantic Analysis | ✅ Complete | 17/17 passing, 5 skipped | Copy/property analysis implemented |
+| Week 2: Array-Function Integration | 🔄 Next | - | Will enable 5 skipped tests |
+| Week 3: Block Evaluation | ⏳ Pending | - | - |
+| Week 4: Integration + Testing | ⏳ Pending | - | - |
+
+**Overall Test Results**: 1001/1001 passing (5 skipped for Week 2)
+
+**Skipped Tests** (require ConcreteArrayType implementation in Week 2):
+- Multidimensional array copy operations (`matrix[0][..]`)
+- Multidimensional array property access (`matrix[0].length`)
+- Complex operation chaining (`matrix[i][..].length`)
+
 ## Overview
 
 This plan captures the delta between the current array implementation and the updated specifications across three key areas:
@@ -724,31 +743,50 @@ def test_array_validation_with_early_returns():
 
 ## Implementation Checklist
 
-### Core Functionality
+### Parser Extensions (Week 0) ✅ COMPLETED
+- [x] Grammar extensions for `[..]` copy operator
+- [x] Grammar extensions for `.length` property access
+- [x] AST node types: `ARRAY_COPY`, `PROPERTY_ACCESS`
+- [x] Parser transformers implementation
+- [x] Parser unit tests (21 tests)
+
+### Semantic Analysis (Week 1) ✅ COMPLETED
+- [x] Array copy semantic analysis (`analyze_array_copy`)
+- [x] Property access semantic analysis (`analyze_property_access`)
+- [x] Error messages for non-array copy operations
+- [x] Error messages for property access on non-arrays
+- [x] Expression dispatcher integration
+- [x] Semantic unit tests (17 tests passing, 5 skipped)
+
+### Core Functionality (Week 2 - In Progress)
 - [ ] Pass-by-value parameter semantics
 - [ ] `mut` parameter local copy behavior
 - [ ] Fixed-size array parameter matching
 - [ ] Inferred-size `[_]T` parameter support
-- [ ] Array `.length` property (compile-time constant)
+- [ ] **ConcreteArrayType implementation** (enables 5 skipped tests)
 - [ ] Comptime array parameter adaptation
-- [ ] Explicit `[..]` copy syntax enforcement
+- [ ] Explicit `[..]` copy syntax enforcement for function args
 - [ ] Array return value handling (prepare for RVO)
 
-### Expression Block Integration
+### Expression Block Integration (Week 3)
 - [ ] Compile-time array block detection
 - [ ] Runtime array block context requirement
 - [ ] Array validation with early returns
 - [ ] Array caching patterns
 - [ ] Bounds checking with fallbacks
 
-### Error Messages
+### Error Messages (Week 4)
+- [x] Array copy operation errors (Week 1)
+- [x] Property access errors (Week 1)
 - [ ] Array size mismatch errors
 - [ ] Missing explicit copy errors
 - [ ] Mutable array parameter errors
 - [ ] Runtime block context errors
 - [ ] All error messages with actionable suggestions
 
-### Testing
+### Testing (Week 4-5)
+- [x] Parser unit tests (Week 0)
+- [x] Semantic tests for copy/property (Week 1)
 - [ ] Unit tests for all parameter types
 - [ ] Comptime array adaptation tests
 - [ ] Mutable parameter tests
@@ -757,6 +795,7 @@ def test_array_validation_with_early_returns():
 - [ ] Error message tests
 
 ### Documentation
+- [x] Implementation plan tracking (this document)
 - [ ] Implementation notes in all three docs
 - [ ] Code examples validated
 - [ ] Error message reference complete
@@ -1095,21 +1134,46 @@ def test_multidimensional_copy():
 
 For fastest results, implement in this order:
 
-### **Week 0 (Prerequisite): Parser Extensions**
+### ✅ **Week 0 (Prerequisite): Parser Extensions** [COMPLETED]
    - **Days 1-2**: Grammar + AST changes (`hexen.lark`, `ast_nodes.py`)
    - **Days 3-4**: Parser transformers (`parser.py`)
    - **Day 5**: Parser unit tests
    - **Deliverable**: `[..]` and `.length` syntax working in parser
+   - **Status**: All 21 parser tests passing (292/292 total parser tests)
+   - **Files changed**:
+     - `src/hexen/hexen.lark` - Grammar extensions
+     - `src/hexen/ast_nodes.py` - New AST node types
+     - `src/hexen/parser.py` - Parser transformers
+     - `tests/parser/test_array_operations.py` - Parser test suite
 
-### **Week 1: Function Analyzer + Error Messages**
+### ✅ **Week 1: Semantic Analysis for Array Operations** [COMPLETED]
+   - `arrays/error_messages.py` - Array copy and property access errors
+   - `arrays/literal_analyzer.py` - Array copy and property access semantic analysis
+   - `expression_analyzer.py` - Expression dispatcher integration
+   - **Deliverable**: Semantic analysis for `[..]` and `.length`
+   - **Status**: 17/17 tests passing, 5 tests skipped (1001/1001 total tests)
+   - **Files changed**:
+     - `src/hexen/semantic/arrays/error_messages.py` - New error messages
+     - `src/hexen/semantic/arrays/literal_analyzer.py` - Analyzers implemented
+     - `src/hexen/semantic/expression_analyzer.py` - Dispatcher wiring
+     - `tests/semantic/arrays/test_array_operations.py` - Semantic test suite
+
+   **Skipped Tests (5) - Require ConcreteArrayType Implementation**:
+   - `test_array_copy_of_array_access` - Copying result of array access (row copy)
+   - `test_length_of_array_access` - Getting length of array access result
+   - `test_access_then_copy_then_length` - Complex chaining: `matrix[i][..].length`
+   - `test_multidimensional_access_then_length` - 3D array access then length
+   - `test_unknown_property_error` - Property error on concrete arrays
+
+   **Note**: These 5 tests require implementing `ConcreteArrayType` class for proper multidimensional array type handling. They test advanced array access patterns where array access returns another array type, which then needs property/copy operations. This should be addressed in **Week 2** during array-function integration when we implement proper array type structures.
+
+### **Week 2: Array-Function Integration**
    - `function_analyzer.py` - Pass-by-value semantics
-   - `arrays/error_messages.py` - Array-specific errors
-   - **Deliverable**: Basic parameter passing + error messages
-
-### **Week 2: Array Types + Property Access**
-   - `arrays/array_types.py` - `.length` property support
-   - Expression analyzer - Property access handling
-   - **Deliverable**: Inferred-size parameters working
+   - `arrays/array_types.py` - Fixed-size and inferred-size parameter support
+   - `arrays/array_types.py` - **ConcreteArrayType implementation** (for skipped tests)
+   - `comptime/type_operations.py` - Comptime array parameter adaptation
+   - **Deliverable**: Array parameter passing with proper type handling
+   - **Fixes**: Enable 5 skipped multidimensional array tests from Week 1
 
 ### **Week 3: Block Evaluation**
    - `comptime/block_evaluation.py` - Array block classification

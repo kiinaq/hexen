@@ -168,6 +168,30 @@ class ArrayErrorMessages:
             "Provide explicit type annotation: val array : [N]T = [elements...]"
         )
 
+    @staticmethod
+    def non_array_copy_operation(type_name: str) -> str:
+        """Generate error message for copy operation on non-array types."""
+        return (
+            f"Cannot use copy operator [..] on non-array type: {type_name}\n"
+            f"Copy operator is only valid for array types"
+        )
+
+    @staticmethod
+    def property_not_found(type_name: str, property_name: str) -> str:
+        """Generate error message for property not found on type."""
+        return (
+            f"Property '{property_name}' not found on type: {type_name}\n"
+            f"Available properties depend on type"
+        )
+
+    @staticmethod
+    def length_property_only_on_arrays(type_name: str) -> str:
+        """Generate error message for .length on non-array types."""
+        return (
+            f"Property 'length' is only available on array types, got: {type_name}\n"
+            f"Only arrays support the .length property"
+        )
+
 
 class ArrayErrorFactory:
     """Factory for creating array-specific semantic errors."""

@@ -105,6 +105,8 @@ class ExpressionAnalyzer:
         - FUNCTION_CALL: Delegate to function call analyzer
         - ARRAY_LITERAL: Delegate to array literal analyzer
         - ARRAY_ACCESS: Delegate to array access analyzer
+        - ARRAY_COPY: Delegate to array copy analyzer ([..] operator)
+        - PROPERTY_ACCESS: Delegate to property access analyzer (.length, etc)
         """
         if expr_type == NodeType.EXPLICIT_CONVERSION_EXPRESSION.value:
             # Handle explicit conversion expressions - implements TYPE_SYSTEM.md rules
@@ -142,6 +144,12 @@ class ExpressionAnalyzer:
         elif expr_type == NodeType.ARRAY_ACCESS.value:
             # Array access expressions - delegate to array access analyzer
             return self.array_literal_analyzer.analyze_array_access(node, target_type)
+        elif expr_type == NodeType.ARRAY_COPY.value:
+            # Array copy expressions - delegate to array copy analyzer
+            return self.array_literal_analyzer.analyze_array_copy(node, target_type)
+        elif expr_type == NodeType.PROPERTY_ACCESS.value:
+            # Property access expressions - delegate to property access analyzer
+            return self.array_literal_analyzer.analyze_property_access(node, target_type)
         else:
             self._error(f"Unknown expression type: {expr_type}", node)
             return HexenType.UNKNOWN

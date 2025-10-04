@@ -379,7 +379,7 @@ class ArrayLiteralAnalyzer:
     def _analyze_array_expression(self, array_expr: Dict) -> HexenType:
         """
         Analyze the array part of an array access to determine its type.
-        Handles identifiers, nested array access, and array literals.
+        Handles identifiers, nested array access, array literals, array copy, and property access.
         """
         expr_type = array_expr.get("type")
 
@@ -398,6 +398,21 @@ class ArrayLiteralAnalyzer:
         elif expr_type == "array_literal":
             # Direct array literal access (e.g., [1,2,3][0])
             return self.analyze_array_literal(array_expr)
+
+        elif expr_type == "array_copy":
+            # Array copy operation (e.g., arr[..])
+            return self.analyze_array_copy(array_expr)
+
+        elif expr_type == "property_access":
+            # Property access (e.g., arr.length)
+            return self.analyze_property_access(array_expr)
+
+        elif expr_type == "function_call":
+            # Function call that returns an array
+            if self._analyze_expression:
+                return self._analyze_expression(array_expr)
+            else:
+                return HexenType.UNKNOWN
 
         else:
             self._error(f"Invalid array expression type: {expr_type}", array_expr)
@@ -474,3 +489,90 @@ class ArrayLiteralAnalyzer:
 
         # Fallback - assume it's valid if we can't analyze it
         return HexenType.COMPTIME_INT
+
+    def analyze_array_copy(
+        self, node: Dict[str, Any], target_type: Optional[HexenType] = None
+    ) -> HexenType:
+        """
+        Analyze array copy operation ([..]) and return the array type.
+
+        Array copy creates a new array with the same type as the source.
+        This is a semantic copy that will be optimized in codegen.
+
+        Args:
+            node: Array copy AST node with 'array' field
+            target_type: Optional target type for context-guided resolution
+
+        Returns:
+            HexenType representing the copied array type
+        """
+        array_expr = node.get("array")
+
+        if not array_expr:
+            self._error("Invalid array copy: missing array expression", node)
+            return HexenType.UNKNOWN
+
+        # Analyze the array expression to get its type
+        array_type = self._analyze_array_expression(array_expr)
+        if array_type == HexenType.UNKNOWN:
+            return HexenType.UNKNOWN
+
+        # Validate that the expression is actually an array type
+        if not is_array_type(array_type):
+            type_name = get_type_name_for_error(array_type)
+            self._error(ArrayErrorMessages.non_array_copy_operation(type_name), node)
+            return HexenType.UNKNOWN
+
+        # Copy preserves the exact type
+        return array_type
+
+    def analyze_property_access(
+        self, node: Dict[str, Any], target_type: Optional[HexenType] = None
+    ) -> HexenType:
+        """
+        Analyze property access (.property) and return the property type.
+
+        Currently supports:
+        - .length on array types (returns compile-time constant i32)
+
+        Args:
+            node: Property access AST node with 'object' and 'property' fields
+            target_type: Optional target type for context-guided resolution
+
+        Returns:
+            HexenType representing the property's type
+        """
+        object_expr = node.get("object")
+        property_name = node.get("property")
+
+        if not object_expr or not property_name:
+            self._error("Invalid property access: missing object or property name", node)
+            return HexenType.UNKNOWN
+
+        # Analyze the object expression to get its type
+        object_type = self._analyze_array_expression(object_expr)
+        if object_type == HexenType.UNKNOWN:
+            return HexenType.UNKNOWN
+
+        # Handle .length property
+        if property_name == "length":
+            # Validate that object is an array type
+            if not is_array_type(object_type):
+                type_name = get_type_name_for_error(object_type)
+                self._error(
+                    ArrayErrorMessages.length_property_only_on_arrays(type_name),
+                    node
+                )
+                return HexenType.UNKNOWN
+
+            # .length returns a compile-time constant integer
+            # This will be i32 in the final implementation
+            return HexenType.COMPTIME_INT
+        else:
+            # Unknown property
+            type_name = get_type_name_for_error(object_type)
+            self._error(
+                ArrayErrorMessages.property_not_found(type_name, property_name),
+                node
+            )
+            return HexenType.UNKNOWN
