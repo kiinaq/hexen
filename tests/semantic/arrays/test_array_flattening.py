@@ -36,44 +36,44 @@ class TestArrayFlatteningCore:
         return self.analyzer.analyze(ast)
 
     def test_basic_2d_to_1d_flattening(self):
-        """Test basic 2D → 1D flattening with explicit size"""
+        """Test basic 2D → 1D flattening with explicit size and [..] operator"""
         source = """
         func test() : void = {
             val matrix : [2][3]i32 = [[1, 2, 3], [4, 5, 6]]
-            val flattened : [6]i32 = matrix
+            val flattened : [6]i32 = matrix[..]
             return
         }
         """
         self.assert_no_errors(source)
 
     def test_3d_to_1d_flattening(self):
-        """Test 3D → 1D flattening"""
+        """Test 3D → 1D flattening with [..] operator"""
         source = """
         func test() : void = {
             val cube : [2][2][2]i32 = [[[1, 2], [3, 4]], [[5, 6], [7, 8]]]
-            val flattened : [8]i32 = cube
+            val flattened : [8]i32 = cube[..]
             return
         }
         """
         self.assert_no_errors(source)
 
     def test_size_inference_2d(self):
-        """Test size inference with 2D arrays"""
+        """Test size inference with 2D arrays using [..] operator"""
         source = """
         func test() : void = {
             val matrix : [2][3]i32 = [[1, 2, 3], [4, 5, 6]]
-            val inferred : [_]i32 = matrix
+            val inferred : [_]i32 = matrix[..]
             return
         }
         """
         self.assert_no_errors(source)
 
     def test_size_inference_3d(self):
-        """Test size inference with 3D arrays"""
+        """Test size inference with 3D arrays using [..] operator"""
         source = """
         func test() : void = {
             val cube : [2][2][2]i32 = [[[1, 2], [3, 4]], [[5, 6], [7, 8]]]
-            val inferred : [_]i32 = cube
+            val inferred : [_]i32 = cube[..]
             return
         }
         """
@@ -84,8 +84,8 @@ class TestArrayFlatteningCore:
         source = """
         func test() : void = {
             val matrix : [2][2]i32 = [[1, 2], [3, 4]]
-            val explicit : [4]i32 = matrix
-            val inferred : [_]i32 = matrix
+            val explicit : [4]i32 = matrix[..]
+            val inferred : [_]i32 = matrix[..]
             return
         }
         """
@@ -133,7 +133,7 @@ class TestArrayFlatteningErrorHandling:
         source = """
         func test() : void = {
             val matrix : [2][3]i32 = [[1, 2, 3], [4, 5, 6]]
-            val wrong_size : [5]i32 = matrix
+            val wrong_size : [5]i32 = matrix[..]
             return
         }
         """
@@ -148,7 +148,7 @@ class TestArrayFlatteningErrorHandling:
         source = """
         func test() : void = {
             val matrix : [2][2]i32 = [[1, 2], [3, 4]]
-            val wrong_type : [_]f64 = matrix
+            val wrong_type : [_]f64 = matrix[..]
             return
         }
         """
@@ -197,6 +197,49 @@ class TestArrayFlatteningErrorHandling:
         assert len(errors) >= 1
         # Should have error about [_] being invalid in this context
 
+    def test_missing_explicit_copy_for_concrete_array(self):
+        """Test that flattening concrete arrays without [..] is an error"""
+        source = """
+        func test() : void = {
+            val matrix : [2][3]i32 = [[1, 2, 3], [4, 5, 6]]
+            val implicit_flatten : [6]i32 = matrix
+            return
+        }
+        """
+        errors = self.get_errors(source)
+        assert len(errors) == 1
+        error_str = str(errors[0])
+        assert "Missing explicit copy syntax for array flattening" in error_str
+        assert "matrix[..]" in error_str
+
+    def test_missing_explicit_copy_with_size_inference(self):
+        """Test that flattening without [..] fails even with size inference"""
+        source = """
+        func test() : void = {
+            val matrix : [2][2]i32 = [[1, 2], [3, 4]]
+            val implicit_flatten : [_]i32 = matrix
+            return
+        }
+        """
+        errors = self.get_errors(source)
+        assert len(errors) == 1
+        error_str = str(errors[0])
+        assert "Missing explicit copy syntax for array flattening" in error_str
+        assert "requires explicit copy operator [..]" in error_str
+
+    def test_comptime_array_literal_flattening_allowed(self):
+        """Test that comptime array literals can flatten without [..]"""
+        source = """
+        func test() : void = {
+            val flattened : [4]i32 = [[1, 2], [3, 4]]
+            return
+        }
+        """
+        # This should work - comptime arrays are first materialization
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+        assert not errors, f"Unexpected errors for comptime flattening: {errors}"
+
 
 class TestArrayFlatteningComplexScenarios:
     """Test more complex flattening scenarios"""
@@ -217,10 +260,10 @@ class TestArrayFlatteningComplexScenarios:
             val small : [2][2]i32 = [[1, 2], [3, 4]]
             val wide : [1][8]i32 = [[1, 2, 3, 4, 5, 6, 7, 8]]
             val deep : [2][2][2]i32 = [[[1, 2], [3, 4]], [[5, 6], [7, 8]]]
-            
-            val small_flat : [_]i32 = small
-            val wide_flat : [_]i32 = wide
-            val deep_flat : [_]i32 = deep
+
+            val small_flat : [_]i32 = small[..]
+            val wide_flat : [_]i32 = wide[..]
+            val deep_flat : [_]i32 = deep[..]
             return
         }
         """
@@ -231,7 +274,7 @@ class TestArrayFlatteningComplexScenarios:
         source = """
         func test() : void = {
             val matrix : [2][2]i32 = [[1, 2], [3, 4]]
-            val flattened : [_]i32 = matrix
+            val flattened : [_]i32 = matrix[..]
             val elem0 : i32 = flattened[0]
             val elem3 : i32 = flattened[3]
             return
@@ -247,9 +290,9 @@ class TestArrayFlatteningComplexScenarios:
             val matrix2 : [3][2]i32 = [[5, 6], [7, 8], [9, 10]]
             val cube : [2][2][2]i32 = [[[11, 12], [13, 14]], [[15, 16], [17, 18]]]
             
-            val flat1 : [_]i32 = matrix1
-            val flat2 : [_]i32 = matrix2
-            val flat3 : [_]i32 = cube
+            val flat1 : [_]i32 = matrix1[..]
+            val flat2 : [_]i32 = matrix2[..]
+            val flat3 : [_]i32 = cube[..]
             return
         }
         """
@@ -261,12 +304,12 @@ class TestArrayFlatteningComplexScenarios:
         source = """
         func test() : void = {
             val matrix_2x3 : [2][3]i32 = [[1, 2, 3], [4, 5, 6]]
-            val explicit_6 : [6]i32 = matrix_2x3
-            val inferred_6 : [_]i32 = matrix_2x3
+            val explicit_6 : [6]i32 = matrix_2x3[..]
+            val inferred_6 : [_]i32 = matrix_2x3[..]
             
             val matrix_2x2x2 : [2][2][2]i32 = [[[1, 2], [3, 4]], [[5, 6], [7, 8]]]
-            val explicit_8 : [8]i32 = matrix_2x2x2
-            val inferred_8 : [_]i32 = matrix_2x2x2
+            val explicit_8 : [8]i32 = matrix_2x2x2[..]
+            val inferred_8 : [_]i32 = matrix_2x2x2[..]
             return
         }
         """
@@ -290,8 +333,8 @@ class TestArrayFlatteningIntegration:
         source = """
         func test() : void = {
             val matrix : [2][3]i32 = [[1, 2, 3], [4, 5, 6]]
-            val explicit_flat : [6]i32 = matrix
-            val inferred_flat : [_]i32 = matrix
+            val explicit_flat : [6]i32 = matrix[..]
+            val inferred_flat : [_]i32 = matrix[..]
             return
         }
         """
@@ -302,7 +345,7 @@ class TestArrayFlatteningIntegration:
         source = """
         func test() : void = {
             val matrix : [2][2]i32 = [[1, 2], [3, 4]]
-            val flattened : [_]i32 = matrix
+            val flattened : [_]i32 = matrix[..]
             // Both matrix and flattened are immutable (val)
             return
         }
@@ -316,10 +359,10 @@ class TestArrayFlatteningIntegration:
         source = """
         func test() : void = {
             val temp_matrix : [2][2]i32 = [[1, 2], [3, 4]]
-            val result : [4]i32 = temp_matrix
+            val result : [4]i32 = temp_matrix[..]
             
             val temp_cube : [2][2][2]i32 = [[[1, 2], [3, 4]], [[5, 6], [7, 8]]]
-            val inferred_result : [_]i32 = temp_cube
+            val inferred_result : [_]i32 = temp_cube[..]
             return
         }
         """
@@ -332,8 +375,8 @@ class TestArrayFlatteningIntegration:
             val int_matrix : [2][2]i32 = [[1, 2], [3, 4]]
             val float_matrix : [2][2]f64 = [[1.1, 2.2], [3.3, 4.4]]
             
-            val int_flat : [_]i32 = int_matrix
-            val float_flat : [_]f64 = float_matrix
+            val int_flat : [_]i32 = int_matrix[..]
+            val float_flat : [_]f64 = float_matrix[..]
             
             val int_elem : i32 = int_flat[0]
             val float_elem : f64 = float_flat[0]

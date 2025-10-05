@@ -278,7 +278,7 @@ class DeclarationAnalyzer:
                     # Check for array flattening before type compatibility validation
                     flattening_handled = False
                     if self._is_flattening_assignment(var_type, value_type):
-                        if self._handle_flattening_assignment(node, var_type, value_type, name):
+                        if self._handle_flattening_assignment(node, var_type, value_type, name, value):
                             # Flattening successful - skip regular type compatibility check
                             flattening_handled = True
                         else:
@@ -497,20 +497,59 @@ class DeclarationAnalyzer:
             len(source_type.dimensions) > 1       # Source is multidimensional
         )
 
-    def _handle_flattening_assignment(self, node: Dict, target_type: ConcreteArrayType, 
-                                    source_type: ConcreteArrayType, var_name: str) -> bool:
+    def _handle_flattening_assignment(self, node: Dict, target_type: ConcreteArrayType,
+                                    source_type: ConcreteArrayType, var_name: str, value_node: Dict) -> bool:
         """
         Handle array flattening assignment with proper validation.
-        
+
         Args:
             node: AST node for error reporting
             target_type: Target 1D array type
             source_type: Source multidimensional array type
             var_name: Variable name for error messages
-            
+            value_node: Value AST node to check for explicit copy operator
+
         Returns:
             True if flattening is valid and processed, False if error occurred
         """
+        # 0. Explicit copy operator check - flattening is a copy operation!
+        value_type = value_node.get("type")
+
+        # Comptime array literals can flatten without [..] (first materialization)
+        if value_type == "array_literal":
+            # Comptime array - first materialization, no copy needed
+            pass
+        # Array copy operator [..] is explicitly present
+        elif value_type == "array_copy":
+            # Explicit copy present - this is correct!
+            pass
+        # Everything else requires explicit [..]
+        else:
+            # Most common case: identifier (variable reference to existing array)
+            if value_type == "identifier":
+                array_name = value_node.get("name", "<unknown>")
+                target_type_str = f"[{target_type.dimensions[0]}]{target_type.element_type.name.lower()}"
+
+                self._error(
+                    f"Missing explicit copy syntax for array flattening\n"
+                    f"Variable '{var_name}' expects type {target_type_str}\n"
+                    f"Concrete array '{array_name}' requires explicit copy operator [..] for flattening\n"
+                    f"Array flattening is a copy operation and requires explicit syntax to make performance costs visible\n"
+                    f"Suggestion: val {var_name} : {target_type_str} = {array_name}[..]",
+                    node
+                )
+                return False
+
+            # Other expression types also need explicit copy
+            self._error(
+                f"Array flattening requires explicit copy operator [..]\n"
+                f"Variable '{var_name}' expects flattened array\n"
+                f"Complex array expressions must use explicit [..] to make copy costs visible\n"
+                f"Suggestion: wrap expression in array copy: (<expression>)[..]",
+                node
+            )
+            return False
+
         # 1. Element type compatibility check
         if source_type.element_type != target_type.element_type:
             self._error(
