@@ -115,7 +115,13 @@ class FunctionAnalyzer:
         - Comptime types adapt seamlessly to parameter types
         - Mixed concrete types require explicit conversions
         - Same TYPE_SYSTEM.md rules as variable assignments
+        - Arrays require explicit [..] for concrete array arguments
         """
+        # Check for explicit copy requirement on array parameters
+        self._check_array_argument_copy_requirement(
+            argument, parameter, function_name, position
+        )
+
         # Analyze argument expression with parameter type as context
         # This enables comptime type adaptation and enforces TYPE_SYSTEM.md rules
         argument_type = self._analyze_expression(argument, parameter.param_type)
@@ -140,3 +146,84 @@ class FunctionAnalyzer:
                 f"Use explicit conversion: 'expression:{param_type_str}'",
                 argument,
             )
+
+    def _check_array_argument_copy_requirement(
+        self, argument: Dict, parameter, function_name: str, position: int
+    ):
+        """
+        Validate that concrete array arguments use explicit [..] copy operator.
+
+        Args:
+            argument: Argument expression AST node
+            parameter: Parameter object with type and mutability info
+            function_name: Function name for error messages
+            position: Argument position (1-based) for error messages
+
+        Implementation of "Explicit Danger, Implicit Safety" principle:
+        - Comptime arrays (literals): No [..] needed (first materialization)
+        - Concrete arrays (variables): Require explicit [..] copy operator
+        - This makes array copy performance costs visible
+        """
+        from .type_util import is_array_type
+        from .arrays.error_messages import ArrayErrorMessages
+
+        # Only check if parameter is an array type
+        if not is_array_type(parameter.param_type):
+            return
+
+        # Check argument type
+        arg_type = argument.get("type")
+
+        # Allowed without explicit copy: array literals (comptime arrays)
+        if arg_type == "array_literal":
+            # Comptime array - first materialization, no copy needed
+            return
+
+        # Allowed without explicit copy: already has [..] operator
+        if arg_type == "array_copy":
+            # Explicit copy present - this is correct!
+            return
+
+        # Allowed without explicit copy: function calls (return fresh arrays)
+        if arg_type == "function_call":
+            # Function returns fresh array - no copy needed
+            return
+
+        # Allowed without explicit copy: expression blocks (build fresh arrays)
+        if arg_type == "block":
+            # Expression block builds fresh array - no copy needed
+            return
+
+        # Everything else requires explicit [..]
+        # Most common case: identifier (variable reference to existing array)
+        if arg_type == "identifier":
+            argument_name = argument.get("name", "<unknown>")
+            param_type_str = (
+                parameter.param_type.value
+                if hasattr(parameter.param_type, "value")
+                else str(parameter.param_type)
+            )
+
+            self._error(
+                ArrayErrorMessages.missing_explicit_copy_for_array_argument(
+                    function_name, parameter.name, param_type_str, argument_name
+                ),
+                argument,
+            )
+            return
+
+        # Other expression types also need explicit copy
+        # (array access, property access, binary operations, etc.)
+        param_type_str = (
+            parameter.param_type.value
+            if hasattr(parameter.param_type, "value")
+            else str(parameter.param_type)
+        )
+
+        self._error(
+            f"Array argument to function '{function_name}' requires explicit copy operator [..]\n"
+            f"Parameter '{parameter.name}' expects type {param_type_str}\n"
+            f"Complex array expressions must use explicit [..] to make copy costs visible\n"
+            f"Suggestion: wrap expression in array copy: (<expression>)[..]",
+            argument,
+        )

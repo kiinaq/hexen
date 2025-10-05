@@ -192,6 +192,19 @@ class ArrayErrorMessages:
             f"Only arrays support the .length property"
         )
 
+    @staticmethod
+    def missing_explicit_copy_for_array_argument(
+        function_name: str, param_name: str, param_type: str, argument_name: str
+    ) -> str:
+        """Generate error message for missing explicit copy on concrete array argument."""
+        return (
+            f"Missing explicit copy syntax for array argument to function '{function_name}'\n"
+            f"Parameter '{param_name}' expects type {param_type}\n"
+            f"Concrete array '{argument_name}' requires explicit copy operator [..]\n"
+            f"Arrays require explicit copy syntax to make performance costs visible\n"
+            f"Suggestion: {function_name}({argument_name}[..])"
+        )
+
 
 class ArrayErrorFactory:
     """Factory for creating array-specific semantic errors."""
