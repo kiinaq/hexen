@@ -506,7 +506,10 @@ def can_array_assign_to(
 def get_type_name_for_error(type_obj: Union[HexenType, ConcreteArrayType]) -> str:
     """Get a human-readable type name for error messages."""
     if isinstance(type_obj, ConcreteArrayType):
-        return f"[{type_obj.dimensions[0].size}]{type_obj.element_type.name.lower()}"
+        # ConcreteArrayType.dimensions is a list of integers, not ArrayDimension objects
+        # Build dimension string: [2][3]i32 for 2D array
+        dim_str = "".join(f"[{dim}]" for dim in type_obj.dimensions)
+        return f"{dim_str}{type_obj.element_type.name.lower()}"
 
     # Use the inverse mapping from TYPE_STRING_TO_HEXEN_TYPE for consistency
     return HEXEN_TYPE_TO_STRING.get(type_obj, "unknown")

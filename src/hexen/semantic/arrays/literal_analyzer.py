@@ -443,8 +443,7 @@ class ArrayLiteralAnalyzer:
                 return array_type.element_type
             else:
                 # Multidimensional array access reduces by one dimension
-                from .array_types import ConcreteArrayType
-
+                # ConcreteArrayType already imported at top of file
                 new_dimensions = array_type.dimensions[1:]  # Remove first dimension
                 return ConcreteArrayType(array_type.element_type, new_dimensions)
 

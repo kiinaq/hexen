@@ -76,7 +76,6 @@ class TestArrayCopy:
 
         assert_no_errors(errors)
 
-    @pytest.mark.skip(reason="Multidimensional array access needs ConcreteArrayType - future work")
     def test_array_copy_of_array_access(self):
         """Test copying result of array access (row copy)"""
         source = """
@@ -208,7 +207,6 @@ class TestPropertyAccess:
 
         assert_no_errors(errors)
 
-    @pytest.mark.skip(reason="Multidimensional array access needs ConcreteArrayType - future work")
     def test_length_of_array_access(self):
         """Test .length on result of array access (row length)"""
         source = """
@@ -271,7 +269,6 @@ class TestPropertyAccess:
             "Property 'length' is only available on array types"
         )
 
-    @pytest.mark.skip(reason="Concrete array property needs better type handling - future work")
     def test_unknown_property_error(self):
         """Test error for unknown property access"""
         source = """
@@ -312,7 +309,6 @@ class TestCombinedOperations:
 
         assert_no_errors(errors)
 
-    @pytest.mark.skip(reason="Multidimensional array access needs ConcreteArrayType - future work")
     def test_access_then_copy_then_length(self):
         """Test complex chain: matrix[i][..].length"""
         source = """
@@ -327,7 +323,6 @@ class TestCombinedOperations:
 
         assert_no_errors(errors)
 
-    @pytest.mark.skip(reason="Multidimensional array access needs ConcreteArrayType - future work")
     def test_multidimensional_access_then_length(self):
         """Test multidimensional access then length"""
         source = """
