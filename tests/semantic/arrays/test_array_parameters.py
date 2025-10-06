@@ -296,3 +296,221 @@ class TestScalarParametersUnaffected:
         errors = self.analyzer.analyze(ast)
 
         assert_no_errors(errors)
+
+
+class TestFixedSizeArrayParameterMatching:
+    """Test exact size matching for fixed-size array parameters"""
+
+    def setup_method(self):
+        """Standard setup method used by all semantic test classes."""
+        self.parser = HexenParser()
+        self.analyzer = SemanticAnalyzer()
+
+    def test_exact_size_match_passes(self):
+        """Fixed-size parameters accept exact size matches"""
+        source = """
+        func process(data: [3]i32) : void = {
+            return
+        }
+
+        func main() : void = {
+            val arr : [3]i32 = [1, 2, 3]
+            process(arr[..])
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        assert_no_errors(errors)
+
+    def test_size_mismatch_error(self):
+        """Fixed-size parameters reject different sizes"""
+        source = """
+        func process(data: [3]i32) : void = {
+            return
+        }
+
+        func main() : void = {
+            val arr : [4]i32 = [1, 2, 3, 4]
+            process(arr[..])
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        assert_error_contains(errors, "Array size mismatch")
+        assert_error_contains(errors, "expected 3, got 4")
+        assert_error_contains(errors, "[3]i32")
+        assert_error_contains(errors, "[4]i32")
+
+    def test_smaller_array_rejected(self):
+        """Smaller arrays also rejected (not just larger)"""
+        source = """
+        func process(data: [5]i32) : void = {
+            return
+        }
+
+        func main() : void = {
+            val arr : [3]i32 = [1, 2, 3]
+            process(arr[..])
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        assert_error_contains(errors, "Array size mismatch")
+        assert_error_contains(errors, "expected 5, got 3")
+
+    def test_multidimensional_exact_match(self):
+        """Multidimensional arrays require exact dimension match"""
+        source = """
+        func process(data: [2][3]i32) : void = {
+            return
+        }
+
+        func main() : void = {
+            val matrix : [2][3]i32 = [[1, 2, 3], [4, 5, 6]]
+            process(matrix[..])
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        assert_no_errors(errors)
+
+    def test_multidimensional_first_dim_mismatch(self):
+        """Multidimensional arrays - first dimension mismatch"""
+        source = """
+        func process(data: [2][3]i32) : void = {
+            return
+        }
+
+        func main() : void = {
+            val matrix : [3][3]i32 = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
+            process(matrix[..])
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        assert_error_contains(errors, "Array size mismatch")
+        assert_error_contains(errors, "[2][3]i32")
+        assert_error_contains(errors, "[3][3]i32")
+
+    def test_multidimensional_second_dim_mismatch(self):
+        """Multidimensional arrays - second dimension mismatch"""
+        source = """
+        func process(data: [2][3]i32) : void = {
+            return
+        }
+
+        func main() : void = {
+            val matrix : [2][4]i32 = [[1, 2, 3, 4], [5, 6, 7, 8]]
+            process(matrix[..])
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        assert_error_contains(errors, "Array size mismatch")
+        assert_error_contains(errors, "[2][3]i32")
+        assert_error_contains(errors, "[2][4]i32")
+
+    def test_dimension_count_mismatch(self):
+        """1D vs 2D arrays are incompatible"""
+        source = """
+        func process(data: [6]i32) : void = {
+            return
+        }
+
+        func main() : void = {
+            val matrix : [2][3]i32 = [[1, 2, 3], [4, 5, 6]]
+            process(matrix[..])
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        assert_error_contains(errors, "Array dimension mismatch")
+        assert_error_contains(errors, "1D array")
+        assert_error_contains(errors, "2D array")
+
+    def test_element_type_mismatch(self):
+        """Element types must match even if sizes match"""
+        source = """
+        func process(data: [3]i32) : void = {
+            return
+        }
+
+        func main() : void = {
+            val arr : [3]f64 = [1.0, 2.0, 3.0]
+            process(arr[..])
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        assert_error_contains(errors, "element type mismatch")
+        assert_error_contains(errors, "[3]i32")
+        assert_error_contains(errors, "[3]f64")
+
+    def test_multiple_parameters_all_must_match(self):
+        """All array parameters must have exact size matches"""
+        source = """
+        func process(a: [3]i32, b: [4]i32) : void = {
+            return
+        }
+
+        func main() : void = {
+            val arr1 : [3]i32 = [1, 2, 3]
+            val arr2 : [4]i32 = [4, 5, 6, 7]
+            process(arr1[..], arr2[..])
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        assert_no_errors(errors)
+
+    def test_comptime_arrays_adapt_to_size(self):
+        """Comptime array literals adapt to parameter size"""
+        source = """
+        func process(data: [3]i32) : void = {
+            return
+        }
+
+        func main() : void = {
+            process([1, 2, 3])
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        assert_no_errors(errors)
+
+    def test_comptime_wrong_size_error(self):
+        """Comptime arrays with wrong size are rejected"""
+        source = """
+        func process(data: [3]i32) : void = {
+            return
+        }
+
+        func main() : void = {
+            process([1, 2, 3, 4])
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        assert_error_contains(errors, "Array size mismatch")

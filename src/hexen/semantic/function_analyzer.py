@@ -128,24 +128,32 @@ class FunctionAnalyzer:
 
         # Validate type compatibility using TYPE_SYSTEM.md conversion rules
         if not can_coerce(argument_type, parameter.param_type):
-            # Handle error message for both HexenType and ConcreteArrayType
-            param_type_str = (
-                parameter.param_type.value
-                if hasattr(parameter.param_type, "value")
-                else str(parameter.param_type)
-            )
-            arg_type_str = (
-                argument_type.value
-                if hasattr(argument_type, "value")
-                else str(argument_type)
-            )
+            # Check if this is an array size mismatch for better error message
+            if isinstance(argument_type, ConcreteArrayType) and isinstance(parameter.param_type, ConcreteArrayType):
+                # Array size mismatch - provide array-specific error
+                self._error_array_size_mismatch(
+                    function_name, position, parameter, argument_type, argument
+                )
+            else:
+                # Regular type mismatch - use standard error message
+                # Handle error message for both HexenType and ConcreteArrayType
+                param_type_str = (
+                    parameter.param_type.value
+                    if hasattr(parameter.param_type, "value")
+                    else str(parameter.param_type)
+                )
+                arg_type_str = (
+                    argument_type.value
+                    if hasattr(argument_type, "value")
+                    else str(argument_type)
+                )
 
-            self._error(
-                f"Function '{function_name}' argument {position}: "
-                f"Cannot assign {arg_type_str} to parameter '{parameter.name}' of type {param_type_str}. "
-                f"Use explicit conversion: 'expression:{param_type_str}'",
-                argument,
-            )
+                self._error(
+                    f"Function '{function_name}' argument {position}: "
+                    f"Cannot assign {arg_type_str} to parameter '{parameter.name}' of type {param_type_str}. "
+                    f"Use explicit conversion: 'expression:{param_type_str}'",
+                    argument,
+                )
 
     def _check_array_argument_copy_requirement(
         self, argument: Dict, parameter, function_name: str, position: int
@@ -227,3 +235,70 @@ class FunctionAnalyzer:
             f"Suggestion: wrap expression in array copy: (<expression>)[..]",
             argument,
         )
+
+    def _error_array_size_mismatch(
+        self, function_name: str, position: int, parameter, argument_type: ConcreteArrayType, argument: Dict
+    ):
+        """
+        Generate array-specific error message for size mismatches.
+
+        Args:
+            function_name: Function name for error messages
+            position: Argument position (1-based)
+            parameter: Parameter object with type info
+            argument_type: Actual argument type (ConcreteArrayType)
+            argument: Argument AST node for error reporting
+        """
+        param_array_type = parameter.param_type
+        arg_type_str = str(argument_type)
+        param_type_str = str(param_array_type)
+
+        # Check if this is a size mismatch vs element type mismatch
+        if argument_type.element_type != param_array_type.element_type:
+            # Element type mismatch
+            self._error(
+                f"Function '{function_name}' argument {position}: Array element type mismatch\n"
+                f"Parameter '{parameter.name}' expects {param_type_str}\n"
+                f"Argument has type {arg_type_str}\n"
+                f"Cannot convert {argument_type.element_type.value} array to {param_array_type.element_type.value} array\n"
+                f"Arrays must have matching element types",
+                argument,
+            )
+        elif len(argument_type.dimensions) != len(param_array_type.dimensions):
+            # Dimension count mismatch
+            self._error(
+                f"Function '{function_name}' argument {position}: Array dimension mismatch\n"
+                f"Parameter '{parameter.name}' expects {param_type_str} ({len(param_array_type.dimensions)}D array)\n"
+                f"Argument has type {arg_type_str} ({len(argument_type.dimensions)}D array)\n"
+                f"Cannot pass {len(argument_type.dimensions)}D array to {len(param_array_type.dimensions)}D parameter",
+                argument,
+            )
+        else:
+            # Size mismatch in at least one dimension
+            # Find which dimension(s) mismatch
+            mismatched_dims = []
+            for i, (arg_dim, param_dim) in enumerate(zip(argument_type.dimensions, param_array_type.dimensions)):
+                if arg_dim != param_dim:
+                    mismatched_dims.append((i, arg_dim, param_dim))
+
+            if len(mismatched_dims) == 1:
+                dim_idx, arg_size, param_size = mismatched_dims[0]
+                dim_name = f"dimension {dim_idx}" if len(argument_type.dimensions) > 1 else "size"
+
+                self._error(
+                    f"Function '{function_name}' argument {position}: Array size mismatch\n"
+                    f"Parameter '{parameter.name}' expects {param_type_str}\n"
+                    f"Argument has type {arg_type_str}\n"
+                    f"Array {dim_name} mismatch: expected {param_size}, got {arg_size}\n"
+                    f"Array sizes must match exactly for fixed-size parameters",
+                    argument,
+                )
+            else:
+                # Multiple dimension mismatches
+                self._error(
+                    f"Function '{function_name}' argument {position}: Array size mismatch\n"
+                    f"Parameter '{parameter.name}' expects {param_type_str}\n"
+                    f"Argument has type {arg_type_str}\n"
+                    f"Array sizes must match exactly for fixed-size parameters",
+                    argument,
+                )
