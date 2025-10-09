@@ -411,16 +411,16 @@ def _parse_array_parameter_type(array_type_node: Dict) -> ConcreteArrayType:
     for dim_node in dimension_nodes:
         size = dim_node.get("size")
         if size == "_":
-            # Inferred dimensions not supported yet
-            return HexenType.UNKNOWN
-
-        try:
-            dim_size = int(size)
-            if dim_size < 0:
+            # Inferred dimension - accept any size ([_]T parameters)
+            dimensions.append("_")
+        else:
+            try:
+                dim_size = int(size)
+                if dim_size < 0:
+                    return HexenType.UNKNOWN
+                dimensions.append(dim_size)
+            except (ValueError, TypeError):
                 return HexenType.UNKNOWN
-            dimensions.append(dim_size)
-        except (ValueError, TypeError):
-            return HexenType.UNKNOWN
 
     if not dimensions:
         return HexenType.UNKNOWN

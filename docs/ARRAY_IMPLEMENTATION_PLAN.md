@@ -6,19 +6,19 @@
 
 ## 🎯 Implementation Progress
 
-**Current Status**: Week 2 Partially Complete ✅ (4 of 8 tasks done)
+**Current Status**: Week 2 Partially Complete ✅ (5 of 8 tasks done)
 
 | Phase | Status | Tests | Notes |
 |-------|--------|-------|-------|
 | Week 0: Parser Extensions | ✅ Complete | 21/21 passing | `[..]` and `.length` syntax working |
 | Week 1: Semantic Analysis | ✅ Complete | 22/22 passing | Copy/property analysis implemented |
-| Week 2: Array-Function Integration | 🔄 In Progress | 47/47 passing | 4 of 8 tasks complete (see below) |
+| Week 2: Array-Function Integration | 🔄 In Progress | 60/60 passing | 5 of 8 tasks complete (see below) |
 | Week 3: Block Evaluation | ⏳ Pending | - | - |
 | Week 4: Integration + Testing | ⏳ Pending | - | - |
 
-**Overall Test Results**: 1033/1033 passing (100% success rate)
+**Overall Test Results**: 1046/1046 passing (100% success rate)
 
-**Week 2 Progress Breakdown** (4/8 tasks complete):
+**Week 2 Progress Breakdown** (5/8 tasks complete):
 
 ✅ **Completed Tasks:**
 1. **Multidimensional Array Support** - ConcreteArrayType dimension reduction working
@@ -35,11 +35,16 @@
    - Validates exact size equality across all dimensions ([3]i32 ≠ [4]i32)
    - Includes element type validation and dimension count checking
    - Comptime arrays adapt to target size seamlessly
+5. **Inferred-size `[_]T` parameter support** - Accept any size, provide compile-time `.length`
+   - 13 comprehensive tests covering all inferred-size scenarios
+   - Single dimension inferred-size ([_]i32 accepts any size)
+   - Multidimensional inferred dimensions ([_][4]i32, [3][_]i32, [_][_]i32)
+   - `.length` property available within function scope
+   - Comptime arrays work seamlessly with inferred-size parameters
 
 ⏳ **Remaining Tasks:**
-5. **Pass-by-value parameter semantics** - Scalar parameter value copying
-6. **`mut` parameter local copy behavior** - Design A enforcement with return value requirement
-7. **Inferred-size `[_]T` parameter support** - Accept any size, provide compile-time `.length`
+6. **Pass-by-value parameter semantics** - Scalar parameter value copying
+7. **`mut` parameter local copy behavior** - Design A enforcement with return value requirement
 8. **Comptime array parameter adaptation** - Flexible comptime → concrete type materialization
 
 ## Overview
@@ -777,14 +782,14 @@ def test_array_validation_with_early_returns():
 - [x] Expression dispatcher integration
 - [x] Semantic unit tests (22 tests passing, all enabled)
 
-### Core Functionality (Week 2 - 🔄 In Progress: 4/8 Complete)
+### Core Functionality (Week 2 - 🔄 In Progress: 5/8 Complete)
 - [x] **ConcreteArrayType implementation** - Multidimensional array support complete
 - [x] **Explicit `[..]` copy syntax enforcement for function args** - 13 tests passing
 - [x] **Explicit `[..]` copy syntax enforcement for array flattening** - 23 tests passing (discovered missing requirement)
 - [x] **Fixed-size array parameter matching** - 11 tests passing (exact size validation across all dimensions)
+- [x] **Inferred-size `[_]T` parameter support** - 13 tests passing (accepts any size, provides `.length`)
 - [ ] Pass-by-value parameter semantics
 - [ ] `mut` parameter local copy behavior
-- [ ] Inferred-size `[_]T` parameter support
 - [ ] Comptime array parameter adaptation
 
 ### Expression Block Integration (Week 3)
@@ -811,9 +816,10 @@ def test_array_validation_with_early_returns():
 - [x] Array parameter explicit copy tests (Week 2) - 13 tests
 - [x] Array flattening tests (Week 2) - 23 tests (20 updated + 3 new)
 - [x] Fixed-size array parameter matching tests (Week 2 Part 4) - 11 tests
-- [ ] Unit tests for all parameter types (remaining: inferred-size, mut behavior)
-- [ ] Comptime array adaptation tests
+- [x] Inferred-size parameter tests (Week 2 Part 5) - 13 tests
+- [ ] Unit tests for all parameter types (remaining: mut behavior, comptime adaptation)
 - [ ] Mutable parameter tests
+- [ ] Comptime array adaptation tests
 - [ ] Expression block array tests
 - [ ] Integration tests for complete scenarios
 
@@ -1234,10 +1240,25 @@ For fastest results, implement in this order:
      - Comptime array adaptation to target size
    - **Error Messages**: Clear, actionable messages showing expected vs actual sizes
 
-#### **Week 2 Remaining Tasks** (4 tasks):
-   - `function_analyzer.py` - Pass-by-value semantics
+#### **Week 2 Part 5: Inferred-Size `[_]T` Parameter Support** ✅ COMPLETED
+   - **Status**: Complete (1046/1046 tests passing)
+   - **Files changed**:
+     - `src/hexen/semantic/function_analyzer.py` - Enhanced `_check_array_size_compatibility()` to handle inferred dimensions
+     - `src/hexen/semantic/symbol_table.py` - Added inferred-size parameter tracking in function scope
+     - `tests/semantic/arrays/test_inferred_size_parameters.py` - NEW FILE (13 comprehensive tests)
+   - **Implementation**: Inferred-size parameters accept any array size while providing compile-time `.length` access
+   - **Coverage**:
+     - Single dimension inferred-size ([_]i32 accepts [3]i32, [5]i32, etc.)
+     - Multidimensional partial inference ([_][4]i32, [3][_]i32)
+     - Multidimensional full inference ([_][_]i32)
+     - Element type validation (must match exactly)
+     - `.length` property available within function scope
+     - Comptime arrays work seamlessly with inferred-size parameters
+   - **Design**: Inferred dimensions (`_`) match any size, while fixed dimensions must match exactly
+
+#### **Week 2 Remaining Tasks** (3 tasks):
+   - `function_analyzer.py` - Pass-by-value parameter semantics
    - `function_analyzer.py` - `mut` parameter local copy behavior
-   - `arrays/array_types.py` - Inferred-size `[_]T` parameter support
    - `comptime/type_operations.py` - Comptime array parameter adaptation
 
 ### **Week 3: Block Evaluation**

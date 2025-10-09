@@ -210,7 +210,8 @@ class ArrayLiteralAnalyzer:
         expected_count = target_type.dimensions[0]
         actual_count = len(elements)
 
-        if expected_count != actual_count:
+        # Inferred dimensions ([_]) accept any size - skip size validation
+        if expected_count != "_" and expected_count != actual_count:
             self._error(
                 f"Array size mismatch: expected {expected_count} elements, got {actual_count}",
                 node,

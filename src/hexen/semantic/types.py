@@ -100,21 +100,26 @@ class BlockEvaluability(Enum):
 
 class ConcreteArrayType:
     """
-    Represents explicit concrete array types like [3]i32, [2][4]f64.
+    Represents explicit concrete array types like [3]i32, [2][4]f64, [_]i32.
 
     Unlike comptime array types (which are flexible), concrete array types have:
-    - Fixed dimensions with specific sizes
+    - Fixed dimensions with specific sizes OR inferred dimensions ([_])
     - Concrete element types
     - Explicit type annotation requirements
+
+    Inferred dimensions ([_]) are used for:
+    - Function parameters that accept any array size
+    - Array flattening with size inference
     """
 
-    def __init__(self, element_type: HexenType, dimensions: list[int]):
+    def __init__(self, element_type: HexenType, dimensions: list[int | str]):
         """
         Create a concrete array type.
 
         Args:
             element_type: The concrete element type (I32, F64, etc.)
-            dimensions: List of dimension sizes, e.g., [3] for [3]i32, [2, 4] for [2][4]f64
+            dimensions: List of dimension sizes or "_" for inferred
+                       e.g., [3] for [3]i32, [2, 4] for [2][4]f64, ["_"] for [_]i32
         """
         if element_type in {
             HexenType.COMPTIME_INT,
@@ -148,11 +153,23 @@ class ConcreteArrayType:
     def __hash__(self) -> int:
         return hash((self.element_type, tuple(self.dimensions)))
 
+    def has_inferred_dimensions(self) -> bool:
+        """Check if this type has any inferred dimensions ([_])"""
+        return any(dim == "_" for dim in self.dimensions)
+
     def total_elements(self) -> int:
-        """Calculate total number of elements (product of all dimensions)"""
+        """
+        Calculate total number of elements (product of all dimensions).
+
+        Raises:
+            ValueError: If any dimension is inferred ([_])
+        """
+        if self.has_inferred_dimensions():
+            raise ValueError("Cannot calculate total elements with inferred dimensions")
+
         result = 1
         for dim in self.dimensions:
-            result *= dim
+            result *= dim  # type: ignore - checked above that all are int
         return result
 
     def is_compatible_with(self, comptime_array_type: HexenType) -> bool:

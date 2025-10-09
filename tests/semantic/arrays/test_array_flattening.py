@@ -185,17 +185,18 @@ class TestArrayFlatteningErrorHandling:
         error_str = str(errors[0]).lower()
         assert "type mismatch" in error_str
 
-    def test_non_flattening_size_inference_blocked(self):
-        """Test that [_] is blocked in non-flattening contexts"""
+    def test_non_flattening_size_inference_allowed(self):
+        """Test that [_] size inference works for array literals"""
         source = """
         func test() : void = {
             val normal : [_]i32 = [1, 2, 3, 4]
             return
         }
         """
-        errors = self.get_errors(source)
-        assert len(errors) >= 1
-        # Should have error about [_] being invalid in this context
+        # Size inference from array literals is now supported
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+        assert not errors, f"Unexpected errors for size inference: {errors}"
 
     def test_missing_explicit_copy_for_concrete_array(self):
         """Test that flattening concrete arrays without [..] is an error"""

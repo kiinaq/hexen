@@ -197,6 +197,32 @@ def can_coerce(
             return to_type.is_compatible_with(HexenType.COMPTIME_ARRAY_INT)
         elif from_type == HexenType.COMPTIME_ARRAY_FLOAT:
             return to_type.is_compatible_with(HexenType.COMPTIME_ARRAY_FLOAT)
+
+        # Handle inferred-size parameter matching: [N]T can coerce to [_]T
+        if isinstance(from_type, ConcreteArrayType):
+            # Element types must match
+            if from_type.element_type != to_type.element_type:
+                return False
+
+            # Dimension count must match
+            if len(from_type.dimensions) != len(to_type.dimensions):
+                return False
+
+            # Check each dimension: either exact match or target has inferred (_)
+            for from_dim, to_dim in zip(from_type.dimensions, to_type.dimensions):
+                if to_dim == "_":
+                    # Inferred dimension accepts any size
+                    continue
+                elif from_dim == "_":
+                    # Source has inferred dimension - cannot coerce to fixed
+                    return False
+                elif from_dim != to_dim:
+                    # Fixed dimensions must match exactly
+                    return False
+
+            # All checks passed - coercion allowed
+            return True
+
         # ConcreteArrayType only coerces to identical ConcreteArrayType (handled by identity above)
         return False
 
