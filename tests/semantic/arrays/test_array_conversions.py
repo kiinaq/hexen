@@ -327,6 +327,48 @@ class TestDimensionFlattening:
 
         assert_no_errors(errors)
 
+    def test_flattening_to_inferred_size(self):
+        """Test [2][3] → [_] flattening (accepts calculated size)"""
+        source = """
+        func test() : void = {
+            val matrix : [2][3]i32 = [[1, 2, 3], [4, 5, 6]]
+            val flat : [_]i32 = matrix:[_]i32
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        assert_no_errors(errors)
+
+    def test_3d_to_1d_flattening_inferred_size(self):
+        """Test [2][2][2] → [_] flattening with inferred size"""
+        source = """
+        func test() : void = {
+            val cube : [2][2][2]i32 = [[[1, 2], [3, 4]], [[5, 6], [7, 8]]]
+            val flat : [_]i32 = cube:[_]i32
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        assert_no_errors(errors)
+
+    def test_flattening_to_inferred_with_element_type_conversion(self):
+        """Test [2][3]i32 → [_]i64 (flattening to inferred + element type)"""
+        source = """
+        func test() : void = {
+            val matrix : [2][3]i32 = [[1, 2, 3], [4, 5, 6]]
+            val flat : [_]i64 = matrix:[_]i64
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        assert_no_errors(errors)
+
 
 class TestCombinedConversions:
     """Test combined flattening + element type conversions"""

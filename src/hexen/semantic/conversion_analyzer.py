@@ -302,22 +302,41 @@ class ConversionAnalyzer:
 
         # Check each target dimension
         target_total_size = 1
+        is_dimension_change = len(source.dimensions) != len(target.dimensions)
+
         for i, target_dim in enumerate(target.dimensions):
             if target_dim == "_":
                 # Inferred dimension - wildcard accepts any size
-                # Infer the size from source (for this dimension)
-                if i < len(source.dimensions):
-                    # Use source dimension size
-                    target.dimensions[i] = source.dimensions[i]
-                    target_total_size *= source.dimensions[i]
+                if is_dimension_change:
+                    # Flattening/reshaping case - inferred dimension accepts calculated size
+                    # For [2][3] → [_], inferred dimension becomes 6 (total flattened size)
+                    # For [2][3][4] → [6][_], first matches 6, second becomes 4
+                    if i < len(target.dimensions) - 1:
+                        # Not the last dimension - match corresponding fixed dimensions first
+                        # Then remaining gets flattened into last inferred dimension
+                        # This handles partial flattening like [2][3][4] → [6][_]
+                        target.dimensions[i] = source.dimensions[i]
+                        target_total_size *= source.dimensions[i]
+                    else:
+                        # Last dimension is inferred - accepts all remaining source size
+                        # Calculate how much source space is left after matching earlier dims
+                        remaining_size = source_total_size // target_total_size if target_total_size > 1 else source_total_size
+                        target.dimensions[i] = remaining_size
+                        target_total_size *= remaining_size
                 else:
-                    # Flattening case - calculate remaining size
-                    remaining_source_dims = source.dimensions[i:]
-                    remaining_size = 1
-                    for dim in remaining_source_dims:
-                        remaining_size *= dim
-                    target.dimensions[i] = remaining_size
-                    target_total_size *= remaining_size
+                    # Same dimension count - inferred dimension matches corresponding source dimension
+                    # For [3]i32 → [_]i64, inferred becomes 3
+                    # For [2][3]i32 → [_][3]i64, first inferred becomes 2
+                    if i < len(source.dimensions):
+                        target.dimensions[i] = source.dimensions[i]
+                        target_total_size *= source.dimensions[i]
+                    else:
+                        # Should not happen - same dimension count means indices align
+                        self._error(
+                            f"Internal error: dimension index mismatch in size inference",
+                            node,
+                        )
+                        return False
             else:
                 # Fixed dimension - must match exactly (after flattening)
                 target_total_size *= target_dim
