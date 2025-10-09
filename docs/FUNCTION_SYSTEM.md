@@ -720,8 +720,9 @@ val final : f64 = transform_and_accumulate(10.0, 5, 2.0)
 Arrays integrate seamlessly with Hexen's function system, following the same **pass-by-value semantics** and **comptime type preservation** principles as scalar values. The array type system (ARRAY_TYPE_SYSTEM.md) extends naturally to function parameters, arguments, and returns while maintaining Hexen's core philosophy of "Ergonomic Literals + Transparent Costs".
 
 **Key Integration Points:**
-- **Array parameters** follow pass-by-value with explicit copy syntax
-- **Comptime arrays** preserve flexibility until parameter context forces resolution
+- **Array parameters** follow pass-by-value with explicit copy syntax (`[..]` for same dimensions)
+- **Array flattening** requires explicit type conversion (`[..]:[_]T` for dimension changes, consistent with ARRAY_TYPE_SYSTEM.md)
+- **Comptime arrays** preserve flexibility until parameter context forces resolution (no explicit conversion needed)
 - **Array returns** leverage RVO (Return Value Optimization) for performance
 - **Mutable array parameters** modify local copies and return modified values
 - **Inferred-size parameters** `[_]T` accept any size array with `.length` available
@@ -924,24 +925,31 @@ val as_f64 : [_][_]f64 = transpose(comptime_matrix)  // comptime → [2][2]f64 (
 
 ### Array Flattening in Function Context
 
-Leveraging row-major layout for systems programming patterns:
+Leveraging row-major layout for systems programming patterns with explicit type conversions:
 
 ```hexen
 // Accept multidimensional array, return flattened 1D array
 func flatten_for_gpu(matrix: [_][_]f32) : [_]f32 = {
-    return matrix[..]  // Explicit flattening with copy
+    return matrix[..]:[_]f32  // Explicit copy + type conversion (2D → 1D flattening)
     // Element count: matrix.length * matrix[0].length (compile-time known)
 }
 
 val vertices : [100][3]f32 = load_vertex_positions()  // 100 vertices, 3 components each
-val gpu_buffer : [_]f32 = flatten_for_gpu(vertices[..])
+val gpu_buffer : [_]f32 = flatten_for_gpu(vertices[..])  // Pass 2D array (explicit copy in call)
 // gpu_buffer type: [300]f32 (compile-time calculated)
-// upload_to_gpu(gpu_buffer) - type-safe, size-known
+// Function internally flattens with explicit conversion
 
-// Comptime flattening with type flexibility
-val comptime_3x3 = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
-val flat_i32 : [_]i32 = flatten_for_gpu(comptime_3x3)  // → [9]i32
-val flat_f32 : [_]f32 = flatten_for_gpu(comptime_3x3)  // Same source → [9]f32
+// Or flatten directly at call site:
+val direct_buffer : [_]f32 = vertices[..]:[_]f32  // Direct flattening with explicit conversion
+
+// Comptime flattening with type flexibility (no explicit conversion needed!)
+val comptime_3x3 = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]  // comptime_array
+val flat_i32 : [_]i32 = comptime_3x3       // → [9]i32 (comptime: adapts to context!)
+val flat_f32 : [_]f32 = comptime_3x3       // → [9]f32 (same source, flexible!)
+
+// Concrete array flattening requires explicit conversion:
+val concrete_3x3 : [3][3]i32 = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
+val concrete_flat : [_]i32 = concrete_3x3[..]:[_]i32  // ✅ Explicit conversion required
 ```
 
 ### Mixed Array and Scalar Parameters

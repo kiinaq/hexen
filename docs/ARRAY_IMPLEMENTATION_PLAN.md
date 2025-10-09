@@ -6,19 +6,19 @@
 
 ## 🎯 Implementation Progress
 
-**Current Status**: Week 2 Partially Complete ✅ (5 of 8 tasks done)
+**Current Status**: Week 2 Partially Complete ✅ (6 of 9 tasks done)
 
 | Phase | Status | Tests | Notes |
 |-------|--------|-------|-------|
 | Week 0: Parser Extensions | ✅ Complete | 21/21 passing | `[..]` and `.length` syntax working |
 | Week 1: Semantic Analysis | ✅ Complete | 22/22 passing | Copy/property analysis implemented |
-| Week 2: Array-Function Integration | 🔄 In Progress | 60/60 passing | 5 of 8 tasks complete (see below) |
+| Week 2: Array-Function Integration | 🔄 In Progress | 95/95 passing | 6 of 9 tasks complete (see below) |
 | Week 3: Block Evaluation | ⏳ Pending | - | - |
 | Week 4: Integration + Testing | ⏳ Pending | - | - |
 
-**Overall Test Results**: 1046/1046 passing (100% success rate)
+**Overall Test Results**: 1081/1081 passing (100% success rate)
 
-**Week 2 Progress Breakdown** (5/8 tasks complete):
+**Week 2 Progress Breakdown** (6/9 tasks complete):
 
 ✅ **Completed Tasks:**
 1. **Multidimensional Array Support** - ConcreteArrayType dimension reduction working
@@ -41,11 +41,18 @@
    - Multidimensional inferred dimensions ([_][4]i32, [3][_]i32, [_][_]i32)
    - `.length` property available within function scope
    - Comptime arrays work seamlessly with inferred-size parameters
+6. **Explicit type conversion for all concrete array operations** - 35 comprehensive tests for array conversions
+   - Element type conversions (same dimensions, requires `:[N]T` syntax)
+   - Dimension flattening (calculated size match, e.g., [2][3] → [6])
+   - Combined conversions (flattening + element type change)
+   - Inferred-size wildcard `[_]T` accepts any size
+   - Size validation (fixed sizes must match exactly)
+   - Comprehensive error messages for all failure cases
 
 ⏳ **Remaining Tasks:**
-6. **Pass-by-value parameter semantics** - Scalar parameter value copying
-7. **`mut` parameter local copy behavior** - Design A enforcement with return value requirement
-8. **Comptime array parameter adaptation** - Flexible comptime → concrete type materialization
+7. **Pass-by-value parameter semantics** - Scalar parameter value copying
+8. **`mut` parameter local copy behavior** - Design A enforcement with return value requirement
+9. **Comptime array parameter adaptation** - Flexible comptime → concrete type materialization
 
 ## Overview
 
@@ -782,12 +789,20 @@ def test_array_validation_with_early_returns():
 - [x] Expression dispatcher integration
 - [x] Semantic unit tests (22 tests passing, all enabled)
 
-### Core Functionality (Week 2 - 🔄 In Progress: 5/8 Complete)
+### Core Functionality (Week 2 - 🔄 In Progress: 6/9 Complete)
 - [x] **ConcreteArrayType implementation** - Multidimensional array support complete
 - [x] **Explicit `[..]` copy syntax enforcement for function args** - 13 tests passing
 - [x] **Explicit `[..]` copy syntax enforcement for array flattening** - 23 tests passing (discovered missing requirement)
 - [x] **Fixed-size array parameter matching** - 11 tests passing (exact size validation across all dimensions)
 - [x] **Inferred-size `[_]T` parameter support** - 13 tests passing (accepts any size, provides `.length`)
+- [x] **Explicit type conversion for all concrete array operations** - 35 comprehensive tests covering:
+  - [x] Element type conversions (`[N]i32→[N]i64`) - 8 tests
+  - [x] Inferred-size wildcard behavior (`[_]T` accepts any size) - 5 tests
+  - [x] Dimension conversions/flattening (`[2][3]i32→[6]i32`) - 5 tests
+  - [x] Combined conversions (`[2][3]i32→[6]i64`) - 5 tests
+  - [x] Conversion error cases (size mismatches, invalid types) - 5 tests
+  - [x] Comptime array conversions (ergonomic adaptation) - 3 tests
+  - [x] Conversions in various expression contexts - 4 tests
 - [ ] Pass-by-value parameter semantics
 - [ ] `mut` parameter local copy behavior
 - [ ] Comptime array parameter adaptation
@@ -817,6 +832,7 @@ def test_array_validation_with_early_returns():
 - [x] Array flattening tests (Week 2) - 23 tests (20 updated + 3 new)
 - [x] Fixed-size array parameter matching tests (Week 2 Part 4) - 11 tests
 - [x] Inferred-size parameter tests (Week 2 Part 5) - 13 tests
+- [x] Array type conversion tests (Week 2 Part 6) - 35 comprehensive tests
 - [ ] Unit tests for all parameter types (remaining: mut behavior, comptime adaptation)
 - [ ] Mutable parameter tests
 - [ ] Comptime array adaptation tests
@@ -1196,7 +1212,7 @@ For fastest results, implement in this order:
 
    **Note**: These 5 tests require implementing `ConcreteArrayType` class for proper multidimensional array type handling. They test advanced array access patterns where array access returns another array type, which then needs property/copy operations. This should be addressed in **Week 2** during array-function integration when we implement proper array type structures.
 
-### **Week 2: Array-Function Integration** - 🔄 In Progress (4/8 tasks complete)
+### **Week 2: Array-Function Integration** - 🔄 In Progress (5/9 tasks complete)
 
 #### **Week 2 Part 1: Multidimensional Array Support** ✅ COMPLETED
    - **Status**: Complete (1006/1006 tests passing)
@@ -1256,10 +1272,220 @@ For fastest results, implement in this order:
      - Comptime arrays work seamlessly with inferred-size parameters
    - **Design**: Inferred dimensions (`_`) match any size, while fixed dimensions must match exactly
 
-#### **Week 2 Remaining Tasks** (3 tasks):
-   - `function_analyzer.py` - Pass-by-value parameter semantics
-   - `function_analyzer.py` - `mut` parameter local copy behavior
-   - `comptime/type_operations.py` - Comptime array parameter adaptation
+#### **Week 2 Part 6: Explicit Type Conversion for All Concrete Array Operations** ✅ COMPLETED
+   - **Status**: Complete (1081/1081 tests passing)
+   - **Files changed**:
+     - `src/hexen/semantic/conversion_analyzer.py` - Extended for array type conversions (+160 lines)
+     - `src/hexen/semantic/analyzer.py` - Wired up array type parsing callback
+     - `tests/semantic/arrays/test_array_conversions.py` - NEW FILE (640 lines, 35 comprehensive tests)
+   - **Implementation**: Full array-to-array conversion support with size validation, element type conversion, and dimension flattening
+   - **Scope**: Enforce explicit `:type` syntax for ALL concrete array type conversions (not just flattening)
+   - **Core Principle**: Following TYPE_SYSTEM.md's "Transparent Costs" principle - ANY type change requires explicit syntax
+   - **Critical Rule**: **Array sizes are structural, not convertible** - sizes must match exactly (cannot convert `[3]i32 → [4]i32`)
+
+   **Three Categories of Array Type Conversions:**
+
+   **1. Element Type Conversion (SAME Size & Dimensions)**
+   ```hexen
+   // 1D arrays - SAME fixed size (3 elements)
+   val source : [3]i32 = [1, 2, 3]
+   // val widened : [3]i64 = source[..]          // ❌ Error: Missing explicit type conversion
+   val widened : [3]i64 = source[..]:[3]i64      // ✅ Explicit element type conversion (i32→i64, SAME size 3)
+
+   // 1D arrays - inferred size (accepts any size)
+   val source : [3]i32 = [1, 2, 3]
+   // val widened : [_]i64 = source[..]          // ❌ Error: Missing explicit type conversion
+   val widened : [_]i64 = source[..]:[_]i64      // ✅ Explicit element type conversion (i32→i64, inferred size matches 3)
+
+   // 2D arrays - SAME fixed dimensions (2×3)
+   val matrix : [2][3]i32 = [[1, 2, 3], [4, 5, 6]]
+   // val wider : [2][3]i64 = matrix[..]         // ❌ Error: Missing explicit type conversion
+   val wider : [2][3]i64 = matrix[..]:[2][3]i64  // ✅ Explicit element type conversion (SAME dims 2×3)
+
+   // 2D arrays - inferred dimensions (accepts any dimensions)
+   // val wider : [_][_]i64 = matrix[..]         // ❌ Error: Missing explicit type conversion
+   val wider : [_][_]i64 = matrix[..]:[_][_]i64  // ✅ Explicit element type conversion (inferred dims match 2×3)
+   ```
+
+   **2. Dimension Flattening (CALCULATED Size Match)**
+   ```hexen
+   val matrix : [2][3]i32 = [[1, 2, 3], [4, 5, 6]]
+
+   // Fixed-size target - exact size match required
+   // val flat : [6]i32 = matrix[..]             // ❌ Error: Missing explicit type conversion
+   val flat : [6]i32 = matrix[..]:[6]i32         // ✅ Flattening with exact size match (2×3=6)
+
+   // Inferred-size target - accepts calculated size
+   // val flat : [_]i32 = matrix[..]             // ❌ Error: Missing explicit type conversion
+   val flat : [_]i32 = matrix[..]:[_]i32         // ✅ Flattening with inferred size (accepts 2×3=6)
+
+   val cube : [2][2][2]i32 = [[[1,2],[3,4]], [[5,6],[7,8]]]
+   // val flat : [8]i32 = cube[..]               // ❌ Error: Missing explicit type conversion
+   val flat : [8]i32 = cube[..]:[8]i32           // ✅ Flattening with exact size match (2×2×2=8)
+   // val flat : [_]i32 = cube[..]               // ❌ Error: Missing explicit type conversion
+   val flat : [_]i32 = cube[..]:[_]i32           // ✅ Flattening with inferred size (accepts 2×2×2=8)
+
+   // ❌ Fixed-size mismatch is ALWAYS an error
+   // val wrong : [5]i32 = matrix[..]:[5]i32     // ❌ ERROR: 2×3=6 ≠ 5 (fixed size must match exactly)
+   // val wrong : [7]i32 = matrix[..]:[7]i32     // ❌ ERROR: 2×3=6 ≠ 7 (fixed size must match exactly)
+   ```
+
+   **3. Combined Conversion (Flattening + Element Type, CALCULATED Size Match)**
+   ```hexen
+   val matrix : [2][3]i32 = [[1, 2, 3], [4, 5, 6]]
+
+   // Fixed-size target - exact size match required
+   // val flat_wide : [6]i64 = matrix[..]        // ❌ Error: Missing explicit type conversion
+   val flat_wide : [6]i64 = matrix[..]:[6]i64    // ✅ Both: exact size match (2×3=6) AND i32→i64
+
+   // Inferred-size target - accepts calculated size
+   // val flat_wide : [_]i64 = matrix[..]        // ❌ Error: Missing explicit type conversion
+   val flat_wide : [_]i64 = matrix[..]:[_]i64    // ✅ Both: inferred size (accepts 2×3=6) AND i32→i64
+
+   // ❌ Fixed-size mismatch remains invalid even with element type conversion
+   // val wrong : [5]i64 = matrix[..]:[5]i64     // ❌ ERROR: 2×3=6 ≠ 5 (fixed size must match exactly)
+   ```
+
+   **Special Case: Same Type Copy (No Conversion)**
+   ```hexen
+   val source : [3]i32 = [1, 2, 3]
+   val copy : [3]i32 = source[..]                 // ✅ Same type & size: only copy needed
+
+   val matrix : [2][3]i32 = [[1, 2, 3], [4, 5, 6]]
+   val matrix_copy : [2][3]i32 = matrix[..]       // ✅ Same type & dimensions: only copy needed
+   ```
+
+   **Invalid: Fixed-Size Mismatch (Structural Incompatibility)**
+   ```hexen
+   val source : [3]i32 = [1, 2, 3]
+   // val wrong : [4]i32 = source[..]:[4]i32     // ❌ ERROR: Fixed-size mismatch (3 ≠ 4)
+   // val wrong : [5]i64 = source[..]:[5]i64     // ❌ ERROR: Fixed-size mismatch (3 ≠ 5)
+
+   // Note: Fixed-size arrays cannot be resized through conversion
+   // But inferred-size [_]T always accepts any matching element type:
+   val flexible : [_]i32 = source[..]:[_]i32     // ✅ Inferred size accepts 3 (same element type, no conversion)
+   val wider : [_]i64 = source[..]:[_]i64        // ✅ Inferred size accepts 3 with element type conversion
+   ```
+
+   **Comptime Arrays (Always Ergonomic - No Explicit Conversion Needed)**
+   ```hexen
+   val comptime_arr = [1, 2, 3]                   // comptime_array_int
+   val as_i32 : [3]i32 = comptime_arr             // ✅ First materialization (ergonomic!)
+   val as_i64 : [3]i64 = comptime_arr             // ✅ Same source, different element type (flexible!)
+
+   val comptime_2d = [[1, 2, 3], [4, 5, 6]]       // comptime 2D array
+   val flat_i32 : [6]i32 = comptime_2d            // ✅ Flattening during materialization (2×3=6)
+   val matrix_i64 : [2][3]i64 = comptime_2d       // ✅ Element type change during materialization
+   val flat_i64 : [6]i64 = comptime_2d            // ✅ Both changes during materialization (2×3=6)
+   ```
+
+   - **Implementation Target Files**:
+     - `src/hexen/semantic/declaration_analyzer.py` - Enhance array assignment validation for all type conversions
+     - `src/hexen/semantic/function_analyzer.py` - Add type conversion validation for function arguments
+     - `src/hexen/semantic/arrays/error_messages.py` - Add comprehensive type conversion error messages
+     - `tests/semantic/arrays/test_array_type_conversions.py` - NEW comprehensive test file
+     - `tests/semantic/arrays/test_array_flattening.py` - Update existing tests for new requirements
+
+   - **Implementation Strategy**:
+     1. **Validate size compatibility FIRST**:
+        - **Inferred-size target `[_]T`**: Always accepts any size (wildcard match)
+        - **Fixed-size target `[N]T`**: Calculate total element count for source and target
+          - Reject if sizes don't match (arrays cannot be resized)
+          - For flattening: verify calculated size matches target (2×3=6)
+     2. **Detect type changes** (after size validation passes):
+        - Element type differences (`i32` vs `i64`, `f32` vs `f64`)
+        - Dimension count differences (1D vs 2D vs 3D)
+        - Both combined
+     3. **Validate explicit conversion**: Check for `:type` syntax on concrete array operations
+        - **Exception for inferred-size**: `:[_]T` is considered explicit even though size is inferred
+     4. **Allow comptime flexibility**: Skip validation for comptime arrays (first materialization)
+     5. **Allow same-type copies**: Skip validation when source and target types match exactly
+
+   - **Error Message Examples**:
+     ```
+     Error: Array size mismatch in type conversion
+       Source: [3]i32 (3 elements)
+       Target: [4]i32 (4 elements)
+       Array sizes must match exactly (cannot resize arrays through conversion)
+       Note: The :type syntax changes element types or flattens dimensions, not array sizes
+
+     Error: Array size mismatch in flattening conversion
+       Source: [2][3]i32 (6 elements total: 2×3)
+       Target: [5]i32 (5 elements)
+       Flattening requires calculated size match (2×3=6 ≠ 5)
+       Suggestion: Use :[6]i32 for flattening this 2×3 matrix
+
+     Error: Missing explicit type conversion for array operation
+       Source type: [3]i32
+       Target type: [3]i64
+       Element type conversion (i32 → i64) requires explicit syntax
+       Suggestion: source[..]:[3]i64
+
+     Error: Missing explicit type conversion for array operation
+       Source type: [2][3]i32
+       Target type: [6]i32
+       Dimension conversion (2D → 1D) with size match (2×3=6) requires explicit syntax
+       Suggestion: matrix[..]:[6]i32
+
+     Error: Missing explicit type conversion for array operation
+       Source type: [2][3]i32
+       Target type: [6]i64
+       Multiple conversions required:
+         - Element type: i32 → i64
+         - Dimensions: [2][3] → [6] (flattening with size match 2×3=6)
+       Both conversions require explicit syntax
+       Suggestion: matrix[..]:[6]i64
+     ```
+
+   - **Test Coverage Required**:
+     - **Fixed-size mismatch errors** (must reject):
+       - `[3]i32→[4]i32` (different fixed sizes, same element type)
+       - `[3]i32→[5]i64` (different fixed sizes, different element type)
+       - `[2][3]i32→[5]i32` (flattening with size mismatch: 2×3=6 ≠ 5)
+       - `[2][3]i32→[7]i32` (flattening with size mismatch: 2×3=6 ≠ 7)
+     - **Inferred-size acceptance** (should succeed with `:type`):
+       - `[3]i32→[_]i32` (inferred size accepts any size, same element type)
+       - `[3]i32→[_]i64` (inferred size accepts any size, element type conversion)
+       - `[2][3]i32→[_]i32` (flattening to inferred size: accepts 2×3=6)
+       - `[2][3]i32→[_]i64` (flattening to inferred size with element type conversion)
+       - `[2][3]i32→[_][_]i64` (inferred dimensions accept 2×3, element type conversion)
+     - **Element type conversions** (require `:type`, same size):
+       - `[3]i32→[3]i64`, `[3]i32→[3]f64`, `[3]f32→[3]f64` (fixed sizes)
+       - `[2][3]i32→[2][3]i64` (multidimensional, same dimensions)
+     - **Dimension conversions** (require `:type`, calculated size match):
+       - `[2][3]T→[6]T` (2×3=6), `[2][2][2]T→[8]T` (2×2×2=8), `[3][4][5]T→[60]T` (3×4×5=60)
+     - **Combined conversions** (require `:type`, size match + element type change):
+       - `[2][3]i32→[6]i64`, `[2][2][2]i32→[8]f64`
+     - **Same-type copies** (no `:type` needed):
+       - `[3]i32→[3]i32`, `[2][3]i32→[2][3]i32` (should succeed)
+     - **Comptime arrays** (always succeed, no `:type` needed):
+       - All conversions during materialization (should succeed without `:type`)
+     - **Context coverage**:
+       - Function argument contexts
+       - Assignment contexts
+
+   - **Design Rationale**:
+     - **Size is structural, not convertible**: Array size is part of type identity (like Rust, Zig)
+       - **Fixed sizes** cannot be resized through conversion syntax
+       - **Inferred size `[_]T`** acts as a wildcard accepting any size (flexibility!)
+       - Fixed sizes must match exactly: same dimensions OR calculated flattening match
+       - Prevents accidental data loss or truncation (when using fixed sizes)
+     - **Uniform with TYPE_SYSTEM.md**: Array conversions follow identical rules to scalar conversions
+       - Scalar: `i32 → i64` requires `:i64`
+       - Array element type: `[3]i32 → [3]i64` requires `:[3]i64` (SAME size)
+       - Array element type (inferred): `[3]i32 → [_]i64` requires `:[_]i64` (wildcard accepts 3)
+       - Array dimensions: `[2][3]i32 → [6]i32` requires `:[6]i32` (calculated match 2×3=6)
+       - Array flattening (inferred): `[2][3]i32 → [_]i32` requires `:[_]i32` (wildcard accepts 6)
+     - **Inferred-size flexibility**: `[_]T` provides same adaptability as comptime for concrete arrays
+     - **No special cases**: Arrays don't introduce exceptions to type system rules
+     - **Comptime ergonomics preserved**: First materialization remains seamless
+     - **Concrete costs visible**: All runtime type conversions require explicit syntax
+
+#### **Week 2 Remaining Tasks** (4 tasks):
+   - `declaration_analyzer.py` + `function_analyzer.py` - Explicit type conversion for all concrete array operations (Part 6)
+   - `function_analyzer.py` - Pass-by-value parameter semantics (Part 7)
+   - `function_analyzer.py` - `mut` parameter local copy behavior (Part 8)
+   - `comptime/type_operations.py` - Comptime array parameter adaptation (Part 9)
 
 ### **Week 3: Block Evaluation**
    - `comptime/block_evaluation.py` - Array block classification

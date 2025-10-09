@@ -121,6 +121,7 @@ class SemanticAnalyzer:
         self.conversion_analyzer = ConversionAnalyzer(
             error_callback=self._error,
             analyze_expression_callback=self._analyze_expression,
+            parse_array_type_callback=self.declaration_analyzer._parse_array_type_annotation,
         )
 
         # Initialize function analyzer with callbacks
