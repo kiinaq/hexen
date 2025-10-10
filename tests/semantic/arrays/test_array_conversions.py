@@ -32,7 +32,7 @@ class TestElementTypeConversion:
         source = """
         func test() : void = {
             val source : [3]i32 = [1, 2, 3]
-            val converted : [3]i64 = source:[3]i64
+            val converted : [3]i64 = source[..]:[3]i64
             return
         }
         """
@@ -46,7 +46,7 @@ class TestElementTypeConversion:
         source = """
         func test() : void = {
             val ints : [4]i32 = [10, 20, 30, 40]
-            val floats : [4]f64 = ints:[4]f64
+            val floats : [4]f64 = ints[..]:[4]f64
             return
         }
         """
@@ -60,7 +60,7 @@ class TestElementTypeConversion:
         source = """
         func test() : void = {
             val floats : [3]f64 = [1.5, 2.7, 3.9]
-            val ints : [3]i32 = floats:[3]i32
+            val ints : [3]i32 = floats[..]:[3]i32
             return
         }
         """
@@ -74,7 +74,7 @@ class TestElementTypeConversion:
         source = """
         func test() : void = {
             val matrix_i32 : [2][3]i32 = [[1, 2, 3], [4, 5, 6]]
-            val matrix_i64 : [2][3]i64 = matrix_i32:[2][3]i64
+            val matrix_i64 : [2][3]i64 = matrix_i32[..]:[2][3]i64
             return
         }
         """
@@ -88,7 +88,7 @@ class TestElementTypeConversion:
         source = """
         func test() : void = {
             val small : [5]f32 = [1.0, 2.0, 3.0, 4.0, 5.0]
-            val large : [5]f64 = small:[5]f64
+            val large : [5]f64 = small[..]:[5]f64
             return
         }
         """
@@ -102,7 +102,7 @@ class TestElementTypeConversion:
         source = """
         func convert_to_i64() : [3]i64 = {
             val source : [3]i32 = [10, 20, 30]
-            return source:[3]i64
+            return source[..]:[3]i64
         }
         func test() : void = {
             val result : [3]i64 = convert_to_i64()
@@ -119,7 +119,7 @@ class TestElementTypeConversion:
         source = """
         func test() : void = {
             val source : [3]i32 = [1, 2, 3]
-            val invalid : [4]i64 = source:[4]i64
+            val invalid : [4]i64 = source[..]:[4]i64
             return
         }
         """
@@ -166,7 +166,7 @@ class TestInferredSizeWildcard:
         source = """
         func test() : void = {
             val source : [3]i32 = [1, 2, 3]
-            val inferred : [_]i64 = source:[_]i64
+            val inferred : [_]i64 = source[..]:[_]i64
             return
         }
         """
@@ -182,8 +182,8 @@ class TestInferredSizeWildcard:
             val small : [3]i32 = [1, 2, 3]
             val large : [10]i32 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
-            val inferred_small : [_]i64 = small:[_]i64
-            val inferred_large : [_]i64 = large:[_]i64
+            val inferred_small : [_]i64 = small[..]:[_]i64
+            val inferred_large : [_]i64 = large[..]:[_]i64
             return
         }
         """
@@ -197,7 +197,7 @@ class TestInferredSizeWildcard:
         source = """
         func test() : void = {
             val source : [2][3]i32 = [[1, 2, 3], [4, 5, 6]]
-            val inferred : [_][3]i64 = source:[_][3]i64
+            val inferred : [_][3]i64 = source[..]:[_][3]i64
             return
         }
         """
@@ -211,7 +211,7 @@ class TestInferredSizeWildcard:
         source = """
         func test() : void = {
             val source : [2][3]i32 = [[1, 2, 3], [4, 5, 6]]
-            val inferred : [_][_]i64 = source:[_][_]i64
+            val inferred : [_][_]i64 = source[..]:[_][_]i64
             return
         }
         """
@@ -248,7 +248,7 @@ class TestDimensionFlattening:
         source = """
         func test() : void = {
             val matrix : [2][3]i32 = [[1, 2, 3], [4, 5, 6]]
-            val flat : [6]i32 = matrix:[6]i32
+            val flat : [6]i32 = matrix[..]:[6]i32
             return
         }
         """
@@ -262,7 +262,7 @@ class TestDimensionFlattening:
         source = """
         func test() : void = {
             val cube : [2][2][2]i32 = [[[1, 2], [3, 4]], [[5, 6], [7, 8]]]
-            val flat : [8]i32 = cube:[8]i32
+            val flat : [8]i32 = cube[..]:[8]i32
             return
         }
         """
@@ -279,7 +279,7 @@ class TestDimensionFlattening:
                 [[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12]],
                 [[13, 14, 15, 16], [17, 18, 19, 20], [21, 22, 23, 24]]
             ]
-            val partial : [6][4]i32 = cube:[6][4]i32
+            val partial : [6][4]i32 = cube[..]:[6][4]i32
             return
         }
         """
@@ -293,7 +293,7 @@ class TestDimensionFlattening:
         source = """
         func test() : void = {
             val matrix : [2][3]i32 = [[1, 2, 3], [4, 5, 6]]
-            val invalid : [5]i32 = matrix:[5]i32
+            val invalid : [5]i32 = matrix[..]:[5]i32
             return
         }
         """
@@ -318,7 +318,7 @@ class TestDimensionFlattening:
         source = """
         func test() : void = {
             val matrix : [2][3]i32 = [[1, 2, 3], [4, 5, 6]]
-            val flat : [6]i32 = matrix:[6]i32
+            val flat : [6]i32 = matrix[..]:[6]i32
             return
         }
         """
@@ -332,7 +332,7 @@ class TestDimensionFlattening:
         source = """
         func test() : void = {
             val matrix : [2][3]i32 = [[1, 2, 3], [4, 5, 6]]
-            val flat : [_]i32 = matrix:[_]i32
+            val flat : [_]i32 = matrix[..]:[_]i32
             return
         }
         """
@@ -346,7 +346,7 @@ class TestDimensionFlattening:
         source = """
         func test() : void = {
             val cube : [2][2][2]i32 = [[[1, 2], [3, 4]], [[5, 6], [7, 8]]]
-            val flat : [_]i32 = cube:[_]i32
+            val flat : [_]i32 = cube[..]:[_]i32
             return
         }
         """
@@ -360,7 +360,7 @@ class TestDimensionFlattening:
         source = """
         func test() : void = {
             val matrix : [2][3]i32 = [[1, 2, 3], [4, 5, 6]]
-            val flat : [_]i64 = matrix:[_]i64
+            val flat : [_]i64 = matrix[..]:[_]i64
             return
         }
         """
@@ -383,7 +383,7 @@ class TestCombinedConversions:
         source = """
         func test() : void = {
             val matrix : [2][3]i32 = [[1, 2, 3], [4, 5, 6]]
-            val flat_i64 : [6]i64 = matrix:[6]i64
+            val flat_i64 : [6]i64 = matrix[..]:[6]i64
             return
         }
         """
@@ -397,7 +397,7 @@ class TestCombinedConversions:
         source = """
         func test() : void = {
             val matrix : [2][2]i32 = [[1, 2], [3, 4]]
-            val flat_floats : [4]f64 = matrix:[4]f64
+            val flat_floats : [4]f64 = matrix[..]:[4]f64
             return
         }
         """
@@ -414,7 +414,7 @@ class TestCombinedConversions:
                 [[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12]],
                 [[13, 14, 15, 16], [17, 18, 19, 20], [21, 22, 23, 24]]
             ]
-            val partial_f32 : [6][4]f32 = cube:[6][4]f32
+            val partial_f32 : [6][4]f32 = cube[..]:[6][4]f32
             return
         }
         """
@@ -428,7 +428,7 @@ class TestCombinedConversions:
         source = """
         func test() : void = {
             val matrix : [2][3]i32 = [[1, 2, 3], [4, 5, 6]]
-            val flat_floats : [6]f64 = matrix:[6]f64
+            val flat_floats : [6]f64 = matrix[..]:[6]f64
             return
         }
         """
@@ -442,7 +442,7 @@ class TestCombinedConversions:
         source = """
         func test() : void = {
             val matrix : [2][3]i32 = [[1, 2, 3], [4, 5, 6]]
-            val invalid : [5]f64 = matrix:[5]f64
+            val invalid : [5]f64 = matrix[..]:[5]f64
             return
         }
         """
@@ -468,7 +468,7 @@ class TestConversionErrorCases:
         source = """
         func test() : void = {
             val source : [3]i32 = [1, 2, 3]
-            val invalid : [4]i32 = source:[4]i32
+            val invalid : [4]i32 = source[..]:[4]i32
             return
         }
         """
@@ -489,7 +489,7 @@ class TestConversionErrorCases:
         source = """
         func test() : void = {
             val source : [2][3]i32 = [[1, 2, 3], [4, 5, 6]]
-            val invalid : [2][4]i32 = source:[2][4]i32
+            val invalid : [2][4]i32 = source[..]:[2][4]i32
             return
         }
         """
@@ -506,7 +506,7 @@ class TestConversionErrorCases:
         source = """
         func test() : void = {
             val matrix : [3][4]i32 = [[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12]]
-            val invalid : [10]i32 = matrix:[10]i32
+            val invalid : [10]i32 = matrix[..]:[10]i32
             return
         }
         """
@@ -527,7 +527,7 @@ class TestConversionErrorCases:
         source = """
         func test() : void = {
             val source : [3]i32 = [1, 2, 3]
-            val invalid : [3]bool = source:[3]bool
+            val invalid : [3]bool = source[..]:[3]bool
             return
         }
         """
@@ -608,6 +608,180 @@ class TestComptimeArrayConversions:
 
         assert_no_errors(errors)
 
+class TestBothOperatorsRequired:
+    """Test that BOTH [..] and :type operators are required for array operations"""
+
+    def setup_method(self):
+        """Standard setup method used by all semantic test classes."""
+        self.parser = HexenParser()
+        self.analyzer = SemanticAnalyzer()
+
+    def test_dimension_change_requires_both_operators_copy_only(self):
+        """Test that [..] alone is insufficient for dimension changes"""
+        source = """
+        func test() : void = {
+            val matrix : [2][3]i32 = [[1, 2, 3], [4, 5, 6]]
+            val invalid : [6]i32 = matrix[..]
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        assert_error_contains(
+            errors,
+            "Missing explicit type conversion syntax for array flattening"
+        )
+        assert_error_contains(
+            errors,
+            "Array dimension changes require BOTH [..] (copy) AND :type (conversion) operators"
+        )
+
+    def test_dimension_change_requires_both_operators_type_only(self):
+        """Test that :type alone is insufficient for dimension changes"""
+        source = """
+        func test() : void = {
+            val matrix : [2][3]i32 = [[1, 2, 3], [4, 5, 6]]
+            val invalid : [6]i32 = matrix:[6]i32
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        assert_error_contains(
+            errors,
+            "Missing explicit copy operator [..] for array dimension conversion"
+        )
+        assert_error_contains(
+            errors,
+            "Array flattening requires BOTH [..] (copy) AND :type (conversion) operators"
+        )
+
+    def test_inferred_size_flattening_also_requires_both_operators(self):
+        """Test that even with [_] inferred size, both operators are required"""
+        source = """
+        func test() : void = {
+            val matrix : [2][3]i32 = [[1, 2, 3], [4, 5, 6]]
+            val invalid : [_]i32 = matrix[..]
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        assert_error_contains(
+            errors,
+            "Missing explicit type conversion syntax for array flattening"
+        )
+
+    def test_3d_to_1d_requires_both_operators(self):
+        """Test 3D to 1D flattening requires both operators"""
+        source = """
+        func test() : void = {
+            val cube : [2][2][2]i32 = [[[1, 2], [3, 4]], [[5, 6], [7, 8]]]
+            val invalid : [8]i32 = cube[..]
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        assert_error_contains(
+            errors,
+            "Missing explicit type conversion syntax for array flattening"
+        )
+
+    def test_element_type_change_with_dimension_change_requires_both(self):
+        """Test combined flattening + element type change requires both operators"""
+        source = """
+        func test() : void = {
+            val matrix : [2][3]i32 = [[1, 2, 3], [4, 5, 6]]
+            val invalid : [6]f64 = matrix[..]
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        assert_error_contains(
+            errors,
+            "Missing explicit type conversion syntax for array flattening"
+        )
+
+    def test_correct_syntax_with_both_operators_works(self):
+        """Test that the correct combined syntax works"""
+        source = """
+        func test() : void = {
+            val matrix : [2][3]i32 = [[1, 2, 3], [4, 5, 6]]
+            val correct : [6]i32 = matrix[..]:[6]i32
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        assert_no_errors(errors)
+
+    def test_correct_syntax_with_element_type_conversion(self):
+        """Test correct syntax with both operators and element type conversion"""
+        source = """
+        func test() : void = {
+            val matrix : [2][3]i32 = [[1, 2, 3], [4, 5, 6]]
+            val correct : [6]i64 = matrix[..]:[6]i64
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        assert_no_errors(errors)
+
+    def test_same_dimensions_different_size_requires_both_operators(self):
+        """Test that even same-dimension conversions require proper syntax"""
+        source = """
+        func test() : void = {
+            val source : [3]i32 = [1, 2, 3]
+            val target : [3]i64 = source[..]:[3]i64
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        assert_no_errors(errors)
+
+    def test_multidimensional_to_1d_flattening_requires_both_operators(self):
+        """Test that multidimensional to 1D flattening requires both operators"""
+        source = """
+        func test() : void = {
+            val cube : [2][2][2]i32 = [[[1, 2], [3, 4]], [[5, 6], [7, 8]]]
+            val invalid : [8]i32 = cube[..]
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        assert_error_contains(
+            errors,
+            "Missing explicit type conversion syntax for array flattening"
+        )
+
+    def test_multidimensional_to_1d_flattening_correct_syntax_works(self):
+        """Test that correct 3D to 1D flattening syntax works"""
+        source = """
+        func test() : void = {
+            val cube : [2][2][2]i32 = [[[1, 2], [3, 4]], [[5, 6], [7, 8]]]
+            val correct : [8]i32 = cube[..]:[8]i32
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        assert_no_errors(errors)
+
 
 class TestConversionInExpressions:
     """Test array type conversions in various expression contexts"""
@@ -625,7 +799,7 @@ class TestConversionInExpressions:
         }
         func test() : void = {
             val source : [3]i32 = [1, 2, 3]
-            val converted : [3]i64 = source:[3]i64
+            val converted : [3]i64 = source[..]:[3]i64
             process(converted[..])
             return
         }
@@ -640,7 +814,7 @@ class TestConversionInExpressions:
         source = """
         func convert() : [4]f64 = {
             val ints : [4]i32 = [10, 20, 30, 40]
-            return ints:[4]f64
+            return ints[..]:[4]f64
         }
         func test() : void = {
             val result : [4]f64 = convert()
@@ -657,7 +831,7 @@ class TestConversionInExpressions:
         source = """
         func test() : void = {
             val source : [3]i32 = [1, 2, 3]
-            val converted : [3]i64 = source:[3]i64
+            val converted : [3]i64 = source[..]:[3]i64
             return
         }
         """
@@ -671,9 +845,9 @@ class TestConversionInExpressions:
         source = """
         func test() : void = {
             val source : [2][3]i32 = [[1, 2, 3], [4, 5, 6]]
-            val step1 : [6]i32 = source:[6]i32
-            val step2 : [6]i64 = step1:[6]i64
-            val step3 : [6]f64 = step2:[6]f64
+            val step1 : [6]i32 = source[..]:[6]i32
+            val step2 : [6]i64 = step1[..]:[6]i64
+            val step3 : [6]f64 = step2[..]:[6]f64
             return
         }
         """

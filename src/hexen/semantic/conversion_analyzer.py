@@ -78,6 +78,23 @@ class ConversionAnalyzer:
 
         # Validate conversion per TYPE_SYSTEM.md rules (scalars) or ARRAY_IMPLEMENTATION_PLAN.md (arrays)
         if isinstance(target_type, ConcreteArrayType) and isinstance(source_type, ConcreteArrayType):
+            # Check if this is attempting array flattening without [..] operator
+            # For dimension changes, BOTH [..] and :type are required
+            source_expr_type = source_expr.get("type")
+            if len(source_type.dimensions) != len(target_type.dimensions):
+                # Dimension change detected (flattening/reshaping)
+                if source_expr_type != "array_copy":
+                    # Missing [..] operator for flattening
+                    self._error(
+                        f"Missing explicit copy operator [..] for array dimension conversion\n"
+                        f"Source: {self._format_array_type(source_type)} ({len(source_type.dimensions)}D)\n"
+                        f"Target: {self._format_array_type(target_type)} ({len(target_type.dimensions)}D)\n"
+                        f"Array flattening requires BOTH [..] (copy) AND :type (conversion) operators\n"
+                        f"Use: value[..]:{self._format_array_type(target_type)}",
+                        node,
+                    )
+                    return HexenType.UNKNOWN
+
             # Array-to-array conversion
             if self._is_valid_array_conversion(source_type, target_type, node):
                 return target_type

@@ -512,7 +512,7 @@ class DeclarationAnalyzer:
         Returns:
             True if flattening is valid and processed, False if error occurred
         """
-        # 0. Explicit copy operator check - flattening is a copy operation!
+        # 0. Explicit copy operator AND type conversion check - flattening requires BOTH!
         value_type = value_node.get("type")
 
         # Comptime array literals can flatten without [..] (first materialization)
@@ -521,8 +521,18 @@ class DeclarationAnalyzer:
             pass
         # Array copy operator [..] is explicitly present
         elif value_type == "array_copy":
-            # Explicit copy present - this is correct!
-            pass
+            # Explicit copy present, but for dimension changes we also need :type!
+            # This enforces that BOTH [..] AND :type are required for flattening
+            self._error(
+                f"Missing explicit type conversion syntax for array flattening\n"
+                f"Variable '{var_name}' expects flattened array\n"
+                f"Array dimension changes require BOTH [..] (copy) AND :type (conversion) operators\n"
+                f"The [..] operator alone is not sufficient for dimension conversion\n"
+                f"Suggestion: use combined syntax: value[..]:[type]\n"
+                f"Example: val {var_name} : {self._format_array_type(target_type)} = {self._get_value_hint(value_node)}[..]:{self._format_array_type(target_type)}",
+                node
+            )
+            return False
         # Everything else requires explicit [..]
         else:
             # Most common case: identifier (variable reference to existing array)
@@ -597,7 +607,7 @@ class DeclarationAnalyzer:
     def _extract_array_type_info(self, array_type: ConcreteArrayType) -> Dict:
         """
         Extract array type information for multidim analyzer.
-        
+
         Converts ConcreteArrayType to the format expected by MultidimensionalArrayAnalyzer.
         """
         return {
@@ -605,3 +615,20 @@ class DeclarationAnalyzer:
             "dimensions": array_type.dimensions,
             "is_concrete": True
         }
+
+    def _format_array_type(self, array_type: ConcreteArrayType) -> str:
+        """Format array type for error messages."""
+        dims_str = "".join(f"[{dim}]" for dim in array_type.dimensions)
+        return f"{dims_str}{array_type.element_type.name.lower()}"
+
+    def _get_value_hint(self, value_node: Dict) -> str:
+        """Get a hint string for the value in error messages."""
+        value_type = value_node.get("type")
+        if value_type == "identifier":
+            return value_node.get("name", "value")
+        elif value_type == "array_copy":
+            inner_array = value_node.get("array", {})
+            if inner_array.get("type") == "identifier":
+                return inner_array.get("name", "value")
+            return "value"
+        return "value"

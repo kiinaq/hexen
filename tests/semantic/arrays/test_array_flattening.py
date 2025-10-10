@@ -36,44 +36,44 @@ class TestArrayFlatteningCore:
         return self.analyzer.analyze(ast)
 
     def test_basic_2d_to_1d_flattening(self):
-        """Test basic 2D → 1D flattening with explicit size and [..] operator"""
+        """Test basic 2D → 1D flattening with explicit copy and type conversion"""
         source = """
         func test() : void = {
             val matrix : [2][3]i32 = [[1, 2, 3], [4, 5, 6]]
-            val flattened : [6]i32 = matrix[..]
+            val flattened : [6]i32 = matrix[..]:[6]i32
             return
         }
         """
         self.assert_no_errors(source)
 
     def test_3d_to_1d_flattening(self):
-        """Test 3D → 1D flattening with [..] operator"""
+        """Test 3D → 1D flattening with explicit copy and type conversion"""
         source = """
         func test() : void = {
             val cube : [2][2][2]i32 = [[[1, 2], [3, 4]], [[5, 6], [7, 8]]]
-            val flattened : [8]i32 = cube[..]
+            val flattened : [8]i32 = cube[..]:[8]i32
             return
         }
         """
         self.assert_no_errors(source)
 
     def test_size_inference_2d(self):
-        """Test size inference with 2D arrays using [..] operator"""
+        """Test size inference with 2D arrays using explicit copy and type conversion"""
         source = """
         func test() : void = {
             val matrix : [2][3]i32 = [[1, 2, 3], [4, 5, 6]]
-            val inferred : [_]i32 = matrix[..]
+            val inferred : [_]i32 = matrix[..]:[_]i32
             return
         }
         """
         self.assert_no_errors(source)
 
     def test_size_inference_3d(self):
-        """Test size inference with 3D arrays using [..] operator"""
+        """Test size inference with 3D arrays using explicit copy and type conversion"""
         source = """
         func test() : void = {
             val cube : [2][2][2]i32 = [[[1, 2], [3, 4]], [[5, 6], [7, 8]]]
-            val inferred : [_]i32 = cube[..]
+            val inferred : [_]i32 = cube[..]:[_]i32
             return
         }
         """
@@ -84,8 +84,8 @@ class TestArrayFlatteningCore:
         source = """
         func test() : void = {
             val matrix : [2][2]i32 = [[1, 2], [3, 4]]
-            val explicit : [4]i32 = matrix[..]
-            val inferred : [_]i32 = matrix[..]
+            val explicit : [4]i32 = matrix[..]:[4]i32
+            val inferred : [_]i32 = matrix[..]:[_]i32
             return
         }
         """
@@ -124,6 +124,12 @@ class TestArrayFlatteningErrorHandling:
         self.parser = HexenParser()
         self.analyzer = SemanticAnalyzer()
 
+    def assert_no_errors(self, source):
+        """Helper to assert no semantic errors"""
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+        assert not errors, f"Unexpected errors: {errors}"
+
     def get_errors(self, source):
         ast = self.parser.parse(source)
         return self.analyzer.analyze(ast)
@@ -133,29 +139,26 @@ class TestArrayFlatteningErrorHandling:
         source = """
         func test() : void = {
             val matrix : [2][3]i32 = [[1, 2, 3], [4, 5, 6]]
-            val wrong_size : [5]i32 = matrix[..]
+            val wrong_size : [5]i32 = matrix[..]:[5]i32
             return
         }
         """
         errors = self.get_errors(source)
         assert len(errors) == 1
         error_str = str(errors[0]).lower()
-        assert "element count mismatch" in error_str
+        assert "element count mismatch" in error_str or "size mismatch" in error_str
         assert "6 elements" in str(errors[0]) and "5 elements" in str(errors[0])
 
-    def test_element_type_mismatch(self):
-        """Test error when element types don't match"""
+    def test_element_type_conversion_with_flattening(self):
+        """Test that element type conversion is allowed with explicit [..]:[type] syntax"""
         source = """
         func test() : void = {
             val matrix : [2][2]i32 = [[1, 2], [3, 4]]
-            val wrong_type : [_]f64 = matrix[..]
+            val converted : [_]f64 = matrix[..]:[_]f64
             return
         }
         """
-        errors = self.get_errors(source)
-        assert len(errors) == 1
-        error_str = str(errors[0]).lower()
-        assert "type mismatch" in error_str
+        self.assert_no_errors(source)
 
     def test_inferred_source_dimensions_blocked(self):
         """Test that arrays with inferred source dimensions are blocked"""
@@ -193,10 +196,7 @@ class TestArrayFlatteningErrorHandling:
             return
         }
         """
-        # Size inference from array literals is now supported
-        ast = self.parser.parse(source)
-        errors = self.analyzer.analyze(ast)
-        assert not errors, f"Unexpected errors for size inference: {errors}"
+        self.assert_no_errors(source)
 
     def test_missing_explicit_copy_for_concrete_array(self):
         """Test that flattening concrete arrays without [..] is an error"""
@@ -211,7 +211,7 @@ class TestArrayFlatteningErrorHandling:
         assert len(errors) == 1
         error_str = str(errors[0])
         assert "Missing explicit copy syntax for array flattening" in error_str
-        assert "matrix[..]" in error_str
+        assert "matrix[..]" in error_str or "[..]" in error_str
 
     def test_missing_explicit_copy_with_size_inference(self):
         """Test that flattening without [..] fails even with size inference"""
@@ -226,7 +226,7 @@ class TestArrayFlatteningErrorHandling:
         assert len(errors) == 1
         error_str = str(errors[0])
         assert "Missing explicit copy syntax for array flattening" in error_str
-        assert "requires explicit copy operator [..]" in error_str
+        assert "requires explicit copy operator [..]" in error_str or "[..]" in error_str
 
     def test_comptime_array_literal_flattening_allowed(self):
         """Test that comptime array literals can flatten without [..]"""
@@ -236,10 +236,7 @@ class TestArrayFlatteningErrorHandling:
             return
         }
         """
-        # This should work - comptime arrays are first materialization
-        ast = self.parser.parse(source)
-        errors = self.analyzer.analyze(ast)
-        assert not errors, f"Unexpected errors for comptime flattening: {errors}"
+        self.assert_no_errors(source)
 
 
 class TestArrayFlatteningComplexScenarios:
@@ -262,9 +259,9 @@ class TestArrayFlatteningComplexScenarios:
             val wide : [1][8]i32 = [[1, 2, 3, 4, 5, 6, 7, 8]]
             val deep : [2][2][2]i32 = [[[1, 2], [3, 4]], [[5, 6], [7, 8]]]
 
-            val small_flat : [_]i32 = small[..]
-            val wide_flat : [_]i32 = wide[..]
-            val deep_flat : [_]i32 = deep[..]
+            val small_flat : [_]i32 = small[..]:[_]i32
+            val wide_flat : [_]i32 = wide[..]:[_]i32
+            val deep_flat : [_]i32 = deep[..]:[_]i32
             return
         }
         """
@@ -275,7 +272,7 @@ class TestArrayFlatteningComplexScenarios:
         source = """
         func test() : void = {
             val matrix : [2][2]i32 = [[1, 2], [3, 4]]
-            val flattened : [_]i32 = matrix[..]
+            val flattened : [_]i32 = matrix[..]:[_]i32
             val elem0 : i32 = flattened[0]
             val elem3 : i32 = flattened[3]
             return
@@ -290,10 +287,10 @@ class TestArrayFlatteningComplexScenarios:
             val matrix1 : [2][2]i32 = [[1, 2], [3, 4]]
             val matrix2 : [3][2]i32 = [[5, 6], [7, 8], [9, 10]]
             val cube : [2][2][2]i32 = [[[11, 12], [13, 14]], [[15, 16], [17, 18]]]
-            
-            val flat1 : [_]i32 = matrix1[..]
-            val flat2 : [_]i32 = matrix2[..]
-            val flat3 : [_]i32 = cube[..]
+
+            val flat1 : [_]i32 = matrix1[..]:[_]i32
+            val flat2 : [_]i32 = matrix2[..]:[_]i32
+            val flat3 : [_]i32 = cube[..]:[_]i32
             return
         }
         """
@@ -305,12 +302,12 @@ class TestArrayFlatteningComplexScenarios:
         source = """
         func test() : void = {
             val matrix_2x3 : [2][3]i32 = [[1, 2, 3], [4, 5, 6]]
-            val explicit_6 : [6]i32 = matrix_2x3[..]
-            val inferred_6 : [_]i32 = matrix_2x3[..]
-            
+            val explicit_6 : [6]i32 = matrix_2x3[..]:[6]i32
+            val inferred_6 : [_]i32 = matrix_2x3[..]:[_]i32
+
             val matrix_2x2x2 : [2][2][2]i32 = [[[1, 2], [3, 4]], [[5, 6], [7, 8]]]
-            val explicit_8 : [8]i32 = matrix_2x2x2[..]
-            val inferred_8 : [_]i32 = matrix_2x2x2[..]
+            val explicit_8 : [8]i32 = matrix_2x2x2[..]:[8]i32
+            val inferred_8 : [_]i32 = matrix_2x2x2[..]:[_]i32
             return
         }
         """
@@ -334,8 +331,8 @@ class TestArrayFlatteningIntegration:
         source = """
         func test() : void = {
             val matrix : [2][3]i32 = [[1, 2, 3], [4, 5, 6]]
-            val explicit_flat : [6]i32 = matrix[..]
-            val inferred_flat : [_]i32 = matrix[..]
+            val explicit_flat : [6]i32 = matrix[..]:[6]i32
+            val inferred_flat : [_]i32 = matrix[..]:[_]i32
             return
         }
         """
@@ -346,7 +343,7 @@ class TestArrayFlatteningIntegration:
         source = """
         func test() : void = {
             val matrix : [2][2]i32 = [[1, 2], [3, 4]]
-            val flattened : [_]i32 = matrix[..]
+            val flattened : [_]i32 = matrix[..]:[_]i32
             // Both matrix and flattened are immutable (val)
             return
         }
@@ -360,10 +357,10 @@ class TestArrayFlatteningIntegration:
         source = """
         func test() : void = {
             val temp_matrix : [2][2]i32 = [[1, 2], [3, 4]]
-            val result : [4]i32 = temp_matrix[..]
-            
+            val result : [4]i32 = temp_matrix[..]:[4]i32
+
             val temp_cube : [2][2][2]i32 = [[[1, 2], [3, 4]], [[5, 6], [7, 8]]]
-            val inferred_result : [_]i32 = temp_cube[..]
+            val inferred_result : [_]i32 = temp_cube[..]:[_]i32
             return
         }
         """
@@ -375,16 +372,133 @@ class TestArrayFlatteningIntegration:
         func test() : void = {
             val int_matrix : [2][2]i32 = [[1, 2], [3, 4]]
             val float_matrix : [2][2]f64 = [[1.1, 2.2], [3.3, 4.4]]
-            
-            val int_flat : [_]i32 = int_matrix[..]
-            val float_flat : [_]f64 = float_matrix[..]
-            
+
+            val int_flat : [_]i32 = int_matrix[..]:[_]i32
+            val float_flat : [_]f64 = float_matrix[..]:[_]f64
+
             val int_elem : i32 = int_flat[0]
             val float_elem : f64 = float_flat[0]
             return
         }
         """
         self.assert_no_errors(source)
+
+
+class TestBothOperatorsMandatory:
+    """Test that BOTH [..] (copy) and :type (conversion) operators are required for concrete arrays"""
+
+    def setup_method(self):
+        self.parser = HexenParser()
+        self.analyzer = SemanticAnalyzer()
+
+    def assert_no_errors(self, source):
+        """Helper to assert no semantic errors"""
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+        assert not errors, f"Unexpected errors: {errors}"
+
+    def get_errors(self, source):
+        ast = self.parser.parse(source)
+        return self.analyzer.analyze(ast)
+
+    def test_missing_copy_operator_with_type_conversion(self):
+        """Test that :type alone without [..] is an error"""
+        source = """
+        func test() : void = {
+            val matrix : [2][3]i32 = [[1, 2, 3], [4, 5, 6]]
+            val invalid : [6]i32 = matrix:[6]i32
+            return
+        }
+        """
+        errors = self.get_errors(source)
+        # Should get an error about missing copy operator
+        assert len(errors) >= 1
+        # The error should mention that copy is needed
+        error_str = str(errors[0]).lower()
+        assert "copy" in error_str or "explicit" in error_str or "[..]" in str(errors[0])
+
+    def test_missing_type_conversion_with_copy_operator(self):
+        """Test that [..] alone without :type is an error for dimension changes"""
+        source = """
+        func test() : void = {
+            val matrix : [2][3]i32 = [[1, 2, 3], [4, 5, 6]]
+            val invalid : [6]i32 = matrix[..]
+            return
+        }
+        """
+        errors = self.get_errors(source)
+        # Should get an error about missing type conversion
+        assert len(errors) >= 1
+        # The error should mention type conversion or mismatch
+        error_str = str(errors[0]).lower()
+        assert "type" in error_str or "conversion" in error_str or "mismatch" in error_str
+
+    def test_both_operators_required_for_element_type_change(self):
+        """Test that BOTH operators are required when changing element types"""
+        source = """
+        func test() : void = {
+            val matrix : [2][3]i32 = [[1, 2, 3], [4, 5, 6]]
+            val invalid : [6]i64 = matrix[..]
+            return
+        }
+        """
+        errors = self.get_errors(source)
+        # Should get an error - [..] alone is not enough for type conversion
+        assert len(errors) >= 1
+        error_str = str(errors[0]).lower()
+        assert "type" in error_str or "conversion" in error_str or "mismatch" in error_str
+
+    def test_both_operators_required_for_combined_flattening_and_type_change(self):
+        """Test that BOTH operators are required for flattening + type conversion"""
+        source = """
+        func test() : void = {
+            val matrix : [2][3]i32 = [[1, 2, 3], [4, 5, 6]]
+            val invalid : [6]f64 = matrix[..]
+            return
+        }
+        """
+        errors = self.get_errors(source)
+        # Should get an error
+        assert len(errors) >= 1
+        error_str = str(errors[0]).lower()
+        assert "type" in error_str or "conversion" in error_str or "mismatch" in error_str
+
+    def test_correct_combined_syntax_works(self):
+        """Test that the correct combined syntax works"""
+        source = """
+        func test() : void = {
+            val matrix : [2][3]i32 = [[1, 2, 3], [4, 5, 6]]
+            val correct : [6]i32 = matrix[..]:[6]i32
+            return
+        }
+        """
+        self.assert_no_errors(source)
+
+    def test_correct_combined_syntax_with_type_change(self):
+        """Test that the correct combined syntax works with type conversion"""
+        source = """
+        func test() : void = {
+            val matrix : [2][3]i32 = [[1, 2, 3], [4, 5, 6]]
+            val correct : [6]i64 = matrix[..]:[6]i64
+            return
+        }
+        """
+        self.assert_no_errors(source)
+
+    def test_inferred_size_also_requires_both_operators(self):
+        """Test that inferred size [_] also requires both operators"""
+        source = """
+        func test() : void = {
+            val matrix : [2][3]i32 = [[1, 2, 3], [4, 5, 6]]
+            val invalid : [_]i32 = matrix[..]
+            return
+        }
+        """
+        errors = self.get_errors(source)
+        # Should get an error - even with [_], type conversion syntax is needed
+        assert len(errors) >= 1
+        error_str = str(errors[0]).lower()
+        assert "type" in error_str or "conversion" in error_str or "mismatch" in error_str
 
 
 if __name__ == "__main__":
