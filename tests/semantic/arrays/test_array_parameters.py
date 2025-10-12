@@ -514,3 +514,257 @@ class TestFixedSizeArrayParameterMatching:
         errors = self.analyzer.analyze(ast)
 
         assert_error_contains(errors, "Array size mismatch")
+
+
+class TestOnTheFlyFlatteningAsParameter:
+    """Test passing flattened arrays directly as function parameters"""
+
+    def setup_method(self):
+        """Standard setup method used by all semantic test classes."""
+        self.parser = HexenParser()
+        self.analyzer = SemanticAnalyzer()
+
+    def test_flatten_2d_to_1d_in_function_call(self):
+        """Test on-the-fly 2D to 1D flattening as function argument"""
+        source = """
+        func process(data: [6]i32) : void = {
+            return
+        }
+
+        func main() : void = {
+            val matrix : [2][3]i32 = [[1, 2, 3], [4, 5, 6]]
+            process(matrix[..]:[6]i32)
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        assert_no_errors(errors)
+
+    def test_flatten_3d_to_1d_in_function_call(self):
+        """Test on-the-fly 3D to 1D flattening as function argument"""
+        source = """
+        func process(data: [8]i32) : void = {
+            return
+        }
+
+        func main() : void = {
+            val cube : [2][2][2]i32 = [[[1, 2], [3, 4]], [[5, 6], [7, 8]]]
+            process(cube[..]:[8]i32)
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        assert_no_errors(errors)
+
+    def test_flatten_with_inferred_size_in_function_call(self):
+        """Test on-the-fly flattening with inferred size [_]T to inferred parameter"""
+        source = """
+        func process(data: [_]i32) : void = {
+            return
+        }
+
+        func main() : void = {
+            val matrix : [2][3]i32 = [[1, 2, 3], [4, 5, 6]]
+            process(matrix[..]:[_]i32)
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        assert_no_errors(errors)
+
+    def test_flatten_with_element_type_conversion_in_call(self):
+        """Test on-the-fly flattening + element type conversion"""
+        source = """
+        func process(data: [6]i64) : void = {
+            return
+        }
+
+        func main() : void = {
+            val matrix : [2][3]i32 = [[1, 2, 3], [4, 5, 6]]
+            process(matrix[..]:[6]i64)
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        assert_no_errors(errors)
+
+    def test_flatten_with_float_conversion_in_call(self):
+        """Test on-the-fly flattening i32 → f64"""
+        source = """
+        func process_floats(data: [4]f64) : void = {
+            return
+        }
+
+        func main() : void = {
+            val matrix : [2][2]i32 = [[1, 2], [3, 4]]
+            process_floats(matrix[..]:[4]f64)
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        assert_no_errors(errors)
+
+    def test_comptime_array_flatten_directly_in_call(self):
+        """Test comptime array literal flattened on-the-fly (no [..] needed)"""
+        source = """
+        func process(data: [4]i32) : void = {
+            return
+        }
+
+        func main() : void = {
+            process([[1, 2], [3, 4]])
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        assert_no_errors(errors)
+
+    def test_multiple_parameters_with_on_the_fly_flattening(self):
+        """Test multiple parameters each with on-the-fly flattening"""
+        source = """
+        func combine(a: [4]i32, b: [6]i32) : void = {
+            return
+        }
+
+        func main() : void = {
+            val matrix1 : [2][2]i32 = [[1, 2], [3, 4]]
+            val matrix2 : [2][3]i32 = [[5, 6, 7], [8, 9, 10]]
+            combine(matrix1[..]:[4]i32, matrix2[..]:[6]i32)
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        assert_no_errors(errors)
+
+    def test_mixed_regular_and_flattened_parameters(self):
+        """Test mixing regular array parameters with flattened ones"""
+        source = """
+        func process(regular: [3]i32, flattened: [6]i32) : void = {
+            return
+        }
+
+        func main() : void = {
+            val arr : [3]i32 = [1, 2, 3]
+            val matrix : [2][3]i32 = [[4, 5, 6], [7, 8, 9]]
+            process(arr[..], matrix[..]:[6]i32)
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        assert_no_errors(errors)
+
+    def test_nested_function_calls_with_flattening(self):
+        """Test on-the-fly flattening in nested function call context"""
+        source = """
+        func transform(data: [4]i32) : [4]i64 = {
+            return data[..]:[4]i64
+        }
+
+        func process(data: [4]i64) : void = {
+            return
+        }
+
+        func main() : void = {
+            val matrix : [2][2]i32 = [[1, 2], [3, 4]]
+            process(transform(matrix[..]:[4]i32))
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        assert_no_errors(errors)
+
+    def test_flatten_wrong_size_error_in_call(self):
+        """Test error when flattened size doesn't match parameter"""
+        source = """
+        func process(data: [6]i32) : void = {
+            return
+        }
+
+        func main() : void = {
+            val matrix : [2][3]i32 = [[1, 2, 3], [4, 5, 6]]
+            process(matrix[..]:[5]i32)
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        assert_error_contains(errors, "Array size mismatch")
+
+    def test_missing_copy_operator_in_flattening_call(self):
+        """Test error when missing [..] operator in on-the-fly flattening"""
+        source = """
+        func process(data: [6]i32) : void = {
+            return
+        }
+
+        func main() : void = {
+            val matrix : [2][3]i32 = [[1, 2, 3], [4, 5, 6]]
+            process(matrix:[6]i32)
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        assert_error_contains(errors, "Missing explicit copy")
+
+    def test_missing_type_conversion_in_flattening_call(self):
+        """Test error when missing :type operator in on-the-fly flattening"""
+        source = """
+        func process(data: [6]i32) : void = {
+            return
+        }
+
+        func main() : void = {
+            val matrix : [2][3]i32 = [[1, 2, 3], [4, 5, 6]]
+            process(matrix[..])
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        # Should error about dimension mismatch or missing type conversion
+        assert len(errors) > 0
+        error_str = str(errors[0]).lower()
+        assert "type" in error_str or "dimension" in error_str or "mismatch" in error_str
+
+    def test_partial_flatten_3d_to_2d_in_call(self):
+        """Test on-the-fly partial flattening [2][3][4] → [6][4]"""
+        source = """
+        func process(data: [6][4]i32) : void = {
+            return
+        }
+
+        func main() : void = {
+            val cube : [2][3][4]i32 = [
+                [[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12]],
+                [[13, 14, 15, 16], [17, 18, 19, 20], [21, 22, 23, 24]]
+            ]
+            process(cube[..]:[6][4]i32)
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        assert_no_errors(errors)

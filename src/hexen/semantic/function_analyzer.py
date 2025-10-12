@@ -202,6 +202,16 @@ class FunctionAnalyzer:
             # Expression block builds fresh array - no copy needed
             return
 
+        # Allowed without explicit copy: type conversion expressions that include [..]
+        # Example: matrix[..]:[6]i32 already has explicit copy, produces fresh array
+        if arg_type == "explicit_conversion_expression":
+            # Check if the inner expression is an array_copy operation
+            inner_expr = argument.get("expression", {})
+            if inner_expr.get("type") == "array_copy":
+                # Type conversion with [..] produces fresh array - no additional copy needed
+                return
+            # Otherwise, fall through to require explicit copy
+
         # Everything else requires explicit [..]
         # Most common case: identifier (variable reference to existing array)
         if arg_type == "identifier":
