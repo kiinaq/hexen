@@ -1,15 +1,27 @@
 """
 Test Array Type Conversion Semantic Analysis
 
-Tests for explicit array type conversions (value:[N]T syntax) following
-ARRAY_IMPLEMENTATION_PLAN.md Week 2 Part 6 implementation.
+**Focus:** Type system perspective on array conversions
+Tests explicit array type conversions (value:[N]T syntax) from the type checker's
+viewpoint, ensuring type safety and structural integrity.
 
-Key principles tested:
+**What this file tests:**
+- Element type conversions (i32→i64, f32→f64, etc.) with same dimensions
+- Size inference wildcards ([_]T) accepting any source size
+- Dimension flattening ([2][3]→[6]) with exact size calculations
+- Combined operations (flattening + element type change in one expression)
+- Comptime array adaptation (flexible literals adapting to concrete types)
+- Both operators required rule (enforcing [..]:[type] for dimension changes)
+
+**Complementary files:**
+- `test_array_flattening.py` - Operational mechanics and validation of flattening
+- `test_array_parameters.py` - Function integration and parameter passing rules
+
+**Key principles tested:**
 - Size as structural property (fixed sizes must match exactly)
 - Inferred size [_]T as wildcard (accepts any size)
-- Element type conversions with explicit syntax
-- Dimension flattening with calculated size match
-- Combined conversions (flattening + element type change)
+- Transparent costs principle (explicit syntax for all concrete type mixing)
+- Type safety through static analysis
 """
 
 import pytest

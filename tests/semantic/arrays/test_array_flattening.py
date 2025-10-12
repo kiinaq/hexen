@@ -1,15 +1,27 @@
 #!/usr/bin/env python3
 """
-Focused Array Flattening Tests - Phase 3 Implementation
+Focused Array Flattening Tests - Operational Mechanics
 
-Tests the core array flattening functionality that is currently implemented:
-- Basic multidimensional to 1D flattening
-- Size inference with [_] syntax
-- Comptime array flexibility through flattening
-- Error handling and validation
-- Integration with declaration system
+**Focus:** Operational mechanics and validation of array flattening
+Tests the practical aspects of how flattening works in real-world scenarios,
+including error handling, edge cases, and integration with language features.
 
-Focuses on working functionality while documenting current limitations.
+**What this file tests:**
+- Core flattening operations (2D→1D, 3D→1D, partial flattening)
+- Size inference interaction ([_]T with flattened arrays)
+- Comptime array flexibility (literals flattening without explicit operators)
+- Error validation (missing operators, size mismatches, type safety)
+- Integration scenarios (val/mut declarations, expression blocks)
+- Both operators requirement enforcement (dimension changes need [..]:[type])
+
+**Complementary files:**
+- `test_array_conversions.py` - Type system perspective on conversions
+- `test_array_parameters.py` - On-the-fly flattening in function calls
+
+**Testing philosophy:**
+This file focuses on "how does flattening behave?" rather than "is the type
+system correct?". Tests verify practical usage patterns, error messages, and
+edge cases that developers will encounter when using flattening operations.
 """
 
 import pytest
@@ -401,38 +413,6 @@ class TestBothOperatorsMandatory:
         ast = self.parser.parse(source)
         return self.analyzer.analyze(ast)
 
-    def test_missing_copy_operator_with_type_conversion(self):
-        """Test that :type alone without [..] is an error"""
-        source = """
-        func test() : void = {
-            val matrix : [2][3]i32 = [[1, 2, 3], [4, 5, 6]]
-            val invalid : [6]i32 = matrix:[6]i32
-            return
-        }
-        """
-        errors = self.get_errors(source)
-        # Should get an error about missing copy operator
-        assert len(errors) >= 1
-        # The error should mention that copy is needed
-        error_str = str(errors[0]).lower()
-        assert "copy" in error_str or "explicit" in error_str or "[..]" in str(errors[0])
-
-    def test_missing_type_conversion_with_copy_operator(self):
-        """Test that [..] alone without :type is an error for dimension changes"""
-        source = """
-        func test() : void = {
-            val matrix : [2][3]i32 = [[1, 2, 3], [4, 5, 6]]
-            val invalid : [6]i32 = matrix[..]
-            return
-        }
-        """
-        errors = self.get_errors(source)
-        # Should get an error about missing type conversion
-        assert len(errors) >= 1
-        # The error should mention type conversion or mismatch
-        error_str = str(errors[0]).lower()
-        assert "type" in error_str or "conversion" in error_str or "mismatch" in error_str
-
     def test_both_operators_required_for_element_type_change(self):
         """Test that BOTH operators are required when changing element types"""
         source = """
@@ -462,28 +442,6 @@ class TestBothOperatorsMandatory:
         assert len(errors) >= 1
         error_str = str(errors[0]).lower()
         assert "type" in error_str or "conversion" in error_str or "mismatch" in error_str
-
-    def test_correct_combined_syntax_works(self):
-        """Test that the correct combined syntax works"""
-        source = """
-        func test() : void = {
-            val matrix : [2][3]i32 = [[1, 2, 3], [4, 5, 6]]
-            val correct : [6]i32 = matrix[..]:[6]i32
-            return
-        }
-        """
-        self.assert_no_errors(source)
-
-    def test_correct_combined_syntax_with_type_change(self):
-        """Test that the correct combined syntax works with type conversion"""
-        source = """
-        func test() : void = {
-            val matrix : [2][3]i32 = [[1, 2, 3], [4, 5, 6]]
-            val correct : [6]i64 = matrix[..]:[6]i64
-            return
-        }
-        """
-        self.assert_no_errors(source)
 
     def test_inferred_size_also_requires_both_operators(self):
         """Test that inferred size [_] also requires both operators"""

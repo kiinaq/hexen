@@ -1,12 +1,31 @@
 """
-Test Array Function Parameters - Explicit Copy Requirement
+Test Array Function Parameters - Function Integration & Parameter Passing
 
-Tests the "Explicit Danger, Implicit Safety" principle for array arguments:
-- Comptime arrays (literals): No [..] needed (first materialization)
-- Concrete arrays (variables): Require explicit [..] copy operator
-- Function returns & expression blocks: No [..] needed (fresh arrays)
+**Focus:** Function integration and parameter passing rules
+Tests how arrays interact with function calls, focusing on the "Explicit Danger,
+Implicit Safety" principle that makes performance costs transparent.
 
-This enforces transparent performance costs for array parameter passing.
+**What this file tests:**
+- Explicit copy requirement ([..] for concrete arrays, not for literals)
+- Fixed-size parameter matching (exact size validation)
+- On-the-fly flattening in function calls (matrix[..]:[6]i32 as argument)
+- Comptime array adaptation (literals auto-adapt to parameter types)
+- Mixed scenarios (scalars + arrays, multiple parameters, nested calls)
+
+**Key principle: "Explicit Danger, Implicit Safety"**
+- Comptime arrays (literals): No [..] needed (first materialization - safe)
+- Concrete arrays (variables): Require explicit [..] (copy cost - visible)
+- Function returns: No [..] needed (fresh arrays - safe)
+- Expression blocks inline: No [..] needed (built fresh - safe)
+
+**Complementary files:**
+- `test_array_conversions.py` - Type conversion system validation
+- `test_array_flattening.py` - Flattening operation mechanics
+
+**Testing philosophy:**
+This file ensures that array parameter passing is both safe (no hidden bugs)
+and transparent (costs are visible). Tests verify that the rules are consistent,
+error messages are helpful, and common patterns work as expected.
 """
 
 import pytest
