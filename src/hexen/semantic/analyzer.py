@@ -52,6 +52,9 @@ class SemanticAnalyzer:
         # Context tracking for unified block concept
         self.block_context: List[str] = []  # Track: "function", "expression", etc.
 
+        # Parameter modification tracking for mut parameter enforcement (Week 2 Task 8)
+        self.modified_mut_parameters: set = set()  # Track which mut parameters were modified in current function
+
         # Initialize comptime analyzer first (needed by other analyzers)
         self.comptime_analyzer = ComptimeAnalyzer(self.symbol_table)
 
@@ -96,6 +99,7 @@ class SemanticAnalyzer:
             get_current_scope_callback=self._get_current_scope,
             symbol_table=self.symbol_table,
             comptime_analyzer=self.comptime_analyzer,
+            get_modified_parameters_callback=lambda: self.modified_mut_parameters,
         )
 
         # Initialize assignment analyzer with callbacks
@@ -106,6 +110,7 @@ class SemanticAnalyzer:
             comptime_analyzer=self.comptime_analyzer,
             is_parameter_callback=self.symbol_table.is_parameter,
             get_parameter_info_callback=self.symbol_table.get_parameter_info,
+            track_parameter_modification_callback=self._track_parameter_modification,
         )
 
         # Initialize return analyzer with callbacks
@@ -321,10 +326,23 @@ class SemanticAnalyzer:
         """Set the current function context for return type validation."""
         self.symbol_table.current_function = name
         self.current_function_return_type = return_type
+        # Clear parameter modification tracking for new function (Week 2 Task 8)
+        self.modified_mut_parameters.clear()
 
     def _clear_function_context(self) -> None:
         """Clear function context."""
         self.current_function = None
+        # Clear parameter modification tracking (Week 2 Task 8)
+        self.modified_mut_parameters.clear()
+
+    def _track_parameter_modification(self, parameter_name: str) -> None:
+        """
+        Track that a mut parameter has been modified (Week 2 Task 8).
+
+        This is used to enforce the rule that functions modifying mut parameters
+        must return the modified value to make pass-by-value semantics explicit.
+        """
+        self.modified_mut_parameters.add(parameter_name)
 
     def _get_current_scope(self):
         """Return the current (innermost) scope dictionary from the symbol table."""

@@ -37,6 +37,7 @@ class AssignmentAnalyzer:
         comptime_analyzer,
         is_parameter_callback: Optional[Callable[[str], bool]] = None,
         get_parameter_info_callback: Optional[Callable[[str], Optional[object]]] = None,
+        track_parameter_modification_callback: Optional[Callable[[str], None]] = None,
     ):
         """
         Initialize the assignment analyzer.
@@ -48,6 +49,7 @@ class AssignmentAnalyzer:
             comptime_analyzer: ComptimeAnalyzer instance for comptime type operations
             is_parameter_callback: Function to check if a name is a parameter
             get_parameter_info_callback: Function to get parameter info
+            track_parameter_modification_callback: Function to track parameter modifications
         """
         self._error = error_callback
         self._analyze_expression = analyze_expression_callback
@@ -55,6 +57,7 @@ class AssignmentAnalyzer:
         self.comptime_analyzer = comptime_analyzer
         self._is_parameter = is_parameter_callback
         self._get_parameter_info = get_parameter_info_callback
+        self._track_parameter_modification = track_parameter_modification_callback
 
     def analyze_assignment_statement(self, node: Dict) -> None:
         """
@@ -168,6 +171,11 @@ class AssignmentAnalyzer:
                     node,
                 )
                 return
+
+        # Track parameter modification for mut parameter enforcement (Week 2 Task 8)
+        if self._is_parameter and self._is_parameter(target_name):
+            if self._track_parameter_modification:
+                self._track_parameter_modification(target_name)
 
         # Mark the symbol as used (assignment counts as usage)
         symbol.used = True

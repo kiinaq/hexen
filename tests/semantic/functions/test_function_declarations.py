@@ -68,12 +68,11 @@ class TestValidFunctionDeclarations(StandardTestBase):
         assert_no_errors(errors)
 
     def test_function_with_mutable_parameters(self):
-        """Test function with mutable parameters"""
+        """Test function with mutable parameters (can read them without modification)"""
         source = """
-        func with_mut_params(mut counter: i32, mut flag: bool) : void = {
-            counter = 100
-            flag = true
-            return
+        func with_mut_params(mut counter: i32, mut flag: bool) : i32 = {
+            val result : i32 = counter * 2
+            return result
         }
         """
         ast = self.parser.parse(source)
@@ -83,9 +82,9 @@ class TestValidFunctionDeclarations(StandardTestBase):
     def test_function_with_mixed_mutability_parameters(self):
         """Test function with both mutable and immutable parameters"""
         source = """
-        func mixed_mutability(immutable: i32, mut mutable: i32) : void = {
+        func mixed_mutability(immutable: i32, mut mutable: i32) : i32 = {
             mutable = immutable + 10
-            return
+            return mutable
         }
         """
         ast = self.parser.parse(source)
@@ -161,10 +160,10 @@ class TestFunctionParameterValidation(StandardTestBase):
     def test_parameter_mutability_validation(self):
         """Test parameter mutability enforcement"""
         source = """
-        func test_mutability(immutable: i32, mut mutable: i32) : void = {
+        func test_mutability(immutable: i32, mut mutable: i32) : i32 = {
             // This should work - mutable parameter can be reassigned
             mutable = 100
-            return
+            return mutable
         }
         """
         ast = self.parser.parse(source)
@@ -547,21 +546,21 @@ class TestComplexFunctionDeclarationScenarios(StandardTestBase):
     """Test complex and edge case scenarios for function declarations"""
 
     def test_function_with_all_parameter_types(self):
-        """Test function with parameters of all supported types"""
+        """Test function with parameters of all supported types (read only, no modifications)"""
         source = """
         func all_param_types(
             int32: i32,
-            int64: i64, 
+            int64: i64,
             float32: f32,
             float64: f64,
             text: string,
             flag: bool,
             mut mut_int: i32,
             mut mut_float: f64
-        ) : void = {
-            mut_int = int32 + int64:i32
-            mut_float = float32:f64 + float64
-            return
+        ) : f64 = {
+            val sum_int : i32 = int32 + int64:i32 + mut_int
+            val sum_float : f64 = float32:f64 + float64 + mut_float
+            return sum_int:f64 + sum_float
         }
         """
         ast = self.parser.parse(source)

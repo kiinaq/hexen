@@ -51,6 +51,7 @@ class DeclarationAnalyzer:
         get_current_scope_callback: Callable[[], dict],
         symbol_table: SymbolTable,
         comptime_analyzer,
+        get_modified_parameters_callback: Optional[Callable[[], set]] = None,
     ):
         """
         Initialize the declaration analyzer.
@@ -66,6 +67,7 @@ class DeclarationAnalyzer:
             get_current_scope_callback: Function to get current scope
             symbol_table: Direct access to symbol table for function management
             comptime_analyzer: ComptimeAnalyzer instance for comptime type operations
+            get_modified_parameters_callback: Function to get modified mut parameters (Week 2 Task 8)
         """
         self._error = error_callback
         self._analyze_expression = analyze_expression_callback
@@ -77,6 +79,7 @@ class DeclarationAnalyzer:
         self._get_current_scope = get_current_scope_callback
         self.symbol_table = symbol_table
         self.comptime_analyzer = comptime_analyzer
+        self._get_modified_parameters = get_modified_parameters_callback
         
         # Initialize multidimensional array analyzer for flattening operations
         self.multidim_analyzer = MultidimensionalArrayAnalyzer(
@@ -218,12 +221,54 @@ class DeclarationAnalyzer:
             if body:
                 self._analyze_block(body, node)
 
+            # Validate mut parameter enforcement (Week 2 Task 8)
+            self._validate_mut_parameter_enforcement(signature, return_type, node)
+
             # Clean up function context and exit scope
             self._clear_function_context()
             self.symbol_table.exit_function_scope()
 
         except (KeyError, ValueError) as e:
             self._error(f"Invalid function declaration: {e}", node)
+
+    def _validate_mut_parameter_enforcement(
+        self, signature, return_type: HexenType, node: Dict
+    ) -> None:
+        """
+        Validate mut parameter enforcement rule (Week 2 Task 8).
+
+        Rule: Functions that modify mut parameters MUST return the modified value.
+        This makes pass-by-value semantics explicit and prevents developer confusion.
+
+        Error condition:
+        - Function modifies one or more mut parameters
+        - AND function returns void
+
+        Rationale:
+        - Pass-by-value means modifications affect LOCAL COPIES only
+        - Modifications are lost unless returned to caller
+        - Enforcement prevents "silent confusion" where developers expect side effects
+        """
+        if not self._get_modified_parameters:
+            return  # Callback not available, skip validation
+
+        # Get set of modified parameters
+        modified_params = self._get_modified_parameters()
+        if not modified_params:
+            return  # No parameters were modified, all good
+
+        # Check if function returns void
+        if return_type == HexenType.VOID:
+            # Get parameter info for better error messages
+            modified_param_names = ", ".join(sorted(modified_params))
+
+            self._error(
+                f"Function '{signature.name}' modifies mutable parameter(s) '{modified_param_names}' "
+                f"but returns void. Modified mut parameters affect local copies only (pass-by-value). "
+                f"Return the modified value to communicate changes to caller. "
+                f"Suggestion: Change return type from 'void' to parameter type and return modified value",
+                node,
+            )
 
     def _analyze_variable_declaration_unified(
         self,
