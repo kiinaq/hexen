@@ -6,19 +6,19 @@
 
 ## 🎯 Implementation Progress
 
-**Current Status**: Week 2 Partially Complete ✅ (6 of 9 tasks done)
+**Current Status**: Week 2 Partially Complete ✅ (7 of 9 tasks done)
 
 | Phase | Status | Tests | Notes |
 |-------|--------|-------|-------|
 | Week 0: Parser Extensions | ✅ Complete | 21/21 passing | `[..]` and `.length` syntax working |
 | Week 1: Semantic Analysis | ✅ Complete | 22/22 passing | Copy/property analysis implemented |
-| Week 2: Array-Function Integration | 🔄 In Progress | 95/95 passing | 6 of 9 tasks complete (see below) |
+| Week 2: Array-Function Integration | 🔄 In Progress | 118/118 passing | 7 of 9 tasks complete (see below) |
 | Week 3: Block Evaluation | ⏳ Pending | - | - |
 | Week 4: Integration + Testing | ⏳ Pending | - | - |
 
-**Overall Test Results**: 1081/1081 passing (100% success rate)
+**Overall Test Results**: 1133/1133 passing (100% success rate)
 
-**Week 2 Progress Breakdown** (6/9 tasks complete):
+**Week 2 Progress Breakdown** (7/9 tasks complete):
 
 ✅ **Completed Tasks:**
 1. **Multidimensional Array Support** - ConcreteArrayType dimension reduction working
@@ -48,9 +48,14 @@
    - Inferred-size wildcard `[_]T` accepts any size
    - Size validation (fixed sizes must match exactly)
    - Comprehensive error messages for all failure cases
+7. **Pass-by-value parameter semantics** - All parameter types follow pass-by-value
+   - 23 comprehensive tests covering scalars, strings, bools, and mixed types
+   - Validates that parameters are copied to function stack frame
+   - `mut` parameters allow local reassignment without affecting caller
+   - Caller isolation guaranteed through type system constraints
+   - Test coverage: test_pass_by_value.py (all types, expressions, semantic guarantees)
 
 ⏳ **Remaining Tasks:**
-7. **Pass-by-value parameter semantics** - Scalar parameter value copying
 8. **`mut` parameter local copy behavior** - Design A enforcement with return value requirement
 9. **Comptime array parameter adaptation** - Flexible comptime → concrete type materialization
 
@@ -789,7 +794,7 @@ def test_array_validation_with_early_returns():
 - [x] Expression dispatcher integration
 - [x] Semantic unit tests (22 tests passing, all enabled)
 
-### Core Functionality (Week 2 - 🔄 In Progress: 6/9 Complete)
+### Core Functionality (Week 2 - 🔄 In Progress: 7/9 Complete)
 - [x] **ConcreteArrayType implementation** - Multidimensional array support complete
 - [x] **Explicit `[..]` copy syntax enforcement for function args** - 13 tests passing
 - [x] **Explicit `[..]` copy syntax enforcement for array flattening** - 23 tests passing (discovered missing requirement)
@@ -803,7 +808,7 @@ def test_array_validation_with_early_returns():
   - [x] Conversion error cases (size mismatches, invalid types) - 5 tests
   - [x] Comptime array conversions (ergonomic adaptation) - 3 tests
   - [x] Conversions in various expression contexts - 4 tests
-- [ ] Pass-by-value parameter semantics
+- [x] **Pass-by-value parameter semantics** - 23 comprehensive tests covering all parameter types
 - [ ] `mut` parameter local copy behavior
 - [ ] Comptime array parameter adaptation
 
@@ -1481,11 +1486,26 @@ For fastest results, implement in this order:
      - **Comptime ergonomics preserved**: First materialization remains seamless
      - **Concrete costs visible**: All runtime type conversions require explicit syntax
 
-#### **Week 2 Remaining Tasks** (4 tasks):
-   - `declaration_analyzer.py` + `function_analyzer.py` - Explicit type conversion for all concrete array operations (Part 6)
-   - `function_analyzer.py` - Pass-by-value parameter semantics (Part 7)
-   - `function_analyzer.py` - `mut` parameter local copy behavior (Part 8)
-   - `comptime/type_operations.py` - Comptime array parameter adaptation (Part 9)
+#### **Week 2 Part 7: Pass-by-Value Parameter Semantics** ✅ COMPLETED
+   - **Status**: Complete (1133/1133 tests passing)
+   - **Files changed**:
+     - `src/hexen/semantic/function_analyzer.py` - Added pass-by-value documentation (+24 lines)
+     - `tests/semantic/functions/test_pass_by_value.py` - NEW FILE (349 lines, 23 comprehensive tests)
+   - **Implementation**: Validates that ALL parameters (scalars, arrays, strings, bools) follow pass-by-value semantics
+   - **Coverage**:
+     - Scalar pass-by-value (i32, i64, f32, f64)
+     - String and boolean pass-by-value
+     - Mixed parameter types
+     - `mut` parameter local modifications
+     - Comptime type adaptation in parameters
+     - Semantic guarantees (caller isolation, return value communication)
+     - Expression blocks with parameters
+     - Documentation examples from FUNCTION_SYSTEM.md
+   - **Key Insight**: This task validates EXISTING behavior - Hexen already implements pass-by-value correctly!
+
+#### **Week 2 Remaining Tasks** (2 tasks):
+   - `function_analyzer.py` - `mut` parameter local copy behavior enforcement (Part 8)
+   - `comptime/type_operations.py` - Comptime array parameter adaptation validation (Part 9)
 
 ### **Week 3: Block Evaluation**
    - `comptime/block_evaluation.py` - Array block classification

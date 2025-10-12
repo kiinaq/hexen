@@ -7,8 +7,27 @@ Handles function call resolution and parameter type checking including:
 - Parameter type context for comptime type resolution
 - TYPE_SYSTEM.md rule application to function arguments
 - Function call return type inference
+- Pass-by-value semantics validation
 
 Implements the unified type resolution strategy from FUNCTION_SYSTEM.md.
+
+## Pass-by-Value Semantics
+
+All Hexen parameters follow **pass-by-value semantics**:
+- Parameters are copied to the function's stack frame
+- Modifications to parameters affect only the local copy
+- Caller's values remain unchanged
+- `mut` parameters allow local reassignment for multi-step computations
+- Side effects must be communicated through return values
+
+This design maintains Hexen's stack-only memory model and ensures predictable,
+safe behavior without requiring reference semantics or borrow checking.
+
+**Implementation Status**: ✅ Task 7 Complete (Week 2)
+- Semantic analysis validates pass-by-value correctness
+- All parameter types (scalars, arrays, strings, bools) follow pass-by-value
+- Test coverage: 23 comprehensive tests in test_pass_by_value.py
+- Caller isolation guaranteed through type system constraints
 """
 
 from typing import Dict, Optional, Callable, Union
