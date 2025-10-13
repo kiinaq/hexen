@@ -8,7 +8,7 @@ the semantic analysis phase.
 
 from typing import Optional, Dict, FrozenSet, Union
 
-from .types import HexenType, ConcreteArrayType
+from .types import HexenType, ConcreteArrayType, ComptimeArrayType
 
 # Module-level constants for type sets and maps
 NUMERIC_TYPES: FrozenSet[HexenType] = frozenset(
@@ -156,8 +156,8 @@ def is_integer_type(type_: HexenType) -> bool:
 
 
 def can_coerce(
-    from_type: Union[HexenType, ConcreteArrayType],
-    to_type: Union[HexenType, ConcreteArrayType],
+    from_type: Union[HexenType, ConcreteArrayType, ComptimeArrayType],
+    to_type: Union[HexenType, ConcreteArrayType, ComptimeArrayType],
 ) -> bool:
     """
     Check if from_type can be automatically coerced to to_type.
@@ -176,12 +176,13 @@ def can_coerce(
        - All concrete type conversions require explicit syntax per TYPE_SYSTEM.md
 
     4. Array type coercion:
-       - Comptime array types can coerce to compatible ConcreteArrayType
+       - ComptimeArrayType can coerce to compatible ConcreteArrayType (PHASE 2)
+       - Comptime array enum types can coerce to compatible ConcreteArrayType (legacy)
        - ConcreteArrayType only coerces to identical ConcreteArrayType
 
     Args:
-        from_type: The source type (HexenType or ConcreteArrayType)
-        to_type: The target type (HexenType or ConcreteArrayType)
+        from_type: The source type (HexenType, ConcreteArrayType, or ComptimeArrayType)
+        to_type: The target type (HexenType, ConcreteArrayType, or ComptimeArrayType)
 
     Returns:
         True if coercion is allowed
@@ -189,6 +190,21 @@ def can_coerce(
     # Identity coercion - type can always coerce to itself
     if from_type == to_type:
         return True
+
+    # PHASE 2 ADDITION: Handle ComptimeArrayType → ConcreteArrayType coercion
+    if isinstance(from_type, ComptimeArrayType) and isinstance(to_type, ConcreteArrayType):
+        # Dimensions are validated by caller (function_analyzer)
+        # Here we just check element type compatibility
+        if from_type.element_comptime_type == HexenType.COMPTIME_INT:
+            # comptime_int can coerce to any numeric type
+            return to_type.element_type in {
+                HexenType.I32, HexenType.I64,
+                HexenType.F32, HexenType.F64
+            }
+        elif from_type.element_comptime_type == HexenType.COMPTIME_FLOAT:
+            # comptime_float can coerce to float types only
+            return to_type.element_type in {HexenType.F32, HexenType.F64}
+        return False
 
     # Handle ConcreteArrayType cases
     if isinstance(to_type, ConcreteArrayType):
@@ -454,12 +470,19 @@ def validate_literal_range(
 # =============================================================================
 
 
-def is_array_type(type_: Union[HexenType, ConcreteArrayType]) -> bool:
-    """Check if type represents an array (comptime or concrete)."""
+def is_array_type(type_: Union[HexenType, ConcreteArrayType, ComptimeArrayType]) -> bool:
+    """
+    Check if type represents an array (comptime or concrete).
+
+    CHANGE (Phase 2): Extended to handle ComptimeArrayType instances.
+    """
     # Handle ConcreteArrayType instances
     if isinstance(type_, ConcreteArrayType):
         return True
-    # Handle comptime array types
+    # Handle ComptimeArrayType instances (Phase 2 addition)
+    if isinstance(type_, ComptimeArrayType):
+        return True
+    # Handle comptime array types (old enum values - deprecated)
     return type_ in COMPTIME_ARRAY_TYPES
 
 
@@ -529,13 +552,22 @@ def can_array_assign_to(
     return False
 
 
-def get_type_name_for_error(type_obj: Union[HexenType, ConcreteArrayType]) -> str:
-    """Get a human-readable type name for error messages."""
+def get_type_name_for_error(type_obj: Union[HexenType, ConcreteArrayType, ComptimeArrayType]) -> str:
+    """
+    Get a human-readable type name for error messages.
+
+    CHANGE (Phase 2): Extended to handle ComptimeArrayType instances.
+    """
     if isinstance(type_obj, ConcreteArrayType):
         # ConcreteArrayType.dimensions is a list of integers, not ArrayDimension objects
         # Build dimension string: [2][3]i32 for 2D array
         dim_str = "".join(f"[{dim}]" for dim in type_obj.dimensions)
         return f"{dim_str}{type_obj.element_type.name.lower()}"
+
+    # PHASE 2 ADDITION: Handle ComptimeArrayType
+    if isinstance(type_obj, ComptimeArrayType):
+        # Use ComptimeArrayType's __str__ method: comptime_[5]int
+        return str(type_obj)
 
     # Use the inverse mapping from TYPE_STRING_TO_HEXEN_TYPE for consistency
     return HEXEN_TYPE_TO_STRING.get(type_obj, "unknown")

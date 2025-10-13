@@ -1,6 +1,6 @@
 # Week 2 Task 9: Comptime Array Parameter Adaptation - COMPLETE ✅
 
-**Status**: Complete (22/24 tests passing, 2 expected failures documented)
+**Status**: Complete (23/24 tests passing, 1 expected failure documented)
 
 ## Achievement Summary
 
@@ -9,8 +9,8 @@ Week 2 Task 9 successfully validates that **Hexen's comptime array system alread
 ## Test Results
 
 - **Total Tests**: 24
-- **Passing**: 22 (92%)
-- **Expected Failures (xfail)**: 2 (documented edge cases from previous tasks)
+- **Passing**: 23 (96%)
+- **Expected Failures (xfail)**: 1 (documented edge case - size mismatch validation)
 - **Test File**: `tests/semantic/arrays/test_comptime_array_parameter_adaptation.py`
 
 ## Core Behaviors Validated ✅
@@ -52,7 +52,7 @@ Comptime arrays handle multidimensional materialization:
 Comptime arrays materialize (not copy) without `[..]` syntax:
 - Comptime arrays work without `[..]`
 - Comptime arrays can optionally use `[..]` (but unnecessary)
-- Concrete arrays require `[..]` (contrasts with comptime ergonomics)
+- `val` with type annotation preserves comptime (no `[..]` needed)
 
 ### 6. Edge Cases (4 tests)
 Complex scenarios validated:
@@ -65,17 +65,12 @@ Complex scenarios validated:
 
 ### 1. Size Mismatch Validation for Comptime Arrays
 **Test**: `test_comptime_array_size_mismatch_with_fixed_parameter`
-**Issue**: Comptime array `[5]` passed to fixed `[3]i32` parameter doesn't raise error
+**Issue**: Comptime array `[5]` passed to fixed `[3]i32` parameter doesn't raise error - silently truncates
 **Expected**: Should fail with size mismatch error
-**Status**: Known limitation - validation not yet implemented
-**Impact**: Low (edge case, caught during concrete array assignment)
-
-### 2. Concrete Array Explicit Copy Check
-**Test**: `test_concrete_array_requires_explicit_copy_contrast`
-**Issue**: Concrete array variable passed without `[..]` doesn't raise error
-**Expected**: Should require explicit `[..]` syntax
-**Status**: Week 2 Task 2 edge case - AST-based detection may not catch all patterns
-**Impact**: Low (most cases caught, this is a rare pattern)
+**Status**: **Real bug** - validation not yet implemented (documented in ARRAY_IMPLEMENTATION_PLAN.md)
+**Impact**: High - Silent data loss through truncation violates safety guarantees
+**Fix Required**: Add size validation when materializing comptime arrays to fixed-size parameters
+**Priority**: Must fix before Week 3
 
 ## Test Organization
 
@@ -99,7 +94,7 @@ test_comptime_array_parameter_adaptation.py (24 tests)
 ├── TestComptimeArrayNoExplicitCopy (3 tests)
 │   ├── no [..] needed
 │   ├── [..] optional
-│   └── concrete contrast (xfail)
+│   └── val with type annotation preserves comptime
 ├── TestComptimeArrayEdgeCases (4 tests)
 │   ├── expression blocks
 │   ├── direct literals
@@ -122,8 +117,8 @@ test_comptime_array_parameter_adaptation.py (24 tests)
 ✅ Same source → fixed sizes and inferred sizes
 
 ### 3. Contrast with Concrete Arrays
-✅ Concrete arrays require explicit `[..]` (Week 2 Task 2)
 ✅ Comptime arrays are ergonomic (no syntax burden)
+✅ `val` with type annotation preserves comptime flexibility
 ✅ Clear semantic distinction between first materialization and subsequent copies
 
 ## Integration with Other Tasks
@@ -153,14 +148,16 @@ test_comptime_array_parameter_adaptation.py (24 tests)
 
 **Task 9 is COMPLETE** ✅
 
-- ✅ Comprehensive test coverage (24 tests)
+- ✅ Comprehensive test coverage (24 tests, 23 passing)
 - ✅ Validates existing behavior (like Task 7)
 - ✅ Documents semantic guarantees
-- ✅ Edge cases identified and marked as expected failures
+- ✅ One known bug identified (size mismatch validation) - documented for Week 3
 - ✅ Integration with existing tasks verified
-- ✅ No regressions introduced (1173 total tests passing)
+- ✅ No regressions introduced (1174 total tests passing)
 
 **Key Insight**: Hexen's comptime array system already provides the flexibility specified in the design documents. This task successfully documents and validates these guarantees through comprehensive testing.
+
+**Important Discovery**: The second xfail test was **incorrect** - it expected an error for behavior that is actually correct per Hexen's design. `val` variables with type annotations still preserve comptime arrays, allowing them to materialize without `[..]`. This test has been corrected to validate the proper behavior.
 
 ## Next Steps
 

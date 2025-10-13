@@ -17,7 +17,7 @@ from typing import Dict, List, Any, Optional, Callable, Union
 from .error_messages import ArrayErrorMessages
 from .multidim_analyzer import MultidimensionalArrayAnalyzer
 from ..type_util import is_array_type, get_type_name_for_error
-from ..types import HexenType, ConcreteArrayType
+from ..types import HexenType, ConcreteArrayType, ComptimeArrayType
 
 
 class ArrayLiteralAnalyzer:
@@ -51,17 +51,21 @@ class ArrayLiteralAnalyzer:
     def analyze_array_literal(
         self,
         node: Dict[str, Any],
-        target_type: Optional[Union[HexenType, ConcreteArrayType]] = None,
-    ) -> HexenType:
+        target_type: Optional[Union[HexenType, ConcreteArrayType, ComptimeArrayType]] = None,
+    ) -> Union[HexenType, ComptimeArrayType]:
         """
-        Analyze array literal and return inferred HexenType.
+        Analyze array literal and return type WITH FULL DIMENSIONAL INFORMATION.
+
+        CHANGE (Phase 2): Now returns ComptimeArrayType instead of HexenType.COMPTIME_ARRAY_INT
+        to preserve size information throughout semantic analysis.
 
         Args:
             node: Array literal AST node
-            target_type: Optional target type for context-guided resolution (HexenType or ConcreteArrayType)
+            target_type: Optional target type for context-guided resolution
 
         Returns:
-            HexenType enum representing the array literal's type
+            ComptimeArrayType with preserved dimensions, or ConcreteArrayType if
+            explicit context provided, or HexenType.UNKNOWN on error
         """
         elements = node.get("elements", [])
 
@@ -101,7 +105,8 @@ class ArrayLiteralAnalyzer:
                 element_types.append(element_type)
 
             # Use comptime analyzer to unify element types
-            unified_type = self._unify_element_types(element_types, node)
+            # CHANGE: Now returns ComptimeArrayType with size information
+            unified_type = self._unify_element_types(element_types, node, len(elements))
             return unified_type
 
         # Fallback to legacy analysis for backwards compatibility
@@ -141,17 +146,20 @@ class ArrayLiteralAnalyzer:
         return target_type
 
     def _unify_element_types(
-        self, element_types: List[HexenType], node: Dict[str, Any]
-    ) -> HexenType:
+        self, element_types: List[HexenType], node: Dict[str, Any], array_size: int
+    ) -> Union[ComptimeArrayType, HexenType]:
         """
         Unify element types to determine the array's overall type.
+
+        CHANGE (Phase 2): Now returns ComptimeArrayType with size information.
 
         Args:
             element_types: List of HexenType for each element
             node: Array literal AST node for error reporting
+            array_size: Number of elements in the array (size of first dimension)
 
         Returns:
-            HexenType representing the unified array type
+            ComptimeArrayType with preserved dimensions, or HexenType.UNKNOWN on error
         """
         if not element_types:
             return HexenType.UNKNOWN
@@ -166,9 +174,17 @@ class ArrayLiteralAnalyzer:
         if len(unique_types) == 1:
             element_type = list(unique_types)[0]
             if element_type == HexenType.COMPTIME_INT:
-                return HexenType.COMPTIME_ARRAY_INT
+                # CHANGE: Return ComptimeArrayType with size information
+                return ComptimeArrayType(
+                    element_comptime_type=HexenType.COMPTIME_INT,
+                    dimensions=[array_size]
+                )
             elif element_type == HexenType.COMPTIME_FLOAT:
-                return HexenType.COMPTIME_ARRAY_FLOAT
+                # CHANGE: Return ComptimeArrayType with size information
+                return ComptimeArrayType(
+                    element_comptime_type=HexenType.COMPTIME_FLOAT,
+                    dimensions=[array_size]
+                )
             else:
                 # Non-comptime types require explicit context
                 self._error(
@@ -180,7 +196,11 @@ class ArrayLiteralAnalyzer:
         # Mixed types - check for comptime int/float promotion
         if unique_types <= {HexenType.COMPTIME_INT, HexenType.COMPTIME_FLOAT}:
             # Mixed comptime int/float -> promote to comptime array float
-            return HexenType.COMPTIME_ARRAY_FLOAT
+            # CHANGE: Return ComptimeArrayType with size information
+            return ComptimeArrayType(
+                element_comptime_type=HexenType.COMPTIME_FLOAT,
+                dimensions=[array_size]
+            )
 
         # Other mixed types require explicit context
         self._error(

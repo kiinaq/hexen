@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from typing import Dict, List, Optional, Any, Union
 
 from .type_util import parse_type
-from .types import HexenType, Mutability, ConcreteArrayType
+from .types import HexenType, Mutability, ConcreteArrayType, ComptimeArrayType
 
 
 @dataclass
@@ -60,10 +60,13 @@ class Symbol:
 
     Design note: Using dataclass for clean syntax while maintaining
     the ability to add computed properties later.
+
+    CHANGE (Phase 2): Extended type field to support ComptimeArrayType
+    for preserving dimensional information in comptime arrays.
     """
 
     name: str
-    type: Union[HexenType, ConcreteArrayType]
+    type: Union[HexenType, ConcreteArrayType, ComptimeArrayType]  # Phase 2: Added ComptimeArrayType
     mutability: Mutability
     declared_line: Optional[int] = None  # For better error reporting (future)
     initialized: bool = True  # False for undef variables - prevents use-before-init
