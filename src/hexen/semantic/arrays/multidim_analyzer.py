@@ -11,11 +11,11 @@ Key Features:
 - Integration with existing comptime type system
 """
 
-from typing import Dict, List, Any, Optional, Callable
+from typing import Dict, List, Any, Optional, Callable, Union
 
 from .array_types import ArrayTypeInfo
 from .error_messages import ArrayErrorMessages
-from ..types import HexenType
+from ..types import HexenType, ComptimeArrayType
 
 
 class MultidimensionalArrayAnalyzer:
@@ -35,17 +35,20 @@ class MultidimensionalArrayAnalyzer:
         self.comptime_analyzer = comptime_analyzer
 
     def analyze_multidimensional_literal(
-        self, node: Dict[str, Any], target_type: Optional[HexenType] = None
-    ) -> HexenType:
+        self, node: Dict[str, Any], target_type: Optional[Union[HexenType, ComptimeArrayType]] = None
+    ) -> Union[HexenType, ComptimeArrayType]:
         """
         Analyze multidimensional array literal for structure consistency.
+
+        CHANGE (Phase 2): Now returns ComptimeArrayType with full dimensional information
+        instead of HexenType.COMPTIME_ARRAY_INT to preserve size metadata.
 
         Args:
             node: Array literal AST node with nested structure
             target_type: Optional target type for context-guided resolution
 
         Returns:
-            HexenType enum representing the multidimensional array's type
+            ComptimeArrayType with preserved dimensions, or HexenType.UNKNOWN on error
         """
         elements = node.get("elements", [])
 
@@ -59,7 +62,11 @@ class MultidimensionalArrayAnalyzer:
         first_element = elements[0]
         if not self._is_array_literal(first_element):
             # This is actually a 1D array, delegate back to regular analysis
-            return HexenType.COMPTIME_ARRAY_INT  # Simplified for now
+            # CHANGE: Return ComptimeArrayType with 1D dimensions
+            return ComptimeArrayType(
+                element_comptime_type=HexenType.COMPTIME_INT,
+                dimensions=[len(elements)]
+            )
 
         # Validate multidimensional structure consistency
         try:
@@ -70,9 +77,14 @@ class MultidimensionalArrayAnalyzer:
             )
             return HexenType.UNKNOWN
 
-        # For now, return basic comptime array type
-        # In full implementation, this would determine element types and create proper multidim type info
-        return HexenType.COMPTIME_ARRAY_INT
+        # CHANGE: Calculate dimensions and return ComptimeArrayType
+        dimensions = self._calculate_dimensions(elements)
+        element_type = self._determine_element_type(elements)
+
+        return ComptimeArrayType(
+            element_comptime_type=element_type,
+            dimensions=dimensions
+        )
 
     def analyze_array_flattening(
         self, array_node: Dict[str, Any], target_type_str: str
@@ -192,6 +204,82 @@ class MultidimensionalArrayAnalyzer:
     def _is_array_literal(self, node: Dict[str, Any]) -> bool:
         """Check if a node represents an array literal"""
         return node.get("type") == "array_literal"
+
+    def _calculate_dimensions(self, elements: List[Dict[str, Any]]) -> List[int]:
+        """
+        Calculate dimensions for multidimensional array literal.
+
+        For [[1, 2], [3, 4], [5, 6]] returns [3, 2] (3 rows, 2 columns)
+
+        Args:
+            elements: Top-level elements of the array literal
+
+        Returns:
+            List of dimension sizes [outer_dim, inner_dim, ...]
+        """
+        if not elements:
+            return []
+
+        # Outer dimension is number of elements
+        outer_dim = len(elements)
+
+        # Check if first element is array to determine inner dimensions
+        first_element = elements[0]
+        if not self._is_array_literal(first_element):
+            # 1D array (shouldn't reach here, but handle safely)
+            return [outer_dim]
+
+        # Get inner dimensions recursively
+        inner_elements = first_element.get("elements", [])
+        if not inner_elements:
+            return [outer_dim, 0]
+
+        # Check if this is 2D or deeper
+        first_inner = inner_elements[0]
+        if not self._is_array_literal(first_inner):
+            # 2D array: [outer][inner]
+            return [outer_dim, len(inner_elements)]
+        else:
+            # 3D+ array: recurse
+            inner_dims = self._calculate_dimensions(inner_elements)
+            return [outer_dim] + inner_dims
+
+    def _determine_element_type(self, elements: List[Dict[str, Any]]) -> HexenType:
+        """
+        Determine the comptime element type for multidimensional array.
+
+        Recursively finds the leaf element type.
+
+        Args:
+            elements: Array elements (may be nested)
+
+        Returns:
+            HexenType.COMPTIME_INT or HexenType.COMPTIME_FLOAT
+        """
+        if not elements:
+            return HexenType.COMPTIME_INT  # Default for empty
+
+        first_element = elements[0]
+
+        # If first element is array, recurse deeper
+        if self._is_array_literal(first_element):
+            inner_elements = first_element.get("elements", [])
+            return self._determine_element_type(inner_elements)
+
+        # Reached leaf level - check element type
+        element_type = first_element.get("type")
+
+        if element_type == "comptime_int":
+            # Check all elements - if any float, promote to float
+            for elem in elements:
+                if elem.get("type") == "comptime_float":
+                    return HexenType.COMPTIME_FLOAT
+            return HexenType.COMPTIME_INT
+        elif element_type == "comptime_float":
+            return HexenType.COMPTIME_FLOAT
+        else:
+            # Default to int for other types
+            return HexenType.COMPTIME_INT
 
     def _calculate_total_elements(self, elements: List[Dict[str, Any]]) -> int:
         """Calculate total number of leaf elements in multidimensional array"""
