@@ -184,8 +184,8 @@ class SemanticAnalyzer:
         """
         Analyze the root program node.
 
-        Current structure: program contains list of functions
-        Future: May contain global variables, imports, type definitions, etc.
+        Current structure: program contains list of functions and top-level statements
+        Future: May contain imports, type definitions, etc.
 
         Validates:
         - Node type is correct
@@ -198,6 +198,10 @@ class SemanticAnalyzer:
         # Analyze all functions in the program using unified declaration analysis
         for func in node.get("functions", []):
             self._analyze_declaration(func)
+
+        # Analyze top-level statements (val/mut declarations, etc.)
+        for stmt in node.get("statements", []):
+            self._analyze_statement(stmt)
 
     # =============================================================================
     # UNIFIED DECLARATION ANALYSIS FRAMEWORK

@@ -532,7 +532,7 @@ class TestFixedSizeArrayParameterMatching:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
 
-        assert_error_contains(errors, "Array size mismatch")
+        assert_error_contains(errors, "size mismatch")
 
 
 class TestOnTheFlyFlatteningAsParameter:

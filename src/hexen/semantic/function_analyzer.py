@@ -33,7 +33,7 @@ safe behavior without requiring reference semantics or borrow checking.
 from typing import Dict, Optional, Callable, Union
 
 from .type_util import can_coerce
-from .types import HexenType, ConcreteArrayType
+from .types import HexenType, ConcreteArrayType, ComptimeArrayType
 
 
 class FunctionAnalyzer:
@@ -54,7 +54,7 @@ class FunctionAnalyzer:
         self,
         error_callback: Callable[[str, Optional[Dict]], None],
         analyze_expression_callback: Callable[
-            [Dict, Optional[Union[HexenType, ConcreteArrayType]]], HexenType
+            [Dict, Optional[Union[HexenType, ConcreteArrayType, ComptimeArrayType]]], Union[HexenType, ConcreteArrayType, ComptimeArrayType]
         ],
         lookup_function_callback: Callable[[str], Optional[object]],
     ):
@@ -141,7 +141,18 @@ class FunctionAnalyzer:
             argument, parameter, function_name, position
         )
 
-        # Analyze argument expression with parameter type as context
+        # FIRST: Analyze argument WITHOUT context to preserve ComptimeArrayType for size validation
+        argument_type_without_context = self._analyze_expression(argument, None)
+
+        # NEW: Validate comptime array size compatibility BEFORE materialization (Issue #1 fix)
+        if isinstance(argument_type_without_context, ComptimeArrayType) and isinstance(parameter.param_type, ConcreteArrayType):
+            if not self._validate_comptime_array_size(
+                argument_type_without_context, parameter.param_type, function_name, position, argument
+            ):
+                # Error already reported, skip further validation
+                return
+
+        # THEN: Analyze with parameter type as context for materialization and coercion
         # This enables comptime type adaptation and enforces TYPE_SYSTEM.md rules
         argument_type = self._analyze_expression(argument, parameter.param_type)
 
@@ -234,6 +245,15 @@ class FunctionAnalyzer:
         # Everything else requires explicit [..]
         # Most common case: identifier (variable reference to existing array)
         if arg_type == "identifier":
+            # Check if this identifier refers to a comptime array (val + array literal)
+            # or a concrete array (val + explicit type annotation)
+            argument_type_without_context = self._analyze_expression(argument, None)
+
+            # If it's a comptime array, no copy needed (first materialization)
+            if isinstance(argument_type_without_context, ComptimeArrayType):
+                return
+
+            # Concrete array variable - requires explicit copy
             argument_name = argument.get("name", "<unknown>")
             param_type_str = (
                 parameter.param_type.value
@@ -331,3 +351,145 @@ class FunctionAnalyzer:
                     f"Array sizes must match exactly for fixed-size parameters",
                     argument,
                 )
+
+    def _validate_comptime_array_size(
+        self,
+        comptime_type: ComptimeArrayType,
+        target_type: ConcreteArrayType,
+        function_name: str,
+        position: int,
+        argument_node: Dict
+    ) -> bool:
+        """
+        Validate that comptime array dimensions match target parameter dimensions.
+
+        This is the CORE FIX for Issue #1. It prevents:
+        - Silent truncation (comptime [5] → parameter [3])
+        - Silent padding (comptime [2] → parameter [3])
+        - Dimension mismatches (comptime [2][3] → parameter [6])
+
+        Rules:
+        1. Dimension count must match
+        2. Each dimension checked individually:
+           - Inferred dimension ("_") accepts any size
+           - Fixed dimension (int) requires exact match
+        3. Clear error messages guide user to fix
+
+        Args:
+            comptime_type: ComptimeArrayType from argument expression
+            target_type: ConcreteArrayType from parameter definition
+            function_name: Function name for error messages
+            position: Argument position (1-based) for error messages
+            argument_node: AST node for error reporting
+
+        Returns:
+            True if dimensions compatible, False if mismatch (error already reported)
+        """
+        # Check dimension count first
+        if len(comptime_type.dimensions) != len(target_type.dimensions):
+            self._error_comptime_array_dimension_count_mismatch(
+                comptime_type, target_type, function_name, position, argument_node
+            )
+            return False
+
+        # Check each dimension for compatibility
+        mismatched_dims = []
+        for i, (comptime_dim, target_dim) in enumerate(
+            zip(comptime_type.dimensions, target_type.dimensions)
+        ):
+            if target_dim == "_":
+                # Inferred dimension - accepts any size
+                continue
+
+            if comptime_dim != target_dim:
+                # Fixed dimension mismatch
+                mismatched_dims.append((i, comptime_dim, target_dim))
+
+        if mismatched_dims:
+            self._error_comptime_array_size_mismatch(
+                comptime_type, target_type, function_name, position,
+                mismatched_dims, argument_node
+            )
+            return False
+
+        # All dimensions compatible
+        return True
+
+    def _error_comptime_array_dimension_count_mismatch(
+        self,
+        comptime_type: ComptimeArrayType,
+        target_type: ConcreteArrayType,
+        function_name: str,
+        position: int,
+        argument_node: Dict
+    ):
+        """Generate error for dimension count mismatch"""
+        comptime_str = str(comptime_type)
+        target_str = str(target_type)
+
+        self._error(
+            f"Comptime array dimension count mismatch in function call\n"
+            f"  Function: {function_name}(...)\n"
+            f"  Argument {position}: comptime array type {comptime_str}\n"
+            f"  Parameter expects: {target_str}\n"
+            f"\n"
+            f"  Comptime array has {len(comptime_type.dimensions)} dimension(s)\n"
+            f"  Parameter expects {len(target_type.dimensions)} dimension(s)\n"
+            f"\n"
+            f"  Cannot materialize {len(comptime_type.dimensions)}D array to "
+            f"{len(target_type.dimensions)}D parameter",
+            argument_node
+        )
+
+    def _error_comptime_array_size_mismatch(
+        self,
+        comptime_type: ComptimeArrayType,
+        target_type: ConcreteArrayType,
+        function_name: str,
+        position: int,
+        mismatched_dims: list,
+        argument_node: Dict
+    ):
+        """
+        Generate detailed error message for size mismatches.
+
+        Provides actionable guidance:
+        - Shows exact size mismatch
+        - Suggests using inferred-size parameter [_]T
+        - Explains that truncation/padding not allowed
+        """
+        comptime_str = str(comptime_type)
+        target_str = str(target_type)
+
+        # Build dimension mismatch details
+        if len(mismatched_dims) == 1:
+            dim_idx, comptime_size, target_size = mismatched_dims[0]
+            dim_detail = (
+                f"  Dimension {dim_idx}: comptime size {comptime_size}, "
+                f"parameter expects {target_size}\n"
+            )
+        else:
+            dim_lines = []
+            for dim_idx, comptime_size, target_size in mismatched_dims:
+                dim_lines.append(
+                    f"    - Dimension {dim_idx}: {comptime_size} ≠ {target_size}"
+                )
+            dim_detail = "  Multiple dimension mismatches:\n" + "\n".join(dim_lines) + "\n"
+
+        self._error(
+            f"Comptime array size mismatch in function call\n"
+            f"  Function: {function_name}(...)\n"
+            f"  Argument {position}: comptime array type {comptime_str}\n"
+            f"  Parameter expects: {target_str}\n"
+            f"\n"
+            f"{dim_detail}"
+            f"\n"
+            f"  Fixed-size parameters require exact size match.\n"
+            f"  Cannot truncate or pad comptime arrays.\n"
+            f"\n"
+            f"  Suggestions:\n"
+            f"    - Use inferred-size parameter to accept any size: [_]T\n"
+            f"    - Adjust array literal to match parameter size\n"
+            f"    - Use slice operation (when implemented) for intentional truncation",
+            argument_node
+        )

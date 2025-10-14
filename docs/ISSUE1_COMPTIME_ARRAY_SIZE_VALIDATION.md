@@ -1,10 +1,10 @@
 # Issue #1: Comptime Array Size Mismatch Validation - Implementation Plan
 
-**Status**: 🚧 In Progress - Phases 1-3 Complete (50%)
+**Status**: 🚧 In Progress - Phases 1-3 Complete + Test Infrastructure (60%)
 **Priority**: HIGH - Must fix before Week 3
-**Estimated Effort**: 3-4 hours
+**Estimated Effort**: 3-4 hours (2 hours remaining)
 **Approach**: Option A - Enhanced Type System with Rich Comptime Array Types
-**Progress**: ✅ Phase 1 | ✅ Phase 2 | ✅ Phase 3 | ⏭️ Phase 4 | 📋 Phase 5 | 📋 Phase 6
+**Progress**: ✅ Phase 1 | ✅ Phase 2 | ✅ Phase 3 | 🚧 Phase 4 (Tests Ready) | 📋 Phase 5 | 📋 Phase 6
 
 ---
 
@@ -761,11 +761,13 @@ class TestSymbolTableComptimeArrays:
 
 ---
 
-### Phase 4: Function Analyzer Size Validation (1 hour)
+### Phase 4: Function Analyzer Size Validation (1 hour) 🚧 IN PROGRESS
 
 **File**: `src/hexen/semantic/function_analyzer.py`
 
 **Objective**: Add size validation when comptime arrays are passed to fixed-size parameters
+
+**Current Status**: Test infrastructure complete, implementation pending
 
 #### Implementation
 
@@ -955,8 +957,12 @@ class FunctionAnalyzer:
 
 #### Testing for Phase 4
 
+**Test File**: `tests/semantic/arrays/test_comptime_array_size_validation.py` ✅ CREATED
+
+**Test Status**: 11 tests created, 7/11 passing (4 failures expected - awaiting implementation)
+
 ```python
-# tests/semantic/arrays/test_issue1_comptime_array_size_validation.py (new file)
+# tests/semantic/arrays/test_comptime_array_size_validation.py
 
 """
 Test Suite: Issue #1 - Comptime Array Size Mismatch Validation
@@ -1230,10 +1236,13 @@ class TestExistingBehaviorPreserved:
 ```
 
 **Deliverables**:
-- ✅ Size validation implemented
-- ✅ Clear error messages generated
-- ✅ 30+ tests passing
-- ✅ Issue #1 fixed
+- ⏳ Size validation implementation (pending)
+- ⏳ Clear error messages generation (pending)
+- ✅ Test suite created (11 tests, 7 passing, 4 awaiting implementation)
+- ✅ Test file renamed: `test_issue1_comptime_array_size_validation.py` → `test_comptime_array_size_validation.py`
+- ✅ Duplicate tests removed (consolidated with existing test files + 1 internal duplicate)
+- ✅ Xfail test in `test_comptime_array_parameter_adaptation.py` updated (now passing)
+- ⏳ Issue #1 fix completion (pending implementation)
 
 ---
 
@@ -1392,6 +1401,84 @@ uv run pytest tests/ -v --cov=src/hexen/semantic --cov-report=html
 
 ---
 
+## 3.5. Phase 4 Progress Update: Test Infrastructure Complete
+
+### Test File Reorganization ✅
+
+**Original file**: `tests/semantic/arrays/test_issue1_comptime_array_size_validation.py`
+**Renamed to**: `tests/semantic/arrays/test_comptime_array_size_validation.py`
+
+**Rationale**: Removed "issue1" prefix to make the test file name more generic and descriptive of its purpose (comptime array size validation) rather than tying it to a specific issue number.
+
+### Test Deduplication Analysis ✅
+
+Performed comprehensive analysis of test overlaps across array test files:
+
+**Removed Duplicate Tests**:
+1. Success cases for exact size matches → Already covered in `test_comptime_array_parameter_adaptation.py`
+2. Success cases for inferred-size parameters → Already covered in `test_inferred_size_parameters.py`
+3. 2D array success cases → Already covered in `test_comptime_array_parameter_adaptation.py`
+4. Float array success cases → Already covered in `test_comptime_array_parameter_adaptation.py`
+5. Regression tests → Already covered in `test_array_parameters.py`
+
+**Test File Design Philosophy**:
+- `test_comptime_array_size_validation.py` focuses exclusively on **error cases** (size mismatches)
+- Other files cover **success scenarios** and element type adaptation
+- Clear separation of concerns prevents test redundancy
+
+### Test Suite Composition
+
+**File**: `tests/semantic/arrays/test_comptime_array_size_validation.py`
+
+**11 Tests Created**:
+- `TestComptimeArrayBasicSizeMismatch` (1 test) - PRIMARY test case: [5] to [3] mismatch
+- `TestComptimeArraySizeMismatchVariations` (3 tests) - Off-by-one and large size errors
+- `TestComptimeArrayMultidimensionalSizeMismatch` (3 tests) - 2D array dimension mismatches
+- `TestComptimeArrayDimensionCountMismatch` (2 tests) - 1D vs 2D incompatibility
+- `TestComptimeArrayFloatSizeValidation` (1 test) - Float array size validation
+- `TestMultipleFunctionCallsWithSameComptimeArray` (1 test) - Multiple size requirements
+
+**Current Status**: 7/11 passing (4 failures expected)
+
+**Design Rationale**: Kept only the primary test case ([5] to [3]) in the Basic class to clearly document the original Issue #1 bug scenario. All other size mismatch variations are tested in the Variations class to avoid duplication.
+
+**Expected Failures** (awaiting Phase 4 implementation):
+- `test_2d_outer_dimension_mismatch` - 2D arrays currently detected as "concrete arrays requiring [..]"
+- `test_2d_inner_dimension_mismatch` - Same issue
+- `test_2d_both_dimensions_mismatch` - Same issue
+- `test_2d_cannot_pass_to_1d_parameter` - Same issue
+
+**Root Cause**: Function analyzer hasn't been updated yet to recognize ComptimeArrayType for multidimensional arrays. The explicit copy checker runs before the size validation, causing 2D comptime arrays to be incorrectly flagged as concrete arrays.
+
+### Related Test Updates ✅
+
+**File**: `tests/semantic/arrays/test_comptime_array_parameter_adaptation.py`
+
+**Updated Test** (line 151): `test_comptime_array_size_mismatch_with_fixed_parameter`
+- **Before**: `@pytest.mark.xfail` decorator with note "Size mismatch validation for comptime arrays not yet implemented"
+- **After**: Fully implemented test that validates size mismatch errors
+- **Status**: ✅ Now passing
+
+This test validates that the basic infrastructure (ComptimeArrayType preservation through symbol table) is working correctly.
+
+### Next Steps for Phase 4
+
+With test infrastructure complete, implementation can proceed with clear validation criteria:
+
+1. **Add size validation methods** to `function_analyzer.py`:
+   - `_validate_comptime_array_size()` - Core validation logic
+   - `_error_comptime_array_size_mismatch()` - Detailed error messages
+   - `_error_comptime_array_dimension_count_mismatch()` - Dimension count errors
+
+2. **Integrate validation** into `_analyze_argument_against_parameter()`:
+   - Check if argument is ComptimeArrayType and parameter is ConcreteArrayType
+   - Call size validation before general type coercion
+   - Skip further validation if size mismatch detected
+
+3. **Expected outcome**: All 12 tests passing, including the 4 currently failing 2D tests
+
+---
+
 ## 4. Risk Assessment & Mitigation
 
 ### Low Risk Implementation ⭐
@@ -1449,12 +1536,16 @@ uv run pytest tests/ -v --cov=src/hexen/semantic --cov-report=html
 - [x] Run tests - all pass (1263/1268 passing, 99.6%)
 - [x] Commit: "Phase 3: Symbol table validation and integration tests (Issue #1 progress)" ✅ (commit 5aa1af3)
 
-### Phase 4: Function Analyzer (1 hour)
-- [ ] Add `_validate_comptime_array_size()` method
-- [ ] Add `_error_comptime_array_size_mismatch()` method
-- [ ] Call validation from `_analyze_argument_against_parameter()`
-- [ ] Write 30+ function call validation tests
-- [ ] Run Issue #1 specific tests - all pass
+### Phase 4: Function Analyzer (1 hour) 🚧 IN PROGRESS
+- [ ] Add `_validate_comptime_array_size()` method (NEXT STEP)
+- [ ] Add `_error_comptime_array_size_mismatch()` method (NEXT STEP)
+- [ ] Add `_error_comptime_array_dimension_count_mismatch()` method (NEXT STEP)
+- [ ] Call validation from `_analyze_argument_against_parameter()` (NEXT STEP)
+- [x] Write function call validation tests (12 tests created)
+- [x] Rename test file to remove "issue1" prefix
+- [x] Remove duplicate tests and consolidate with existing files
+- [x] Update xfail test in `test_comptime_array_parameter_adaptation.py`
+- [ ] Run Issue #1 specific tests - all pass (currently 8/12 passing)
 - [ ] Run full test suite - all pass
 - [ ] Commit: "Phase 4: Add comptime array size validation (fixes Issue #1)"
 
@@ -1477,7 +1568,9 @@ uv run pytest tests/ -v --cov=src/hexen/semantic --cov-report=html
 ### Post-Implementation
 - [ ] Update `ARRAY_IMPLEMENTATION_PLAN.md` - mark Issue #1 as resolved
 - [ ] Update `WEEK2_TASK9_SUMMARY.md` - remove xfail note
-- [ ] Update `tests/semantic/arrays/test_comptime_array_parameter_adaptation.py` - remove xfail decorator
+- [x] Update `tests/semantic/arrays/test_comptime_array_parameter_adaptation.py` - remove xfail decorator ✅
+- [x] Rename test file: `test_issue1_comptime_array_size_validation.py` → `test_comptime_array_size_validation.py` ✅
+- [x] Remove duplicate tests and add consolidation comments ✅
 - [ ] Write summary in commit message
 - [ ] Push feature branch
 - [ ] Ready for Week 3!

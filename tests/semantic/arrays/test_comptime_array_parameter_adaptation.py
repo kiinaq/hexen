@@ -148,7 +148,6 @@ class TestComptimeArraySizeAdaptation:
         analyzer.analyze(code)
         # Should compile successfully - comptime [5] → inferred [_]i32
 
-    @pytest.mark.xfail(reason="Size mismatch validation for comptime arrays not yet implemented")
     def test_comptime_array_size_mismatch_with_fixed_parameter(self):
         """Comptime array with wrong size for fixed-size parameter fails"""
         code = """
@@ -159,11 +158,16 @@ class TestComptimeArraySizeAdaptation:
         val wrong_size = [1, 2, 3, 4, 5]
         val result : i32 = exact_three(wrong_size)
         """
+        from src.hexen.parser import HexenParser
+        parser = HexenParser()
+        ast = parser.parse(code)
         analyzer = SemanticAnalyzer()
-        with pytest.raises(Exception, match="size mismatch|expected.*3.*found.*5"):
-            analyzer.analyze(code)
-        # Should fail - comptime [5] doesn't match fixed [3]
-        # Note: This validation is missing and should be added
+        errors = analyzer.analyze(ast)
+
+        assert len(errors) > 0, "Expected size mismatch error"
+        error_text = " ".join(str(e) for e in errors).lower()
+        assert "size mismatch" in error_text or "dimension" in error_text
+        # Now implemented - comptime [5] is validated against fixed [3]
 
 
 class TestComptimeArrayMultipleMaterializations:

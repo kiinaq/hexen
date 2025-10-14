@@ -11,13 +11,13 @@ Handles all expression analysis including:
 Implements the context-guided resolution strategy from TYPE_SYSTEM.md and BINARY_OPS.md.
 """
 
-from typing import Dict, Optional, Callable, List
+from typing import Dict, Optional, Callable, List, Union
 
 from .arrays.literal_analyzer import ArrayLiteralAnalyzer
 from .type_util import (
     infer_type_from_value,
 )
-from .types import HexenType
+from .types import HexenType, ComptimeArrayType, ConcreteArrayType
 from ..ast_nodes import NodeType
 
 
@@ -71,8 +71,8 @@ class ExpressionAnalyzer:
         self.array_literal_analyzer._analyze_expression = self.analyze_expression
 
     def analyze_expression(
-        self, node: Dict, target_type: Optional[HexenType] = None
-    ) -> HexenType:
+        self, node: Dict, target_type: Optional[Union[HexenType, ConcreteArrayType, ComptimeArrayType]] = None
+    ) -> Union[HexenType, ConcreteArrayType, ComptimeArrayType]:
         """
         Analyze an expression and return its type.
 
@@ -88,8 +88,8 @@ class ExpressionAnalyzer:
         return self._dispatch_expression_analysis(expr_type, node, target_type)
 
     def _dispatch_expression_analysis(
-        self, expr_type: str, node: Dict, target_type: Optional[HexenType]
-    ) -> HexenType:
+        self, expr_type: str, node: Dict, target_type: Optional[Union[HexenType, ConcreteArrayType, ComptimeArrayType]]
+    ) -> Union[HexenType, ConcreteArrayType, ComptimeArrayType]:
         """
         Dispatch expression analysis to appropriate handler.
 
@@ -154,7 +154,7 @@ class ExpressionAnalyzer:
             self._error(f"Unknown expression type: {expr_type}", node)
             return HexenType.UNKNOWN
 
-    def _analyze_identifier(self, node: Dict) -> HexenType:
+    def _analyze_identifier(self, node: Dict) -> Union[HexenType, ConcreteArrayType, ComptimeArrayType]:
         """
         Analyze an identifier reference (variable usage).
 
