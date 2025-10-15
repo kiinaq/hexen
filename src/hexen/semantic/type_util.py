@@ -206,6 +206,19 @@ def can_coerce(
             return to_type.element_type in {HexenType.F32, HexenType.F64}
         return False
 
+    # PHASE 5 ADDITION: Handle ComptimeArrayType → ComptimeArrayType coercion
+    if isinstance(from_type, ComptimeArrayType) and isinstance(to_type, ComptimeArrayType):
+        # Both comptime arrays - check if dimensions and element types match exactly
+        return (
+            from_type.dimensions == to_type.dimensions
+            and from_type.element_comptime_type == to_type.element_comptime_type
+        )
+
+    # PHASE 5 ADDITION: Handle ComptimeArrayType → HexenType (invalid coercion)
+    if isinstance(from_type, ComptimeArrayType) and isinstance(to_type, HexenType):
+        # Cannot coerce array to scalar type
+        return False
+
     # Handle ConcreteArrayType cases
     if isinstance(to_type, ConcreteArrayType):
         # Comptime array types can coerce to compatible ConcreteArrayType
