@@ -58,7 +58,7 @@ class TestFunctionCallDetection:
         
         func test() : i32 = {
             val result : i32 = {  // Explicit type required for runtime block
-                val computed = helper()  // Function call should trigger runtime
+                val computed : i32 = helper()  // Function call should trigger runtime
                 -> computed
             }
             return result
@@ -83,7 +83,7 @@ class TestFunctionCallDetection:
         
         func test() : i32 = {
             val result : i32 = {  // Explicit type required for runtime block (contains function calls)
-                val computed = add(multiply(2, 3), 4)  // Nested function calls
+                val computed : i32 = add(multiply(2, 3), 4)  // Nested function calls
                 -> computed
             }
             return result
@@ -104,7 +104,7 @@ class TestFunctionCallDetection:
         
         func test() : i32 = {
             val result : i32 = {  // Explicit type required for runtime block (contains function call)
-                val computed = getValue() + 42  // Function call in binary operation
+                val computed : i32 = getValue() + 42  // Function call in binary operation
                 -> computed
             }
             return result
@@ -271,7 +271,7 @@ class TestCombinedRuntimeOperations:
         
         func test() : i32 = {
             val result : i32 = {  // Explicit type required for runtime block
-                val input = getValue()  // Function call
+                val input : i32 = getValue()  // Function call
                 if input > 20 {         // Conditional
                     val adjusted = input * 2
                 } else {
@@ -326,7 +326,7 @@ class TestCombinedRuntimeOperations:
         func test() : i32 = {
             val concrete_input : i32 = 10  // Concrete variable
             val result : i32 = {  // Explicit type required for runtime block
-                val computed = calculate(concrete_input)  // Function call with concrete arg
+                val computed : i32 = calculate(concrete_input)  // Function call with concrete arg
                 if validate(computed) {                    // Function call in condition
                     val final_result = computed + concrete_input  // Uses concrete variable
                 } else {
@@ -360,7 +360,7 @@ class TestRuntimeOperationValidation:
         
         func test() : i32 = {
             val result : i32 = {  // Explicit type required for runtime block
-                val computed = helper()
+                val computed : i32 = helper()
                 if computed > 20 {
                     val adjusted = computed * 2
                 }

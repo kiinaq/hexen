@@ -1134,8 +1134,8 @@ class TestComplexIntegrationPatterns:
         func apply_correction(value: f64) : f64 = { return value + 1.0 }
         
         func process_data_pipeline(input: f64) : f64 = {
-            val transformed = transform_data(input)
-            
+            val transformed : f64 = transform_data(input)
+
             val result = if validate_result(transformed) {
                 val corrected = if transformed > 100.0 {
                     -> apply_correction(transformed)
@@ -1252,11 +1252,11 @@ class TestRealWorldScenarios:
         func get_default_config() : i32 = { return 400 }  // DEFAULT_CONFIG ID
         
         func load_application_config() : i32 = {
-            val environment = get_environment()
-            
+            val environment : i32 = get_environment()
+
             if environment == 1 {  // 1 = production
                 if production_config_exists() {
-                    val config = load_production_config()
+                    val config : i32 = load_production_config()
                     if validate_config(config) {
                         return config
                     } else {
@@ -1289,7 +1289,7 @@ class TestRealWorldScenarios:
         func advanced_mathematical_processor(input: f64, precision_mode: i32, enable_caching: bool) : f64 = {
             // Cache check first
             if enable_caching {
-                val cached = check_cache(input, precision_mode)
+                val cached : f64 = check_cache(input, precision_mode)
                 if cached >= 0.0 {
                     return cached      // Early exit: cache hit
                 }

@@ -58,7 +58,7 @@ class TestUnifiedBlockSystemIntegration:
         
         func test_runtime_type_annotation_required() : void = {
             val runtime_result = {              // Should require explicit type annotation
-                val user_input = get_user_input()     // Function call -> runtime block returns i64
+                val user_input : i64 = get_user_input()     // Function call -> runtime block returns i64
                 val base : i32 = 42                   // concrete i32
                 -> base + user_input              // Mixed concrete types i32 + i64 should error
             }
@@ -110,7 +110,7 @@ class TestUnifiedBlockSystemIntegration:
                 }
                 
                 val runtime_block : i32 = {
-                    val helper_result = helper()  // Function call -> runtime
+                    val helper_result : i32 = helper()  // Function call -> runtime
                     -> helper_result
                 }
                 
@@ -143,16 +143,16 @@ class TestUnifiedBlockSystemIntegration:
         
         func expensive_calc(key: string) : f64 = {
             val result : f64 = {
-                val cached = lookup_cache(key)
+                val cached : f64 = lookup_cache(key)
                 if cached != 0.0 {
                     return cached      // Early exit: cache hit
                 }
-                
-                val computed = very_expensive_operation(key)
+
+                val computed : f64 = very_expensive_operation(key)
                 save_to_cache(key, computed)
                 -> computed        // Cache miss: -> computed value
             }
-            
+
             log_cache_miss(key)        // Only executes on cache miss
             return result
         }
@@ -169,7 +169,7 @@ class TestUnifiedBlockSystemIntegration:
         
         func safe_processing() : f64 = {
             val validated_input : f64 = {
-                val raw_input = get_user_input()
+                val raw_input : f64 = get_user_input()
                 if raw_input < 0.0 {
                     return -1.0        // Early function exit with error
                 }
@@ -200,7 +200,7 @@ class TestUnifiedBlockSystemIntegration:
             }
             
             val runtime_calculations : f64 = {
-                val user_deductions = get_deductions()  // Function call -> runtime
+                val user_deductions : f64 = get_deductions()  // Function call -> runtime
                 val taxable = income - user_deductions
                 -> calculate_tax(taxable)
             }
@@ -353,7 +353,7 @@ class TestSpecificationComplianceValidation:
         func test_function_calls() : void = {
             // Block with function call requires explicit type annotation
             val runtime_block : i32 = {
-                val value = get_value()  // Function call → runtime
+                val value : i32 = get_value()  // Function call → runtime
                 -> value
             }
             
@@ -372,7 +372,7 @@ class TestSpecificationComplianceValidation:
         func test_mixed_blocks() : void = {
             val mixed_block : i32 = {
                 val comptime_val = 42              // comptime_int
-                val runtime_val = get_runtime_value() // Function call → concrete i32
+                val runtime_val : i32 = get_runtime_value() // Function call → concrete i32
                 -> comptime_val + runtime_val   // Mixed: comptime + concrete
             }
             
@@ -439,7 +439,7 @@ class TestSessionIntegrationValidation:
         func test_session2() : void = {
             // Function call detection
             val with_function : i32 = {
-                val result = helper()
+                val result : i32 = helper()
                 -> result
             }
             

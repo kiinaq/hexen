@@ -27,7 +27,7 @@ class TestRuntimeBlockErrorMessages:
         
         func test() : void = {
             val result = {
-                val input = get_value()
+                val input : i32 = get_value()
                 -> input * 2
             }
             return
@@ -252,7 +252,7 @@ class TestExpressionBlockErrorMessages:
         
         func test() : void = {
             val computation = {
-                val base = get_input()
+                val base : i32 = get_input()
                 val scaled = base * 2
                 -> scaled
             }
@@ -506,7 +506,7 @@ class TestErrorMessageQuality:
             val b : i64 = 20
             val mixed_result : i64 = a + b        // Error 1: Mixed concrete types
             val runtime_result = {                // Error 2: Missing context
-                val x = get_val()
+                val x : i32 = get_val()
                 -> x * 2
             }
             return

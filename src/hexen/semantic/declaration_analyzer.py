@@ -366,6 +366,22 @@ class DeclarationAnalyzer:
                 )
                 return
 
+            # NEW RULE: Function call return values require explicit type annotation
+            # Functions always return concrete types (never comptime types)
+            # This makes the concrete type explicit and visible at the call site
+            # Improves code clarity and aligns with "Transparent Costs" philosophy
+            if value.get("type") == NodeType.FUNCTION_CALL.value:
+                function_name = value.get("name", "<unknown>")
+                self._error(
+                    f"Function call return values require explicit type annotation. "
+                    f"Variable '{name}' is assigned result of function '{function_name}()' without explicit type. "
+                    f"Functions always return concrete types (never comptime types). "
+                    f"Use explicit type annotation: 'val {name} : type = {function_name}(...)' "
+                    f"(see CLAUDE.md: Function System - Function Call Return Value Type Annotations)",
+                    node,
+                )
+                return
+
             inferred_type = self._analyze_expression(value)
 
             # Runtime blocks without explicit type annotation should trigger enhanced error

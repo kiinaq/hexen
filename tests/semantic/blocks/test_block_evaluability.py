@@ -361,7 +361,7 @@ class TestSession1FoundationComplete:
         }
         
         func main() : void = {
-            val fact5 = factorial(5)
+            val fact5 : i32 = factorial(5)
             mut counter : i32 = 0
             counter = fact5
         }

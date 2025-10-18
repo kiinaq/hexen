@@ -982,6 +982,56 @@ val float_val : f64 = 3.14
 val result2 : f64 = mixed_calculation(large_val:i32, float_val, float_val:f32)
 ```
 
+### Function Call Return Value Type Annotations
+
+**IMPORTANT RULE**: Function call return values **ALWAYS require explicit type annotations** when assigned to `val` variables, even for identity assignments.
+
+**Why this rule exists:**
+1. Functions always return concrete types (never comptime types)
+2. Makes the concrete type explicit and visible at the call site
+3. Improves code clarity and aligns with the "Transparent Costs" philosophy
+4. Consistent with FUNCTION_SYSTEM.md specification examples
+
+```hexen
+func get_value() : i32 = {
+    return 42
+}
+
+func calculate(x: i32, y: i32) : i32 = {
+    return x + y
+}
+
+func get_ratio() : f64 = {
+    return 3.14
+}
+
+// ❌ INCORRECT: Missing explicit type annotation (even though it's i32 → i32 identity)
+// val result = get_value()
+
+// ✅ CORRECT: Explicit type annotation required for all function call assignments
+val result : i32 = get_value()
+
+// ✅ CORRECT: Explicit type for all function calls
+val sum : i32 = calculate(10, 20)
+val ratio : f64 = get_ratio()
+
+// ✅ CORRECT: Nested function calls also require explicit types
+val nested : i32 = calculate(get_value(), 10)
+
+// ✅ CORRECT: Function calls in expression blocks
+val block_result : i32 = {
+    val temp : i32 = get_value()  // Explicit type required
+    -> temp * 2
+}
+```
+
+**Exception**: Function calls in `return` statements don't need explicit types (the function's return type provides context):
+```hexen
+func wrapper() : i32 = {
+    return get_value()  // ✅ OK: Function return type provides context
+}
+```
+
 ### Integration with Return Types
 
 Function return types provide context for comptime type resolution in return statements:

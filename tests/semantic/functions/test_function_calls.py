@@ -41,7 +41,7 @@ class TestValidFunctionCalls(StandardTestBase):
         }
         
         func main() : i32 = {
-            val result = get_value()
+            val result : i32 = get_value()
             return result
         }
         """
@@ -57,7 +57,7 @@ class TestValidFunctionCalls(StandardTestBase):
         }
         
         func main() : i32 = {
-            val result = double_value(21)
+            val result : i32 = double_value(21)
             return result
         }
         """
@@ -73,7 +73,7 @@ class TestValidFunctionCalls(StandardTestBase):
         }
         
         func main() : i32 = {
-            val result = add_three(10, 20, 30)
+            val result : i32 = add_three(10, 20, 30)
             return result
         }
         """
@@ -96,7 +96,7 @@ class TestValidFunctionCalls(StandardTestBase):
         }
         
         func main() : i32 = {
-            val result = process_all(1, 2, 3.0, 4.0, "text", true)
+            val result : i32 = process_all(1, 2, 3.0, 4.0, "text", true)
             return result
         }
         """
@@ -116,7 +116,7 @@ class TestValidFunctionCalls(StandardTestBase):
         }
         
         func main() : i32 = {
-            val result = outer(inner(10))
+            val result : i32 = outer(inner(10))
             return result
         }
         """
@@ -149,7 +149,7 @@ class TestValidFunctionCalls(StandardTestBase):
         func main() : i32 = {
             val x = 6
             val y = 7
-            val result = multiply(x, y)
+            val result : i32 = multiply(x, y)
             return result
         }
         """
@@ -170,7 +170,7 @@ class TestTypeSystemIntegration(StandardTestBase):
         
         func main() : i32 = {
             // Comptime literals adapt to parameter types
-            val result = test_adaptation(42, 100, 3.14)
+            val result : i32 = test_adaptation(42, 100, 3.14)
             return result
         }
         """
@@ -188,7 +188,7 @@ class TestTypeSystemIntegration(StandardTestBase):
         func main() : i32 = {
             val x : i32 = 10
             val y : i32 = 20
-            val result = process_concrete(x, y)
+            val result : i32 = process_concrete(x, y)
             return result
         }
         """
@@ -206,9 +206,9 @@ class TestTypeSystemIntegration(StandardTestBase):
         func main() : i32 = {
             val long_val : i64 = 1000
             val int_val : i32 = 100
-            
+
             // Explicit conversion required for i64 -> i32
-            val result = mixed_params(long_val:i32, int_val:i64)
+            val result : i32 = mixed_params(long_val:i32, int_val:i64)
             return result
         }
         """
@@ -228,8 +228,8 @@ class TestTypeSystemIntegration(StandardTestBase):
         }
         
         func main() : i32 = {
-            val f1 = get_float()
-            val f2 = get_precise()
+            val f1 : f64 = get_float()
+            val f2 : f32 = get_precise()
             return 0
         }
         """
@@ -247,7 +247,7 @@ class TestTypeSystemIntegration(StandardTestBase):
         func main() : i32 = {
             // Comptime expression stays flexible until function call
             val math_expr = 42 + 100  // comptime_int (preserved)
-            val result = calculate(math_expr, 2.5)  // adapts to f64
+            val result : f64 = calculate(math_expr, 2.5)  // adapts to f64
             return 0
         }
         """
@@ -265,9 +265,9 @@ class TestTypeSystemIntegration(StandardTestBase):
         func main() : i32 = {
             val concrete_int : i32 = 50
             val concrete_float : f64 = 2.5
-            
+
             // Mix comptime and concrete arguments
-            val result = mixed_types(concrete_int, concrete_float, 1000)
+            val result : i32 = mixed_types(concrete_int, concrete_float, 1000)
             return result
         }
         """
@@ -289,7 +289,7 @@ class TestComplexArgumentHandling(StandardTestBase):
         func main() : i32 = {
             val a = 10
             val b = 20
-            val result = compute(a + b, 3.14 * 2.0)
+            val result : f64 = compute(a + b, 3.14 * 2.0)
             return 0
         }
         """
@@ -306,9 +306,9 @@ class TestComplexArgumentHandling(StandardTestBase):
         
         func main() : i32 = {
             val double_val : f64 = 3.14159
-            
+
             // Explicit precision loss conversion
-            val result = precise_calc(double_val:f32)
+            val result : f32 = precise_calc(double_val:f32)
             return 0
         }
         """
@@ -326,9 +326,9 @@ class TestComplexArgumentHandling(StandardTestBase):
         func main() : i32 = {
             val x = 10
             val y = 3.14
-            
+
             // Complex nested expression arguments
-            val result = complex_func(
+            val result : f64 = complex_func(
                 (x + 5):f64 * y,
                 (x * 2) + 1,
                 y * 2.0 + 1.5
@@ -349,7 +349,7 @@ class TestComplexArgumentHandling(StandardTestBase):
         
         func main() : i32 = {
             val result : i32 = {  // Explicit type required for runtime block (contains function call)
-                val temp = helper(5)
+                val temp : i32 = helper(5)
                 -> temp * 2
             }
             return result
@@ -372,7 +372,7 @@ class TestComplexArgumentHandling(StandardTestBase):
         
         func main() : i32 = {
             // Multiple function calls in same expression
-            val result = add_two(multiply(2, 3), multiply(4, 5))
+            val result : i32 = add_two(multiply(2, 3), multiply(4, 5))
             return result
         }
         """
@@ -393,7 +393,7 @@ class TestComplexArgumentHandling(StandardTestBase):
         
         func main() : i32 = {
             // Void functions can be called but can't be assigned to variables
-            val result = get_result()  // Valid: non-void function
+            val result : i32 = get_result()  // Valid: non-void function
             return result
         }
         """
@@ -409,7 +409,7 @@ class TestFunctionCallErrors(StandardTestBase):
         """Test calling undefined function"""
         source = """
         func main() : i32 = {
-            val result = undefined_function()
+            val result : i32 = undefined_function()
             return result
         }
         """
@@ -423,9 +423,9 @@ class TestFunctionCallErrors(StandardTestBase):
         func add_numbers(a: i32, b: i32, c: i32) : i32 = {
             return a + b + c
         }
-        
+
         func main() : i32 = {
-            val result = add_numbers(10, 20)  // Missing third argument
+            val result : i32 = add_numbers(10, 20)  // Missing third argument
             return result
         }
         """
@@ -441,9 +441,9 @@ class TestFunctionCallErrors(StandardTestBase):
         func simple_add(x: i32, y: i32) : i32 = {
             return x + y
         }
-        
+
         func main() : i32 = {
-            val result = simple_add(10, 20, 30)  // Extra argument
+            val result : i32 = simple_add(10, 20, 30)  // Extra argument
             return result
         }
         """
@@ -459,12 +459,12 @@ class TestFunctionCallErrors(StandardTestBase):
         func process_int(value: i32) : i32 = {
             return value + 1
         }
-        
+
         func main() : i32 = {
             val large_value : i64 = 9223372036854775807
-            
+
             // i64 -> i32 requires explicit conversion
-            val result = process_int(large_value)
+            val result : i32 = process_int(large_value)
             return result
         }
         """
@@ -482,12 +482,12 @@ class TestFunctionCallErrors(StandardTestBase):
         func process_float(value: f32) : f32 = {
             return value * 2.0:f32
         }
-        
+
         func main() : i32 = {
             val high_precision : f64 = 3.141592653589793
-            
+
             // f64 -> f32 requires explicit conversion (precision loss)
-            val result = process_float(high_precision)
+            val result : f32 = process_float(high_precision)
             return 0
         }
         """
@@ -504,14 +504,14 @@ class TestFunctionCallErrors(StandardTestBase):
         func multi_param(a: i32, b: f32, c: i64) : i32 = {
             return 0
         }
-        
+
         func main() : i32 = {
             val wrong_a : i64 = 100  // Wrong type for param a
             val wrong_b : f64 = 2.5  // Wrong type for param b
             val correct_c : i64 = 300
-            
+
             // Multiple type errors
-            val result = multi_param(wrong_a, wrong_b, correct_c)
+            val result : i32 = multi_param(wrong_a, wrong_b, correct_c)
             return result
         }
         """
@@ -555,12 +555,12 @@ class TestAdvancedFunctionCallScenarios(StandardTestBase):
         source = """
         func factorial(n: i32) : i32 = {
             // Simplified recursive call for testing - just validate the call works
-            val result = factorial(n - 1)  // Recursive call
+            val result : i32 = factorial(n - 1)  // Recursive call
             return result + 1
         }
-        
+
         func main() : i32 = {
-            val result = factorial(5)
+            val result : i32 = factorial(5)
             return result
         }
         """
@@ -581,9 +581,9 @@ class TestAdvancedFunctionCallScenarios(StandardTestBase):
         }
         
         func main() : i32 = {
-            val result1 = validate_and_process(-5)   
-            val result2 = validate_and_process(50)   
-            val result3 = validate_and_process(2000) 
+            val result1 : i32 = validate_and_process(-5)
+            val result2 : i32 = validate_and_process(50)
+            val result3 : i32 = validate_and_process(2000)
             return result1 + result2 + result3
         }
         """
@@ -608,13 +608,13 @@ class TestAdvancedFunctionCallScenarios(StandardTestBase):
         
         func main() : i32 = {
             // Function composition: square(multiply_by_two(add_ten(5)))
-            val step1 = add_ten(5)          // 15
-            val step2 = multiply_by_two(step1)  // 30
-            val step3 = square(step2)       // 900
-            
+            val step1 : i32 = add_ten(5)          // 15
+            val step2 : i32 = multiply_by_two(step1)  // 30
+            val step3 : i32 = square(step2)       // 900
+
             // Nested composition
-            val composed = square(multiply_by_two(add_ten(5)))
-            
+            val composed : i32 = square(multiply_by_two(add_ten(5)))
+
             return composed
         }
         """
@@ -635,7 +635,7 @@ class TestAdvancedFunctionCallScenarios(StandardTestBase):
         }
         
         func main() : i32 = {
-            val result = process_data(10, 5)
+            val result : i32 = process_data(10, 5)
             return result
         }
         """
@@ -655,18 +655,166 @@ class TestAdvancedFunctionCallScenarios(StandardTestBase):
         }
         
         func main() : i32 = {
-            // Type inference should work with function call results
-            val inferred_int = get_int()     // Should infer i32
-            val inferred_float = get_float() // Should infer f64
-            
+            // Explicit types required for function call results
+            val inferred_int : i32 = get_int()
+            val inferred_float : f64 = get_float()
+
             // Use in expressions
-            val combined = inferred_int:f64 + inferred_float
+            val combined : f64 = inferred_int:f64 + inferred_float
             return 0
         }
         """
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
         assert_no_errors(errors)
+
+
+class TestFunctionCallExplicitTypeRequirement(StandardTestBase):
+    """Test that function call return values require explicit type annotations"""
+
+    def test_missing_type_annotation_simple_function(self):
+        """Test error when missing type annotation on simple function call"""
+        source = """
+        func get_value() : i32 = {
+            return 42
+        }
+
+        func main() : i32 = {
+            val result = get_value()  // Missing explicit type annotation
+            return result
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+        assert_error_contains(
+            errors,
+            "Function call return values require explicit type annotation",
+        )
+
+    def test_missing_type_annotation_with_parameters(self):
+        """Test error when missing type annotation on function with parameters"""
+        source = """
+        func add_numbers(a: i32, b: i32) : i32 = {
+            return a + b
+        }
+
+        func main() : i32 = {
+            val sum = add_numbers(10, 20)  // Missing explicit type annotation
+            return sum
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+        assert_error_contains(
+            errors,
+            "Function call return values require explicit type annotation",
+        )
+
+    def test_missing_type_annotation_float_return(self):
+        """Test error when missing type annotation on float-returning function"""
+        source = """
+        func get_ratio() : f64 = {
+            return 3.14
+        }
+
+        func main() : i32 = {
+            val ratio = get_ratio()  // Missing explicit type annotation
+            return 0
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+        assert_error_contains(
+            errors,
+            "Function call return values require explicit type annotation",
+        )
+
+    def test_missing_type_annotation_nested_call(self):
+        """Test error when missing type annotation on nested function call result"""
+        source = """
+        func inner(x: i32) : i32 = {
+            return x + 1
+        }
+
+        func outer(y: i32) : i32 = {
+            return y * 2
+        }
+
+        func main() : i32 = {
+            val intermediate = inner(10)  // Missing explicit type annotation
+            val result : i32 = outer(intermediate)
+            return result
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+        assert_error_contains(
+            errors,
+            "Function call return values require explicit type annotation",
+        )
+
+    def test_missing_type_annotation_in_expression_block(self):
+        """Test error when missing type annotation on function call in expression block"""
+        source = """
+        func helper(x: i32) : i32 = {
+            return x + 10
+        }
+
+        func main() : i32 = {
+            val result : i32 = {
+                val temp = helper(5)  // Missing explicit type annotation
+                -> temp * 2
+            }
+            return result
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+        assert_error_contains(
+            errors,
+            "Function call return values require explicit type annotation",
+        )
+
+    def test_missing_type_annotation_multiple_calls(self):
+        """Test errors for multiple function calls missing type annotations"""
+        source = """
+        func get_value() : i32 = {
+            return 42
+        }
+
+        func main() : i32 = {
+            val first = get_value()   // Missing explicit type annotation
+            val second = get_value()  // Missing explicit type annotation
+            return first + second
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+        # Should have at least 2 errors (one for each missing annotation)
+        assert len(errors) >= 2
+        assert_error_contains(
+            errors,
+            "Function call return values require explicit type annotation",
+        )
+
+    def test_explicit_type_annotation_required_even_for_identity(self):
+        """Test that explicit type is required even when types match (i32 -> i32)"""
+        source = """
+        func get_int() : i32 = {
+            return 42
+        }
+
+        func main() : i32 = {
+            val value = get_int()  // Missing type even though it's i32 -> i32 identity
+            return value
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+        assert_error_contains(
+            errors,
+            "Function call return values require explicit type annotation",
+        )
 
 
 class TestFunctionCallIntegrationWithExistingFeatures(StandardTestBase):
@@ -683,9 +831,9 @@ class TestFunctionCallIntegrationWithExistingFeatures(StandardTestBase):
         ) : i32 = {
             return 1
         }
-        
+
         func main() : i32 = {
-            val result = process_literals(42, 3.14, "hello", true)
+            val result : i32 = process_literals(42, 3.14, "hello", true)
             return result
         }
         """
@@ -701,7 +849,7 @@ class TestFunctionCallIntegrationWithExistingFeatures(StandardTestBase):
         }
         
         func main() : i32 = {
-            val result = process_unary(-42, -3.14, !true)
+            val result : i32 = process_unary(-42, -3.14, !true)
             return result
         }
         """
@@ -722,9 +870,9 @@ class TestFunctionCallIntegrationWithExistingFeatures(StandardTestBase):
         }
         
         func main() : i32 = {
-            val result = math_operations(
+            val result : i32 = math_operations(
                 10 + 20,        // Addition
-                3.14 * 2.0,     // Multiplication  
+                3.14 * 2.0,     // Multiplication
                 10.0 / 3.0,     // Float division
                 5 > 3           // Comparison
             )
@@ -743,16 +891,16 @@ class TestFunctionCallIntegrationWithExistingFeatures(StandardTestBase):
         }
         
         func main() : i32 = {
-            // Direct assignment
-            val direct = get_value()
-            
+            // Direct assignment with explicit type
+            val direct : i32 = get_value()
+
             // Assignment with explicit type
             val explicit : i32 = get_value()
-            
+
             // Mutable variable assignment
             mut changeable : i32 = get_value()
             changeable = get_value()  // Reassignment
-            
+
             return direct + explicit + changeable
         }
         """
@@ -770,16 +918,16 @@ class TestFunctionCallIntegrationWithExistingFeatures(StandardTestBase):
         func main() : i32 = {
             // Function calls in expression blocks
             val expr_block_result : i32 = {  // Explicit type required for runtime block (contains function call)
-                val temp = helper(10)
+                val temp : i32 = helper(10)
                 -> temp * 2
             }
-            
+
             // Function calls in statement blocks
             {
-                val local = helper(5)
+                val local : i32 = helper(5)
                 // Statement block - no value production
             }
-            
+
             // Function calls in function return
             return helper(expr_block_result)
         }

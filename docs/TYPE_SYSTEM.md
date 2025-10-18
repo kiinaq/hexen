@@ -72,7 +72,7 @@ This distinction serves important design goals:
 ```hexen
 // ✅ Good usage patterns
 val config_file = "app.toml"        // Configuration - doesn't change
-val result = compute_expensive()     // Computed result - doesn't change  
+val result : i32 = compute_expensive()     // Computed result - explicit type required for function calls
 mut counter : i32 = 0               // Counter - will be incremented
 mut buffer : string = ""            // Buffer - will be appended to
 
@@ -767,9 +767,13 @@ val result : f64 = (int_val:f64 + float_val:f64) / 2.0:f64
 val mixed : i32 = (a:i32 + b:i32) * c:i32
 val complex : f32 = sqrt(x:f32 * x:f32 + y:f32 * y:f32)
 
-// Conversions with function calls
-val processed : i64 = compute_value():i64
-val formatted : string = format_number(value:f64)
+// Function calls with explicit type annotations
+val direct_call : i32 = compute_value()        // Explicit type required for function calls
+val formatted : string = format_number(value:f64)  // Function argument conversion
+
+// If function returns different type, variable annotation determines the type
+val i64_result : i64 = get_i64_value()         // Function returns i64, variable is i64
+val converted : i32 = i64_result:i32           // Conversion: i64 → i32 (explicit cost visible)
 ```
 
 **Key Points:**
@@ -995,13 +999,13 @@ func demonstrate_type_system() : void = {
     val complex_init : i32 = {
         // Setup work (scoped)
         {
-            val config = load_config()
+            val config : string = load_config()
             validate_system(config)
         }
-        
-        // Complex computation with explicit conversions
-        val base = expensive_computation():i32
-        val factor = get_dynamic_factor():i32
+
+        // Complex computation - explicit types required for function call results
+        val base : i32 = expensive_computation()
+        val factor : i32 = get_dynamic_factor()
         return base * factor
     }
     

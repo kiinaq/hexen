@@ -139,7 +139,7 @@ class TestRuntimeBlockContextResolution:
         
         func test_runtime() : i32 = {
             val result : i32 = {  // Explicit type required for runtime block (contains function call)
-                val computed = helper()  // Function call triggers runtime
+                val computed : i32 = helper()  // Function call triggers runtime
                 -> computed
             }
             return result
@@ -164,7 +164,7 @@ class TestRuntimeBlockContextResolution:
         func test_mixed() : i32 = {
             val result : i32 = {  // Explicit type required for runtime block
                 val base = 42              // comptime_int
-                val runtime_mult = get_multiplier()  // runtime function call
+                val runtime_mult : i32 = get_multiplier()  // runtime function call
                 val combined = base * runtime_mult   // mixed operation (comptime adapts to runtime_mult's i32)
                 -> combined
             }
@@ -289,7 +289,7 @@ class TestNestedExpressionBlocks:
                     val calc = 42 * 2
                     -> calc  // Compile-time evaluable -> comptime_int
                 }
-                val runtime_part = get_base()  // Runtime function call -> i32
+                val runtime_part : i32 = get_base()  // Runtime function call -> i32
                 val combined = comptime_part + runtime_part  // comptime_int + i32 -> i32 (comptime adapts)
                 -> combined:f64  // Explicit conversion to match block type
             }
@@ -449,7 +449,7 @@ class TestComptimePreservationFoundationComplete:
             
             // Runtime block with function call - explicit type required
             val runtime_calc : f64 = {
-                val runtime_val = helper(10)  // Function call triggers runtime
+                val runtime_val : i32 = helper(10)  // Function call triggers runtime
                 val combined = runtime_val:f64 + comptime_calc  // Explicit conversion for mixed types
                 -> combined
             }

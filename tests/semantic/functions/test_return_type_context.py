@@ -338,7 +338,7 @@ class TestUnifiedBlockSystemIntegration:
         
         func simple_pattern(value: f64) : f64 = {
             val result : f64 = {  // Explicit type required for runtime block
-                val computed = expensive_operation(value)
+                val computed : f64 = expensive_operation(value)
                 -> computed
             }
             return result
@@ -392,8 +392,8 @@ class TestAdvancedReturnTypeContextScenarios:
         }
         
         func process_chain(input: i32) : i32 = {
-            val scaled = scale_value(input:f64, 2.5)
-            val final = truncate_to_int(scaled)
+            val scaled : f64 = scale_value(input:f64, 2.5)
+            val final : i32 = truncate_to_int(scaled)
             return final
         }
         """
