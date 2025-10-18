@@ -196,7 +196,6 @@ def test_runtime_array_block_with_concrete_array():
     # Should compile - explicit context provided for concrete array
 
 
-@pytest.mark.xfail(reason="Runtime block context validation not yet implemented (spec requirement)")
 def test_runtime_array_block_missing_context_error():
     """Runtime array blocks without context should error"""
     code = """
@@ -217,12 +216,14 @@ def test_runtime_array_block_missing_context_error():
     analyzer = SemanticAnalyzer()
 
     # Should require explicit type annotation for runtime blocks
-    with pytest.raises(Exception) as exc_info:
-        analyzer.analyze(ast)
+    errors = analyzer.analyze(ast)
+
+    # Should have at least one error
+    assert len(errors) >= 1
 
     # Error message should mention context requirement
-    error_msg = str(exc_info.value).lower()
-    assert "context" in error_msg or "type annotation" in error_msg or "explicit type" in error_msg
+    error_msg = str(errors[0]).lower()
+    assert "explicit type" in error_msg or "type annotation" in error_msg or "context" in error_msg
 
 
 def test_array_block_with_mixed_operations():
@@ -630,7 +631,6 @@ def test_comptime_array_adaptation_in_block():
 # in the semantic analyzer but required by the specification.
 
 
-@pytest.mark.xfail(reason="Runtime block context validation not yet implemented (spec requirement)")
 def test_error_runtime_block_with_conditional_missing_context():
     """Runtime block with conditional requires explicit type context"""
     code = """
@@ -650,11 +650,15 @@ def test_error_runtime_block_with_conditional_missing_context():
     ast = parser.parse(code)
     analyzer = SemanticAnalyzer()
 
-    with pytest.raises(Exception) as exc_info:
-        analyzer.analyze(ast)
+    # Should require explicit type annotation for runtime blocks with conditionals
+    errors = analyzer.analyze(ast)
 
-    error_msg = str(exc_info.value).lower()
-    assert "context" in error_msg or "type annotation" in error_msg or "conditional" in error_msg
+    # Should have at least one error
+    assert len(errors) >= 1
+
+    # Error message should mention context requirement or conditional
+    error_msg = str(errors[0]).lower()
+    assert "explicit type" in error_msg or "type annotation" in error_msg or "conditional" in error_msg
 
 
 @pytest.mark.xfail(reason="Mixed concrete array type validation not yet implemented (spec requirement)")

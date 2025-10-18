@@ -351,8 +351,10 @@ class BlockEvaluation:
         """
         expr_type = expression.get("type")
 
-        # Note: Based on the grammar, conditionals are statements not expressions
-        # But we check anyway for future extensibility
+        # Direct conditional expression (if-expressions used as values)
+        # Per CONDITIONAL_SYSTEM.md: All conditionals are runtime, even with comptime branches
+        if expr_type == NodeType.CONDITIONAL_STATEMENT.value:
+            return True
 
         # Binary operations: check both operands
         if expr_type == NodeType.BINARY_OPERATION.value:
