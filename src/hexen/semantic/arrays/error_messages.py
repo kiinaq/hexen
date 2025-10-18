@@ -205,6 +205,33 @@ class ArrayErrorMessages:
             f"Suggestion: {function_name}({argument_name}[..])"
         )
 
+    @staticmethod
+    def runtime_array_block_requires_context() -> str:
+        """Generate error message for runtime array blocks without explicit context."""
+        return (
+            "Runtime array block requires explicit type context\n"
+            "Block contains array operations with runtime components\n"
+            "Provide explicit type annotation: val result : [N]T = { ... } or val result : [_]T = { ... }"
+        )
+
+    @staticmethod
+    def array_block_with_concrete_arrays() -> str:
+        """Generate error message for array blocks mixing concrete arrays."""
+        return (
+            "Expression block contains concrete array operations\n"
+            "Concrete arrays require explicit context for type resolution\n"
+            "Suggestion: Add explicit type annotation to block variable"
+        )
+
+    @staticmethod
+    def array_block_with_function_calls() -> str:
+        """Generate error message for array blocks with function calls."""
+        return (
+            "Expression block contains function calls returning arrays\n"
+            "Functions always return concrete types, requiring explicit context\n"
+            "Suggestion: val result : [N]T = { ... } where T matches function return type"
+        )
+
 
 class ArrayErrorFactory:
     """Factory for creating array-specific semantic errors."""

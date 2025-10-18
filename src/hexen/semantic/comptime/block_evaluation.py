@@ -480,11 +480,17 @@ class BlockEvaluation:
             if var_name:
                 symbol_info = self.symbol_table.lookup_symbol(var_name)
                 if symbol_info:
-                    # If variable has comptime type, it's comptime-only
+                    # If variable has comptime type (including ComptimeArrayType instances), it's comptime-only
                     var_type = symbol_info.type
+                    # Check for ComptimeArrayType instances
+                    from ..types import ComptimeArrayType
+                    if isinstance(var_type, ComptimeArrayType):
+                        return True  # ComptimeArrayType is comptime-only
                     return var_type in [
                         HexenType.COMPTIME_INT,
                         HexenType.COMPTIME_FLOAT,
+                        HexenType.COMPTIME_ARRAY_INT,
+                        HexenType.COMPTIME_ARRAY_FLOAT,
                     ]
                 else:
                     # FORWARD REFERENCE FIX: If symbol not found, assume it's comptime
@@ -531,6 +537,20 @@ class BlockEvaluation:
                 return self.expression_has_comptime_only_operations(
                     array_expr
                 ) and self.expression_has_comptime_only_operations(index_expr)
+            return False
+
+        # Array copy: array expression must be comptime-only
+        elif expr_type == NodeType.ARRAY_COPY.value:
+            array_expr = expression.get("array")
+            if array_expr:
+                return self.expression_has_comptime_only_operations(array_expr)
+            return False
+
+        # Property access: object expression must be comptime-only
+        elif expr_type == NodeType.PROPERTY_ACCESS.value:
+            object_expr = expression.get("object")
+            if object_expr:
+                return self.expression_has_comptime_only_operations(object_expr)
             return False
 
         # Explicit conversions: operand must be comptime-only (though result becomes concrete)
@@ -648,13 +668,17 @@ class BlockEvaluation:
                 symbol_info = self.symbol_table.lookup_symbol(var_name)
                 if symbol_info:
                     var_type = symbol_info.type
-                    # Comptime types (including arrays) are not runtime variables
+                    # Comptime types (including arrays and ComptimeArrayType instances) are not runtime variables
                     comptime_types = {
                         HexenType.COMPTIME_INT,
                         HexenType.COMPTIME_FLOAT,
                         HexenType.COMPTIME_ARRAY_INT,
                         HexenType.COMPTIME_ARRAY_FLOAT,
                     }
+                    # Also check for ComptimeArrayType instances
+                    from ..types import ComptimeArrayType
+                    if isinstance(var_type, ComptimeArrayType):
+                        return False  # ComptimeArrayType is not a runtime variable
                     return var_type not in comptime_types
             return False
 
@@ -700,6 +724,20 @@ class BlockEvaluation:
                 return self.expression_has_runtime_variables(
                     array_expr
                 ) or self.expression_has_runtime_variables(index_expr)
+            return False
+
+        # Array copy: check array expression for runtime variables
+        elif expr_type == NodeType.ARRAY_COPY.value:
+            array_expr = expression.get("array")
+            if array_expr:
+                return self.expression_has_runtime_variables(array_expr)
+            return False
+
+        # Property access: check object expression for runtime variables
+        elif expr_type == NodeType.PROPERTY_ACCESS.value:
+            object_expr = expression.get("object")
+            if object_expr:
+                return self.expression_has_runtime_variables(object_expr)
             return False
 
         return False

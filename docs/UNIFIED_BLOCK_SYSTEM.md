@@ -497,8 +497,8 @@ func demonstrate_mixed_types() : void = {
         val int_array : [_]i32 = [10, 20, 30]          // Concrete array (first materialization)
         val float_multiplier : f64 = get_multiplier()  // Function call → concrete f64
         val converted_array : [_]f64 = int_array:[_]f64  // Explicit array conversion (TYPE_SYSTEM.md)
-        val scaled_array = scale_array(converted_array, float_multiplier)  // Function call → concrete array
-        -> scaled_array[..]                             // Explicit copy required for assignment
+        val scaled_array : [_]f64 = scale_array(converted_array, float_multiplier)  // Function call → concrete array (explicit type required)
+        -> scaled_array                                 // RVO eliminates copy (zero-cost)
     }
 
     // Array copying with explicit performance costs
@@ -701,25 +701,28 @@ val row_as_f64 : [_]f64 = flexible_matrix_ops     // Same source → [2]f64
 ```hexen
 // ❌ Runtime evaluable (explicit context required)
 val concrete_array_result : [_]i32 = {           // Context REQUIRED!
-    val input_array = load_array_data()          // Function call → concrete array
-    val processed = transform_array(input_array) // Function call → concrete array
-    -> processed[..]                              // Explicit copy required for assignment
+    val input_array : [_]i32 = load_array_data()          // Function call → concrete array (explicit type required)
+    val processed : [_]i32 = transform_array(input_array) // Function call → concrete array (explicit type required)
+    -> processed                                  // RVO eliminates copy (zero-cost)
 }
 
-// ❌ Runtime array copying (explicit context required)
-val array_copy_result : [_]f64 = {               // Context REQUIRED!
-    val source : [_]f64 = [1.1, 2.2, 3.3]        // Concrete array (first materialization)
-    val backup = source[..]                       // Explicit copy → concrete [3]f64
-    -> backup                                     // Assign concrete array, explicit type required
+// ✅ Compile-time array copying (comptime type preserved until context forces resolution)
+val array_copy_result = {                        // No explicit context needed - compile-time evaluable!
+    val source = [1.1, 2.2, 3.3]                 // comptime_array_float
+    val backup = source                           // comptime_array_float (no copy needed at comptime)
+    -> backup                                     // Preserves comptime_array_float flexibility
 }
+// Same comptime array adapts to different contexts
+val as_f32_array : [_]f32 = array_copy_result    // comptime_array_float → [3]f32
+val as_f64_array : [_]f64 = array_copy_result    // Same source → [3]f64
 
 // ❌ Mixed comptime + concrete array operations (explicit context required)
 val mixed_array_ops : [_]f64 = {                 // Context REQUIRED!
     val comptime_array = [42, 100, 200]          // comptime_array_int
     val concrete_multiplier : f64 = get_multiplier()  // Function call → concrete f64
     val concrete_base : [_]f64 = comptime_array  // comptime_array_int → [3]f64 (materialization)
-    val scaled = scale_array(concrete_base, concrete_multiplier)  // Function call → concrete array
-    -> scaled[..]                                 // Explicit copy required
+    val scaled : [_]f64 = scale_array(concrete_base, concrete_multiplier)  // Function call → concrete array (explicit type required)
+    -> scaled                                     // RVO eliminates copy (zero-cost)
 }
 
 // ❌ Runtime array element access from concrete arrays
@@ -732,15 +735,16 @@ val concrete_element_access : f64 = {            // Context REQUIRED!
 // ❌ Runtime multidimensional array operations
 val matrix_operation_result : [_]i32 = {         // Context REQUIRED!
     val matrix : [_][_]i32 = load_matrix()       // Function call → concrete matrix
-    val row_copy = matrix[0][..]                  // Explicit copy of row → concrete [N]i32
-    val processed = process_row(row_copy)         // Function call → concrete array
-    -> processed[..]                              // Explicit copy required
+    val row_copy : [_]i32 = matrix[0][..]        // Explicit copy of row → concrete [N]i32 (explicit type required)
+    val processed : [_]i32 = process_row(row_copy)         // Function call → concrete array (explicit type required)
+    -> processed                                  // RVO eliminates copy (zero-cost)
 }
 ```
 
 **Key Requirements:**
 - **Explicit Type Annotation**: Target variable must specify concrete array type
-- **Explicit Copying**: All array copying must use `[..]` syntax (performance transparency)
+- **Explicit Copying for Source Arrays**: Use `[..]` when copying arrays (e.g., `val backup = source[..]`)
+- **RVO for Block Results**: `->` statements benefit from RVO (no `[..]` needed, zero-cost)
 - **Function Call Effects**: Any function call makes the block runtime evaluable
 - **Concrete Type Mixing**: Requires explicit conversions following TYPE_SYSTEM.md rules
 
@@ -753,14 +757,14 @@ Expression blocks with arrays leverage the powerful **`->` + `return` dual capab
 func process_user_array() : [_]i32 = {
     // ❌ Runtime evaluable block (explicit context required)
     val validated_array : [_]i32 = {              // Context REQUIRED!
-        val input = get_user_input_array()        // Function call → concrete array
+        val input : [_]i32 = get_user_input_array()        // Function call → concrete array (explicit type required)
         if input.length == 0 {                    // Runtime condition
             return [0, 0, 0]                      // Early function exit with default array
         }
         if input.length > 1000 {                  // Runtime condition
             return [-1]                           // Early function exit with error indicator
         }
-        -> input[..]                              // Success: explicit copy of validated array
+        -> input                                  // Success: RVO eliminates copy (zero-cost)
     }
 
     // This processing only runs if validation succeeded
@@ -773,14 +777,14 @@ func process_user_array() : [_]i32 = {
 func get_expensive_array_computation(key: string) : [_]f64 = {
     // ❌ Runtime evaluable block (explicit context required)
     val result_array : [_]f64 = {                // Context REQUIRED!
-        val cached = lookup_cached_array(key)    // Function call → concrete array or null
+        val cached : [_]f64 = lookup_cached_array(key)    // Function call → concrete array or null (explicit type required)
         if cached != null {                      // Runtime condition
-            return cached[..]                    // Early function exit with cached result (explicit copy)
+            return cached                        // Early function exit with cached result (RVO: zero-cost)
         }
 
-        val computed = very_expensive_array_operation(key)  // Function call → concrete array
+        val computed : [_]f64 = very_expensive_array_operation(key)  // Function call → concrete array (explicit type required)
         save_array_to_cache(key, computed)      // Runtime side effect
-        -> computed[..]                          // Cache miss: explicit copy of computed array
+        -> computed                              // Cache miss: RVO eliminates copy (zero-cost)
     }
 
     // This logging only happens for cache misses
@@ -812,14 +816,14 @@ func safe_array_access(data: [_]f64, index: i32) : f64 = {
 func load_configuration_array() : [_]Config = {
     // ❌ Runtime evaluable block (explicit context required)
     val config_array : [_]Config = {             // Context REQUIRED!
-        val primary = try_load_primary_configs() // Function call → concrete array or null
+        val primary : [_]Config = try_load_primary_configs() // Function call → concrete array or null (explicit type required)
         if primary != null && primary.length > 0 {  // Runtime conditions
-            -> primary[..]                       // Success: explicit copy of primary configs
+            -> primary                           // Success: RVO eliminates copy (zero-cost)
         }
 
-        val fallback = try_load_fallback_configs()  // Function call → concrete array or null
+        val fallback : [_]Config = try_load_fallback_configs()  // Function call → concrete array or null (explicit type required)
         if fallback != null && fallback.length > 0 {  // Runtime conditions
-            -> fallback[..]                      // Fallback: explicit copy of backup configs
+            -> fallback                          // Fallback: RVO eliminates copy (zero-cost)
         }
 
         return get_default_config_array()       // Complete failure: function exit with defaults
@@ -840,8 +844,8 @@ func safe_matrix_multiply(a: [_][_]f64, b: [_][_]f64) : [_][_]f64 = {
             return create_identity_matrix()      // Early function exit: dimension mismatch
         }
 
-        val computed = matrix_multiply_impl(a, b)  // Function call → concrete matrix
-        -> computed[..]                          // Success: explicit copy of result matrix
+        val computed : [_][_]f64 = matrix_multiply_impl(a, b)  // Function call → concrete matrix (explicit type required)
+        -> computed                              // Success: RVO eliminates copy (zero-cost)
     }
 
     return result_matrix
@@ -855,6 +859,116 @@ func safe_matrix_multiply(a: [_][_]f64, b: [_][_]f64) : [_][_]f64 = {
 - **📖 Clear Intent**: `->` = array assignment, `return` = function exit (consistent semantics)
 - **🔄 Error Recovery**: Complex array fallback patterns with clear control flow
 - **🧠 Reduced Complexity**: Avoid deeply nested array processing logic
+
+## Performance Characteristics: Expression Block RVO
+
+### Return Value Optimization for `->` Statements
+
+Expression blocks benefit from the same **Return Value Optimization (RVO)** as function returns, maintaining consistency across all value production operations in Hexen.
+
+**Design Principle**: Whether using `return` (function exit) or `->` (block value production), the compiler applies identical optimization strategies to eliminate physical copies while preserving clean value semantics.
+
+### Language Semantics vs Implementation Reality
+
+**Semantic (explicit in code):**
+- `-> value` produces the expression block's value (pass-by-value semantics)
+- Arrays and large structures follow value semantics
+- Explicit copy syntax `[..]` makes performance costs visible
+
+**Implementation (optimized by compiler):**
+- Compiler applies **RVO** to eliminate physical copies for `->` statements
+- Block result written directly to target variable location
+- Zero-copy performance while maintaining clean semantics
+- Same optimization strategy as function `return` statements
+
+### RVO Examples for Expression Blocks
+
+#### Scalar Values (Automatic)
+```hexen
+// Semantic: block produces i32 value
+val computation : i32 = {
+    val intermediate = complex_calculation()
+    val result = intermediate * 2
+    -> result  // RVO: value written directly to 'computation' location
+}
+// Implementation: typically optimized to register or single memory location
+```
+
+#### Array Values (RVO Optimization)
+```hexen
+// Semantic: block produces array value
+val large_array : [10000]f64 = {
+    val computed = expensive_array_computation()
+    -> computed  // RVO eliminates copy (zero-cost implementation)
+}
+// Implementation: RVO writes array data directly to 'large_array' stack location (zero-copy)
+
+// Compile-time array (materialization, not RVO)
+val flexible_array = {
+    val data = [1, 2, 3, 4, 5]  // comptime_array_int
+    -> data  // Materialization on first use (compile-time, zero runtime cost)
+}
+// No RVO needed - this is pure compile-time evaluation
+```
+
+#### Complex Structures (RVO Optimization)
+```hexen
+// Semantic: block produces large structure value
+val configuration : Config = {
+    val settings = load_default_settings()
+    val customizations = apply_user_preferences(settings)
+    -> customizations  // RVO: written directly to 'configuration' location
+}
+// Implementation: zero-copy (RVO optimization)
+```
+
+### Unified Optimization Strategy
+
+The RVO optimization creates beautiful consistency across Hexen's value production operations:
+
+| Operation | Semantic | Implementation | Optimization |
+|-----------|----------|----------------|--------------|
+| `return array` | Pass-by-value | RVO (zero-copy) | Function returns |
+| `-> array` | Pass-by-value | RVO (zero-copy) | Expression blocks |
+| `func(array[..])` | Explicit copy | Copy elision | Function arguments |
+
+**Key Insight**: All value production operations (`return`, `->`) benefit from the same RVO optimization strategy, while explicit copy operations (`[..]`) signal potential performance costs that the compiler may optimize away through copy elision.
+
+### Performance Characteristics Summary
+
+1. **Compile-Time Evaluable Blocks**:
+   - Zero runtime cost (all computation at compile-time)
+   - No RVO needed (pure compile-time evaluation)
+   - Comptime type flexibility preserved until context forces resolution
+
+2. **Runtime Evaluable Blocks**:
+   - RVO eliminates physical copies for `->` statements
+   - Arrays written directly to target location
+   - Same optimization as function `return` statements
+   - Explicit `[..]` syntax documents semantic intent, implementation optimizes
+
+3. **Small Values**:
+   - Typically optimized to registers or stack slots
+   - RVO overhead negligible
+   - Clean semantics maintained
+
+4. **Large Values (Arrays, Structures)**:
+   - RVO critical for performance
+   - Zero-copy implementation
+   - Explicit syntax (`[..]`) makes costs visible, compiler optimizes them away
+
+### Mental Model: Semantic Clarity + Implementation Efficiency
+
+**Think of expression blocks as**:
+- **Semantically**: Value producers following pass-by-value semantics
+- **Implementation**: Zero-copy optimizations via RVO (same as function returns)
+
+This duality enables:
+- **Clean code**: Write natural value semantics
+- **Fast execution**: Compiler eliminates unnecessary copies
+- **Predictable performance**: RVO applies uniformly to all value production
+
+**Design Philosophy**: Hexen maintains "clean semantics, optimized implementation" - developers write explicit, readable code (`->`, `[..]`), and the compiler applies aggressive optimizations (RVO, copy elision) to achieve zero-copy performance.
 
 ## Scope Management
 
