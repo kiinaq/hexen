@@ -385,8 +385,20 @@ class FunctionAnalyzer:
         Returns:
             True if dimensions compatible, False if mismatch (error already reported)
         """
-        # Check dimension count first
+        # Check dimension count
         if len(comptime_type.dimensions) != len(target_type.dimensions):
+            # Check if this is a valid flattening scenario
+            if self._can_flatten_comptime_array_to_parameter(comptime_type, target_type):
+                # Valid comptime array flattening - validate element counts
+                # Element type compatibility already checked by caller
+                if not self._validate_flattening_element_count(
+                    comptime_type, target_type, function_name, position, argument_node
+                ):
+                    return False
+                # Flattening validation successful - allow materialization
+                return True
+
+            # Not a valid flattening scenario - report error
             self._error_comptime_array_dimension_count_mismatch(
                 comptime_type, target_type, function_name, position, argument_node
             )
@@ -415,6 +427,113 @@ class FunctionAnalyzer:
         # All dimensions compatible
         return True
 
+    def _can_flatten_comptime_array_to_parameter(
+        self,
+        comptime_type: ComptimeArrayType,
+        target_type: ConcreteArrayType
+    ) -> bool:
+        """
+        Check if comptime array can flatten to target parameter type.
+
+        Flattening is allowed when:
+        - Target has fewer dimensions than source
+        - Total element counts match
+        - Element types are compatible
+
+        Examples:
+        - comptime_[2][2]int → [4]i32  ✅ (4 elements = 4 elements)
+        - comptime_[2][3]int → [6]i32  ✅ (6 elements = 6 elements)
+        - comptime_[2][2]int → [5]i32  ❌ (4 elements ≠ 5 elements)
+        - comptime_[2][2]int → [2][2]i32 ❌ (same dimensions, not flattening)
+
+        Args:
+            comptime_type: Source comptime array type
+            target_type: Target concrete array parameter type
+
+        Returns:
+            True if flattening is possible and valid
+        """
+        # Only allow flattening to fewer dimensions (typically 1D)
+        if len(comptime_type.dimensions) <= len(target_type.dimensions):
+            return False
+
+        # Calculate total element count of comptime array
+        comptime_element_count = 1
+        for dim in comptime_type.dimensions:
+            comptime_element_count *= dim
+
+        # Calculate total element count of target array
+        target_element_count = 1
+        has_inferred = False
+        for dim in target_type.dimensions:
+            if dim == "_":
+                # Inferred dimension - can adapt to any size
+                has_inferred = True
+                continue
+            target_element_count *= dim
+
+        # If target has inferred dimensions, element count will match by inference
+        if has_inferred:
+            return True
+
+        # Element counts must match for valid flattening
+        return comptime_element_count == target_element_count
+
+    def _validate_flattening_element_count(
+        self,
+        comptime_type: ComptimeArrayType,
+        target_type: ConcreteArrayType,
+        function_name: str,
+        position: int,
+        argument_node: Dict
+    ) -> bool:
+        """
+        Validate element counts match for comptime array flattening.
+
+        Returns:
+            True if element counts match, False if mismatch (error reported)
+        """
+        # Calculate comptime array total elements
+        comptime_count = 1
+        for dim in comptime_type.dimensions:
+            comptime_count *= dim
+
+        # Calculate target array total elements
+        target_count = 1
+        has_inferred = False
+        for dim in target_type.dimensions:
+            if dim == "_":
+                has_inferred = True
+                # For inferred dimensions, we'll set the size to match
+                continue
+            target_count *= dim
+
+        # If target has inferred dimensions, we need to set them
+        if has_inferred:
+            # For 1D targets with [_], set the inferred size to total element count
+            if len(target_type.dimensions) == 1 and target_type.dimensions[0] == "_":
+                target_type.dimensions[0] = comptime_count
+            return True
+
+        # Check if counts match
+        if comptime_count != target_count:
+            self._error(
+                f"Array flattening element count mismatch in function call\n"
+                f"  Function: {function_name}(...)\n"
+                f"  Argument {position}: comptime array {comptime_type}\n"
+                f"  Parameter expects: {target_type}\n"
+                f"\n"
+                f"  Source has {comptime_count} total elements "
+                f"({' × '.join(map(str, comptime_type.dimensions))})\n"
+                f"  Target expects {target_count} elements\n"
+                f"\n"
+                f"  Comptime arrays can flatten on-the-fly, but element counts must match exactly",
+                argument_node
+            )
+            return False
+
+        return True
+
     def _error_comptime_array_dimension_count_mismatch(
         self,
         comptime_type: ComptimeArrayType,
@@ -437,7 +556,10 @@ class FunctionAnalyzer:
             f"  Parameter expects {len(target_type.dimensions)} dimension(s)\n"
             f"\n"
             f"  Cannot materialize {len(comptime_type.dimensions)}D array to "
-            f"{len(target_type.dimensions)}D parameter",
+            f"{len(target_type.dimensions)}D parameter\n"
+            f"\n"
+            f"  Note: Comptime arrays can flatten to 1D parameters when element counts match.\n"
+            f"  Example: [[1,2],[3,4]] can materialize to [4]i32 parameter",
             argument_node
         )
 

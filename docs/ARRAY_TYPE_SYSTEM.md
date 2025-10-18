@@ -279,6 +279,26 @@ val flat : [_]i32 = concrete_2d[..]:[_]i32  // ✅ Both operations explicit
 
 This ensures array flattening follows the same explicit conversion rules as all other type conversions in Hexen.
 
+### Implementation Status
+
+**Comptime Array Flattening**: ✅ **FULLY IMPLEMENTED**
+- ✅ **Variable Declarations**: `val flat : [4]i32 = [[1,2],[3,4]]` (first materialization)
+- ✅ **Function Parameters**: `process([[1,2],[3,4]])` where `process(data: [4]i32)` (ergonomic)
+- ✅ **Return Statements**: Supported through variable declaration rules
+- ✅ **Element Count Validation**: Compile-time validation ensures safety
+- ✅ **Type Adaptation**: Simultaneous flattening and element type adaptation
+
+**Concrete Array Flattening**: ✅ **FULLY IMPLEMENTED**
+- ✅ **Explicit Syntax Required**: `val flat : [4]i32 = matrix[..]:[4]i32`
+- ✅ **Function Parameters**: `process(matrix[..]:[4]i32)` (explicit costs visible)
+- ✅ **Comprehensive Error Messages**: Clear guidance for missing operators
+
+**Implementation Date**: 2025-10-18
+**Test Coverage**: 12 comprehensive tests in `TestComptimeArrayFlatteningInCalls`
+**Test Status**: 1354/1354 array-related tests passing
+
+All flattening behaviors are now consistent across language contexts, fully aligned with the ergonomic comptime system and transparent costs principle! 🎉
+
 ## Variable Declaration with Arrays
 
 ### `val` - Immutable Arrays

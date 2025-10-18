@@ -32,7 +32,7 @@ import pytest
 
 from src.hexen.parser import HexenParser
 from src.hexen.semantic.analyzer import SemanticAnalyzer
-from .. import assert_no_errors, assert_error_contains
+from .. import assert_no_errors, assert_error_contains, assert_error_count
 
 
 class TestExplicitCopyRequirement:
@@ -633,7 +633,6 @@ class TestOnTheFlyFlatteningAsParameter:
 
         assert_no_errors(errors)
 
-    @pytest.mark.xfail(reason="to be checked")
     def test_comptime_array_flatten_directly_in_call(self):
         """Test comptime array literal flattened on-the-fly (no [..] needed)"""
         source = """
@@ -781,6 +780,250 @@ class TestOnTheFlyFlatteningAsParameter:
                 [[13, 14, 15, 16], [17, 18, 19, 20], [21, 22, 23, 24]]
             ]
             process(cube[..]:[6][4]i32)
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        assert_no_errors(errors)
+
+
+class TestComptimeArrayFlatteningInCalls:
+    """Test comptime array flattening when passed to function parameters
+
+    SPECIFICATION: ARRAY_TYPE_SYSTEM.md (lines 254-264, 729-738)
+    Comptime arrays should adapt seamlessly during first materialization,
+    including dimension changes (flattening).
+
+    This test class validates that comptime array literals can flatten
+    on-the-fly when passed to function parameters with different dimensions.
+    """
+
+    def setup_method(self):
+        """Setup parser and analyzer for each test"""
+        from src.hexen.parser import HexenParser
+        from src.hexen.semantic.analyzer import SemanticAnalyzer
+        self.parser = HexenParser()
+        self.analyzer = SemanticAnalyzer()
+
+    def test_2d_to_1d_flattening_in_call(self):
+        """Test 2D comptime array flattens to 1D parameter"""
+        source = """
+        func process(data: [4]i32) : void = {
+            return
+        }
+
+        func main() : void = {
+            process([[1, 2], [3, 4]])
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        assert_no_errors(errors)
+
+    def test_3d_to_1d_flattening_in_call(self):
+        """Test 3D comptime array flattens to 1D parameter"""
+        source = """
+        func process(data: [8]i32) : void = {
+            return
+        }
+
+        func main() : void = {
+            process([[[1, 2], [3, 4]], [[5, 6], [7, 8]]])
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        assert_no_errors(errors)
+
+    def test_comptime_flatten_with_type_adaptation(self):
+        """Test comptime array flattens AND adapts element type"""
+        source = """
+        func process(data: [4]f64) : void = {
+            return
+        }
+
+        func main() : void = {
+            process([[1, 2], [3, 4]])
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        assert_no_errors(errors)
+
+    def test_comptime_flatten_mixed_numeric_types(self):
+        """Test comptime mixed numeric array flattens"""
+        source = """
+        func process(data: [4]f64) : void = {
+            return
+        }
+
+        func main() : void = {
+            process([[42, 3.14], [2.71, 100]])
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        assert_no_errors(errors)
+
+    def test_comptime_flatten_to_inferred_size(self):
+        """Test comptime array flattens to [_]T parameter"""
+        source = """
+        func process(data: [_]i32) : void = {
+            return
+        }
+
+        func main() : void = {
+            process([[1, 2], [3, 4]])
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        assert_no_errors(errors)
+
+    def test_comptime_flatten_element_count_mismatch(self):
+        """Test error when element counts don't match"""
+        source = """
+        func process(data: [5]i32) : void = {
+            return
+        }
+
+        func main() : void = {
+            process([[1, 2], [3, 4]])
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        assert_error_count(errors, 1)
+        assert_error_contains(errors, "flatten")
+        assert_error_contains(errors, "element count")
+
+    def test_same_comptime_source_adapts_to_different_calls(self):
+        """Test same comptime array adapts to different function parameters"""
+        source = """
+        func process_i32(data: [4]i32) : void = {
+            return
+        }
+
+        func process_f64(data: [4]f64) : void = {
+            return
+        }
+
+        func process_2d(data: [2][2]i32) : void = {
+            return
+        }
+
+        func main() : void = {
+            val comptime_2d = [[42, 100], [200, 300]]
+            process_i32(comptime_2d)
+            process_f64(comptime_2d)
+            process_2d(comptime_2d)
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        assert_no_errors(errors)
+
+    def test_concrete_array_still_requires_explicit_syntax(self):
+        """Test concrete arrays still need [..]:[type] even with same element count"""
+        source = """
+        func process(data: [4]i32) : void = {
+            return
+        }
+
+        func main() : void = {
+            val matrix : [2][2]i32 = [[1, 2], [3, 4]]
+            process(matrix)
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        # Concrete arrays generate errors for both missing copy operator and dimension mismatch
+        assert len(errors) > 0
+        assert_error_contains(errors, "Missing explicit")
+
+    def test_multiple_comptime_array_parameters_with_flattening(self):
+        """Test multiple comptime arrays each flattening independently"""
+        source = """
+        func combine(a: [4]i32, b: [6]i32) : void = {
+            return
+        }
+
+        func main() : void = {
+            combine([[1, 2], [3, 4]], [[5, 6, 7], [8, 9, 10]])
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        assert_no_errors(errors)
+
+    def test_nested_function_calls_with_comptime_flattening(self):
+        """Test comptime flattening through nested function calls"""
+        source = """
+        func transform(data: [4]i32) : [4]i64 = {
+            return data[..]:[4]i64
+        }
+
+        func process(data: [4]i64) : void = {
+            return
+        }
+
+        func main() : void = {
+            val result : [4]i64 = transform([[1, 2], [3, 4]])
+            process(result[..])
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        assert_no_errors(errors)
+
+    def test_comptime_flatten_2x3_to_6(self):
+        """Test 2x3 array flattens to [6]i32"""
+        source = """
+        func process(data: [6]i32) : void = {
+            return
+        }
+
+        func main() : void = {
+            process([[1, 2, 3], [4, 5, 6]])
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        assert_no_errors(errors)
+
+    def test_comptime_flatten_3x3_to_9(self):
+        """Test 3x3 array flattens to [9]i32"""
+        source = """
+        func process(data: [9]i32) : void = {
+            return
+        }
+
+        func main() : void = {
+            process([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
             return
         }
         """

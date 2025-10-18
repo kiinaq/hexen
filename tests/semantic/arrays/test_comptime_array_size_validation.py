@@ -202,8 +202,8 @@ class TestComptimeArrayDimensionCountMismatch:
         # Should mention dimension mismatch
         # Dimension check already covered above
 
-    def test_2d_cannot_pass_to_1d_parameter(self):
-        """Comptime [2][3] cannot pass to [6] parameter (dimension count mismatch)"""
+    def test_2d_can_flatten_to_1d_parameter_when_element_count_matches(self):
+        """Comptime [2][3] CAN pass to [6]i32 parameter (flattening with matching element count)"""
         code = """
         func flat_func(data: [6]i32) : i32 = {
             return data[0]
@@ -218,11 +218,9 @@ class TestComptimeArrayDimensionCountMismatch:
 
         errors = analyzer.analyze(ast)
 
-        assert len(errors) > 0, "Expected error"
-        error_text = " ".join(str(e) for e in errors).lower()
-        assert "size mismatch" in error_text or "dimension" in error_text
-        # Should mention dimension mismatch
-        # Dimension check already covered above
+        # After implementing comptime array flattening in function calls,
+        # this should now SUCCEED (element counts match: 2*3 = 6)
+        assert len(errors) == 0, f"Expected no errors, but got: {errors}"
 
 
     # NOTE: Regression tests for existing behavior are covered in:
