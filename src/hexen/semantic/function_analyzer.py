@@ -141,18 +141,22 @@ class FunctionAnalyzer:
             argument, parameter, function_name, position
         )
 
-        # FIRST: Analyze argument WITHOUT context to preserve ComptimeArrayType for size validation
-        argument_type_without_context = self._analyze_expression(argument, None)
+        # OPTIMIZATION: Only perform double-analysis for array parameters
+        # This avoids spurious errors from contextless analysis of non-array expressions
+        # (e.g., conditional expressions with mixed comptime types that would resolve with context)
+        if isinstance(parameter.param_type, ConcreteArrayType):
+            # FIRST: Analyze argument WITHOUT context to preserve ComptimeArrayType for size validation
+            argument_type_without_context = self._analyze_expression(argument, None)
 
-        # NEW: Validate comptime array size compatibility BEFORE materialization (Issue #1 fix)
-        if isinstance(argument_type_without_context, ComptimeArrayType) and isinstance(parameter.param_type, ConcreteArrayType):
-            if not self._validate_comptime_array_size(
-                argument_type_without_context, parameter.param_type, function_name, position, argument
-            ):
-                # Error already reported, skip further validation
-                return
+            # NEW: Validate comptime array size compatibility BEFORE materialization (Issue #1 fix)
+            if isinstance(argument_type_without_context, ComptimeArrayType):
+                if not self._validate_comptime_array_size(
+                    argument_type_without_context, parameter.param_type, function_name, position, argument
+                ):
+                    # Error already reported, skip further validation
+                    return
 
-        # THEN: Analyze with parameter type as context for materialization and coercion
+        # Analyze with parameter type as context for materialization and coercion
         # This enables comptime type adaptation and enforces TYPE_SYSTEM.md rules
         argument_type = self._analyze_expression(argument, parameter.param_type)
 
