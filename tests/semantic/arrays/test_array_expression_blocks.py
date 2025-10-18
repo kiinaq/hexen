@@ -742,7 +742,6 @@ def test_error_early_return_type_mismatch():
     assert "type" in error_msg or "size" in error_msg or "return" in error_msg or "mismatch" in error_msg
 
 
-@pytest.mark.xfail(reason="Block result type mismatch validation not yet implemented (spec requirement)")
 def test_error_block_result_type_mismatch():
     """Block result type mismatch with annotation should error"""
     code = """
@@ -757,14 +756,17 @@ def test_error_block_result_type_mismatch():
     ast = parser.parse(code)
     analyzer = SemanticAnalyzer()
 
-    with pytest.raises(Exception) as exc_info:
-        analyzer.analyze(ast)
+    # Should detect type mismatch (array type cannot be assigned to scalar i32)
+    errors = analyzer.analyze(ast)
 
-    error_msg = str(exc_info.value).lower()
-    assert "type" in error_msg or "incompatible" in error_msg
+    # Should have at least one error
+    assert len(errors) >= 1
+
+    # Error message should mention type mismatch
+    error_msg = str(errors[0]).lower()
+    assert "type" in error_msg or "incompatible" in error_msg or "mismatch" in error_msg
 
 
-@pytest.mark.xfail(reason="Empty array context requirement not yet implemented (spec requirement)")
 def test_error_empty_array_without_context():
     """Empty array in block without context should error"""
     code = """
@@ -779,14 +781,17 @@ def test_error_empty_array_without_context():
     ast = parser.parse(code)
     analyzer = SemanticAnalyzer()
 
-    with pytest.raises(Exception) as exc_info:
-        analyzer.analyze(ast)
+    # Should detect that empty array literal requires explicit type annotation
+    errors = analyzer.analyze(ast)
 
-    error_msg = str(exc_info.value).lower()
+    # Should have at least one error
+    assert len(errors) >= 1
+
+    # Error message should mention context, type, or empty array
+    error_msg = str(errors[0]).lower()
     assert "context" in error_msg or "type" in error_msg or "empty" in error_msg
 
 
-@pytest.mark.xfail(reason="Array element type mismatch validation not yet implemented (spec requirement)")
 def test_error_array_element_type_mismatch_in_block():
     """Array element type mismatch should error"""
     code = """
@@ -801,14 +806,17 @@ def test_error_array_element_type_mismatch_in_block():
     ast = parser.parse(code)
     analyzer = SemanticAnalyzer()
 
-    with pytest.raises(Exception) as exc_info:
-        analyzer.analyze(ast)
+    # Should detect type mismatch (comptime_float element 2.5 incompatible with [3]i32)
+    errors = analyzer.analyze(ast)
 
-    error_msg = str(exc_info.value).lower()
-    assert "type" in error_msg or "element" in error_msg
+    # Should have at least one error
+    assert len(errors) >= 1
+
+    # Error message should mention type mismatch or element type issue
+    error_msg = str(errors[0]).lower()
+    assert "type" in error_msg or "element" in error_msg or "float" in error_msg
 
 
-@pytest.mark.xfail(reason="Multidimensional array size validation not yet implemented (spec requirement)")
 def test_error_multidim_array_size_mismatch():
     """Multidimensional array size mismatch should error"""
     code = """
@@ -823,14 +831,17 @@ def test_error_multidim_array_size_mismatch():
     ast = parser.parse(code)
     analyzer = SemanticAnalyzer()
 
-    with pytest.raises(Exception) as exc_info:
-        analyzer.analyze(ast)
+    # Should detect dimension mismatch ([2][2] vs [2][3])
+    errors = analyzer.analyze(ast)
 
-    error_msg = str(exc_info.value).lower()
-    assert "size" in error_msg or "type" in error_msg or "dimension" in error_msg
+    # Should have at least one error
+    assert len(errors) >= 1
+
+    # Error message should mention size, type, or dimension mismatch
+    error_msg = str(errors[0]).lower()
+    assert "size" in error_msg or "type" in error_msg or "dimension" in error_msg or "mismatch" in error_msg
 
 
-@pytest.mark.xfail(reason="Inferred-size to concrete-size validation not yet implemented (spec requirement)")
 def test_error_inferred_size_concrete_mismatch():
     """Inferred size array with wrong concrete size should error"""
     code = """
@@ -846,14 +857,16 @@ def test_error_inferred_size_concrete_mismatch():
     analyzer = SemanticAnalyzer()
 
     # Should error because [_]i32 cannot be assigned to [5]i32 without size validation
-    with pytest.raises(Exception) as exc_info:
-        analyzer.analyze(ast)
+    errors = analyzer.analyze(ast)
 
-    error_msg = str(exc_info.value).lower()
-    assert "size" in error_msg or "type" in error_msg or "inferred" in error_msg
+    # Should have at least one error
+    assert len(errors) >= 1
+
+    # Error message should mention size, type, or inferred
+    error_msg = str(errors[0]).lower()
+    assert "size" in error_msg or "type" in error_msg or "inferred" in error_msg or "[_]" in error_msg
 
 
-@pytest.mark.xfail(reason="Property access validation on non-array types not yet implemented (spec requirement)")
 def test_error_property_access_on_non_array():
     """Property access on non-array type should error"""
     code = """
@@ -869,10 +882,14 @@ def test_error_property_access_on_non_array():
     ast = parser.parse(code)
     analyzer = SemanticAnalyzer()
 
-    with pytest.raises(Exception) as exc_info:
-        analyzer.analyze(ast)
+    # Should detect invalid property access on non-array type
+    errors = analyzer.analyze(ast)
 
-    error_msg = str(exc_info.value).lower()
+    # Should have at least one error
+    assert len(errors) >= 1
+
+    # Error message should mention length, property, or array
+    error_msg = str(errors[0]).lower()
     assert "length" in error_msg or "property" in error_msg or "array" in error_msg
 
 

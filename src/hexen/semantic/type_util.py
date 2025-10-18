@@ -193,8 +193,31 @@ def can_coerce(
 
     # PHASE 2 ADDITION: Handle ComptimeArrayType → ConcreteArrayType coercion
     if isinstance(from_type, ComptimeArrayType) and isinstance(to_type, ConcreteArrayType):
-        # Dimensions are validated by caller (function_analyzer)
-        # Here we just check element type compatibility
+        # Check if dimensions match exactly
+        dimensions_match_exactly = from_type.dimensions == to_type.dimensions
+
+        # Check if this is a valid flattening operation (multidim → 1D)
+        is_valid_flattening = False
+        if len(to_type.dimensions) == 1:  # Target is 1D
+            # Calculate total element count of source array
+            source_element_count = 1
+            for dim in from_type.dimensions:
+                source_element_count *= dim
+
+            # Check if target dimension matches total element count or is inferred
+            target_size = to_type.dimensions[0]
+            if target_size == "_":
+                # Inferred size always allows flattening
+                is_valid_flattening = True
+            elif source_element_count == int(target_size):
+                # Fixed size must match element count
+                is_valid_flattening = True
+
+        # Allow coercion if dimensions match exactly OR if valid flattening
+        if not (dimensions_match_exactly or is_valid_flattening):
+            return False
+
+        # Check element type compatibility
         if from_type.element_comptime_type == HexenType.COMPTIME_INT:
             # comptime_int can coerce to any numeric type
             return to_type.element_type in {

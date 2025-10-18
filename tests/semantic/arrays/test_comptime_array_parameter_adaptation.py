@@ -327,9 +327,10 @@ class TestComptimeArrayNoExplicitCopy:
         analyzer.analyze(code)
         # Should compile - [..] is allowed but unnecessary for comptime
 
-    @pytest.mark.xfail(reason="Explicit copy check for concrete array variables not fully implemented (Week 2 Task 2 edge case)")
     def test_concrete_array_requires_explicit_copy_contrast(self):
         """Concrete arrays require [..], contrasting with comptime arrays"""
+        from src.hexen.parser import HexenParser
+
         code = """
         func process(data: [3]i32) : i32 = {
             return data[0]
@@ -338,11 +339,19 @@ class TestComptimeArrayNoExplicitCopy:
         val concrete : [3]i32 = [1, 2, 3]
         val result : i32 = process(concrete)
         """
+        parser = HexenParser()
+        ast = parser.parse(code)
         analyzer = SemanticAnalyzer()
-        with pytest.raises(Exception, match="explicit copy|\\[\\.\\.\\]"):
-            analyzer.analyze(code)
-        # Should fail - concrete arrays require [..]
-        # Note: Week 2 Task 2 implemented AST-based detection, but may not catch all cases
+
+        # Should detect that concrete array requires explicit copy syntax
+        errors = analyzer.analyze(ast)
+
+        # Should have at least one error
+        assert len(errors) >= 1
+
+        # Error message should mention explicit copy or [..]
+        error_msg = str(errors[0]).lower()
+        assert "explicit copy" in error_msg or "[..]" in error_msg or "copy operator" in error_msg
 
 
 class TestComptimeArrayEdgeCases:
