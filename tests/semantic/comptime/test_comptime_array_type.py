@@ -61,17 +61,18 @@ class TestComptimeArrayTypeCreation:
 
     def test_reject_negative_dimension(self):
         """Cannot create comptime array with negative dimension"""
-        with pytest.raises(ValueError, match="positive integers"):
+        with pytest.raises(ValueError, match="non-negative integers"):
             ComptimeArrayType(HexenType.COMPTIME_INT, [-5])
 
-    def test_reject_zero_dimension(self):
-        """Cannot create comptime array with zero dimension"""
-        with pytest.raises(ValueError, match="positive integers"):
-            ComptimeArrayType(HexenType.COMPTIME_INT, [0])
+    def test_accept_zero_dimension(self):
+        """Can create comptime array with zero dimension (empty array)"""
+        arr_type = ComptimeArrayType(HexenType.COMPTIME_INT, [0])
+        assert arr_type.dimensions == [0]
+        assert str(arr_type) == "comptime_[0]int"
 
     def test_reject_mixed_valid_invalid_dimensions(self):
         """Cannot create comptime array with mixed valid/invalid dimensions"""
-        with pytest.raises(ValueError, match="positive integers"):
+        with pytest.raises(ValueError, match="non-negative integers"):
             ComptimeArrayType(HexenType.COMPTIME_INT, [2, -3])
 
 

@@ -141,13 +141,14 @@ class ComptimeArrayType:
                 f"got {element_comptime_type}"
             )
 
-        # Validate dimensions are positive integers
+        # Validate dimensions are non-negative integers
+        # Note: Dimension 0 is valid for empty arrays (e.g., [0]i32, [[], []])
         if not dimensions:
             raise ValueError("ComptimeArrayType must have at least one dimension")
 
         for dim in dimensions:
-            if not isinstance(dim, int) or dim <= 0:
-                raise ValueError(f"All dimensions must be positive integers, got {dim}")
+            if not isinstance(dim, int) or dim < 0:
+                raise ValueError(f"All dimensions must be non-negative integers, got {dim}")
 
         self.element_comptime_type = element_comptime_type
         self.dimensions = dimensions
