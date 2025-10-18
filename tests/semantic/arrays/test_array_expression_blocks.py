@@ -661,7 +661,6 @@ def test_error_runtime_block_with_conditional_missing_context():
     assert "explicit type" in error_msg or "type annotation" in error_msg or "conditional" in error_msg
 
 
-@pytest.mark.xfail(reason="Mixed concrete array type validation not yet implemented (spec requirement)")
 def test_error_mixed_concrete_array_types_without_conversion():
     """Mixed concrete array element types without explicit conversion should error"""
     code = """
@@ -679,14 +678,16 @@ def test_error_mixed_concrete_array_types_without_conversion():
     analyzer = SemanticAnalyzer()
 
     # Should require explicit conversion from [3]i32 to [3]i64
-    with pytest.raises(Exception) as exc_info:
-        analyzer.analyze(ast)
+    errors = analyzer.analyze(ast)
 
-    error_msg = str(exc_info.value).lower()
-    assert "type" in error_msg or "conversion" in error_msg or "incompatible" in error_msg
+    # Should have at least one error
+    assert len(errors) >= 1
+
+    # Error message should mention type mismatch or conversion
+    error_msg = str(errors[0]).lower()
+    assert "type" in error_msg or "conversion" in error_msg or "incompatible" in error_msg or "mismatch" in error_msg
 
 
-@pytest.mark.xfail(reason="Array size mismatch validation not yet implemented (spec requirement)")
 def test_error_array_block_wrong_size_annotation():
     """Array block with wrong size annotation should error"""
     code = """
@@ -702,14 +703,17 @@ def test_error_array_block_wrong_size_annotation():
     ast = parser.parse(code)
     analyzer = SemanticAnalyzer()
 
-    with pytest.raises(Exception) as exc_info:
-        analyzer.analyze(ast)
+    # Should detect array size mismatch (annotation [3] vs actual [5])
+    errors = analyzer.analyze(ast)
 
-    error_msg = str(exc_info.value).lower()
-    assert "size" in error_msg or "length" in error_msg or "type" in error_msg
+    # Should have at least one error
+    assert len(errors) >= 1
+
+    # Error message should mention size/length/type mismatch
+    error_msg = str(errors[0]).lower()
+    assert "size" in error_msg or "length" in error_msg or "type" in error_msg or "mismatch" in error_msg
 
 
-@pytest.mark.xfail(reason="Early return type mismatch validation not yet implemented (spec requirement)")
 def test_error_early_return_type_mismatch():
     """Early return with wrong type should error"""
     code = """
@@ -727,11 +731,15 @@ def test_error_early_return_type_mismatch():
     ast = parser.parse(code)
     analyzer = SemanticAnalyzer()
 
-    with pytest.raises(Exception) as exc_info:
-        analyzer.analyze(ast)
+    # Should detect early return type mismatch (function expects [3]i32, early return is [5]i32)
+    errors = analyzer.analyze(ast)
 
-    error_msg = str(exc_info.value).lower()
-    assert "type" in error_msg or "size" in error_msg or "return" in error_msg
+    # Should have at least one error
+    assert len(errors) >= 1
+
+    # Error message should mention type/size/return mismatch
+    error_msg = str(errors[0]).lower()
+    assert "type" in error_msg or "size" in error_msg or "return" in error_msg or "mismatch" in error_msg
 
 
 @pytest.mark.xfail(reason="Block result type mismatch validation not yet implemented (spec requirement)")
