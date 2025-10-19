@@ -41,10 +41,8 @@ class ArrayTypeInfo:
 
     def is_comptime_array(self) -> bool:
         """Check if this is a comptime array type"""
-        return self.element_type in {
-            HexenType.COMPTIME_ARRAY_INT,
-            HexenType.COMPTIME_ARRAY_FLOAT,
-        }
+        from ..types import ComptimeArrayType
+        return isinstance(self.element_type, ComptimeArrayType)
 
     def get_element_count(self) -> int:
         """Calculate total element count for concrete arrays"""
@@ -77,10 +75,10 @@ class ArrayTypeInfo:
             else:
                 dimension_str += f"[{dim.size}]"
 
-        if self.element_type == HexenType.COMPTIME_ARRAY_INT:
-            return dimension_str + "comptime_int"
-        elif self.element_type == HexenType.COMPTIME_ARRAY_FLOAT:
-            return dimension_str + "comptime_float"
+        from ..types import ComptimeArrayType
+        if isinstance(self.element_type, ComptimeArrayType):
+            # ComptimeArrayType has its own string representation
+            return dimension_str + str(self.element_type)
         else:
             # Handle both HexenType and ConcreteArrayType
             element_str = (

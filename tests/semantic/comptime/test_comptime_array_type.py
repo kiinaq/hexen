@@ -139,7 +139,6 @@ class TestComptimeArrayTypeEquality:
         """ComptimeArrayType not equal to other types"""
         arr1 = ComptimeArrayType(HexenType.COMPTIME_INT, [5])
         assert arr1 != "comptime_[5]int"
-        assert arr1 != HexenType.COMPTIME_ARRAY_INT
         assert arr1 != 5
 
     def test_hashable(self):

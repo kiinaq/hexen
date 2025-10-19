@@ -491,8 +491,6 @@ class BlockEvaluation:
                     return var_type in [
                         HexenType.COMPTIME_INT,
                         HexenType.COMPTIME_FLOAT,
-                        HexenType.COMPTIME_ARRAY_INT,
-                        HexenType.COMPTIME_ARRAY_FLOAT,
                     ]
                 else:
                     # FORWARD REFERENCE FIX: If symbol not found, assume it's comptime
@@ -670,17 +668,14 @@ class BlockEvaluation:
                 symbol_info = self.symbol_table.lookup_symbol(var_name)
                 if symbol_info:
                     var_type = symbol_info.type
-                    # Comptime types (including arrays and ComptimeArrayType instances) are not runtime variables
-                    comptime_types = {
-                        HexenType.COMPTIME_INT,
-                        HexenType.COMPTIME_FLOAT,
-                        HexenType.COMPTIME_ARRAY_INT,
-                        HexenType.COMPTIME_ARRAY_FLOAT,
-                    }
-                    # Also check for ComptimeArrayType instances
+                    # Comptime types (including ComptimeArrayType instances) are not runtime variables
                     from ..types import ComptimeArrayType
                     if isinstance(var_type, ComptimeArrayType):
                         return False  # ComptimeArrayType is not a runtime variable
+                    comptime_types = {
+                        HexenType.COMPTIME_INT,
+                        HexenType.COMPTIME_FLOAT,
+                    }
                     return var_type not in comptime_types
             return False
 

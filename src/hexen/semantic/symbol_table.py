@@ -399,11 +399,12 @@ def _parse_array_parameter_type(array_type_node: Dict) -> ConcreteArrayType:
         return HexenType.UNKNOWN
 
     # Validate element type is concrete (not comptime)
+    from .types import ComptimeArrayType
+    if isinstance(element_type, ComptimeArrayType):
+        return HexenType.UNKNOWN
     if element_type in {
         HexenType.COMPTIME_INT,
         HexenType.COMPTIME_FLOAT,
-        HexenType.COMPTIME_ARRAY_INT,
-        HexenType.COMPTIME_ARRAY_FLOAT,
     }:
         return HexenType.UNKNOWN
 

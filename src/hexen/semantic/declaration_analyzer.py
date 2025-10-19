@@ -492,11 +492,16 @@ class DeclarationAnalyzer:
             return HexenType.UNKNOWN
 
         # Validate element type is concrete (not comptime)
+        from .types import ComptimeArrayType
+        if isinstance(element_type, ComptimeArrayType):
+            self._error(
+                f"Array type annotation cannot use ComptimeArrayType as element",
+                array_type_node,
+            )
+            return HexenType.UNKNOWN
         if element_type in {
             HexenType.COMPTIME_INT,
             HexenType.COMPTIME_FLOAT,
-            HexenType.COMPTIME_ARRAY_INT,
-            HexenType.COMPTIME_ARRAY_FLOAT,
         }:
             self._error(
                 f"Array type annotation must use concrete element type, got {element_type_str}",

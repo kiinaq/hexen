@@ -56,7 +56,7 @@ class ArrayLiteralAnalyzer:
         """
         Analyze array literal and return type WITH FULL DIMENSIONAL INFORMATION.
 
-        CHANGE (Phase 2): Now returns ComptimeArrayType instead of HexenType.COMPTIME_ARRAY_INT
+        Returns ComptimeArrayType with full dimensional information instead of legacy enum values
         to preserve size information throughout semantic analysis.
 
         Args:
@@ -109,41 +109,11 @@ class ArrayLiteralAnalyzer:
             unified_type = self._unify_element_types(element_types, node, len(elements))
             return unified_type
 
-        # Fallback to legacy analysis for backwards compatibility
-        element_type_str = first_element.get("type")
-
-        if element_type_str == "comptime_int":
-            # Check if all elements are integers
-            if self._all_elements_are_integers(elements):
-                return HexenType.COMPTIME_ARRAY_INT
-            else:
-                # Mixed integer/float -> promote to float array
-                return HexenType.COMPTIME_ARRAY_FLOAT
-        elif element_type_str == "comptime_float":
-            return HexenType.COMPTIME_ARRAY_FLOAT
-        elif element_type_str == "literal":
-            # Check if it's a string literal
-            first_value = first_element.get("value")
-            if isinstance(first_value, str):
-                self._error(
-                    "String arrays not yet supported in current implementation", node
-                )
-                return HexenType.UNKNOWN
-
-        # For other types or mixed types, require explicit context
-        if target_type is None:
-            if len(set(elem.get("type") for elem in elements)) > 1:
-                self._error(
-                    ArrayErrorMessages.explicit_type_annotation_required_for_mixed_types(), node
-                )
-            else:
-                self._error(
-                    "Array literal type inference not yet implemented for this element type",
-                    node,
-                )
-            return HexenType.UNKNOWN
-
-        return target_type
+        # If we reach here, _analyze_expression callback was not set (should never happen)
+        self._error(
+            "Internal error: Array literal analyzer not properly initialized", node
+        )
+        return HexenType.UNKNOWN
 
     def _unify_element_types(
         self, element_types: List[HexenType], node: Dict[str, Any], array_size: int
@@ -210,7 +180,7 @@ class ArrayLiteralAnalyzer:
 
     def _analyze_with_concrete_context(
         self, node: Dict[str, Any], target_type: ConcreteArrayType
-    ) -> HexenType:
+    ) -> ConcreteArrayType:
         """
         Analyze array literal with explicit concrete array type context.
 
@@ -274,21 +244,13 @@ class ArrayLiteralAnalyzer:
                         element,
                     )
 
-        # Return a type that represents successful concrete array validation
-        # Since the array literal validated successfully against the concrete type context,
-        # we can return a comptime array type that represents the successful validation
-        # This allows the function call system to proceed with successful type matching
-        if target_type.element_type in {HexenType.I32, HexenType.I64}:
-            return HexenType.COMPTIME_ARRAY_INT
-        elif target_type.element_type in {HexenType.F32, HexenType.F64}:
-            return HexenType.COMPTIME_ARRAY_FLOAT
-        else:
-            # For other element types, return a compatible comptime array
-            return HexenType.COMPTIME_ARRAY_INT  # Default fallback
+        # Return the concrete type after successful validation
+        # The array literal, once validated against concrete context, IS that concrete type
+        return target_type
 
     def _analyze_multidim_concrete_context(
         self, node: Dict[str, Any], target_type: ConcreteArrayType
-    ) -> HexenType:
+    ) -> ConcreteArrayType:
         """
         Analyze multidimensional array literal with concrete context.
 
@@ -313,13 +275,8 @@ class ArrayLiteralAnalyzer:
             # Recursively validate inner array
             self._analyze_with_concrete_context(element, inner_target_type)
 
-        # Return appropriate comptime array type for successful multidimensional validation
-        if target_type.element_type in {HexenType.I32, HexenType.I64}:
-            return HexenType.COMPTIME_ARRAY_INT
-        elif target_type.element_type in {HexenType.F32, HexenType.F64}:
-            return HexenType.COMPTIME_ARRAY_FLOAT
-        else:
-            return HexenType.COMPTIME_ARRAY_INT  # Default fallback
+        # Return the concrete type after successful validation
+        return target_type
 
     def _can_coerce_to_concrete_element(
         self, from_type: HexenType, to_type: HexenType
@@ -409,8 +366,8 @@ class ArrayLiteralAnalyzer:
             if self._analyze_expression:
                 return self._analyze_expression(array_expr)
             else:
-                # Fallback - assume comptime array
-                return HexenType.COMPTIME_ARRAY_INT
+                # Should never happen - callback should always be set
+                return HexenType.UNKNOWN
 
         elif expr_type == "array_access":
             # Nested array access (e.g., matrix[0] in matrix[0][1])
@@ -446,15 +403,16 @@ class ArrayLiteralAnalyzer:
         Determine the element type when accessing an array.
         Handles dimension reduction for multidimensional arrays.
         """
-        # Handle comptime array types
-        if array_type == HexenType.COMPTIME_ARRAY_INT:
-            # For comptime arrays, return comptime int elements
-            # Note: Multidimensional access patterns are handled separately in analyze_array_access
-            return HexenType.COMPTIME_INT
-
-        elif array_type == HexenType.COMPTIME_ARRAY_FLOAT:
-            # Comptime float arrays produce comptime float elements
-            return HexenType.COMPTIME_FLOAT
+        # Handle ComptimeArrayType instances
+        if isinstance(array_type, ComptimeArrayType):
+            # For comptime arrays, reduce dimensionality
+            if len(array_type.dimensions) == 1:
+                # 1D comptime array access returns comptime element type
+                return array_type.element_comptime_type
+            else:
+                # Multidimensional comptime array access reduces by one dimension
+                new_dimensions = array_type.dimensions[1:]
+                return ComptimeArrayType(array_type.element_comptime_type, new_dimensions)
 
         # Handle concrete array types (ConcreteArrayType instances)
         elif hasattr(array_type, "element_type") and hasattr(array_type, "dimensions"):

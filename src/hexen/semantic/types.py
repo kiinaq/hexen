@@ -25,8 +25,7 @@ class HexenType(Enum):
     Zig-inspired comptime types:
     - comptime_int: Integer literals that can coerce to any integer or float type
     - comptime_float: Float literals that can coerce to any float type
-    - comptime_array_int: Integer array literals with flexible element adaptation
-    - comptime_array_float: Float array literals with flexible element adaptation
+    - ComptimeArrayType class: Array literals with preserved dimensional information
     - Context-dependent coercion eliminates need for literal suffixes
 
     Future extensions:
@@ -44,8 +43,8 @@ class HexenType(Enum):
     VOID = "void"  # For functions/blocks that don't return values
     COMPTIME_INT = "comptime_int"  # New: integer literals
     COMPTIME_FLOAT = "comptime_float"  # New: float literals
-    COMPTIME_ARRAY_INT = "comptime_array_int"  # New: flexible integer arrays
-    COMPTIME_ARRAY_FLOAT = "comptime_array_float"  # New: flexible float arrays
+    # Removed: COMPTIME_ARRAY_INT and COMPTIME_ARRAY_FLOAT
+    # Use ComptimeArrayType class instead for dimensional information preservation
     UNKNOWN = "unknown"  # For type inference failures - internal use only
     UNINITIALIZED = "undef"  # For explicit undef values - different from null
 
@@ -294,11 +293,15 @@ class ConcreteArrayType:
             dimensions: List of dimension sizes or "_" for inferred
                        e.g., [3] for [3]i32, [2, 4] for [2][4]f64, ["_"] for [_]i32
         """
+        # Check for ComptimeArrayType instances first (cannot be used as element type)
+        if isinstance(element_type, ComptimeArrayType):
+            raise ValueError(
+                f"ConcreteArrayType cannot use ComptimeArrayType as element: {element_type}"
+            )
+        # Check for comptime scalar types
         if element_type in {
             HexenType.COMPTIME_INT,
             HexenType.COMPTIME_FLOAT,
-            HexenType.COMPTIME_ARRAY_INT,
-            HexenType.COMPTIME_ARRAY_FLOAT,
         }:
             raise ValueError(
                 f"ConcreteArrayType cannot use comptime element type: {element_type}"
@@ -345,9 +348,9 @@ class ConcreteArrayType:
             result *= dim  # type: ignore - checked above that all are int
         return result
 
-    def is_compatible_with(self, comptime_array_type: HexenType) -> bool:
+    def is_compatible_with(self, comptime_array: ComptimeArrayType) -> bool:
         """Check if this concrete array type is compatible with a comptime array type"""
-        if comptime_array_type == HexenType.COMPTIME_ARRAY_INT:
+        if comptime_array.element_comptime_type == HexenType.COMPTIME_INT:
             # comptime_array_int can coerce to any numeric element types (following comptime_int rules)
             return self.element_type in {
                 HexenType.I32,
@@ -355,7 +358,7 @@ class ConcreteArrayType:
                 HexenType.F32,
                 HexenType.F64,
             }
-        elif comptime_array_type == HexenType.COMPTIME_ARRAY_FLOAT:
+        elif comptime_array.element_comptime_type == HexenType.COMPTIME_FLOAT:
             # comptime_array_float can coerce to float element types only (following comptime_float rules)
             return self.element_type in {HexenType.F32, HexenType.F64}
         return False

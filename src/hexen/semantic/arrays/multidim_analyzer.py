@@ -40,8 +40,7 @@ class MultidimensionalArrayAnalyzer:
         """
         Analyze multidimensional array literal for structure consistency.
 
-        CHANGE (Phase 2): Now returns ComptimeArrayType with full dimensional information
-        instead of HexenType.COMPTIME_ARRAY_INT to preserve size metadata.
+        Returns ComptimeArrayType with full dimensional information to preserve size metadata.
 
         Args:
             node: Array literal AST node with nested structure
