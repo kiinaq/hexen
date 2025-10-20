@@ -376,8 +376,8 @@ val runtime_block : i32 = {          // Explicit type required!
 }
 
 // ✅ Conditional in block → runtime (context required)
-val conditional_block : i32 = {      // Explicit type required!
-    val value = if true {
+val conditional_block : i32 = {      // Explicit type required (runtime block)!
+    val value : i32 = if true {      // Type REQUIRED (conditional = runtime)!
         -> 42
     } else {
         -> 100
@@ -442,6 +442,16 @@ val compare = a:i64 < b              // Explicit conversion for comparison
 
 ### Conditional Patterns
 
+#### Type Annotation Requirements
+
+**CRITICAL RULE:** Conditional expressions are **runtime operations** (just like function calls) and **ALWAYS require explicit type annotations** when assigned to variables.
+
+| Context | Type Annotation Required? | Example | Reason |
+|---------|---------------------------|---------|--------|
+| Conditional statement | ❌ No | `if cond { do() }` | No value produced |
+| Conditional expression | ✅ **YES (mandatory)** | `val x : i32 = if cond { -> 1 } else { -> 2 }` | Runtime operation (like function call) |
+| In expression block | ✅ **YES (mandatory)** | `val x : i32 = { val y : i32 = if cond { -> 1 } else { -> 2 }; -> y }` | Each conditional needs type |
+
 #### Syntax Rules
 
 | Feature | Required Syntax | Example |
@@ -460,15 +470,15 @@ if user_input > 0 {
     handle_negative()
 }
 
-// ✅ Conditional expression
-val result = if condition {
+// ✅ Conditional expression (type annotation REQUIRED - runtime operation!)
+val result : i32 = if condition {
     -> value1
 } else {
     -> value2
 }
 
-// ✅ Early return in conditional expression
-val validated = if input < 0 {
+// ✅ Early return in conditional expression (type REQUIRED - conditional = runtime!)
+val validated : i32 = if input < 0 {
     return -1                        // Early function exit
 } else {
     -> input * 2                     // Success path
@@ -588,7 +598,33 @@ val block_result : i32 = {        // ✅ Explicit context required
 
 ---
 
-#### ❌ Mistake 6: Using Non-Bool in Conditionals
+#### ❌ Mistake 6: Missing Type Annotation for Conditional Expressions
+
+**Problem:**
+```hexen
+val result = if condition {         // ❌ Error!
+    -> value1
+} else {
+    -> value2
+}
+```
+
+**Error:** `Conditional expressions require explicit type annotation (runtime operation)`
+
+**Fix:**
+```hexen
+val result : i32 = if condition {   // ✅ Type required (conditional = runtime)
+    -> value1
+} else {
+    -> value2
+}
+```
+
+**Rule:** Conditional expressions are **runtime operations** (like function calls) and ALWAYS require explicit type annotations
+
+---
+
+#### ❌ Mistake 7: Using Non-Bool in Conditionals
 
 **Problem:**
 ```hexen
@@ -611,7 +647,7 @@ if count > 0 {                  // ✅ Explicit comparison produces bool
 
 ---
 
-#### ❌ Mistake 7: Missing Explicit Conversion for Array Flattening
+#### ❌ Mistake 8: Missing Explicit Conversion for Array Flattening
 
 **Problem:**
 ```hexen
@@ -630,7 +666,7 @@ val flat : [_]i32 = matrix[..]:[_]i32  // ✅ Both [..] and :type explicit
 
 ---
 
-#### ❌ Mistake 8: Parentheses Around Conditionals
+#### ❌ Mistake 9: Parentheses Around Conditionals
 
 **Problem:**
 ```hexen
@@ -652,7 +688,7 @@ if condition {                  // ✅ No parentheses
 
 ---
 
-#### ❌ Mistake 9: Missing Braces in Conditionals
+#### ❌ Mistake 10: Missing Braces in Conditionals
 
 **Problem:**
 ```hexen
@@ -673,11 +709,11 @@ if condition {                  // ✅ Braces required
 
 ---
 
-#### ❌ Mistake 10: Incomplete Conditional Expressions
+#### ❌ Mistake 11: Incomplete Conditional Expressions
 
 **Problem:**
 ```hexen
-val result = if condition {
+val result : i32 = if condition {
     -> value1
 }                               // ❌ Error!
 ```
@@ -686,7 +722,7 @@ val result = if condition {
 
 **Fix:**
 ```hexen
-val result = if condition {
+val result : i32 = if condition {
     -> value1
 } else {
     -> value2                   // ✅ All paths covered
@@ -730,6 +766,19 @@ What does the block contain?
   ├─ Function calls → ✅ YES, context required (runtime)
   ├─ Conditionals (if/else) → ✅ YES, context required (runtime)
   └─ Mixed concrete types → ✅ YES, context required (runtime)
+```
+
+#### Does This Conditional Expression Need Type Annotation?
+
+```
+Is it a conditional expression (assigned to a variable)?
+  ├─ YES → ✅ ALWAYS requires explicit type annotation (runtime operation!)
+  │         Examples:
+  │         - val result : i32 = if cond { -> 1 } else { -> 2 }  ✅
+  │         - val result = if cond { -> 1 } else { -> 2 }        ❌ Error!
+  │
+  └─ NO (conditional statement only) → ❌ No type annotation
+            Example: if cond { do_something() } else { do_other() }
 ```
 
 ---

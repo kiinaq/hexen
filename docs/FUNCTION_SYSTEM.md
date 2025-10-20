@@ -416,16 +416,16 @@ func validate_and_process(input: i32) : i32 = {
 // Expression blocks with performance optimization
 func cached_calculation(key: string) : f64 = {
     val result = {
-        val cached = lookup_cache(key)
+        val cached : f64 = lookup_cache(key)       // Type REQUIRED (function call)
         if cached != null {
             return cached       // Early function exit with cached result
         }
-        
-        val computed = expensive_operation(key)
+
+        val computed : f64 = expensive_operation(key)  // Type REQUIRED (function call)
         save_to_cache(key, computed)
         -> computed         // Cache miss: -> computed value
     }
-    
+
     // This logging only happens for cache misses
     log_cache_miss(key)
     return result
@@ -1022,7 +1022,7 @@ val normalized : [1000]f64 = apply_transform(
 ```hexen
 func normalize_data(raw: [_]f64) : [_]f64 = {
     // Step 1: Find min/max
-    val min_max = find_range(raw)
+    val min_max : {min: f64, max: f64} = find_range(raw)  // Type REQUIRED (function call)
 
     // Step 2: Normalize to [0, 1]
     return scale_to_range(raw, min_max.min, min_max.max)

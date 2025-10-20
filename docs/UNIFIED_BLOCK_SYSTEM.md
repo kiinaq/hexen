@@ -84,10 +84,10 @@ val as_i32 : i32 = flexible_computation:i32  // SAME source → i32 (explicit co
 ```hexen
 // ❌ Runtime evaluable (explicit context required)
 val runtime_result : f64 = {              // Context REQUIRED! Cannot preserve comptime types
-    val user_input = get_user_input()     // Runtime function call → concrete type (functions always return concrete types)
+    val user_input : f64 = get_user_input()     // Type REQUIRED (function call)
     val base = 42                         // comptime_int
     if user_input > 0 {                   // Runtime condition
-        -> base * user_input:f64      // Mixed: comptime_int * concrete → explicit conversion needed
+        -> base * user_input          // comptime_int * f64 → f64 (adapts to context)
     } else {
         -> 0.0                        // All paths must resolve to target type (f64)
     }
@@ -101,8 +101,8 @@ Blocks that combine comptime and runtime operations are treated as **runtime eva
 // 🔄 Mixed (comptime + runtime = runtime, explicit context required)
 val mixed_result : f64 = {                // Context REQUIRED!
     val comptime_calc = 42 * 3.14         // comptime_int * comptime_float → comptime_float
-    val runtime_multiplier = get_multiplier()  // Runtime function call → concrete type (functions always return concrete types)
-    -> comptime_calc * runtime_multiplier:f64  // Mixed → explicit conversion needed
+    val runtime_multiplier : f64 = get_multiplier()  // Type REQUIRED (function call)
+    -> comptime_calc * runtime_multiplier  // comptime_float * f64 → f64 (adapts to context)
 }
 ```
 
@@ -175,15 +175,15 @@ val comptime_complex = ({
 ```hexen
 // ❌ Runtime evaluable (explicit context required)
 val runtime_result : i32 = {               // Context REQUIRED!
-    val intermediate = compute_value()     // Runtime function call → concrete type (functions always return concrete types)
+    val intermediate : i32 = compute_value()     // Type REQUIRED (function call)
     -> intermediate * 2                // All operations resolve to i32
 }
 
 // ❌ Runtime block with control flow (explicit context required)
 val validated_input : i32 = {             // Context REQUIRED!
-    val raw_input = get_user_input()      // Runtime function call
+    val raw_input : i32 = get_user_input()      // Type REQUIRED (function call)
     if raw_input < 0 {                    // Runtime condition
-        return -1                         // Early function exit - invalid input  
+        return -1                         // Early function exit - invalid input
     }
     -> raw_input                      // Valid input -> (i32)
 }
@@ -321,7 +321,7 @@ The `->` keyword is **expression-block specific**:
 func process_user_data() : string = {
     // ❌ Runtime evaluable block (explicit context required)
     val validated_input : string = {           // Context REQUIRED!
-        val raw_input = get_user_input()      // Runtime function call
+        val raw_input : string = get_user_input()      // Type REQUIRED (function call)
         if raw_input == "" {                  // Runtime condition
             return "ERROR: Empty input"       // Early function exit
         }
@@ -330,7 +330,7 @@ func process_user_data() : string = {
         }
         -> sanitize(raw_input)            // Success: -> sanitized input (string)
     }
-    
+
     // This code only runs if validation succeeded
     return format_output(validated_input)
 }
@@ -341,16 +341,16 @@ func process_user_data() : string = {
 func expensive_calculation(key: string) : f64 = {
     // ❌ Runtime evaluable block (explicit context required)
     val result : f64 = {                      // Context REQUIRED!
-        val cached_value = lookup_cache(key)  // Runtime function call
+        val cached_value : f64 = lookup_cache(key)  // Type REQUIRED (function call)
         if cached_value != null {             // Runtime condition
             return cached_value               // Early function exit with cached result
         }
-        
-        val computed = very_expensive_operation(key)  // Runtime function call
+
+        val computed : f64 = very_expensive_operation(key)  // Type REQUIRED (function call)
         save_to_cache(key, computed)          // Runtime side effect
         -> computed                       // Cache miss: -> computed value (f64)
     }
-    
+
     // This logging only happens for cache misses
     log_cache_miss(key)
     return result
@@ -362,19 +362,19 @@ func expensive_calculation(key: string) : f64 = {
 func load_configuration() : Config = {
     // ❌ Runtime evaluable block (explicit context required)
     val config : Config = {                   // Context REQUIRED!
-        val primary_config = try_load_primary_config()  // Runtime function call
+        val primary_config : Config = try_load_primary_config()  // Type REQUIRED (function call)
         if primary_config != null {           // Runtime condition
             -> primary_config             // Success: use primary config (Config)
         }
-        
-        val fallback_config = try_load_fallback_config()  // Runtime function call
+
+        val fallback_config : Config = try_load_fallback_config()  // Type REQUIRED (function call)
         if fallback_config != null {          // Runtime condition
             -> fallback_config            // Fallback: use backup config (Config)
         }
-        
+
         return get_default_config()           // Complete failure: function exit with defaults
     }
-    
+
     // This validation only runs if we loaded a config file
     validate_configuration(config)
     return config
@@ -887,7 +887,7 @@ Expression blocks benefit from the same **Return Value Optimization (RVO)** as f
 ```hexen
 // Semantic: block produces i32 value
 val computation : i32 = {
-    val intermediate = complex_calculation()
+    val intermediate : i32 = complex_calculation()  // Type REQUIRED (function call)
     val result = intermediate * 2
     -> result  // RVO: value written directly to 'computation' location
 }
@@ -898,7 +898,7 @@ val computation : i32 = {
 ```hexen
 // Semantic: block produces array value
 val large_array : [10000]f64 = {
-    val computed = expensive_array_computation()
+    val computed : [10000]f64 = expensive_array_computation()  // Type REQUIRED (function call)
     -> computed  // RVO eliminates copy (zero-cost implementation)
 }
 // Implementation: RVO writes array data directly to 'large_array' stack location (zero-copy)
@@ -915,8 +915,8 @@ val flexible_array = {
 ```hexen
 // Semantic: block produces large structure value
 val configuration : Config = {
-    val settings = load_default_settings()
-    val customizations = apply_user_preferences(settings)
+    val settings : Config = load_default_settings()  // Type REQUIRED (function call)
+    val customizations : Config = apply_user_preferences(settings)  // Type REQUIRED (function call)
     -> customizations  // RVO: written directly to 'configuration' location
 }
 // Implementation: zero-copy (RVO optimization)
@@ -1036,14 +1036,14 @@ val computation = {
     -> multiplied    // ✅ -> multiplied to computation
 }
 
-// Control flow case: early function exit  
+// Control flow case: early function exit
 val validated_data : ProcessedData = {    // Context REQUIRED for runtime block!
-    val raw_data = get_input()           // Runtime function call
+    val raw_data : ProcessedData = get_input()           // Type REQUIRED (function call)
     if raw_data == null {                // Runtime condition
         return null                      // ✅ Exits function early with null
     }
     if !validate(raw_data) {             // Runtime condition
-        return null                      // ✅ Exits function early with null  
+        return null                      // ✅ Exits function early with null
     }
     -> process(raw_data)             // ✅ Success path -> processed data
 }
@@ -1209,7 +1209,7 @@ val invalid = {
 
 // Expression block with return but no -> (function exit)
 val computation : i32 = {          // Context REQUIRED for runtime blocks!
-    val input = get_input()       // Runtime function call
+    val input : i32 = get_input()       // Type REQUIRED (function call)
     if input < 0 {                // Runtime condition
         return -1                 // ✅ Valid: function exit with error value
     }
@@ -1220,7 +1220,7 @@ val computation : i32 = {          // Context REQUIRED for runtime blocks!
 // Runtime vs compile-time context confusion
 val mixed_context_error = {
     val temp = 42             // comptime_int
-    val runtime_val = get_value()  // Runtime function call
+    val runtime_val : i32 = get_value()  // Type REQUIRED (function call)
     -> temp + runtime_val // Error: "Runtime block requires explicit type context"
 }  // Should be: val mixed_context_error : i32 = { ... }
 

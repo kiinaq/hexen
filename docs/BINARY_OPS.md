@@ -246,9 +246,13 @@ val result : f32 = 42 + 3.14 + 100 * 2.5  // BOUNDARY: developer requests f32, f
 
 ```hexen
 // These calculations happen at COMPILE TIME, not runtime
-val complex_calc = ((3.14159265358979 * 10000000 - 31415926) > 1.0 ? 0 : 1)
-val as_f32 : f32 = complex_calc   // Runtime: load pre-computed f32 constant
-val as_f64 : f64 = complex_calc   // Runtime: load pre-computed f64 constant
+val complex_calc : i32 = if (3.14159265358979 * 10000000 - 31415926) > 1.0 {
+    -> 0
+} else {
+    -> 1
+}
+val as_f32 : f32 = complex_calc:f32   // Runtime: load pre-computed f32 constant (explicit conversion)
+val as_f64 : f64 = complex_calc:f64   // Runtime: load pre-computed f64 constant (explicit conversion)
 ```
 
 **Understanding Comptime Type Behavior:**
@@ -778,16 +782,16 @@ Logical operators provide short-circuit evaluation for performance and safety:
 
 ```hexen
 // ✅ Short-circuit AND (&&)
-val result1 = false && expensive_operation()   // expensive_operation() not called
-val result2 = true && check_condition()       // check_condition() is called
+val result1 : bool = false && expensive_operation()   // expensive_operation() not called
+val result2 : bool = true && check_condition()       // check_condition() is called
 
-// ✅ Short-circuit OR (||)  
-val result3 = true || expensive_operation()    // expensive_operation() not called
-val result4 = false || check_fallback()       // check_fallback() is called
+// ✅ Short-circuit OR (||)
+val result3 : bool = true || expensive_operation()    // expensive_operation() not called
+val result4 : bool = false || check_fallback()       // check_fallback() is called
 
 // ✅ Practical usage
-val safe_access = ptr != null && ptr.value > 0     // Safe null check pattern
-val default_value = user_input != "" || default_config()  // Default value pattern
+val safe_access : bool = ptr != null && ptr.value > 0     // Safe null check pattern
+val default_value : bool = user_input != "" || default_config()  // Default value pattern
 ```
 
 ### Complex Boolean Expressions
