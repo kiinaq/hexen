@@ -2,7 +2,9 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Quick Commands
+---
+
+## 🎯 Quick Reference
 
 ### Development Setup
 ```bash
@@ -15,7 +17,7 @@ uv sync
 
 ### Testing
 ```bash
-# Run complete test suite (415 tests)
+# Run complete test suite
 uv run pytest tests/ -v
 
 # Run parser tests only
@@ -49,20 +51,6 @@ uv run hexen parse examples/01_getting_started/hello_world.hxn
 uv run hexen parse examples/02_types/comptime_types.hxn --json
 ```
 
-## Architecture Overview
-
-Hexen is an experimental system programming language implemented in Python 3.12+. The compiler follows a traditional two-phase architecture:
-
-1. **Parser** (`src/hexen/parser.py`) - Lark-based PEG parser generating clean AST
-2. **Semantic Analyzer** (`src/hexen/semantic/`) - Comprehensive type checking and validation
-
-### Key Language Features
-
-- **Comptime Type System**: Literals like `42` and `3.14` are comptime types that adapt to context
-- **Unified Block System**: All blocks use `{}` syntax with context-appropriate behavior
-- **Memory Safety**: Immutable by default (`val`), explicit mutability (`mut`)
-- **No Literal Suffixes**: Write `42` not `42i64` - context determines type
-
 ### Project Structure
 ```
 src/hexen/
@@ -76,1043 +64,770 @@ src/hexen/
 │   ├── expression_analyzer.py   # Expressions & type annotations
 │   ├── binary_ops_analyzer.py   # Binary operations
 │   ├── assignment_analyzer.py   # Assignment validation
-│   ├── return_analyzer.py      # Return statement handling
-│   ├── block_analyzer.py       # Block analysis
-│   └── symbol_table.py         # Scope management
+│   ├── return_analyzer.py       # Return statement handling
+│   ├── block_analyzer.py        # Block analysis
+│   ├── function_analyzer.py     # Function analysis
+│   └── symbol_table.py          # Scope management
 └── cli.py                  # Command-line interface
+
+tests/
+├── parser/                 # Parser tests (syntax validation)
+└── semantic/               # Semantic tests (type checking, validation)
+
+docs/                       # Detailed language specifications
+├── TYPE_SYSTEM.md
+├── COMPTIME_QUICK_REFERENCE.md
+├── FUNCTION_SYSTEM.md
+├── UNIFIED_BLOCK_SYSTEM.md
+├── BINARY_OPS.md
+├── CONDITIONAL_SYSTEM.md
+├── LITERAL_OVERFLOW_BEHAVIOR.md
+└── ARRAY_TYPE_SYSTEM.md
+
+examples/                   # Example programs with learning progression
 ```
 
-## Language Syntax Reference
+### File Naming Conventions
+- Hexen source files: `.hxn` extension
+- Test files: `test_*.py` pattern
+- Documentation: Descriptive names (e.g., `COMPTIME_QUICK_REFERENCE.md`)
 
-### Type System
-- **Concrete types**: `i32`, `i64`, `f32`, `f64`, `string`, `bool`, `void`
-- **Comptime types**: `comptime_int`, `comptime_float` (flexible until context resolution)
-- **Type coercion**: `val x : i64 = 42` coerces `comptime_int` to `i64`
+---
 
-### Variable Declarations
+## 🦉 Hexen Language Essentials
+
+### Core Philosophy
+
+**Ergonomic Literals + Transparent Costs**
+
+Hexen follows two core principles:
+1. **Ergonomic Literals**: Comptime types adapt seamlessly to context (zero runtime cost)
+2. **Transparent Costs**: All concrete type mixing requires explicit `:type` syntax (costs visible)
+
+### Key Language Features
+
+- **Comptime Type System**: Literals like `42` and `3.14` are comptime types that adapt to context
+- **Unified Block System**: All blocks use `{}` syntax with context-appropriate behavior
+- **Memory Safety**: Immutable by default (`val`), explicit mutability (`mut`)
+- **No Literal Suffixes**: Write `42` not `42i64` - context determines type
+- **Size-as-Type Arrays**: Array size is part of the type for compile-time safety
+
+### Type Categories
+
+| Category | Types | Flexibility | When They Exist |
+|----------|-------|-------------|-----------------|
+| **Comptime Types** | `comptime_int`, `comptime_float`, `comptime_array_int`, `comptime_array_float` | Adapt to any compatible concrete type | Only at compile time |
+| **Concrete Types** | `i32`, `i64`, `f32`, `f64`, `bool`, `string`, `[N]T` arrays | Fixed, require explicit conversions | Runtime values |
+
+### Quick Syntax Overview
+
 ```hexen
-val immutable = 42          // Immutable by default
-mut variable = 100          // Explicit mutability
-val typed : i64 = 42        // Explicit type annotation
-val undefined : i32 = undef // Uninitialized variable
-```
+// Variables
+val immutable = 42              // Immutable, comptime type preserved
+val typed : i64 = 42            // Immutable, explicit type
+mut variable : i32 = 100        // Mutable (type required!)
 
-### Functions
-```hexen
+// Functions
 func name(param : type) : return_type = {
     return expression
 }
 
-func void_func() : void = {
-    return  // Bare return for void functions
+// Arrays
+val numbers = [1, 2, 3]         // Comptime array (flexible!)
+val fixed : [3]i32 = [1, 2, 3]  // Fixed-size concrete array
+val inferred : [_]i32 = [1, 2, 3]  // Inferred-size array
+
+// Conditionals (no parentheses, braces required)
+if condition {
+    do_something()
+} else {
+    do_other_thing()
 }
 
-// Parameter mutability
-func process(input: i32) : i32 = {          // Immutable by default
-    // input = 42                           // ❌ Error: Cannot reassign immutable parameter
-    return input * 2
-}
-
-func modify(mut counter: i32) : i32 = {     // Explicit mutability
-    counter = counter + 1                   // ✅ OK: Mutable parameter
-    return counter
-}
-```
-
-### Blocks
-```hexen
-// Expression blocks (must assign value)
+// Expression blocks
 val result = {
     val temp = 42
     -> temp * 2        // -> produces block value
 }
-
-// Expression blocks with control flow
-val validated = {
-    val input = get_input()
-    if input < 0 {
-        return -1          // return exits function early
-    }
-    -> input * 2       // -> produces block value
-}
-
-// Statement blocks (scoped execution)
-{
-    val scoped = "local"
-    mut counter : i32 = 0  // explicit type required for mut
-}
 ```
 
-### Conditionals
-```hexen
-// No parentheses around conditions - required braces
-if condition {              // ✅ Correct syntax
-    do_something()
-}
-
-if user_input > 0 {         // ✅ Boolean-only conditions
-    process_input()
-} else if user_input == 0 {
-    handle_zero()
-} else {
-    handle_negative()
-}
-
-// ❌ Common errors
-// if (condition) { }       // Error: No parentheses around conditions
-// if condition             // Error: Braces required
-//     do_something()
-// if count {               // Error: i32 cannot be used as bool
-//     process()
-// }
-
-// ✅ Explicit boolean conversion required
-val count : i32 = 5
-if count > 0 {              // Explicit comparison produces bool
-    process_count()
-}
-```
-
-## Development Guidelines
-
-### Code Style
-- Use Ruff for formatting and linting (configured in `pyproject.toml`)
-- Follow Python 3.12+ type hints throughout
-- Maintain clean separation between parser and semantic analysis
-
-### Testing Strategy
-- **Parser tests**: Validate syntax and AST generation
-- **Semantic tests**: Validate type checking and program semantics
-- All tests use pytest framework
-- Current: 415/415 tests passing (100% success rate)
-
-### File Naming Convention
-- Hexen source files use `.hxn` extension
-- Test files follow `test_*.py` pattern
-- Documentation uses descriptive names (`COMPTIME_QUICK_REFERENCE.md`)
-
-## Common Development Tasks
-
-### Adding New Language Features
-1. Update grammar in `hexen.lark`
-2. Add AST nodes in `ast_nodes.py` if needed
-3. Update parser logic in `parser.py`
-4. Add semantic analysis in appropriate `semantic/` module
-5. Write comprehensive tests in both `parser/` and `semantic/`
-
-### Debugging Parse Issues
-- Use `uv run hexen parse <file>` to see AST output
-- Check grammar rules in `hexen.lark`
-- Validate against existing examples in `examples/`
-
-### Understanding Comptime Types
-- Reference `docs/COMPTIME_QUICK_REFERENCE.md` for mental models
-- Key insight: literals stay flexible until context forces resolution
-- Four patterns: comptime+comptime, comptime+concrete, concrete+concrete, explicit conversions
-
-## Important Notes
-
-- This is a Python-first implementation for rapid prototyping
-- Architecture designed for future LLVM backend via llvmlite
-- Focus on language design experimentation over performance
-- Comprehensive documentation in `docs/` directory provides deep technical details
-- Examples in `examples/` demonstrate all language features with learning progression
+**For detailed specifications:** See `docs/` directory
 
 ---
 
-# Type System Deep Dive
-
-## Core Philosophy: Ergonomic Literals + Transparent Costs
-
-Hexen's type system follows two core principles:
-- **Ergonomic Literals**: Comptime types adapt seamlessly to context (no syntax burden)
-- **Transparent Costs**: All concrete type mixing requires explicit syntax (`value:type`)
-
-### Comptime Type System
-
-**Key Insight**: Literals stay flexible until context forces them to become concrete.
-
-```hexen
-42        // comptime_int (flexible!)
-3.14      // comptime_float (flexible!)
-val x = 42   // Still comptime_int (preserved!)
-val y : i32 = 42   // NOW becomes i32 (context forces resolution)
-```
+## 📋 Type System Quick Guide
 
 ### The Four Patterns
 
-#### 1. ✨ Comptime + Comptime = Comptime (Flexible)
-```hexen
-val math = 42 + 100 * 3.14    // comptime_float (stays flexible!)
-val as_f32 : f32 = math       // Same source → f32
-val as_f64 : f64 = math       // Same source → f64
-val as_i32 : i32 = math:i32   // Same source → i32 (explicit conversion)
-```
+This is the **core mental model** for all type conversions in Hexen:
 
-#### 2. 🔄 Comptime + Concrete = Concrete (Adapts)
-```hexen
-val count : i32 = 100
-val result : i32 = count + 42    // i32 + comptime_int → i32 (adapts)
-val bigger : i64 = count + 42    // i32 + comptime_int → i64 (context guides)
-```
+| # | Pattern | Conversion | Syntax Example | Cost |
+|---|---------|------------|----------------|------|
+| 1 | **✨ Comptime + Comptime** | Preserved (flexible) | `val x = 42 + 100` | Zero (compile-time) |
+| 2 | **🔄 Comptime + Concrete** | Adapts to concrete | `i32_val + 42` | Zero (adapts seamlessly) |
+| 3 | **🔧 Concrete + Concrete (different)** | Explicit required | `i32_val:i64 + i64_val` | Visible (conversion explicit) |
+| 4 | **⚡ Same Concrete + Same Concrete** | Identity (no conversion) | `i32_val + i32_val` | Zero (same type) |
 
-#### 3. 🔧 Concrete + Concrete = Explicit (Visible Costs)
-```hexen
-val a : i32 = 10
-val b : i64 = 20
-// val mixed = a + b         // ❌ Error: requires explicit conversion
-val explicit : i64 = a:i64 + b  // ✅ Explicit: i32 → i64 (cost visible)
-```
+**Key Rule:** Only comptime types adapt implicitly. All concrete type mixing requires explicit `:type` syntax.
 
-#### 4. ⚡ Same Concrete = Same Concrete (Identity)
-```hexen
-val a : i32 = 10
-val b : i32 = 20
-val result : i32 = a + b        // i32 + i32 → i32 (identity, no conversion)
-```
+### Comptime Types Reference
 
-### Variable Declaration Types
+| Comptime Type | Description | Adapts To | Example |
+|---------------|-------------|-----------|---------|
+| `comptime_int` | Integer literals | `i32`, `i64`, `f32`, `f64` | `42`, `-100`, `1024` |
+| `comptime_float` | Float literals or mixed numeric | `f32`, `f64` | `3.14`, `42 + 3.14` (mixed) |
+| `comptime_array_int` | Array of integer literals | `[N]i32`, `[N]i64`, `[N]f32`, `[N]f64` | `[1, 2, 3]` |
+| `comptime_array_float` | Array of float/mixed literals | `[N]f32`, `[N]f64` | `[3.14, 2.71]`, `[42, 3.14]` |
 
-#### `val` - Immutable Variables (Values)
-- **Single Assignment**: Can only be assigned once at declaration
-- **Type inference allowed**: Can omit type annotation when using comptime literals
-- **Comptime preservation**: Preserves comptime types for maximum flexibility
+### Concrete Types Reference
 
-```hexen
-val message = "Hello, World!"    // ✅ Immutable variable
-val flexible = 42 + 100          // comptime_int (preserved - flexible!)
-val as_i32 : i32 = flexible      // SAME source → i32
-val as_i64 : i64 = flexible      // SAME source → i64
-```
+| Type | Range/Size | Use Case |
+|------|------------|----------|
+| `i32` | -2,147,483,648 to 2,147,483,647 | Default integer |
+| `i64` | -9,223,372,036,854,775,808 to 9,223,372,036,854,775,807 | Large integers |
+| `f32` | ±3.4028235e+38 (~7 decimal digits) | Graphics, fast math |
+| `f64` | ±1.7976931e+308 (~15 decimal digits) | Scientific computing |
+| `bool` | `true` or `false` | Boolean logic |
+| `string` | Text data | Strings |
+| `[N]T` | Fixed-size array of N elements of type T | Arrays with known size |
 
-#### `mut` - Mutable Variables
-- **Multiple assignments**: Can be reassigned as many times as needed
-- **Explicit type required**: Must specify type annotation to prevent action-at-a-distance effects
-- **Cannot preserve comptime types**: Sacrifice flexibility for safety
+### When Do I Need `:type` Conversion?
 
-```hexen
-mut counter : i32 = 0           // ✅ Mutable variable with explicit type
-counter = 42                    // ✅ Reassignment allowed
-// mut bad_counter = 42         // ❌ Error: mut requires explicit type
-```
+| From Type | To Type | Syntax Required | Example | Notes |
+|-----------|---------|-----------------|---------|-------|
+| **Comptime → Concrete (Ergonomic)** |
+| `comptime_int` | `i32`, `i64`, `f32`, `f64` | ✅ Implicit | `val x : i32 = 42` | No cost, ergonomic |
+| `comptime_float` | `f32`, `f64` | ✅ Implicit | `val x : f32 = 3.14` | No cost, ergonomic |
+| `comptime_int` | `comptime_int` | ✅ Preserved | `val x = 42` | Stays flexible! |
+| **Concrete → Concrete (Explicit)** |
+| `i32` | `i64` | 🔧 **Explicit** | `val x : i64 = i32_val:i64` | Conversion cost visible |
+| `i64` | `i32` | 🔧 **Explicit** | `val x : i32 = i64_val:i32` | Data loss visible |
+| `f32` | `f64` | 🔧 **Explicit** | `val x : f64 = f32_val:f64` | Conversion cost visible |
+| `f64` | `f32` | 🔧 **Explicit** | `val x : f32 = f64_val:f32` | Precision loss visible |
+| `i32` | `i32` | ⚡ Identity | `val x : i32 = i32_val` | No conversion |
 
-### Type Conversion Rules
+### `val` vs `mut` Type Requirements
 
-| From Type | To Type | Conversion | Required Syntax | Notes |
-|-----------|---------|------------|-----------------|-------|
-| **Comptime Types (Ergonomic Literals)** |
-| `comptime_int` | `comptime_int` | ✅ Preserved | `val x = 42` | Comptime type preserved (flexible adaptation!) |
-| `comptime_int` | `i32` | ✅ Implicit | `val x : i32 = 42` | No cost, ergonomic |
-| `comptime_int` | `i64` | ✅ Implicit | `val x : i64 = 42` | No cost, ergonomic |
-| `comptime_int` | `f32` | ✅ Implicit | `val x : f32 = 42` | No cost, ergonomic |
-| `comptime_int` | `f64` | ✅ Implicit | `val x : f64 = 42` | No cost, ergonomic |
-| `comptime_float` | `f32` | ✅ Implicit | `val x : f32 = 3.14` | No cost, ergonomic |
-| `comptime_float` | `f64` | ✅ Implicit | `val x : f64 = 3.14` | No cost, ergonomic |
-| `comptime_float` | `i32` | 🔧 Explicit | `val x : i32 = 3.14:i32` | Conversion cost visible |
-| **Concrete Types (All Explicit)** |
-| `i32` | `i64` | 🔧 Explicit | `val x : i64 = i32_val:i64` | Conversion cost visible |
-| `i64` | `i32` | 🔧 Explicit | `val x : i32 = i64_val:i32` | Conversion + data loss visible |
-| `f32` | `f64` | 🔧 Explicit | `val x : f64 = f32_val:f64` | Conversion cost visible |
-| `f64` | `f32` | 🔧 Explicit | `val x : f32 = f64_val:f32` | Conversion + precision loss visible |
+| Declaration | Type Annotation | Comptime Preservation | Example |
+|-------------|-----------------|----------------------|---------|
+| `val` with comptime | Optional | ✅ **YES** (flexible!) | `val x = 42` → stays `comptime_int` |
+| `val` with concrete | Optional (explicit type) | No | `val x : i32 = 42` → becomes `i32` |
+| `mut` | **Required** (mandatory!) | ❌ **NO** (immediate resolution) | `mut x : i32 = 42` → must specify type |
 
-**Legend:**
-- **✅ Preserved**: Comptime type stays flexible, maximum adaptability
-- **✅ Implicit**: Happens automatically, no conversion cost
-- **🔧 Explicit**: Requires explicit syntax (`value:type`), conversion cost visible
+**Key Rule:** `mut` variables **always require explicit type annotations** and cannot preserve comptime types.
 
-### Literal Overflow Behavior & Safety
-
-Hexen provides **compile-time overflow detection** to prevent silent data loss:
-
-#### Type Range Limits
-| Type | Minimum Value | Maximum Value |
-|------|---------------|---------------|
-| `i32` | -2,147,483,648 | 2,147,483,647 |
-| `i64` | -9,223,372,036,854,775,808 | 9,223,372,036,854,775,807 |
-| `f32` | ±3.4028235e+38 | ~7 decimal digits precision |
-| `f64` | ±1.7976931e+308 | ~15 decimal digits precision |
-
-#### Overflow Detection Examples
-```hexen
-// ✅ Valid literals within range
-val valid_i32 : i32 = 2147483647      // Max i32 value
-val valid_i64 : i64 = 9223372036854775807  // Max i64 value
-
-// ❌ Compile-time overflow errors
-// val overflow_i32 : i32 = 4294967296     // Error: Literal overflows i32 range
-// val overflow_i64 : i64 = 18446744073709551616  // Error: Literal overflows i64 range
-// val overflow_f32 : f32 = 3.5e+38        // Error: Literal overflows f32 range
-
-// ✅ Comptime type preservation avoids premature overflow
-val flexible = 4294967296          // comptime_int (no overflow yet)
-val as_i64 : i64 = flexible        // ✅ Fits in i64
-// val as_i32 : i32 = flexible     // ❌ Error: Would overflow i32
-
-// 🔧 Future: Explicit truncation (if implemented)
-// val intended : i32 = 4294967296:i32   // Explicit truncation acknowledgment
-```
-
-#### Error Message Format
-```
-Error: Literal 4294967296 overflows i32 range
-  Expected: -2147483648 to 2147483647
-  Suggestion: Use explicit conversion if truncation is intended: 4294967296:i32
-```
-
-### Uninitialized Variables (`undef`)
-
-```hexen
-// ❌ val + undef creates unusable variable
-// val config : string = undef        // Error: cannot be assigned later
-
-// ✅ mut + undef enables proper deferred initialization
-mut config : string = undef        // OK: deferred initialization
-config = "production"              // OK: first real assignment
-
-// ❌ No type context
-// mut bad = undef                 // Error: Cannot infer type
-
-// ✅ Explicit type required
-mut pending : i32 = undef         // OK: Type explicitly provided
-```
-
-## Unified Block System Deep Dive
-
-### Core Philosophy: One Syntax, Context-Driven Behavior
-
-All Hexen constructs use the same `{}` block syntax, but context determines behavior:
-- **Expression blocks**: Produce values using `->`, support `return` for function exits
-- **Statement blocks**: Execute code with scope isolation, no value production
-- **Function bodies**: Unified with other blocks, context provides return type validation
-
-### The `->` + `return` Dual Capability
-
-Expression blocks support **both** statement types for maximum expressiveness:
-
-#### `->` - Produces Block Value
-```hexen
-val computation = {
-    val base = 42
-    val result = base * 2
-    -> result              // Assigns result to computation
-}
-```
-
-#### `return` - Early Function Exit
-```hexen
-val validated_input = {
-    val raw_input = get_user_input()
-    if raw_input < 0 {
-        return -1              // Early function exit with error
-    }
-    if raw_input > 1000 {
-        return -2              // Early function exit with different error
-    }
-    -> sanitize(raw_input) // Success: assign sanitized input
-}
-```
-
-### Powerful Patterns Enabled
-
-#### Error Handling with Guards
-```hexen
-func safe_divide(a: f64, b: f64) : f64 = {
-    val result = {
-        if b == 0.0 {
-            return 0.0         // Early exit: division by zero
-        }
-        -> a / b           // Normal case: assign division result
-    }
-    return result
-}
-```
-
-#### Performance Optimization with Caching
-```hexen
-func expensive_calc(key: string) : f64 = {
-    val result = {
-        val cached = lookup_cache(key)
-        if cached != null {
-            return cached      // Early exit: cache hit
-        }
-        
-        val computed = very_expensive_operation(key)
-        save_to_cache(key, computed)
-        -> computed        // Cache miss: assign computed value
-    }
-    
-    log_cache_miss(key)        // Only executes on cache miss
-    return result
-}
-```
-
-### Block Types by Context
-
-#### Expression Blocks (Value Production)
-- **Must end with**: `-> expression` for value production
-- **Control flow**: `return value` for early function exits
-- **Scope**: Isolated variables
-- **Type**: Determined by `->` expression type
-
-#### Statement Blocks (Code Execution)
-- **No value production**: Cannot use `->`
-- **Control flow**: `return` for function exits allowed
-- **Scope**: Isolated variables
-- **Purpose**: Side effects and code organization
-
-#### Function Body Blocks
-- **Return requirements**: Type-dependent (`void` vs value-returning)
-- **Scope**: Function scope management
-- **Behavior**: Unified with other block types
+**For detailed type system:** See `docs/TYPE_SYSTEM.md` and `docs/COMPTIME_QUICK_REFERENCE.md`
 
 ---
 
-# Binary Operations Deep Dive
+## 🔧 Common Patterns for Code Generation
 
-## Core Philosophy: Same Rules as Individual Values
+### Variable Declaration Patterns
 
-**Key Insight**: All binary operations (arithmetic, comparison, logical) follow the **same type resolution rules** as individual values - no special restrictions.
+| Pattern | Type Required? | Example | Behavior |
+|---------|----------------|---------|----------|
+| `val` with literal | ❌ No | `val count = 100` | Comptime type preserved (flexible!) |
+| `val` with explicit type | ✅ Yes | `val count : i32 = 100` | Forces concrete type |
+| `val` with function call | ✅ **YES** | `val result : i32 = get_value()` | Function returns concrete |
+| `mut` (always) | ✅ **YES (mandatory)** | `mut counter : i32 = 0` | Type required for safety |
 
-### Operator Categories
+#### Variable Examples
 
-#### Arithmetic Operators
-- `+`, `-`, `*`: Standard mathematical operations
-- `/`: Float division (mathematical, produces floating-point results)
-- `\`: Integer division (efficient truncation, integer results only)
-- `%`: Modulo
-
-#### Comparison Operators
-- `<`, `>`, `<=`, `>=`: Relational comparison (always produce `bool`)
-- `==`, `!=`: Equality comparison (always produce `bool`)
-
-#### Logical Operators
-- `&&`: Logical AND (short-circuit evaluation)
-- `||`: Logical OR (short-circuit evaluation)
-- `!`: Logical NOT
-
-### Division Operations: Float vs Integer
-
-#### Float Division (`/`) - Mathematical Division
 ```hexen
-val precise = 10 / 3             // comptime_int / comptime_int → comptime_float
-val as_f32 : f32 = 22 / 7        // comptime_float → f32 (implicit)
-val as_f64 : f64 = 10 / 3        // comptime_float → f64 (implicit)
+// ✅ Comptime preservation (flexible!)
+val flexible = 42                    // comptime_int (can adapt later)
+val as_i32 : i32 = flexible          // Same source → i32
+val as_i64 : i64 = flexible          // Same source → i64 (flexible!)
 
-// Mixed concrete types require explicit conversions
-val int_val : i32 = 10
-val float_val : f64 = 3.0
-val explicit : f64 = int_val:f64 / float_val  // i32 → f64 (explicit)
+// ✅ Explicit concrete type
+val typed : i32 = 42                 // Immediately i32
+
+// ✅ Mutable variables (type mandatory!)
+mut counter : i32 = 0                // Type required
+counter = 42                         // Reassignment OK
+
+// ❌ Common mistakes
+// mut bad = 42                      // Error: mut requires explicit type
+// val result = get_value()          // Error: function call requires type annotation
 ```
 
-#### Integer Division (`\`) - Efficient Truncation
-```hexen
-val fast = 10 \ 3                // comptime_int \ comptime_int → comptime_int
-val as_i64 : i64 = 22 \ 7        // comptime_int → i64 (implicit)
+### Function Patterns
 
-// Integer division requires integer operands
-val a : i32 = 10
-val b : i32 = 3
-val efficient : i32 = a \ b      // i32 \ i32 → i32 (identity)
+#### Function Parameter & Return Types
 
-// ❌ Float operands with integer division is an error
-// val invalid = 10.5 \ 2.1      // Error: Integer division requires integer operands
-```
+| Component | Type Annotation | Example | Notes |
+|-----------|-----------------|---------|-------|
+| Parameters | **Always required** | `func process(input: i32) : i32` | Parameters must be typed |
+| Return type | **Always required** | `func get_value() : i32` | Return type must be specified |
+| Parameter mutability | Optional (`mut` keyword) | `func modify(mut x: i32) : i32` | Default: immutable |
 
-### Binary Operation Type Resolution
+#### Function Call Patterns
 
-| Operation Pattern | Result Type | Syntax | Notes |
-|-------------------|-------------|---------|-------|
-| `comptime + comptime` (same type) | ✅ Preserved | `val x = 42 + 100` | Comptime type preserved (maximum flexibility!) |
-| `comptime + comptime` (context provided) | ✅ Implicit | `val x : i32 = 42 + 100` | No cost, ergonomic adaptation |
-| `comptime + concrete` | ✅ Implicit | `i32_val + 42` | No cost, comptime adapts |
-| `same_concrete + same_concrete` | ✅ Identity | `i32_val + i32_val` | No conversion needed |
-| `mixed_concrete + mixed_concrete` | 🔧 Explicit | `val x : f64 = i32_val:f64 + f64_val` | Conversion cost visible |
+| Context | Type Annotation Required? | Example | Notes |
+|---------|---------------------------|---------|-------|
+| Argument (literal) | ❌ No | `calculate(42, 3.14)` | Adapts to parameter types |
+| Argument (concrete) | Only for conversion | `calculate(i64_val:i32, f64_val:f32)` | Explicit if types differ |
+| Return → `val` assignment | ✅ **YES (mandatory)** | `val result : i32 = get_value()` | Always require type |
+| Return → `return` statement | ❌ No | `return get_value()` | Function return type provides context |
+| Return → function argument | ❌ No | `process(get_value())` | Parameter type provides context |
 
-### Comparison Operations
-
-Comparison operations follow **identical type resolution rules** as arithmetic operations:
+#### Function Examples
 
 ```hexen
-// ✅ Comptime types work naturally
-val is_greater = 42 > 30              // comptime_int > comptime_int → bool
-val mixed_comp = 42 < 3.14            // comptime_int < comptime_float → bool
-
-// ✅ Same concrete types
-val a : i32 = 10
-val b : i32 = 20
-val result = a < b                    // i32 < i32 → bool
-
-// ❌ Mixed concrete types require explicit conversions (same as arithmetic)
-val int_val : i32 = 10
-val float_val : f64 = 3.14
-// val comparison = int_val < float_val  // Error: mixed concrete types
-val explicit_comp = int_val:f64 < float_val  // ✅ Explicit conversion required
-```
-
-### Logical Operations
-
-```hexen
-// ✅ Boolean operations with short-circuit evaluation
-val true_val : bool = true
-val false_val : bool = false
-val and_result = true_val && false_val    // bool && bool → bool (false)
-val or_result = true_val || false_val     // bool || bool → bool (true)
-
-// ✅ No implicit boolean coercion - explicit comparisons required
-val count : i32 = 5
-// val is_truthy = count                 // ❌ Error: i32 cannot be used as bool
-val is_positive = count > 0             // ✅ Explicit comparison produces bool
-```
-
-### Complex Expressions
-
-```hexen
-// ✅ Comptime operations stay comptime through complex chains
-val step1 = 42 + 100              // comptime_int + comptime_int → comptime_int
-val step2 = step1 * 2             // comptime_int * comptime_int → comptime_int
-val step3 = step2 + 3.14          // comptime_int + comptime_float → comptime_float
-val step4 = step3 / 2.0           // comptime_float / comptime_float → comptime_float
-
-// ✅ All steps happen in "comptime space" until context forces resolution
-val final_f64 : f64 = step4       // NOW: comptime_float → f64
-val final_f32 : f32 = step4       // SAME source, different target
-val final_i32 : i32 = step4:i32   // Explicit conversion needed
-
-// ✅ Expression blocks preserve comptime flexibility
-val complex_calc = {
-    val base = 42 + 100           // comptime_int + comptime_int → comptime_int
-    val scaled = base * 3.14      // comptime_int * comptime_float → comptime_float
-    -> scaled / 2.0               // comptime_float / comptime_float → comptime_float (preserved!)
-}
-val as_f64 : f64 = complex_calc   // SAME source → f64
-val as_f32 : f32 = complex_calc   // SAME source → f32
-
-// 🔧 Mixed concrete types require explicit conversions
-val a : i32 = 10
-val b : i64 = 20
-val c : f32 = 3.14
-val result : f64 = a:f64 + (b:f64 * c:f64)  // All conversions explicit
-```
-
-### Operator Precedence
-
-| Level | Operators | Associativity | Description |
-|-------|-----------|---------------|-------------|
-| 1 | `-`, `!` | Right | Unary minus, logical NOT |
-| 2 | `*`, `/`, `\`, `%` | Left | Multiplication, float division, integer division, modulo |
-| 3 | `+`, `-` | Left | Addition, subtraction |
-| 4 | `<`, `>`, `<=`, `>=` | Left | Relational comparison |
-| 5 | `==`, `!=` | Left | Equality comparison |
-| 6 | `&&` | Left | Logical AND |
-| 7 | `\|\|` | Left | Logical OR |
-
-### Key Design Principles
-
-1. **Unified Type Resolution**: Same rules for all operations (arithmetic, comparison, logical)
-2. **Transparent Costs**: All concrete type mixing requires explicit conversions
-3. **Ergonomic Literals**: Comptime types adapt seamlessly with zero runtime cost
-4. **Predictable Behavior**: Division behavior determined by operator choice (`/` vs `\`)
-5. **Boolean Clarity**: Comparison operations always produce `bool`, no implicit coercion
-
-### Integration with Expression Blocks
-
-Expression blocks work seamlessly with the type system and binary operations:
-
-```hexen
-// ✅ Expression blocks + comptime type preservation
-val flexible_math = {
-    val base = 42 + 100 * 3       // All comptime operations
-    val scaled = base * 2.5       // comptime_int * comptime_float → comptime_float
-    -> scaled                     // Preserves comptime_float flexibility
-}
-val as_i32 : i32 = flexible_math:i32  // Explicit conversion needed
-val as_f32 : f32 = flexible_math      // Same source → f32
-val as_f64 : f64 = flexible_math      // Same source → f64
-
-// ✅ Expression blocks with control flow and validation
-func process_data(input: i32) : i32 = {
-    val validated = {
-        if input < 0 {
-            return -1             // Early function exit: invalid input
-        }
-        if input > 1000 {
-            return -2             // Early function exit: input too large
-        }
-        -> input * 2          // Success: assign processed input
-    }
-    
-    // This only executes if validation succeeded
-    return validated + 10
+// ✅ Function definition
+func calculate(x: i32, y: f64) : f64 = {
+    return x:f64 * y              // Explicit conversion: i32 → f64
 }
 
-// 🔴 mut variables cannot preserve expression block comptime types
-mut concrete_result : f64 = {
-    val calc = 42 + 100 * 3       // Same comptime operations
-    -> calc / 2               // comptime_float → f64 (immediately resolved!)
-}
-// No flexibility preserved - concrete_result is concrete f64
+// ✅ Function calls with type context
+val result : f64 = calculate(42, 3.14)       // Literals adapt to param types
+val explicit : f64 = calculate(i32_val, f64_val)  // Same concrete types
+val converted : f64 = calculate(i64_val:i32, f32_val:f64)  // Explicit conversions
 
-// ✅ Expression blocks with mixed concrete types (explicit conversions)
-func mixed_computation() : f64 = {
-    val int_val : i32 = 10
-    val float_val : f64 = 3.14
-    
-    val result : f64 = {
-        val converted = int_val:f64 + float_val  // Explicit conversion required
-        val scaled = converted * 2.5             // f64 * comptime_float → f64
-        -> scaled                            // Block assign concrete f64
-    }
-    
-    return result
+// ✅ Function return assignments (type always required!)
+val value : i32 = get_count()                // Type annotation mandatory
+val processed : f64 = calculate(10, 2.5)     // Type annotation mandatory
+
+// ✅ Return statements (no type needed - function type provides context)
+func wrapper() : i32 = {
+    return get_count()            // OK: function return type provides context
 }
+
+// ❌ Common mistakes
+// val bad = get_count()          // Error: function call requires type annotation
+// func missing(x, y) : i32 = {}  // Error: parameters must have types
 ```
 
----
+### Array Patterns
 
-# Enhanced Unified Block System Deep Dive
+#### Array Creation
 
-## Core Philosophy: Compile-Time vs Runtime Block Classification
+| Syntax | Size | Element Type | Example | When to Use |
+|--------|------|--------------|---------|-------------|
+| Literal only | Inferred | Comptime | `[1, 2, 3]` | Flexible, can adapt |
+| `[_]T` | Inferred | Concrete | `val x : [_]i32 = [1, 2, 3]` | Size auto-detected |
+| `[N]T` | Fixed | Concrete | `val x : [3]i32 = [1, 2, 3]` | Explicit size |
 
-The enhanced unified block system introduces sophisticated **compile-time vs runtime distinction** that determines whether expression blocks can preserve comptime types for maximum flexibility or require explicit context for immediate resolution.
+#### Array Copy Syntax `[..]`
 
-**Key Insight**: Expression blocks fall into two categories based on their contents:
-- **Compile-time evaluable**: Preserve comptime types for maximum flexibility (one computation, multiple uses)
-- **Runtime evaluable**: Require explicit context due to runtime operations (functions, conditionals, mixed types)
+**Critical Rule:** ALL concrete array copying requires explicit `[..]` syntax to make performance costs visible.
 
-### The Two-Tier Classification System
+| Operation | Syntax Required? | Example | Notes |
+|-----------|------------------|---------|-------|
+| Comptime → Concrete | ❌ No (first materialization) | `val arr : [_]i32 = [1, 2, 3]` | Comptime adapts (ergonomic!) |
+| Concrete → Concrete | ✅ **YES** `[..]` | `val copy : [_]i32 = source[..]` | Explicit copy required |
+| Row access for assignment | ✅ **YES** `[..]` | `val row : [_]i32 = matrix[0][..]` | Explicit copy required |
+| Flattening (2D → 1D) | ✅ **YES** `[..]:[_]T` | `val flat : [_]i32 = matrix[..]:[_]i32` | Both copy + conversion explicit |
 
-#### Compile-Time Evaluable Blocks ✨
-**Contains only comptime operations** - preserves comptime types for maximum adaptability:
+#### Array Examples
 
 ```hexen
-// ✨ Compile-time evaluable block preserves comptime types
-val flexible_computation = {
-    val base = 42              // comptime_int
-    val multiplier = 100       // comptime_int  
-    val factor = 3.14          // comptime_float
-    val result = base * multiplier + factor  // All comptime operations → comptime_float
-    -> result              // Block result: comptime_float (preserved!)
-}
+// ✅ Comptime arrays (flexible!)
+val flexible = [1, 2, 3]                     // comptime_array_int
+val as_i32 : [_]i32 = flexible               // → [3]i32 (first materialization)
+val as_i64 : [_]i64 = flexible               // Same source → [3]i64 (flexible!)
 
-// Same block result adapts to different contexts (maximum flexibility!)
-val as_f32 : f32 = flexible_computation    // comptime_float → f32 (implicit)
-val as_f64 : f64 = flexible_computation    // SAME source → f64 (different context!)
-val as_i32 : i32 = flexible_computation:i32  // SAME source → i32 (explicit conversion)
+// ✅ Concrete arrays
+val numbers : [_]i32 = [10, 20, 30]          // [3]i32
+val fixed : [3]i32 = [10, 20, 30]            // [3]i32 with explicit size
+
+// ✅ Array copying (explicit [..] required!)
+val source : [_]i32 = [1, 2, 3]
+val copy : [_]i32 = source[..]               // Explicit copy
+
+// ✅ Array element access
+val elem : i32 = numbers[0]                  // Element type required (concrete array)
+val comptime_elem = flexible[0]              // comptime_int (from comptime array)
+
+// ✅ Multidimensional arrays
+val matrix : [_][_]i32 = [[1, 2], [3, 4]]    // [2][2]i32
+val row : [_]i32 = matrix[0][..]             // Copy row (explicit [..])
+val flat : [_]i32 = matrix[..]:[_]i32        // Flatten (explicit [..] + :type)
+
+// ❌ Common mistakes
+// val implicit_copy = source                // Error: missing [..] for copy
+// val implicit_row = matrix[0]              // Error: missing [..] for row copy
+// val implicit_flatten = matrix[..]         // Error: missing :type for dimension change
 ```
 
-#### Runtime Evaluable Blocks 🔧
-**Contains runtime operations** - requires explicit context for immediate resolution:
+### Expression Block Patterns
+
+#### Block Classification
+
+| Block Type | Contains | Type Annotation | Example |
+|------------|----------|-----------------|---------|
+| **Comptime** | Only comptime operations | ❌ Optional | `val x = { -> 42 + 100 }` |
+| **Runtime** | Functions, conditionals, concrete types | ✅ **Required** | `val x : i32 = { val y = f(); -> y }` |
+
+#### When Type Context Required
 
 ```hexen
-// 🔧 Runtime evaluable block requires explicit context
-func get_user_input() : f64 = { return 42.0 }
-
-val runtime_result : f64 = {              // Context REQUIRED! (explicit type annotation)
-    val user_input = get_user_input()     // Function call → runtime operation
-    val base = 42                         // comptime_int  
-    -> base * user_input              // Mixed: comptime + concrete → needs context
+// ✅ Comptime block (no context needed)
+val comptime_block = {
+    val base = 42                    // comptime_int
+    val result = base * 2            // comptime_int
+    -> result                        // comptime_int (preserved!)
 }
-```
 
-### Runtime Operation Detection
-
-The system automatically detects runtime operations that trigger runtime classification:
-
-#### Function Calls → Runtime Classification
-**All function calls return concrete types**, making blocks runtime evaluable:
-
-```hexen
-func helper() : i32 = { return 42 }
-
-// Function call detection
-val with_function : i32 = {        // Explicit context required
-    val result = helper()          // Function call → runtime
-    -> result
+// ✅ Runtime block (context REQUIRED!)
+val runtime_block : i32 = {          // Explicit type required!
+    val input = get_input()          // Function call → runtime
+    -> input * 2
 }
-```
 
-#### Conditional Expressions → Runtime Classification  
-**All conditionals are runtime per specification**, even with comptime branches:
-
-```hexen
-// Conditional detection
-val with_conditional : i32 = {     // Explicit context required
+// ✅ Conditional in block → runtime (context required)
+val conditional_block : i32 = {      // Explicit type required!
     val value = if true {
         -> 42
     } else {
         -> 100
-    }                              // Conditional → runtime
+    }
     -> value
 }
+
+// ❌ Common mistake
+// val missing_context = {
+//     val input = get_input()       // Error: runtime block needs type annotation
+//     -> input * 2
+// }
 ```
 
-#### Mixed Concrete Types → Runtime Classification
-**Mixing concrete types** requires explicit conversions and context:
+#### `->` vs `return`
+
+| Statement | Purpose | Scope | Example |
+|-----------|---------|-------|---------|
+| `->` | Produces block value | Assigns to variable | `val x = { -> 42 }` |
+| `return` | Early function exit | Exits containing function | `if error { return -1 }` |
+
+### Binary Operation Patterns
+
+#### Arithmetic Operators
+
+| Operator | Name | Result Type Rule | Example |
+|----------|------|------------------|---------|
+| `+`, `-`, `*` | Add, subtract, multiply | Follows Four Patterns | `42 + 100`, `i32_val + i32_val` |
+| `/` | Float division | Always produces float type | `10 / 3` → `comptime_float` |
+| `\` | Integer division | Produces integer type | `10 \ 3` → `comptime_int` |
+| `%` | Modulo | Follows Four Patterns | `10 % 3` |
+
+#### Comparison & Logical Operators
+
+| Operator Type | Operators | Result Type | Mixed Concrete? |
+|---------------|-----------|-------------|-----------------|
+| Comparison | `<`, `>`, `<=`, `>=`, `==`, `!=` | Always `bool` | 🔧 Requires explicit conversion |
+| Logical | `&&`, `\|\|`, `!` | Always `bool` | N/A (bool only) |
+
+#### Binary Operation Examples
 
 ```hexen
-// Mixed concrete types
-val mixed_block : f64 = {          // Explicit context required
-    val a : i32 = 10               // concrete i32
-    val b : f64 = 20.0             // concrete f64
-    -> a:f64 + b               // Mixed concrete → explicit conversion required
+// ✅ Comptime operations (flexible!)
+val math = 42 + 100 * 3              // comptime_int (preserved)
+val division = 10 / 3                // comptime_float (division produces float)
+val int_div = 10 \ 3                 // comptime_int (integer division)
+
+// ✅ Comparison operations
+val is_greater = 42 > 30             // bool
+val is_equal = 3.14 == 3.14          // bool
+
+// ✅ Mixed concrete types (explicit conversion required)
+val a : i32 = 10
+val b : i64 = 20
+val sum : i64 = a:i64 + b            // Explicit: i32 → i64
+val compare = a:i64 < b              // Explicit conversion for comparison
+
+// ❌ Common mistakes
+// val bad_mix = a + b               // Error: mixed concrete types require explicit conversion
+// val bad_compare = a < b           // Error: comparison also requires explicit conversion
+```
+
+### Conditional Patterns
+
+#### Syntax Rules
+
+| Feature | Required Syntax | Example |
+|---------|----------------|---------|
+| Condition | No parentheses | `if value > 0 { }` |
+| Braces | Always required | `if cond { } else { }` |
+| Condition type | Must be `bool` | `if count > 0 { }` (not `if count { }`) |
+
+#### Conditional Examples
+
+```hexen
+// ✅ Conditional statement
+if user_input > 0 {
+    process_positive()
+} else {
+    handle_negative()
+}
+
+// ✅ Conditional expression
+val result = if condition {
+    -> value1
+} else {
+    -> value2
+}
+
+// ✅ Early return in conditional expression
+val validated = if input < 0 {
+    return -1                        // Early function exit
+} else {
+    -> input * 2                     // Success path
+}
+
+// ❌ Common mistakes
+// if (condition) { }                // Error: no parentheses around condition
+// if count { }                      // Error: i32 cannot be used as bool
+// if condition                      // Error: braces required
+//     do_something()
+```
+
+**For detailed patterns:** See respective documentation in `docs/`
+
+---
+
+## ⚠️ Error Prevention Guide
+
+### Common Mistakes Checklist
+
+#### ❌ Mistake 1: Forgetting Explicit Type Conversions (Concrete Types)
+
+**Problem:**
+```hexen
+val a : i32 = 10
+val b : i64 = 20
+val result = a + b              // ❌ Error!
+```
+
+**Error:** `Mixed concrete types in arithmetic operation '+': i32 incompatible with i64`
+
+**Fix:**
+```hexen
+val result : i64 = a:i64 + b    // ✅ Explicit conversion
+```
+
+**Rule:** ALL concrete type mixing needs `:type` syntax (Transparent Costs principle)
+
+---
+
+#### ❌ Mistake 2: Missing Array Copy Syntax `[..]`
+
+**Problem:**
+```hexen
+val source : [_]i32 = [1, 2, 3]
+val copy = source               // ❌ Error!
+```
+
+**Error:** `Implicit array copying not allowed`
+
+**Fix:**
+```hexen
+val copy : [_]i32 = source[..]  // ✅ Explicit copy with [..]
+```
+
+**Rule:** Array copying always requires `[..]` operator to make performance costs visible
+
+---
+
+#### ❌ Mistake 3: Missing Type Annotation for `mut`
+
+**Problem:**
+```hexen
+mut counter = 0                 // ❌ Error!
+```
+
+**Error:** `mut variables require explicit type annotation`
+
+**Fix:**
+```hexen
+mut counter : i32 = 0           // ✅ Type required for mut
+```
+
+**Rule:** `mut` variables ALWAYS require explicit type annotations (safety requirement)
+
+---
+
+#### ❌ Mistake 4: Missing Type Annotation for Function Returns
+
+**Problem:**
+```hexen
+val result = get_value()        // ❌ Error!
+```
+
+**Error:** `Function call assignments require explicit type annotation`
+
+**Fix:**
+```hexen
+val result : i32 = get_value()  // ✅ Type required for function returns
+```
+
+**Rule:** Function call return values assigned to `val` ALWAYS require explicit type annotations
+
+---
+
+#### ❌ Mistake 5: Missing Context for Runtime Blocks
+
+**Problem:**
+```hexen
+val block_result = {
+    val input = get_user_input()  // Function call → runtime
+    -> input * 2                  // ❌ Error!
 }
 ```
 
-### Enhanced Error Messages and Validation
+**Error:** `Runtime block requires explicit type annotation (contains function calls)`
 
-The system provides context-specific error messages with actionable guidance:
-
-#### "Context REQUIRED!" Messages
-Runtime blocks explain why explicit context is needed:
-
+**Fix:**
 ```hexen
-// ❌ Missing explicit context
-val problematic = {
-    val input = get_input()        // Function call → runtime
+val block_result : i32 = {        // ✅ Explicit context required
+    val input = get_user_input()
     -> input * 2
 }
-// Error: Context REQUIRED! Runtime block requires explicit type annotation because it 
-// contains function calls (functions always return concrete types). 
-// Suggestion: val problematic : i32 = { ... }
 ```
 
-#### Explicit Conversion Guidance
-Mixed concrete types get detailed conversion suggestions:
-
-```hexen
-// ❌ Mixed concrete types without conversion
-val a : i32 = 10
-val b : f64 = 20.0
-val mixed = a + b
-// Error: Mixed concrete types in arithmetic operation '+': i32 incompatible with f64. 
-// Transparent costs principle requires explicit conversion. 
-// Use explicit conversion syntax: value:f64
-```
-
-### Advanced Patterns Enabled
-
-#### One Computation, Multiple Uses Pattern
-Compile-time evaluable blocks enable flexible reuse:
-
-```hexen
-// Single computation, multiple contexts
-val complex_math = {
-    val x = 42 + 100               // comptime_int
-    val y = 3.14 * 2.0             // comptime_float  
-    -> x * y                   // comptime_int * comptime_float → comptime_float
-}
-
-// Same computation used in different contexts
-val for_graphics : f32 = complex_math      // → f32
-val for_physics : f64 = complex_math       // → f64 (higher precision)
-val for_indexing : i32 = complex_math:i32  // → i32 (explicit conversion)
-```
-
-#### Runtime Optimization with Early Exits
-Runtime blocks support performance optimization patterns:
-
-```hexen
-func expensive_calc(key: string) : f64 = {
-    val result : f64 = {
-        val cached = lookup_cache(key)
-        if cached != 0.0 {
-            return cached          // Early function exit: cache hit
-        }
-        
-        val computed = very_expensive_operation(key)
-        save_to_cache(key, computed)
-        -> computed            // Cache miss: assign computed value
-    }
-    
-    log_cache_miss(key)            // Only executes on cache miss
-    return result
-}
-```
-
-#### Error Handling with Validation Guards
-Expression blocks enable comprehensive validation patterns:
-
-```hexen
-func safe_processing(input: f64) : f64 = {
-    val validated : f64 = {
-        if input < 0.0 {
-            return -1.0            // Early function exit: invalid input
-        }
-        if input > 1000.0 {
-            return -2.0            // Early function exit: out of range
-        }
-        -> sanitize(input)     // Success: resolve to sanitized value
-    }
-    
-    return validated
-}
-```
-
-### Integration with Existing Type System
-
-The enhanced block system seamlessly integrates with existing comptime types and `val`/`mut` semantics:
-
-#### `val` + Compile-Time Blocks = Maximum Flexibility
-```hexen
-val preserved_comptime = {         // No explicit type needed
-    val calc = 42 * 3.14          // comptime operations
-    -> calc                   // Preserved as comptime_float
-}
-
-// Multiple uses with different types
-val use1 : f32 = preserved_comptime
-val use2 : f64 = preserved_comptime
-```
-
-#### `mut` + Runtime Blocks = Immediate Resolution
-```hexen
-mut immediate_resolution : f64 = { // Explicit type required for mut
-    val calc = 42 * 3.14          // Same comptime operations
-    -> calc                   // Immediately resolved to f64
-}
-// No flexibility preserved - immediate_resolution is concrete f64
-```
-
-### Specification Compliance
-
-The enhanced unified block system fully complies with:
-- **UNIFIED_BLOCK_SYSTEM.md**: Compile-time vs runtime distinction
-- **CONDITIONAL_SYSTEM.md**: All conditionals treated as runtime
-- **TYPE_SYSTEM.md**: Transparent costs principle with explicit conversions
-- **BINARY_OPS.md**: Consistent type resolution across all operations
-
-### Development Guidelines
-
-#### When to Use Compile-Time Blocks
-- Pure mathematical computations with comptime literals
-- Calculations that might be used in multiple type contexts
-- Configuration values that adapt to usage context
-
-#### When to Use Runtime Blocks (with explicit context)
-- Any computation involving function calls
-- Blocks containing conditional expressions
-- Operations mixing concrete types
-- Cases where immediate type resolution is desired
-
-#### Best Practices
-1. **Let the system guide you**: Error messages provide specific guidance for required annotations
-2. **Preserve flexibility when possible**: Use compile-time blocks for reusable computations
-3. **Be explicit about costs**: Use type annotations when mixing concrete types
-4. **Leverage early returns**: Use `return` for error handling and optimization patterns
+**Rule:** Blocks containing runtime operations (functions, conditionals) require explicit type context
 
 ---
 
-# Function System Deep Dive
+#### ❌ Mistake 6: Using Non-Bool in Conditionals
 
-## Parameter System & Type Context
-
-### Parameter Mutability Rules
-- **Immutable by default**: Parameters cannot be reassigned unless marked `mut`
-- **Explicit mutability**: Use `mut` keyword for parameters that need modification
-- **Type annotations required**: All parameters must have explicit type annotations
-
+**Problem:**
 ```hexen
-// Immutable parameters (default)
-func process(input: i32, threshold: f64) : bool = {
-    // input = 42              // ❌ Error: Cannot reassign immutable parameter
-    return input > threshold:i32  // ✅ Can read and use in expressions
-}
-
-// Mutable parameters (explicit)
-func increment_and_return(mut counter: i32) : i32 = {
-    counter = counter + 1       // ✅ OK: Mutable parameter can be reassigned
-    return counter
-}
-
-func normalize_string(mut text: string) : string = {
-    text = trim_whitespace(text)          // ✅ OK: Mutable parameter reassignment
-    text = to_lowercase(text)             // ✅ OK: Subsequent reassignment
-    return text
+val count : i32 = 5
+if count {                      // ❌ Error!
+    do_something()
 }
 ```
 
-### Function Calls & Comptime Type Context
+**Error:** `Condition must be of type bool, got i32`
 
-Function parameters provide **type context** for comptime type resolution, enabling maximum flexibility:
-
+**Fix:**
 ```hexen
-func calculate_area(width: f64, height: f64) : f64 = {
-    return width * height
-}
-
-func process_count(items: i32, multiplier: i32) : i32 = {
-    return items * multiplier
-}
-
-// ✨ Comptime type preservation + function context
-val math_result = 42 + 100 * 5          // comptime_int (preserved!)
-val float_calc = 10.5 * 2.0             // comptime_float (preserved!)
-
-// Same expressions adapt to different function contexts
-val area : f64 = calculate_area(math_result, float_calc)    // comptime types adapt to f64 parameters
-val count : i32 = process_count(math_result, 5)            // comptime types adapt to i32 parameters
-
-// Traditional literals also work
-val area2 : f64 = calculate_area(42, 30)        // comptime_int → f64 for parameters
-val count2 : i32 = process_count(100, 5)        // comptime_int → i32 for parameters
-```
-
-### Mixed Parameter Types & Explicit Conversions
-
-When functions have mixed parameter types, each argument adapts independently but concrete type mixing still requires explicit conversions:
-
-```hexen
-func mixed_calculation(base: i32, multiplier: f64, precision: f32) : f64 = {
-    val scaled : f64 = base:f64 * multiplier      // ✅ Explicit conversion: i32 → f64
-    return scaled * precision:f64                 // ✅ Explicit conversion: f32 → f64
-}
-
-// ✨ Comptime literals adapt seamlessly to parameter contexts
-val result1 : f64 = mixed_calculation(42, 3.14, 1.5)  // All comptime → adapt to parameter types
-
-// 🔧 Mixed concrete types require explicit conversions
-val int_val : i32 = 10
-val large_val : i64 = 20
-val float_val : f64 = 3.14
-
-// ❌ Error: Mixed concrete types
-// mixed_calculation(large_val, float_val, float_val)
-
-// ✅ Explicit conversions make costs visible
-val result2 : f64 = mixed_calculation(large_val:i32, float_val, float_val:f32)
-```
-
-### Function Call Return Value Type Annotations
-
-**IMPORTANT RULE**: Function call return values **ALWAYS require explicit type annotations** when assigned to `val` variables, even for identity assignments.
-
-**Why this rule exists:**
-1. Functions always return concrete types (never comptime types)
-2. Makes the concrete type explicit and visible at the call site
-3. Improves code clarity and aligns with the "Transparent Costs" philosophy
-4. Consistent with FUNCTION_SYSTEM.md specification examples
-
-```hexen
-func get_value() : i32 = {
-    return 42
-}
-
-func calculate(x: i32, y: i32) : i32 = {
-    return x + y
-}
-
-func get_ratio() : f64 = {
-    return 3.14
-}
-
-// ❌ INCORRECT: Missing explicit type annotation (even though it's i32 → i32 identity)
-// val result = get_value()
-
-// ✅ CORRECT: Explicit type annotation required for all function call assignments
-val result : i32 = get_value()
-
-// ✅ CORRECT: Explicit type for all function calls
-val sum : i32 = calculate(10, 20)
-val ratio : f64 = get_ratio()
-
-// ✅ CORRECT: Nested function calls also require explicit types
-val nested : i32 = calculate(get_value(), 10)
-
-// ✅ CORRECT: Function calls in expression blocks
-val block_result : i32 = {
-    val temp : i32 = get_value()  // Explicit type required
-    -> temp * 2
+if count > 0 {                  // ✅ Explicit comparison produces bool
+    do_something()
 }
 ```
 
-**Exception**: Function calls in `return` statements don't need explicit types (the function's return type provides context):
+**Rule:** Conditions must be `bool` type - no implicit conversion from numeric types
+
+---
+
+#### ❌ Mistake 7: Missing Explicit Conversion for Array Flattening
+
+**Problem:**
 ```hexen
-func wrapper() : i32 = {
-    return get_value()  // ✅ OK: Function return type provides context
+val matrix : [2][3]i32 = [[1, 2, 3], [4, 5, 6]]
+val flat = matrix[..]           // ❌ Error!
+```
+
+**Error:** `Array dimension change requires explicit type conversion`
+
+**Fix:**
+```hexen
+val flat : [_]i32 = matrix[..]:[_]i32  // ✅ Both [..] and :type explicit
+```
+
+**Rule:** Dimension changes (like 2D → 1D flattening) require BOTH `[..]` (copy) AND `:type` (conversion)
+
+---
+
+#### ❌ Mistake 8: Parentheses Around Conditionals
+
+**Problem:**
+```hexen
+if (condition) {                // ❌ Error!
+    do_something()
 }
 ```
 
-### Integration with Return Types
+**Error:** `Unexpected token: '(' - conditions should not be wrapped in parentheses`
 
-Function return types provide context for comptime type resolution in return statements:
-
+**Fix:**
 ```hexen
-// Return type provides context for comptime literals
-func get_count() : i32 = {
-    return 42 + 100                      // comptime_int adapts to i32 return type
+if condition {                  // ✅ No parentheses
+    do_something()
 }
+```
 
-func get_ratio() : f64 = {
-    return 42 + 3.14                     // comptime_float adapts to f64 return type
-}
+**Rule:** Hexen conditionals don't use parentheses around conditions
 
-func precise_calc() : f32 = {
-    return 10 / 3                        // Float division → comptime_float → f32
-}
+---
 
-// Mixed concrete types in return statements require explicit conversions
-func mixed_return(a: i32, b: f64) : f64 = {
-    // return a + b                      // ❌ Error: Mixed concrete types
-    return a:f64 + b                     // ✅ Explicit conversion required
+#### ❌ Mistake 9: Missing Braces in Conditionals
+
+**Problem:**
+```hexen
+if condition                    // ❌ Error!
+    do_something()
+```
+
+**Error:** `Expected '{' after condition`
+
+**Fix:**
+```hexen
+if condition {                  // ✅ Braces required
+    do_something()
 }
+```
+
+**Rule:** All conditional branches must use `{}` blocks (no single statements)
+
+---
+
+#### ❌ Mistake 10: Incomplete Conditional Expressions
+
+**Problem:**
+```hexen
+val result = if condition {
+    -> value1
+}                               // ❌ Error!
+```
+
+**Error:** `All branches in conditional expression must -> a value or return from function`
+
+**Fix:**
+```hexen
+val result = if condition {
+    -> value1
+} else {
+    -> value2                   // ✅ All paths covered
+}
+```
+
+**Rule:** Conditional expressions must have all branches produce values (-> or return)
+
+---
+
+### Quick Decision Trees
+
+#### Do I Need Explicit `:type` Conversion?
+
+```
+Is the value a comptime type? (literal, comptime operation)
+  ├─ YES → ✅ Implicit conversion OK (ergonomic!)
+  └─ NO → Is it a concrete type?
+      ├─ YES → Are you mixing with different concrete type?
+      │   ├─ YES → 🔧 Explicit :type required (transparent costs!)
+      │   └─ NO (same type) → ⚡ No conversion needed (identity)
+      └─ NO → Check if it's an array/special case
+```
+
+#### Do I Need `[..]` for Arrays?
+
+```
+What are you doing with the array?
+  ├─ First materialization (comptime → concrete) → ❌ No [..] needed
+  ├─ Copying concrete array → ✅ YES, [..] required
+  ├─ Accessing element → ❌ No [..] needed (use [index])
+  ├─ Copying matrix row → ✅ YES, [..] required
+  └─ Flattening array → ✅ YES, both [..] AND :type required
+```
+
+#### Does This Block Need Type Context?
+
+```
+What does the block contain?
+  ├─ Only comptime operations (literals, arithmetic) → ❌ No context needed
+  ├─ Function calls → ✅ YES, context required (runtime)
+  ├─ Conditionals (if/else) → ✅ YES, context required (runtime)
+  └─ Mixed concrete types → ✅ YES, context required (runtime)
 ```
 
 ---
 
-# Literal Overflow Protection Deep Dive
+## 📚 Deep Dive References
 
-## Safety Philosophy: Compile-Time Detection
+### Documentation Map
 
-Hexen follows a **"safety-first"** approach to literal overflow, similar to modern systems languages like Rust and Zig:
+For detailed specifications, consult the following documents:
 
-### Detection Points
-- **Literal parsing**: When comptime literals are assigned explicit types
-- **Type coercion**: When comptime types resolve to concrete types  
-- **Assignment validation**: During variable declaration and assignment
+| Topic | Document | Key Sections |
+|-------|----------|--------------|
+| **Type System Philosophy** | `docs/TYPE_SYSTEM.md` | Core Philosophy, Four Patterns, Conversion Rules |
+| **Comptime Type Mental Models** | `docs/COMPTIME_QUICK_REFERENCE.md` | Mental Models, Comptime Propagation |
+| **Function Parameters & Returns** | `docs/FUNCTION_SYSTEM.md` | Parameter System, Type Context, Return Annotations |
+| **Expression & Statement Blocks** | `docs/UNIFIED_BLOCK_SYSTEM.md` | Block Types, Runtime Detection, -> vs return |
+| **Binary Operations (All Types)** | `docs/BINARY_OPS.md` | Type Resolution, Division Operators, Comparisons |
+| **Conditionals (if/else)** | `docs/CONDITIONAL_SYSTEM.md` | Syntax, Type Integration, Runtime Treatment |
+| **Literal Overflow Safety** | `docs/LITERAL_OVERFLOW_BEHAVIOR.md` | Detection Rules, Type Ranges, Error Messages |
+| **Arrays (All Dimensions)** | `docs/ARRAY_TYPE_SYSTEM.md` | Array Syntax, Comptime Arrays, Flattening, Multidimensional |
 
-### Comparison with Other Languages
+### When to Consult Which Doc
 
-| Language | Behavior | Safety Level |
-|----------|----------|--------------|
-| **Hexen** | ❌ Compile error | 🟢 Very Safe |
-| **Zig** | ❌ Compile error | 🟢 Very Safe |
-| **Rust** | ❌ Compile error | 🟢 Very Safe |
-| **Java** | ❌ Compile error | 🟢 Very Safe |
-| **Go** | ❌ Compile error | 🟢 Very Safe |
-| **C/C++** | ⚠️ Warning + truncation | 🔴 Unsafe |
-| **Python** | ✅ Arbitrary precision | 🟡 Different paradigm |
+- **Type conversion questions?** → `TYPE_SYSTEM.md` + `COMPTIME_QUICK_REFERENCE.md`
+- **Why does my array operation fail?** → `ARRAY_TYPE_SYSTEM.md` (sections on copy syntax `[..]` and flattening)
+- **Binary operation type errors?** → `BINARY_OPS.md` (section on type resolution rules)
+- **Expression block context issues?** → `UNIFIED_BLOCK_SYSTEM.md` (runtime vs comptime classification)
+- **Function parameter/return rules?** → `FUNCTION_SYSTEM.md` (parameter context, return annotations)
+- **Conditional expression patterns?** → `CONDITIONAL_SYSTEM.md` (conditional expressions, -> vs return)
+- **Literal overflow errors?** → `LITERAL_OVERFLOW_BEHAVIOR.md` (type ranges, overflow detection)
+- **Adding new array features?** → `ARRAY_TYPE_SYSTEM.md` (comprehensive array specification)
 
-### Edge Cases & Special Literals
+### Cross-Reference Guide
 
-```hexen
-// Boundary values (should work)
-val max_i32 : i32 = 2147483647     // ✅ Exactly at boundary
-val min_i32 : i32 = -2147483648    // ✅ Exactly at boundary
+**Comptime Type System:**
+- Core concepts: `TYPE_SYSTEM.md`, `COMPTIME_QUICK_REFERENCE.md`
+- In binary operations: `BINARY_OPS.md` (comptime propagation)
+- In arrays: `ARRAY_TYPE_SYSTEM.md` (comptime arrays)
+- In blocks: `UNIFIED_BLOCK_SYSTEM.md` (comptime vs runtime blocks)
 
-// Hexadecimal literals
-// val hex_overflow : i32 = 0x100000000  // ❌ Error: 2^32 in hex
+**Explicit Conversions (`:type`):**
+- General rules: `TYPE_SYSTEM.md` (Transparent Costs principle)
+- In operations: `BINARY_OPS.md` (mixed concrete types)
+- In arrays: `ARRAY_TYPE_SYSTEM.md` (array type conversions, flattening)
+- In functions: `FUNCTION_SYSTEM.md` (parameter conversions)
 
-// Binary literals  
-// val bin_overflow : i32 = 0b100000000000000000000000000000000  // ❌ Error: 2^32 in binary
+**Runtime vs Compile-time:**
+- Block classification: `UNIFIED_BLOCK_SYSTEM.md` (comptime vs runtime blocks)
+- Conditionals: `CONDITIONAL_SYSTEM.md` (all conditionals are runtime)
+- Type resolution: `TYPE_SYSTEM.md` (comptime type preservation)
 
-// Negative overflow
-// val neg_overflow : i32 = -2147483649   // ❌ Error: Below i32 minimum
-```
+---
 
-### Implementation Integration
+## 🧪 Testing & Development Guidelines
 
-The overflow detection integrates seamlessly with the comptime type system:
+### Testing Strategy
 
-```hexen
-// Comptime types stay flexible until forced to resolve
-val flexible = 4294967296        // comptime_int (no error yet)
-val as_i32 : i32 = flexible      // ❌ Error: NOW detects overflow during coercion
-val as_i64 : i64 = flexible      // ✅ Coercion succeeds (fits in i64)
+- **Parser tests** (`tests/parser/`): Validate syntax and AST generation
+- **Semantic tests** (`tests/semantic/`): Validate type checking and program semantics
+- **Current status**: 1,354/1,354 tests passing (100% success rate)
+- All tests use pytest framework
 
-// Consistency with explicit conversion requirements
-val small : i32 = 42
-val large : i64 = small:i64      // ✅ Explicit conversion required (type system rule)
+### Code Style
 
-// Overflow follows same explicit pattern (future enhancement)
-// val truncated : i32 = 4294967296:i32  // 🔧 Explicit truncation (if implemented)
-```
+- Use Ruff for formatting and linting (configured in `pyproject.toml`)
+- Follow Python 3.12+ type hints throughout
+- Maintain clean separation between parser and semantic analysis
+
+### Adding New Language Features
+
+1. **Update grammar** in `src/hexen/hexen.lark`
+2. **Add AST nodes** in `src/hexen/ast_nodes.py` (if needed)
+3. **Update parser logic** in `src/hexen/parser.py`
+4. **Add semantic analysis** in appropriate `src/hexen/semantic/` module
+5. **Write comprehensive tests** in both `tests/parser/` and `tests/semantic/`
+6. **Update documentation** in `docs/` (detailed specs)
+7. **Update CLAUDE.md** (only if common patterns change)
+
+### Debugging Tips
+
+- **Parse issues**: Use `uv run hexen parse <file>` to see AST output
+- **Check grammar**: Review rules in `src/hexen/hexen.lark`
+- **Validate syntax**: Compare against examples in `examples/`
+- **Type errors**: Consult `docs/TYPE_SYSTEM.md` for conversion rules
+- **Array issues**: Check `docs/ARRAY_TYPE_SYSTEM.md` for copy/flatten syntax
+
+---
+
+## Important Notes
+
+- **Python-first implementation**: Designed for rapid language design prototyping
+- **Future LLVM backend**: Architecture designed for llvmlite backend
+- **Focus**: Language design experimentation over performance
+- **Documentation**: `docs/` contains authoritative specifications
+- **Examples**: `examples/` demonstrates all features with learning progression
+- **Architecture**: Traditional two-phase (parser → semantic analyzer)
+
+---
+
+**Last Updated:** 2025-10-19
+**Version:** 2.0 (Redesigned for AI-first usage)
