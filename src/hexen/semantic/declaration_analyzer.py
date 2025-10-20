@@ -80,11 +80,10 @@ class DeclarationAnalyzer:
         self.symbol_table = symbol_table
         self.comptime_analyzer = comptime_analyzer
         self._get_modified_parameters = get_modified_parameters_callback
-        
+
         # Initialize multidimensional array analyzer for flattening operations
         self.multidim_analyzer = MultidimensionalArrayAnalyzer(
-            error_callback=error_callback,
-            comptime_analyzer=comptime_analyzer
+            error_callback=error_callback, comptime_analyzer=comptime_analyzer
         )
 
     def analyze_declaration(self, node: Dict) -> None:
@@ -323,7 +322,9 @@ class DeclarationAnalyzer:
                     # Check for array flattening before type compatibility validation
                     flattening_handled = False
                     if self._is_flattening_assignment(var_type, value_type):
-                        if self._handle_flattening_assignment(node, var_type, value_type, name, value):
+                        if self._handle_flattening_assignment(
+                            node, var_type, value_type, name, value
+                        ):
                             # Flattening successful - skip regular type compatibility check
                             flattening_handled = True
                         else:
@@ -378,6 +379,22 @@ class DeclarationAnalyzer:
                     f"Functions always return concrete types (never comptime types). "
                     f"Use explicit type annotation: 'val {name} : type = {function_name}(...)' "
                     f"(see CLAUDE.md: Function System - Function Call Return Value Type Annotations)",
+                    node,
+                )
+                return
+
+            # NEW RULE: Conditional expression return values require explicit type annotation
+            # Conditional expressions are runtime operations that form a "type barrier"
+            # where comptime types can flow IN but concrete types flow OUT.
+            # This makes the concrete type explicit and visible at the declaration site.
+            # Follows same pattern as function calls (runtime operations require type context).
+            if value.get("type") == NodeType.CONDITIONAL_STATEMENT.value:
+                self._error(
+                    f"Conditional expressions require explicit type annotation (runtime operation). "
+                    f"Variable '{name}' is assigned result of conditional expression without explicit type. "
+                    f"Conditional expressions are runtime operations (like function calls) that form a 'type barrier'. "
+                    f"Use explicit type annotation: 'val {name} : type = if condition {{ ... }}' "
+                    f"(see CONDITIONAL_SYSTEM.md: Runtime Barrier Semantics)",
                     node,
                 )
                 return
@@ -493,6 +510,7 @@ class DeclarationAnalyzer:
 
         # Validate element type is concrete (not comptime)
         from .types import ComptimeArrayType
+
         if isinstance(element_type, ComptimeArrayType):
             self._error(
                 f"Array type annotation cannot use ComptimeArrayType as element",
@@ -529,7 +547,9 @@ class DeclarationAnalyzer:
                         return HexenType.UNKNOWN
                     dimensions.append(dim_size)
                 except (ValueError, TypeError):
-                    self._error(f"Invalid array dimension size: {size}", array_type_node)
+                    self._error(
+                        f"Invalid array dimension size: {size}", array_type_node
+                    )
                     return HexenType.UNKNOWN
 
         if not dimensions:
@@ -546,25 +566,33 @@ class DeclarationAnalyzer:
             self._error(f"Invalid array type: {e}", array_type_node)
             return HexenType.UNKNOWN
 
-    def _is_flattening_assignment(self, target_type: HexenType, source_type: HexenType) -> bool:
+    def _is_flattening_assignment(
+        self, target_type: HexenType, source_type: HexenType
+    ) -> bool:
         """
         Detect if assignment is array flattening operation.
-        
+
         Flattening occurs when:
         - Both target and source are array types
-        - Target is 1D array 
+        - Target is 1D array
         - Source is multidimensional array (2D+)
         - Element types are compatible
         """
         return (
-            isinstance(target_type, ConcreteArrayType) and
-            isinstance(source_type, ConcreteArrayType) and 
-            len(target_type.dimensions) == 1 and  # Target is 1D
-            len(source_type.dimensions) > 1       # Source is multidimensional
+            isinstance(target_type, ConcreteArrayType)
+            and isinstance(source_type, ConcreteArrayType)
+            and len(target_type.dimensions) == 1  # Target is 1D
+            and len(source_type.dimensions) > 1  # Source is multidimensional
         )
 
-    def _handle_flattening_assignment(self, node: Dict, target_type: ConcreteArrayType,
-                                    source_type: ConcreteArrayType, var_name: str, value_node: Dict) -> bool:
+    def _handle_flattening_assignment(
+        self,
+        node: Dict,
+        target_type: ConcreteArrayType,
+        source_type: ConcreteArrayType,
+        var_name: str,
+        value_node: Dict,
+    ) -> bool:
         """
         Handle array flattening assignment with proper validation.
 
@@ -596,7 +624,7 @@ class DeclarationAnalyzer:
                 f"The [..] operator alone is not sufficient for dimension conversion\n"
                 f"Suggestion: use combined syntax: value[..]:[type]\n"
                 f"Example: val {var_name} : {self._format_array_type(target_type)} = {self._get_value_hint(value_node)}[..]:{self._format_array_type(target_type)}",
-                node
+                node,
             )
             return False
         # Everything else requires explicit [..]
@@ -612,7 +640,7 @@ class DeclarationAnalyzer:
                     f"Concrete array '{array_name}' requires explicit copy operator [..] for flattening\n"
                     f"Array flattening is a copy operation and requires explicit syntax to make performance costs visible\n"
                     f"Suggestion: val {var_name} : {target_type_str} = {array_name}[..]",
-                    node
+                    node,
                 )
                 return False
 
@@ -622,7 +650,7 @@ class DeclarationAnalyzer:
                 f"Variable '{var_name}' expects flattened array\n"
                 f"Complex array expressions must use explicit [..] to make copy costs visible\n"
                 f"Suggestion: wrap expression in array copy: (<expression>)[..]",
-                node
+                node,
             )
             return False
 
@@ -632,10 +660,10 @@ class DeclarationAnalyzer:
                 f"Array flattening type mismatch for variable '{var_name}': "
                 f"cannot flatten {source_type.element_type} array to {target_type.element_type} array. "
                 f"Element types must match exactly",
-                node
+                node,
             )
             return False
-        
+
         # 2. Calculate source array total element count
         source_element_count = 1
         for dim_size in source_type.dimensions:
@@ -643,12 +671,12 @@ class DeclarationAnalyzer:
                 self._error(
                     f"Cannot flatten array with inferred source dimensions for variable '{var_name}'. "
                     f"Source array must have explicit dimensions",
-                    node
+                    node,
                 )
                 return False
             source_element_count *= dim_size
 
-        # 3. Handle size inference for [_] targets  
+        # 3. Handle size inference for [_] targets
         if target_type.dimensions[0] == "_":
             # Infer the size from source array element count
             target_type.dimensions[0] = source_element_count
@@ -663,10 +691,10 @@ class DeclarationAnalyzer:
                     f"({' × '.join(map(str, source_type.dimensions))}) "
                     f"but target array expects {target_size} elements. "
                     f"Element counts must match exactly for safe flattening",
-                    node
+                    node,
                 )
                 return False
-        
+
         # All validation passed - flattening is valid
         return True
 
@@ -679,7 +707,7 @@ class DeclarationAnalyzer:
         return {
             "element_type": array_type.element_type,
             "dimensions": array_type.dimensions,
-            "is_concrete": True
+            "is_concrete": True,
         }
 
     def _format_array_type(self, array_type: ConcreteArrayType) -> str:

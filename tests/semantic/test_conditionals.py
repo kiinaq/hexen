@@ -394,10 +394,10 @@ class TestConditionalExpressions:
     """Test conditional expressions in expression context."""
 
     def test_basic_conditional_expression(self):
-        """Test basic conditional expression with -> statements."""
+        """Test basic conditional expression with -> statements (type annotation required)."""
         code = """
         func test() : i32 = {
-            val result = if true {
+            val result : i32 = if true {  // Type REQUIRED (conditional = runtime)
                 -> 42
             } else {
                 -> 100
@@ -428,10 +428,10 @@ class TestConditionalExpressions:
         assert_no_errors(errors)
 
     def test_conditional_expression_with_variables(self):
-        """Test conditional expression using variables."""
+        """Test conditional expression using variables (type annotation required)."""
         code = """
         func select(flag : bool, a : i32, b : i32) : i32 = {
-            val result = if flag {
+            val result : i32 = if flag {  // Type REQUIRED (conditional = runtime)
                 -> a
             } else {
                 -> b
@@ -445,10 +445,10 @@ class TestConditionalExpressions:
         assert_no_errors(errors)
 
     def test_conditional_expression_with_early_return(self):
-        """Test conditional expression with return statements for early exit."""
+        """Test conditional expression with return statements for early exit (type annotation required)."""
         code = """
         func process(input : i32) : i32 = {
-            val result = if input < 0 {
+            val result : i32 = if input < 0 {  // Type REQUIRED (conditional = runtime)
                 return -1          // Early function exit
             } else {
                 -> input * 2   // Normal processing
@@ -462,10 +462,10 @@ class TestConditionalExpressions:
         assert_no_errors(errors)
 
     def test_conditional_expression_else_if_chain(self):
-        """Test conditional expression with else-if chains."""
+        """Test conditional expression with else-if chains (type annotation required)."""
         code = """
         func classify(score : i32) : string = {
-            val grade = if score >= 90 {
+            val grade : string = if score >= 90 {  // Type REQUIRED (conditional = runtime)
                 -> "A"
             } else if score >= 80 {
                 -> "B"
@@ -481,10 +481,10 @@ class TestConditionalExpressions:
         assert_no_errors(errors)
 
     def test_mixed_return_and_assign(self):
-        """Test conditional expression mixing return and -> statements."""
+        """Test conditional expression mixing return and -> statements (type annotation required)."""
         code = """
         func validate_and_process(input : i32) : i32 = {
-            val result = if input < 0 {
+            val result : i32 = if input < 0 {  // Type REQUIRED (conditional = runtime)
                 return -1          // Early exit: error case
             } else if input == 0 {
                 return 0           // Early exit: special case
@@ -504,10 +504,10 @@ class TestConditionalExpressionErrors:
     """Test error conditions for conditional expressions."""
 
     def test_non_boolean_condition_in_expression(self):
-        """Test error for non-boolean condition in conditional expression."""
+        """Test error for non-boolean condition in conditional expression (type annotation required)."""
         code = """
         func test(x : i32) : i32 = {
-            val result = if x {  // Error: i32 not bool
+            val result : i32 = if x {  // Type REQUIRED (conditional = runtime); Error: i32 not bool
                 -> 42
             } else {
                 -> 100
@@ -559,10 +559,10 @@ class TestConditionalExpressionTypeResolution:
         assert_no_errors(errors)
 
     def test_nested_conditional_expressions(self):
-        """Test nested conditional expressions."""
+        """Test nested conditional expressions (type annotation required)."""
         code = """
         func complex_logic(a : bool, b : bool) : i32 = {
-            val result = if a {
+            val result : i32 = if a {  // Type REQUIRED (conditional = runtime)
                 -> if b {
                     -> 1
                 } else {
@@ -588,14 +588,14 @@ class TestConditionalIntegrationPatterns:
     """Test integration with other language features."""
 
     def test_conditionals_in_expression_blocks(self):
-        """Test conditional expressions within expression blocks."""
+        """Test conditional expressions within expression blocks (type annotation required)."""
         code = """
         func calculate(base : i32) : f64 = {
             val result : f64 = {
-                val multiplier = if base > 100 {
+                val multiplier : f64 = if base > 100 {  // Type REQUIRED (conditional = runtime)
                     -> 2.5
                 } else {
-                    -> 1.0  
+                    -> 1.0
                 }
                 -> base:f64 * multiplier
             }
@@ -608,14 +608,14 @@ class TestConditionalIntegrationPatterns:
         assert_no_errors(errors)
 
     def test_conditionals_with_function_calls_in_conditions(self):
-        """Test conditionals with function calls in conditions."""
+        """Test conditionals with function calls in conditions (type annotation required)."""
         code = """
         func is_valid(x : i32) : bool = {
             return x > 0
         }
-        
+
         func process(input : i32) : string = {
-            val result = if is_valid(input) {
+            val result : string = if is_valid(input) {  // Type REQUIRED (conditional = runtime)
                 -> "valid"
             } else {
                 -> "invalid"
@@ -629,13 +629,13 @@ class TestConditionalIntegrationPatterns:
         assert_no_errors(errors)
 
     def test_conditionals_with_binary_operations(self):
-        """Test conditionals with complex condition expressions."""
+        """Test conditionals with complex condition expressions (type annotation required)."""
         code = """
         func categorize(x : i32, y : i32) : string = {
-            val category = if x > 0 && y > 0 {
+            val category : string = if x > 0 && y > 0 {  // Type REQUIRED (conditional = runtime)
                 -> "positive"
             } else if x < 0 || y < 0 {
-                -> "negative"  
+                -> "negative"
             } else {
                 -> "zero"
             }
@@ -809,12 +809,12 @@ class TestTypeSystemIntegration:
         assert_no_errors(errors)
 
     def test_expression_blocks_with_conditionals_require_context(self):
-        """Test that expression blocks containing conditionals require explicit context."""
+        """Test that expression blocks containing conditionals require explicit context (type annotation required)."""
         code = """
         func test_expression_block_context() : f64 = {
             val result : f64 = {        // Context REQUIRED (runtime block)!
                 val base = 42           // comptime_int
-                val multiplier = if base > 50 {
+                val multiplier : f64 = if base > 50 {  // Type REQUIRED (conditional = runtime)
                     -> 2.5          // comptime_float
                 } else {
                     -> 1.0          // comptime_float
@@ -859,10 +859,10 @@ class TestTypeSystemErrorHandling:
     """Test error handling for type system integration."""
 
     def test_mixed_types_without_target_context_error(self):
-        """Test error when mixed comptime types lack target context."""
+        """Test error when mixed comptime types lack target context (type annotation required but missing)."""
         code = """
         func test_missing_context() : void = {
-            val result = if true {      // Missing explicit type
+            val result = if true {      // Type REQUIRED (conditional = runtime) - Missing explicit type
                 -> 42               // comptime_int
             } else {
                 -> 3.14             // comptime_float
@@ -871,7 +871,7 @@ class TestTypeSystemErrorHandling:
         }
         """
         ast, errors = parse_and_analyze(code)
-        assert_error_contains(errors, "Type ambiguity detected in conditional branches")
+        assert_error_contains(errors, "Conditional expressions require explicit type annotation")
 
     def test_helpful_conversion_error_messages(self):
         """Test that concrete type conversion errors provide helpful messages."""
@@ -898,17 +898,17 @@ class TestAdvancedValidationPatterns:
     """Test advanced validation patterns from CONDITIONAL_SYSTEM.md."""
 
     def test_validation_chains_with_early_returns(self):
-        """Test validation chains using early returns (from specification)."""
+        """Test validation chains using early returns (from specification) (type annotation required)."""
         code = """
         func validate_and_process(input: i32) : string = {
-            val result = if input < 0 {
+            val result : string = if input < 0 {  // Type REQUIRED (conditional = runtime)
                 return "ERROR: Negative input"     // Early function exit
             } else if input > 1000 {
                 return "ERROR: Input too large"    // Early function exit
             } else {
                 -> "SUCCESS: Valid input"     // Success: processed input
             }
-            
+
             // Additional processing only happens for valid input
             return result
         }
@@ -932,18 +932,18 @@ class TestAdvancedValidationPatterns:
         assert_no_errors(errors)
 
     def test_nested_validation_pattern(self):
-        """Test multiple levels of validation with nested conditionals."""
+        """Test multiple levels of validation with nested conditionals (type annotation required)."""
         code = """
         func validate_user_data(name_id: i32, age: i32) : string = {
-            val result = if name_id < 1 {
+            val result : string = if name_id < 1 {  // Type REQUIRED (conditional = runtime)
                 return "ERROR: Name ID required"
             } else if name_id > 999999 {
                 return "ERROR: Name ID too large"
             } else {
-                val age_result = if age < 0 {
+                val age_result : i32 = if age < 0 {  // Type REQUIRED (conditional = runtime)
                     return "ERROR: Invalid age"       // Early function exit
                 } else if age > 150 {
-                    return "ERROR: Age too high"      // Early function exit  
+                    return "ERROR: Age too high"      // Early function exit
                 } else {
                     -> age                         // Valid age
                 }
@@ -1005,18 +1005,17 @@ class TestAdvancedCachingPatterns:
         assert_no_errors(errors)
 
     def test_conditional_computation_pattern(self):
-        """Test conditional computation to avoid expensive operations."""
+        """Test conditional computation to avoid expensive operations (type annotation required)."""
         code = """
         func smart_processing(enable_advanced: bool, data: f64) : f64 = {
             val base_result = data * 1.5
-            
-            val enhanced_result = if enable_advanced {
-                val complex_calc = base_result * base_result * 3.14159
-                -> complex_calc
+
+            val enhanced_result : f64 = if enable_advanced {  // Type REQUIRED (conditional = runtime)
+                -> base_result * base_result * 3.14159
             } else {
                 -> base_result     // Skip expensive calculation
             }
-            
+
             return enhanced_result
         }
         """
@@ -1059,21 +1058,21 @@ class TestAdvancedFallbackPatterns:
         assert_no_errors(errors)
 
     def test_conditional_feature_selection(self):
-        """Test feature flag controlled behavior."""
+        """Test feature flag controlled behavior (type annotation required)."""
         code = """
         func process_with_feature_flags(enable_feature_a: bool, enable_feature_b: bool) : i32 = {
-            val feature_a_result = if enable_feature_a {
+            val feature_a_result : i32 = if enable_feature_a {  // Type REQUIRED (conditional = runtime)
                 -> 1    // Feature A enabled
             } else {
                 -> 0    // Feature A disabled
             }
-            
-            val feature_b_result = if enable_feature_b {
+
+            val feature_b_result : i32 = if enable_feature_b {  // Type REQUIRED (conditional = runtime)
                 -> 10   // Feature B enabled (use different value to distinguish)
             } else {
                 -> 0    // Feature B disabled
             }
-            
+
             return feature_a_result + feature_b_result  // Combined feature flags
         }
         """
@@ -1081,23 +1080,21 @@ class TestAdvancedFallbackPatterns:
         assert_no_errors(errors)
 
     def test_graceful_degradation_pattern(self):
-        """Test graceful degradation on errors."""
+        """Test graceful degradation on errors (type annotation required)."""
         code = """
         func process_with_degradation(input: f64, use_advanced: bool) : f64 = {
-            val result = if use_advanced {
-                val advanced_result = if input > 0.0 {
+            val result : f64 = if use_advanced {  // Type REQUIRED (conditional = runtime)
+                -> if input > 0.0 {  // Nested conditional (type inferred from outer context)
                     // Advanced processing might fail
-                    val complex = input * input * input
-                    -> complex
+                    -> input * input * input
                 } else {
                     // Fallback to simple processing
                     return input * 2.0     // Early exit with simple calculation
                 }
-                -> advanced_result
             } else {
                 -> input * 2.0         // Simple processing
             }
-            
+
             return result
         }
         """
@@ -1127,26 +1124,25 @@ class TestComplexIntegrationPatterns:
         assert_no_errors(errors)
 
     def test_conditionals_with_function_call_chains(self):
-        """Test conditionals with complex function call chains."""
+        """Test conditionals with complex function call chains (type annotation required)."""
         code = """
         func transform_data(input: f64) : f64 = { return input * 2.0 }
         func validate_result(value: f64) : bool = { return value > 0.0 }
         func apply_correction(value: f64) : f64 = { return value + 1.0 }
-        
+
         func process_data_pipeline(input: f64) : f64 = {
             val transformed : f64 = transform_data(input)
 
-            val result = if validate_result(transformed) {
-                val corrected = if transformed > 100.0 {
+            val result : f64 = if validate_result(transformed) {  // Type REQUIRED (conditional = runtime)
+                -> if transformed > 100.0 {  // Nested conditional (type inferred from outer context)
                     -> apply_correction(transformed)
                 } else {
                     -> transformed
                 }
-                -> corrected
             } else {
                 return 0.0     // Early exit for invalid data
             }
-            
+
             return result
         }
         """
@@ -1199,16 +1195,16 @@ class TestRealWorldScenarios:
     """Test complete real-world scenarios using all conditional patterns."""
 
     def test_complete_validation_function(self):
-        """Test complete validation function using all validation patterns."""
+        """Test complete validation function using all validation patterns (type annotation required)."""
         code = """
         func comprehensive_data_validator(name_id: i32, age: i32, score: f64) : i32 = {
             // Input validation chain - return error codes
-            val validation_result = if name_id <= 0 {
+            val validation_result : i32 = if name_id <= 0 {  // Type REQUIRED (conditional = runtime)
                 return -1     // ERROR: Name ID required
             } else if name_id > 999999 {
                 return -2     // ERROR: Name ID too large
             } else if age < 0 {
-                return -3     // ERROR: Age cannot be negative  
+                return -3     // ERROR: Age cannot be negative
             } else if age > 120 {
                 return -4     // ERROR: Age seems unrealistic
             } else if score < 0.0 {
@@ -1218,9 +1214,9 @@ class TestRealWorldScenarios:
             } else {
                 -> 0      // VALID (success code)
             }
-            
+
             // Additional processing only for valid data
-            val grade_points = if score >= 90.0 {
+            val grade_points : i32 = if score >= 90.0 {  // Type REQUIRED (conditional = runtime)
                 -> 4      // A grade
             } else if score >= 80.0 {
                 -> 3      // B grade
@@ -1231,7 +1227,7 @@ class TestRealWorldScenarios:
             } else {
                 -> 0      // F grade
             }
-            
+
             return validation_result + grade_points  // Combined result
         }
         """
@@ -1325,3 +1321,195 @@ class TestRealWorldScenarios:
         """
         ast, errors = parse_and_analyze(code)
         assert_no_errors(errors)
+
+
+class TestConditionalTypeAnnotationRequirement:
+    """
+    Test that conditional expressions require explicit type annotations.
+
+    Conditional expressions are runtime operations (like function calls) and
+    must have explicit type annotations when assigned to variables. This makes
+    the "type barrier" visible and aligns with the "Transparent Costs" principle.
+
+    See: CONDITIONAL_SYSTEM.md - Runtime Barrier Semantics
+    """
+
+    def test_conditional_expression_requires_type_annotation(self):
+        """Test that conditional expressions require explicit type annotations."""
+        code = """
+        func test() : i32 = {
+            val result = if true {
+                -> 42
+            } else {
+                -> 100
+            }
+            return result
+        }
+        """
+        ast, errors = parse_and_analyze(code)
+        assert_error_contains(errors, "Conditional expressions require explicit type annotation")
+        assert_error_contains(errors, "runtime operation")
+
+    def test_conditional_with_type_annotation_passes(self):
+        """Test that conditional expressions with type annotations work correctly."""
+        code = """
+        func test() : i32 = {
+            val result : i32 = if true {
+                -> 42
+            } else {
+                -> 100
+            }
+            return result
+        }
+        """
+        ast, errors = parse_and_analyze(code)
+        assert_no_errors(errors)
+
+    def test_nested_conditionals_both_require_type(self):
+        """Test that nested conditionals both require type annotations."""
+        code = """
+        func test() : i32 = {
+            val outer : i32 = {
+                val inner = if true { -> 1 } else { -> 2 }  // ERROR: missing type
+                -> inner
+            }
+            return outer
+        }
+        """
+        ast, errors = parse_and_analyze(code)
+        assert_error_contains(errors, "Conditional expressions require explicit type annotation")
+        assert_error_contains(errors, "Variable 'inner'")
+
+    def test_nested_conditionals_with_annotations_pass(self):
+        """Test that properly annotated nested conditionals work."""
+        code = """
+        func test() : i32 = {
+            val outer : i32 = {
+                val inner : i32 = if true { -> 1 } else { -> 2 }
+                -> inner * 2
+            }
+            return outer
+        }
+        """
+        ast, errors = parse_and_analyze(code)
+        assert_no_errors(errors)
+
+    def test_conditional_in_return_statement_allowed(self):
+        """Test that conditionals in return statements don't require variable type annotation."""
+        code = """
+        func test() : i32 = {
+            return if true { -> 42 } else { -> 100 }  // OK: return type provides context
+        }
+        """
+        ast, errors = parse_and_analyze(code)
+        assert_no_errors(errors)
+
+    def test_conditional_in_function_argument_allowed(self):
+        """Test that conditionals as function arguments don't require variable type annotation."""
+        code = """
+        func process(value : i32) : i32 = {
+            return value
+        }
+
+        func test() : i32 = {
+            val result : i32 = process(if true { -> 42 } else { -> 100 })  // OK: parameter type provides context
+            return result
+        }
+        """
+        ast, errors = parse_and_analyze(code)
+        assert_no_errors(errors)
+
+    def test_conditional_in_expression_block_requires_type(self):
+        """Test that conditionals in expression blocks require their own type annotations."""
+        code = """
+        func test() : i32 = {
+            val result : i32 = {
+                val temp = if true { -> 1 } else { -> 2 }  // ERROR: conditional needs type
+                -> temp
+            }
+            return result
+        }
+        """
+        ast, errors = parse_and_analyze(code)
+        assert_error_contains(errors, "Conditional expressions require explicit type annotation")
+        assert_error_contains(errors, "Variable 'temp'")
+
+    def test_conditional_with_early_return_requires_type(self):
+        """Test that conditionals with early return branches still require type annotations."""
+        code = """
+        func test(input : i32) : i32 = {
+            val result = if input < 0 {
+                return -1  // Early exit
+            } else {
+                -> input * 2
+            }
+            return result
+        }
+        """
+        ast, errors = parse_and_analyze(code)
+        assert_error_contains(errors, "Conditional expressions require explicit type annotation")
+
+    def test_conditional_with_early_return_and_type_passes(self):
+        """Test that properly annotated conditionals with early returns work."""
+        code = """
+        func test(input : i32) : i32 = {
+            val result : i32 = if input < 0 {
+                return -1  // Early exit
+            } else {
+                -> input * 2
+            }
+            return result
+        }
+        """
+        ast, errors = parse_and_analyze(code)
+        assert_no_errors(errors)
+
+    def test_else_if_chain_requires_type(self):
+        """Test that else-if chains require type annotations."""
+        code = """
+        func classify(score : i32) : string = {
+            val grade = if score >= 90 {
+                -> "A"
+            } else if score >= 80 {
+                -> "B"
+            } else {
+                -> "F"
+            }
+            return grade
+        }
+        """
+        ast, errors = parse_and_analyze(code)
+        assert_error_contains(errors, "Conditional expressions require explicit type annotation")
+
+    def test_else_if_chain_with_type_passes(self):
+        """Test that properly annotated else-if chains work."""
+        code = """
+        func classify(score : i32) : string = {
+            val grade : string = if score >= 90 {
+                -> "A"
+            } else if score >= 80 {
+                -> "B"
+            } else {
+                -> "F"
+            }
+            return grade
+        }
+        """
+        ast, errors = parse_and_analyze(code)
+        assert_no_errors(errors)
+
+    def test_error_message_is_educational(self):
+        """Test that the error message is clear and educational."""
+        code = """
+        func test() : i32 = {
+            val result = if true { -> 1 } else { -> 2 }
+            return result
+        }
+        """
+        ast, errors = parse_and_analyze(code)
+        # Verify error message components
+        assert_error_contains(errors, "Conditional expressions require explicit type annotation")
+        assert_error_contains(errors, "runtime operation")
+        assert_error_contains(errors, "type barrier")
+        assert_error_contains(errors, "Variable 'result'")
+        assert_error_contains(errors, "CONDITIONAL_SYSTEM.md")

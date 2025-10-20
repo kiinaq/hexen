@@ -81,7 +81,7 @@ class TestUnifiedBlockSystemIntegration:
         func test_conditional_runtime() : void = {
             val result : i32 = {
                 val condition = true
-                val value = if condition {
+                val value : i32 = if condition {  // Type REQUIRED (conditional = runtime)
                     -> 42
                 } else {
                     -> 100
@@ -445,7 +445,7 @@ class TestSessionIntegrationValidation:
             
             // Conditional detection
             val with_conditional : i32 = {
-                val value = if true {
+                val value : i32 = if true {  // Type REQUIRED (conditional = runtime)
                     -> 42
                 } else {
                     -> 100
