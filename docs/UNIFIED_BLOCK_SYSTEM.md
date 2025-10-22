@@ -28,164 +28,47 @@ The unified block system embodies Hexen's core principles:
 - **"Logic: No tricks to remember, only natural approaches"** - Context determines behavior naturally
 - **"Pedantic to write, but really easy to read"** - Explicit context makes intent clear
 
-## Compile-Time vs Runtime Expression Blocks
-
-### The Fundamental Distinction
-
-Expression blocks in Hexen fall into two critical categories based on their evaluability, which determines their interaction with the comptime type system:
-
-#### **✅ Compile-Time Evaluable Blocks**
-**Can preserve comptime types** - Maximum flexibility until context forces resolution
-
-**Criteria**:
-- All operations involve only comptime literals or constants
-- All conditions are compile-time constants
-- No runtime function calls (only pure comptime operations)
-- All computations can be evaluated at compile-time
-
-**Benefits**:
-- **Comptime type preservation**: Block result stays flexible (follows [TYPE_SYSTEM.md](TYPE_SYSTEM.md) patterns)
-- **Zero runtime cost**: All computation happens at compile-time
-- **Context adaptation**: Same block result adapts to different target types
-- **Maximum flexibility**: One expression, multiple concrete uses
-
-> **💡 Quick Reference**: For essential comptime type patterns, see [COMPTIME_QUICK_REFERENCE.md](COMPTIME_QUICK_REFERENCE.md)
-
-```hexen
-// ✅ Compile-time evaluable (comptime type preservation)
-val flexible_computation = {
-    val base = 42              // comptime_int
-    val multiplier = 100       // comptime_int  
-    val factor = 3.14          // comptime_float
-    val result = base * multiplier + factor  // All comptime operations → comptime_float
-    -> result              // Block result: comptime_float (preserved!)
-}
-
-// Same block result adapts to different contexts (maximum flexibility!)
-val as_f32 : f32 = flexible_computation    // comptime_float → f32 (implicit)
-val as_f64 : f64 = flexible_computation    // SAME source → f64 (different context!)
-val as_i32 : i32 = flexible_computation:i32  // SAME source → i32 (explicit conversion)
-```
-
-#### **❌ Runtime Evaluable Blocks**
-**Require explicit context** - Cannot preserve comptime types due to runtime operations
-
-**Criteria**:
-- Contains runtime function calls or computations (**functions always return concrete types**) 
-- Involves runtime conditions or control flow
-- Mixes comptime and runtime values
-- Cannot be fully evaluated at compile-time
-
-**Requirements**:
-- **Explicit type annotation required**: Target variable must specify concrete type
-- **No comptime type preservation**: Block result immediately resolves to concrete type
-- **Transparent costs**: All type conversions must be explicit
-
-```hexen
-// ❌ Runtime evaluable (explicit context required)
-val runtime_result : f64 = {              // Context REQUIRED! Cannot preserve comptime types
-    val user_input : f64 = get_user_input()     // Type REQUIRED (function call)
-    val base = 42                         // comptime_int
-    if user_input > 0 {                   // Runtime condition
-        -> base * user_input          // comptime_int * f64 → f64 (adapts to context)
-    } else {
-        -> 0.0                        // All paths must resolve to target type (f64)
-    }
-}
-```
-
-#### **🔄 Mixed Blocks (Runtime Category)**
-Blocks that combine comptime and runtime operations are treated as **runtime evaluable**:
-
-```hexen
-// 🔄 Mixed (comptime + runtime = runtime, explicit context required)
-val mixed_result : f64 = {                // Context REQUIRED!
-    val comptime_calc = 42 * 3.14         // comptime_int * comptime_float → comptime_float
-    val runtime_multiplier : f64 = get_multiplier()  // Type REQUIRED (function call)
-    -> comptime_calc * runtime_multiplier  // comptime_float * f64 → f64 (adapts to context)
-}
-```
-
-### The Ambiguity Solution
-
-This compile-time vs runtime distinction solves the **"untyped literal problem"** that exists in many systems programming languages:
-
-#### **Traditional Problem**: Untyped Expressions
-```c
-// Traditional languages: ambiguous without explicit types
-auto result = complex_calculation();  // What type? Depends on hidden defaults
-```
-
-#### **Hexen's Solution**: Context-Driven Resolution
-```hexen
-// ✅ Compile-time case: No ambiguity (compiler evaluates everything)
-val flexible = { -> 42 + 100 * 3.14 }  // All comptime → comptime_float (flexible!)
-val as_needed : f32 = flexible             // Context provides resolution when needed
-
-// ✅ Runtime case: Explicit context required (eliminates ambiguity)  
-val concrete : f64 = { -> get_value() + 42 }  // Runtime → explicit type required
-```
-
-**Key Insights**:
-1. **Compile-time cases**: No ambiguity because compiler can evaluate everything
-2. **Runtime cases**: Explicit context required, eliminating ambiguity at source
-3. **No default types needed**: Context is always available when type resolution is required
-4. **Best of both worlds**: Ergonomic literals + explicit runtime costs
-5. **Function calls**: Any block containing function calls becomes runtime evaluable (functions always return concrete types)
-
-### Integration with Type System
-
-This distinction perfectly aligns with Hexen's **"Ergonomic Literals + Transparent Runtime Costs"** philosophy from [TYPE_SYSTEM.md](TYPE_SYSTEM.md):
-
-- **Compile-time blocks**: Follow comptime type flexibility patterns (ergonomic literals)
-- **Runtime blocks**: Require explicit type context (transparent runtime costs)
-- **Same conversion rules**: Both categories use identical explicit conversion syntax for mixed concrete types
-
 ## Block Types and Contexts
 
 ### 1. Expression Blocks
 
-**Purpose**: Compute and assign a value to target  
-**Context**: Used in expressions where a value is expected  
-**Scope**: Isolated (variables don't leak)  
-**Assignment Requirements**: Must end with `->` statement for value production  
-**Control Flow**: Support `return` statements for function exits  
-**Type Behavior**: Follows compile-time vs runtime distinction (see above)
+**Purpose**: Compute and assign a value to target
+**Context**: Used in expressions where a value is expected
+**Scope**: Isolated (variables don't leak)
+**Assignment Requirements**: Must end with `->` statement for value production
+**Control Flow**: Support `return` statements for function exits
+**Type Behavior**: **Always require explicit type annotation when assigned to variables**
 
-#### Compile-Time Expression Block Examples
+> **Design Rationale**: Expression blocks require explicit type annotations for consistency with function calls and conditional expressions. This creates a predictable, uniform mental model: value-producing language features require explicit types.
+
+#### Expression Block Examples
 ```hexen
-// ✅ Compile-time evaluable (can preserve comptime types)
-val comptime_result = {
+// ✅ Expression block with explicit type annotation
+val result : i32 = {
     val temp = 42          // comptime_int
     val computed = temp * 2  // comptime_int * comptime_int → comptime_int
-    -> computed        // Block result: comptime_int (preserved!)
+    -> computed            // Block result resolves to i32 (explicit type)
 }
 
-// ✅ Complex compile-time operations  
-val comptime_complex = ({
+// ✅ Expression block with computation
+val calculation : f64 = {
     val base = 100         // comptime_int
-    -> base / 2        // comptime_int / comptime_int → comptime_float
-} + {
-    val other = 50         // comptime_int
-    -> other * 3.14    // comptime_int * comptime_float → comptime_float
-}) // comptime_float + comptime_float → comptime_float (preserved!)
-```
-
-#### Runtime Expression Block Examples  
-```hexen
-// ❌ Runtime evaluable (explicit context required)
-val runtime_result : i32 = {               // Context REQUIRED!
-    val intermediate : i32 = compute_value()     // Type REQUIRED (function call)
-    -> intermediate * 2                // All operations resolve to i32
+    -> base / 2            // comptime_int / comptime_int → comptime_float → f64
 }
 
-// ❌ Runtime block with control flow (explicit context required)
-val validated_input : i32 = {             // Context REQUIRED!
+// ✅ Expression block with function call
+val processed : i32 = {
+    val intermediate : i32 = compute_value()     // Type REQUIRED (function call)
+    -> intermediate * 2                          // All operations resolve to i32
+}
+
+// ✅ Expression block with control flow
+val validated_input : i32 = {
     val raw_input : i32 = get_user_input()      // Type REQUIRED (function call)
-    if raw_input < 0 {                    // Runtime condition
-        return -1                         // Early function exit - invalid input
+    if raw_input < 0 {                          // Runtime condition
+        return -1                                // Early function exit - invalid input
     }
-    -> raw_input                      // Valid input -> (i32)
+    -> raw_input                                // Valid input -> (i32)
 }
 ```
 
@@ -194,9 +77,26 @@ val validated_input : i32 = {             // Context REQUIRED!
 - **Control Flow**: Supports `return` statements for function exits (early returns, error handling)
 - **Dual Capability**: Can either assign a value OR exit the function
 - **Final Statement**: Must end with `-> expression` for value production
-- **Type Behavior**: Compile-time blocks preserve comptime types; runtime blocks require explicit context
-- **Context Requirements**: Runtime blocks need explicit type annotation on target variable
+- **Type Requirement**: **Explicit type annotation always required** when assigned to variables
+- **Consistency**: Behaves like function calls and conditional expressions (explicit types required)
 - **Scope Isolation**: Inner variables not accessible outside block
+
+**Why Always Require Type Annotations?**
+
+Expression blocks are value-producing constructs similar to function calls and conditionals:
+
+```hexen
+// Function calls require explicit types
+val from_function : i32 = get_value()
+
+// Conditionals require explicit types
+val from_conditional : i32 = if condition { -> 42 } else { -> 100 }
+
+// Expression blocks require explicit types (consistent!)
+val from_block : i32 = { val x = 42; -> x * 2 }
+```
+
+This consistency eliminates special cases and creates a predictable mental model.
 
 ### 2. Statement Blocks
 
@@ -422,51 +322,35 @@ This provides the expressiveness of full statement capabilities within assignmen
 
 ### Unified Design Philosophy
 
-The unified block system works seamlessly with Hexen's comptime type system and binary operations, following the same **"Ergonomic Literals + Transparent Runtime Costs"** philosophy established in [TYPE_SYSTEM.md](TYPE_SYSTEM.md) and [BINARY_OPS.md](BINARY_OPS.md).
+Expression blocks work like inline function bodies, integrating with Hexen's type system while following the **"Transparent Runtime Costs"** principle from [TYPE_SYSTEM.md](TYPE_SYSTEM.md). Just as functions require explicit return type annotations, expression blocks require explicit type annotations when assigned to variables.
 
-### Expression Blocks + Comptime Type Preservation
-
-**Compile-time evaluable** expression blocks preserve comptime types, enabling maximum flexibility until context forces resolution:
-
-```hexen
-// ✨ Expression block preserves comptime flexibility (TYPE_SYSTEM.md pattern)
-val flexible_computation = {
-    val base = 42              // comptime_int
-    val multiplier = 100       // comptime_int  
-    val result = base * multiplier  // comptime_int * comptime_int → comptime_int (BINARY_OPS.md)
-    -> result              // Block assigns: comptime_int (preserved!)
-}
-
-// ✅ Same block result adapts to different contexts (TYPE_SYSTEM.md flexibility)
-val as_i32 : i32 = flexible_computation    // comptime_int → i32 (context-driven)
-val as_i64 : i64 = flexible_computation    // SAME source → i64 (different context!)
-val as_f64 : f64 = flexible_computation    // SAME source → f64 (maximum flexibility!)
-```
+**Key principle**: Expression blocks resolve to concrete types (like function returns), requiring explicit type annotations for clarity and consistency.
 
 ### Division Operators in Expression Blocks
 
-Expression blocks work naturally with both division operators from [BINARY_OPS.md](BINARY_OPS.md):
+Expression blocks work naturally with both division operators from [BINARY_OPS.md](BINARY_OPS.md), with explicit type annotations required:
 
 ```hexen
 // Float division in expression blocks
-val precise_calc = {
+val precise_calc : f64 = {
     val numerator = 22         // comptime_int
     val denominator = 7        // comptime_int
-    -> numerator / denominator  // comptime_int / comptime_int → comptime_float (BINARY_OPS.md)
+    -> numerator / denominator  // comptime_int / comptime_int → comptime_float → f64
 }
 
-// Integer division in expression blocks  
-val efficient_calc = {
+// Integer division in expression blocks
+val efficient_calc : i32 = {
     val total = 100            // comptime_int
     val parts = 3              // comptime_int
-    -> total \ parts       // comptime_int \ comptime_int → comptime_int (BINARY_OPS.md)
+    -> total \ parts           // comptime_int \ comptime_int → comptime_int → i32
 }
 
-// Same expressions, different target types
-val precise_f32 : f32 = precise_calc      // comptime_float → f32
-val precise_f64 : f64 = precise_calc      // comptime_float → f64
-val efficient_i32 : i32 = efficient_calc  // comptime_int → i32
-val efficient_i64 : i64 = efficient_calc  // comptime_int → i64
+// Different computation with different target type
+val precise_f32 : f32 = {
+    val numerator = 22
+    val denominator = 7
+    -> numerator / denominator  // → f32
+}
 ```
 
 ### Mixed Type Operations in Blocks
@@ -513,22 +397,22 @@ func demonstrate_mixed_types() : void = {
 
 ### Variable Declaration Context in Blocks
 
-Blocks integrate with [TYPE_SYSTEM.md](TYPE_SYSTEM.md) variable declaration rules:
+Blocks integrate with [TYPE_SYSTEM.md](TYPE_SYSTEM.md) variable declaration rules, with explicit type annotations required for expression blocks:
 
 ```hexen
 func demonstrate_variable_context() : void = {
-    // ✅ Compile-time evaluable block (preserves comptime flexibility)
-    val flexible_math = {
+    // ✅ Expression block with explicit type annotation
+    val computed : f64 = {
         val step1 = 42 + 100      // comptime_int + comptime_int → comptime_int
         val step2 = step1 * 3.14  // comptime_int * comptime_float → comptime_float
-        -> step2              // Preserves comptime_float flexibility
+        -> step2                  // → f64 (explicit type)
     }
-    
+
     // Statement block with mut (requires explicit type)
     {
-        mut accumulator : f64 = 0.0           // Explicit type required (TYPE_SYSTEM.md)
-        accumulator = flexible_math           // comptime_float → f64 (adapts to mut type)
-        accumulator = accumulator + 1.5       // f64 + comptime_float → f64
+        mut accumulator : f64 = 0.0        // Explicit type required (TYPE_SYSTEM.md)
+        accumulator = computed             // f64 → f64
+        accumulator = accumulator + 1.5    // f64 + comptime_float → f64
         process_accumulator(accumulator)
         // accumulator scoped to this block
     }
@@ -537,7 +421,7 @@ func demonstrate_variable_context() : void = {
 
 ### Function Integration Pattern
 
-Expression blocks work seamlessly with function calls, following [TYPE_SYSTEM.md](TYPE_SYSTEM.md) parameter context rules:
+Expression blocks work seamlessly with function calls, requiring explicit type annotations just like direct function calls:
 
 ```hexen
 func process_data(input: f64) : f64 = {
@@ -549,194 +433,103 @@ func process_array(input: [_]f64) : [_]f64 = {
 }
 
 func demonstrate_function_integration() : void = {
-    // ✅ Compile-time evaluable block result used as function argument
-    val computation = {
+    // ✅ Expression block result used as function argument
+    val computation : f64 = {
         val base = 42             // comptime_int
         val adjusted = base / 3   // comptime_int / comptime_int → comptime_float
-        -> adjusted
+        -> adjusted               // → f64 (explicit type)
     }
 
-    // Function parameter provides context (TYPE_SYSTEM.md pattern)
-    val result : f64 = process_data(computation)  // Function returns concrete f64, explicit type required
+    // Function call requires explicit type annotation
+    val result : f64 = process_data(computation)  // Function returns concrete f64
 
-    // ✅ Compile-time evaluable block in nested pattern
+    // ✅ Expression block in nested pattern (block in function argument, function result assigned)
     val complex_result : f64 = process_data({
         val temp = 100 + 50      // comptime_int + comptime_int → comptime_int
-        -> temp * 3.14       // comptime_int * comptime_float → comptime_float
-    })  // Expression block → comptime_float → f64 (parameter context), function returns concrete f64
+        -> temp * 3.14           // comptime_int * comptime_float → comptime_float → f64 (parameter context)
+    })  // Function returns f64, explicit type required for assignment
 
-    // ✅ Compile-time evaluable array block used as function argument
-    val array_computation = {
+    // ✅ Array expression block
+    val array_computation : [_]f64 = {
         val base_array = [1, 2, 3, 4]     // comptime_array_int
         val scaled = [2, 4, 6, 8]         // comptime_array_int
-        -> base_array                     // Preserves comptime_array_int flexibility
+        -> base_array                     // → [_]f64 (explicit type)
     }
 
-    // Array function parameter provides context (ARRAY_TYPE_SYSTEM.md pattern)
-    val array_result : [_]f64 = process_array(array_computation)  // Function returns concrete array, explicit type required
+    // Array function call requires explicit type annotation
+    val array_result : [_]f64 = process_array(array_computation)  // Function returns concrete array
 
-    // ✅ Compile-time evaluable array block in nested pattern
+    // ✅ Array expression block in nested pattern
     val complex_array_result : [_]f64 = process_array({
         val temp_array = [10, 20, 30]    // comptime_array_int
-        -> temp_array                    // comptime_array_int preserved
-    })  // Expression block → comptime_array_int → [_]f64 (parameter context), function returns concrete array
+        -> temp_array                    // → [_]f64 (parameter context)
+    })  // Function returns concrete array
 }
-```
-
-### Critical Insight: `mut` Variables Cannot Preserve Block Comptime Types
-
-Following [TYPE_SYSTEM.md](TYPE_SYSTEM.md) safety rules, `mut` variables cannot preserve comptime types from expression blocks:
-
-```hexen
-// ✅ val with compile-time evaluable block preserves comptime types (maximum flexibility)
-val flexible_block = {
-    val calc = 42 + 100 * 3    // All comptime operations
-    -> calc / 2            // comptime_int / comptime_int → comptime_float
-}
-val as_f32 : f32 = flexible_block  // comptime_float → f32 (preserved until now!)
-val as_f64 : f64 = flexible_block  // SAME source → f64 (different context!)
-
-// 🔴 mut with compile-time evaluable block cannot preserve comptime types (safety over flexibility)
-mut concrete_result : f64 = {
-    val calc = 42 + 100 * 3    // Same comptime operations
-    -> calc / 2            // comptime_float → f64 (immediately resolved!)
-}
-// No flexibility preserved - concrete_result is concrete f64
-
-// ✅ val with compile-time evaluable array block preserves comptime array types (maximum flexibility)
-val flexible_array_block = {
-    val arr_calc = [42, 100, 200]    // comptime_array_int
-    val element = arr_calc[0]        // comptime_int
-    -> arr_calc                      // Preserves comptime_array_int
-}
-val as_i32_array : [_]i32 = flexible_array_block  // comptime_array_int → [3]i32 (preserved until now!)
-val as_f64_array : [_]f64 = flexible_array_block  // SAME source → [3]f64 (different context!)
-
-// 🔴 mut with compile-time evaluable array block cannot preserve comptime types (safety over flexibility)
-mut concrete_array_result : [_]i32 = {
-    val arr_calc = [10, 20, 30]     // Same comptime operations
-    -> arr_calc                     // comptime_array_int → [3]i32 (immediately resolved!)
-}
-// No flexibility preserved - concrete_array_result is concrete [3]i32
-
-// Explicit conversions required for mut results (TYPE_SYSTEM.md pattern)
-mut narrow_result : f32 = concrete_result:f32  // f64 → f32 (explicit conversion)
-mut widened_array : [_]i64 = concrete_array_result:[_]i64  // [3]i32 → [3]i64 (explicit conversion)
 ```
 
 ### Design Consistency Benefits
 
 This integration demonstrates Hexen's unified design philosophy:
 
-1. **Same Conversion Rules**: Blocks follow identical TYPE_SYSTEM.md conversion patterns
-2. **Consistent Flexibility**: Compile-time evaluable expression blocks preserve comptime types like `val` declarations
+1. **Consistent Type Requirements**: Expression blocks require explicit types, matching functions and conditionals
+2. **Same Conversion Rules**: Blocks follow identical TYPE_SYSTEM.md conversion patterns
 3. **Explicit Costs**: Mixed concrete types require visible conversions everywhere
 4. **Context Propagation**: Parameter types provide context through block boundaries
 5. **Predictable Behavior**: Same simple patterns work across all language features
-6. **Array Integration**: Array operations in blocks follow ARRAY_TYPE_SYSTEM.md explicit copy requirements while preserving comptime array flexibility
+6. **No Special Cases**: Expression blocks don't have different rules based on content
 
 ## Array Operations in Expression Blocks
 
 ### Core Integration Philosophy
 
-Array operations in expression blocks follow the same **compile-time vs runtime distinction** while integrating seamlessly with the **explicit copy syntax** from [ARRAY_TYPE_SYSTEM.md](ARRAY_TYPE_SYSTEM.md). This maintains consistency with both the unified block system and transparent runtime costs principle.
+Array operations in expression blocks integrate seamlessly with the **explicit copy syntax** from [ARRAY_TYPE_SYSTEM.md](ARRAY_TYPE_SYSTEM.md). Expression blocks containing arrays always require explicit type annotations, maintaining consistency with the unified block system.
 
 **Key Principles:**
-- **Compile-time evaluable** array blocks preserve comptime array types
-- **Runtime evaluable** array blocks require explicit context for concrete arrays
+- **Explicit type annotations** always required for expression blocks
 - **Explicit copying** always required with `[..]` syntax for performance transparency
 - **Dual capability** enables powerful array validation and processing patterns
+- **RVO optimization** eliminates copies for `->` statements (zero-cost abstraction)
 
-### Compile-Time Array Blocks (Comptime Type Preservation)
+### Array Blocks
 
-**✅ Compile-time evaluable** array blocks preserve comptime array types for maximum flexibility:
-
-```hexen
-// ✅ Compile-time evaluable (preserves comptime array flexibility)
-val flexible_array_creation = {
-    val base_array = [1, 2, 3, 4, 5]     // comptime_array_int
-    val multiplier_array = [2, 2, 2, 2, 2]  // comptime_array_int
-    -> base_array                         // Preserves comptime_array_int (flexible!)
-}
-
-// Same array source adapts to different contexts (maximum flexibility!)
-val as_i32_array : [_]i32 = flexible_array_creation    // → [5]i32
-val as_i64_array : [_]i64 = flexible_array_creation    // Same source → [5]i64
-val as_f64_array : [_]f64 = flexible_array_creation    // Same source → [5]f64
-
-// ✅ Compile-time array element access (preserves element flexibility)
-val flexible_element_access = {
-    val source = [42, 100, 200]          // comptime_array_int
-    val first_element = source[0]        // comptime_int (preserved!)
-    -> first_element                     // Preserves comptime_int flexibility
-}
-
-// Same element adapts to different contexts
-val elem_as_i32 : i32 = flexible_element_access    // comptime_int → i32
-val elem_as_f64 : f64 = flexible_element_access    // Same source → f64
-
-// ✅ Compile-time multidimensional array operations
-val flexible_matrix_ops = {
-    val matrix = [[1, 2], [3, 4]]        // comptime_array of comptime_array_int
-    val first_row = matrix[0]            // comptime_array_int (preserved!)
-    val element = matrix[1][0]           // comptime_int (preserved!)
-    -> first_row                         // Preserves comptime_array_int flexibility
-}
-
-// Row adapts to different contexts
-val row_as_i32 : [_]i32 = flexible_matrix_ops     // → [2]i32
-val row_as_f64 : [_]f64 = flexible_matrix_ops     // Same source → [2]f64
-```
-
-**Key Benefits:**
-- **Maximum Flexibility**: Same comptime array block result adapts to multiple concrete types
-- **Zero Runtime Cost**: All array operations happen at compile-time
-- **Element Preservation**: Individual array elements maintain comptime flexibility
-- **Consistent with TYPE_SYSTEM.md**: Follows same comptime type preservation patterns
-
-### Runtime Array Blocks (Explicit Context Required)
-
-**❌ Runtime evaluable** array blocks require explicit context due to function calls or concrete array operations:
+Array expression blocks require explicit type annotations, just like all other expression blocks:
 
 ```hexen
-// ❌ Runtime evaluable (explicit context required)
-val concrete_array_result : [_]i32 = {           // Context REQUIRED!
-    val input_array : [_]i32 = load_array_data()          // Function call → concrete array (explicit type required)
-    val processed : [_]i32 = transform_array(input_array) // Function call → concrete array (explicit type required)
-    -> processed                                  // RVO eliminates copy (zero-cost)
+// ✅ Array expression block with explicit type
+val concrete_array_result : [_]i32 = {
+    val input_array : [_]i32 = load_array_data()          // Function call → concrete array
+    val processed : [_]i32 = transform_array(input_array) // Function call → concrete array
+    -> processed                                          // RVO eliminates copy (zero-cost)
 }
 
-// ✅ Compile-time array copying (comptime type preserved until context forces resolution)
-val array_copy_result = {                        // No explicit context needed - compile-time evaluable!
+// ✅ Simple array creation expression block
+val array_copy_result : [_]f64 = {
     val source = [1.1, 2.2, 3.3]                 // comptime_array_float
-    val backup = source                           // comptime_array_float (no copy needed at comptime)
-    -> backup                                     // Preserves comptime_array_float flexibility
+    val backup = source                           // comptime_array_float (no copy needed)
+    -> backup                                     // → [_]f64 (explicit type)
 }
-// Same comptime array adapts to different contexts
-val as_f32_array : [_]f32 = array_copy_result    // comptime_array_float → [3]f32
-val as_f64_array : [_]f64 = array_copy_result    // Same source → [3]f64
 
-// ❌ Mixed comptime + concrete array operations (explicit context required)
-val mixed_array_ops : [_]f64 = {                 // Context REQUIRED!
+// ✅ Mixed array operations
+val mixed_array_ops : [_]f64 = {
     val comptime_array = [42, 100, 200]          // comptime_array_int
-    val concrete_multiplier : f64 = get_multiplier()  // Function call → concrete f64
-    val concrete_base : [_]f64 = comptime_array  // comptime_array_int → [3]f64 (materialization)
-    val scaled : [_]f64 = scale_array(concrete_base, concrete_multiplier)  // Function call → concrete array (explicit type required)
+    val concrete_multiplier : [_]f64 = get_multiplier()  // Function call → concrete f64
+    val concrete_base : [_]f64 = comptime_array  // comptime_array_int → [3]f64
+    val scaled : [_]f64 = scale_array(concrete_base, concrete_multiplier)  // Function call
     -> scaled                                     // RVO eliminates copy (zero-cost)
 }
 
-// ❌ Runtime array element access from concrete arrays
-val concrete_element_access : f64 = {            // Context REQUIRED!
+// ✅ Array element access
+val concrete_element_access : f64 = {
     val source : [_]f64 = load_source_array()    // Function call → concrete array
     val element : f64 = source[0]                 // Access concrete element → concrete f64
-    -> element                                    // Assign concrete value, explicit type required
+    -> element                                    // Explicit type required
 }
 
-// ❌ Runtime multidimensional array operations
-val matrix_operation_result : [_]i32 = {         // Context REQUIRED!
+// ✅ Multidimensional array operations
+val matrix_operation_result : [_]i32 = {
     val matrix : [_][_]i32 = load_matrix()       // Function call → concrete matrix
-    val row_copy : [_]i32 = matrix[0][..]        // Explicit copy of row → concrete [N]i32 (explicit type required)
-    val processed : [_]i32 = process_row(row_copy)         // Function call → concrete array (explicit type required)
+    val row_copy : [_]i32 = matrix[0][..]        // Explicit copy of row → concrete [N]i32
+    val processed : [_]i32 = process_row(row_copy)         // Function call → concrete array
     -> processed                                  // RVO eliminates copy (zero-cost)
 }
 ```
@@ -903,12 +696,11 @@ val large_array : [10000]f64 = {
 }
 // Implementation: RVO writes array data directly to 'large_array' stack location (zero-copy)
 
-// Compile-time array (materialization, not RVO)
-val flexible_array = {
+// Simple array with explicit type
+val simple_array : [_]i32 = {
     val data = [1, 2, 3, 4, 5]  // comptime_array_int
-    -> data  // Materialization on first use (compile-time, zero runtime cost)
+    -> data  // → [5]i32 (explicit type, RVO applies)
 }
-// No RVO needed - this is pure compile-time evaluation
 ```
 
 #### Complex Structures (RVO Optimization)
@@ -936,26 +728,26 @@ The RVO optimization creates beautiful consistency across Hexen's value producti
 
 ### Performance Characteristics Summary
 
-1. **Compile-Time Evaluable Blocks**:
-   - Zero runtime cost (all computation at compile-time)
-   - No RVO needed (pure compile-time evaluation)
-   - Comptime type flexibility preserved until context forces resolution
-
-2. **Runtime Evaluable Blocks**:
+1. **All Expression Blocks**:
    - RVO eliminates physical copies for `->` statements
-   - Arrays written directly to target location
+   - Block result written directly to target location
    - Same optimization as function `return` statements
-   - Explicit `[..]` syntax documents semantic intent, implementation optimizes
+   - Uniform behavior regardless of block contents
 
-3. **Small Values**:
+2. **Small Values**:
    - Typically optimized to registers or stack slots
    - RVO overhead negligible
    - Clean semantics maintained
 
-4. **Large Values (Arrays, Structures)**:
+3. **Large Values (Arrays, Structures)**:
    - RVO critical for performance
    - Zero-copy implementation
    - Explicit syntax (`[..]`) makes costs visible, compiler optimizes them away
+
+4. **Consistency**:
+   - All `->` statements benefit from RVO uniformly
+   - No special cases based on block content
+   - Same optimization strategy as function returns
 
 ### Mental Model: Semantic Clarity + Implementation Efficiency
 
@@ -1030,7 +822,7 @@ Hexen's unified block system provides two distinct statement types for different
 #### **Expression Blocks: `->` and `return`**
 ```hexen
 // Normal case: assign value to target
-val computation = {
+val computation : i32 = {
     val base = 42
     val multiplied = base * 2
     -> multiplied    // ✅ -> multiplied to computation
@@ -1083,30 +875,29 @@ func calculate() : i32 = {
 
 ```hexen
 func complex_computation() : f64 = {
-    // ✅ Compile-time evaluable block preserving comptime flexibility (TYPE_SYSTEM.md pattern)
-    val base_computation = {
+    // ✅ Expression block with explicit type annotation
+    val base_computation : f64 = {
         val raw_data = 42           // comptime_int
         val scale_factor = 2.5      // comptime_float
-        val result = raw_data * scale_factor  // comptime_int * comptime_float → comptime_float (BINARY_OPS.md)
-        -> result               // Preserves comptime_float flexibility
+        val result = raw_data * scale_factor  // comptime_int * comptime_float → comptime_float
+        -> result                   // → f64 (explicit type)
     }
-    
-    // Statement block for scoped concrete operations
+
+    // Statement block for scoped operations
     {
-        val concrete_base : f64 = base_computation  // comptime_float → f64 (explicit context)
-        val log_message : string = format_value(concrete_base)  // Explicit type required for function result
+        val log_message : string = format_value(base_computation)  // Explicit type required for function result
         write_log(log_message)
-        // concrete_base and log_message scoped to this block
+        // log_message scoped to this block
     }
-    
-    // 🔄 Mixed block (comptime + runtime = runtime, explicit context required)
+
+    // ✅ Expression block with mixed operations
     val final_computation : f64 = {
         val multiplier : f64 = get_multiplier()     // Explicit type required for function result
         val bias = 1.05                             // comptime_float
-        val mixed : f64 = base_computation:f64 * multiplier + bias  // Explicit conversion needed for mixed types
-        -> mixed                                // Block assigns concrete f64, explicit type required
+        val mixed : f64 = base_computation * multiplier + bias  // f64 * f64 + comptime_float → f64
+        -> mixed                                    // Explicit type required
     }
-    
+
     return final_computation
 }
 ```
@@ -1116,14 +907,14 @@ func complex_computation() : f64 = {
 ```hexen
 // Expression blocks in functions showing different calculation approaches
 func get_performance_calculation() : f64 = {
-    // ✅ Compile-time evaluable block with comptime operations → f64 return type
+    // Simple computation with comptime operations → f64 return type
     val base = 100             // comptime_int
     val factor = 1.5           // comptime_float
     return base * factor       // comptime_int * comptime_float → comptime_float → f64 (function return context)
 }
 
 func get_conservative_calculation() : f64 = {
-    // ✅ Compile-time evaluable block with different operations → f64 return type
+    // Different computation approach → f64 return type
     val conservative = 42      // comptime_int
     val adjustment = 2         // comptime_int
     return conservative / adjustment  // comptime_int / comptime_int → comptime_float → f64 (function return context)
@@ -1132,22 +923,25 @@ func get_conservative_calculation() : f64 = {
 // Function call results are concrete (TYPE_SYSTEM.md rule)
 val calculation_result : f64 = get_performance_calculation()  // Function returns concrete f64
 
-// ✅ Compile-time evaluable block with comptime operations showing flexibility
-val flexible_calc = {
+// ✅ Expression block with explicit type annotation
+val computation : f64 = {
     val base = 50              // comptime_int
     val multiplier = 2.25      // comptime_float
-    -> base * multiplier   // comptime_int * comptime_float → comptime_float (preserved!)
+    -> base * multiplier       // comptime_int * comptime_float → comptime_float → f64
 }
 
-// Same comptime result adapts to different contexts (TYPE_SYSTEM.md flexibility)
-val as_precise : f64 = flexible_calc    // comptime_float → f64
-val as_single : f32 = flexible_calc     // comptime_float → f32
+// Different calculation with different target type
+val as_single : f32 = {
+    val base = 50
+    val multiplier = 2.25
+    -> base * multiplier       // → f32 (explicit type)
+}
 
-// Statement blocks for scoped operations with explicit type conversions
+// Statement blocks for scoped operations
 func cleanup_operation() : void = {
-    // Statement block with explicit type conversions when needed
+    // Statement block with scoped operations
     {
-        val threshold : f32 = flexible_calc:f32  // Explicit conversion (TYPE_SYSTEM.md)
+        val threshold : f32 = 112.5  // Explicit value
         val cleanup_result : string = cleanup_files_above_threshold(threshold)  // Explicit type required for function result
         log_cleanup_result(cleanup_result)
         clear_cache()
@@ -1157,7 +951,7 @@ func cleanup_operation() : void = {
 
 // Function with mixed types requiring explicit conversions
 func get_complex_calculation() : f64 = {
-    // 🔄 Mixed block (concrete runtime value + comptime = runtime, explicit context required)
+    // Expression block with mixed operations
     val runtime_val : i64 = get_runtime_value()  // Concrete type from function
     val comptime_multiplier = 3.14                // comptime_float
     val result : f64 = runtime_val:f64 * comptime_multiplier  // Explicit conversion (TYPE_SYSTEM.md)
@@ -1179,12 +973,13 @@ func get_fallback_calculation() : f64 = {
 2. **Consistent Scoping**: Same rules everywhere, no special cases
 3. **Composability**: Blocks can be nested and combined naturally
 4. **Design Elegance**: Unified syntax eliminates syntactic complexity
-5. **Type System Integration**: Compile-time evaluable blocks preserve comptime types; runtime blocks require explicit context, following [TYPE_SYSTEM.md](TYPE_SYSTEM.md) patterns
-6. **Extensible Design**: Pattern can accommodate new language constructs
+5. **Type System Consistency**: Expression blocks require explicit types, matching functions and conditionals - predictable and uniform
+6. **No Hidden Magic**: All expression blocks behave identically (explicit types always required)
+7. **Extensible Design**: Pattern can accommodate new language constructs
 
 ### Trade-offs
 
-1. **Context Dependency**: Behavior depends on usage context
+1. **Verbosity**: Expression blocks always need type annotations (more explicit, less terse than implicit inference)
 2. **Learning Curve**: Must understand context implications and different block behaviors
 
 ### Comparison with Other Languages
@@ -1208,7 +1003,7 @@ val invalid = {
 }
 
 // Expression block with return but no -> (function exit)
-val computation : i32 = {          // Context REQUIRED for runtime blocks!
+val computation : i32 = {
     val input : i32 = get_input()       // Type REQUIRED (function call)
     if input < 0 {                // Runtime condition
         return -1                 // ✅ Valid: function exit with error value
@@ -1217,12 +1012,14 @@ val computation : i32 = {          // Context REQUIRED for runtime blocks!
     // Missing: -> input or another return statement
 }
 
-// Runtime vs compile-time context confusion
-val mixed_context_error = {
-    val temp = 42             // comptime_int
-    val runtime_val : i32 = get_value()  // Type REQUIRED (function call)
-    -> temp + runtime_val // Error: "Runtime block requires explicit type context"
-}  // Should be: val mixed_context_error : i32 = { ... }
+// Missing type annotation on expression block
+val missing_type = {
+    val temp = 42
+    val computed = temp * 2
+    -> computed
+}
+// Error: "Expression blocks require explicit type annotation when assigned to variables"
+// Should be: val missing_type : i32 = { ... }
 
 // Void function with return value
 func work() : void = {
@@ -1256,10 +1053,11 @@ val access = scoped    // Error: "Undefined variable: 'scoped'"
 ### For Hexen Developers
 
 1. **Mental Model**: Think "block = scope + context-specific behavior"
-2. **Scope Awareness**: Variables are always scoped to their containing block  
+2. **Scope Awareness**: Variables are always scoped to their containing block
 3. **Context Clarity**: Understand how block usage determines behavior
-4. **Type System Consistency**: Compile-time evaluable blocks preserve comptime types; runtime blocks require explicit context, following [TYPE_SYSTEM.md](TYPE_SYSTEM.md) patterns
-5. **Composition**: Combine blocks naturally for complex logic
+4. **Type System Consistency**: Expression blocks always require explicit type annotations (like functions and conditionals) - predictable and uniform
+5. **When to Use Blocks**: Multi-statement computations with scoped variables, not single-expression wrappers
+6. **Composition**: Combine blocks naturally for complex logic
 
 ## Conclusion
 
@@ -1276,13 +1074,14 @@ This creates **maximum expressiveness** within expression contexts while maintai
 
 ### Seamless Integration with Core Type System
 
-The enhanced unified block system works in perfect harmony with Hexen's type system features:
+The unified block system works in perfect harmony with Hexen's type system features:
 
-- **Comptime Type Preservation**: Compile-time evaluable expression blocks with `->` preserve comptime types following [TYPE_SYSTEM.md](TYPE_SYSTEM.md) flexibility patterns
-- **Explicit Conversion Requirements**: Mixed concrete types in blocks require the same explicit conversion syntax established in the type system  
+- **Consistent Type Requirements**: Expression blocks always require explicit type annotations, matching the behavior of functions and conditionals
+- **Explicit Conversion Requirements**: Mixed concrete types in blocks require the same explicit conversion syntax established in the type system
 - **Variable Declaration Consistency**: The same `val`/`mut` rules apply within blocks, maintaining consistent behavior
 - **Binary Operations Integration**: Division operators and arithmetic work identically inside blocks as specified in [BINARY_OPS.md](BINARY_OPS.md)
 - **Control Flow Integration**: `return` statements work consistently across all block types for function exits
+- **No Hidden Magic**: All expression blocks behave the same way - predictable and uniform
 
 ### Design Philosophy Coherence
 
