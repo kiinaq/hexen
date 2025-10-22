@@ -179,13 +179,10 @@ class BlockAnalyzer:
 
         # Context-specific final validation and type computation
         if is_expression_block:
-            # Classify block evaluability while still in scope
-            # CRITICAL: Must happen before scope exit so variables are accessible
-            evaluability = self.comptime_analyzer.classify_block_evaluability(
-                statements
-            )
-            return self._finalize_expression_block_with_evaluability(
-                has_assign, has_return, last_statement, node, evaluability
+            # Expression blocks always use explicit type context
+            # No evaluability classification needed - all expression blocks require explicit types
+            return self._finalize_expression_block(
+                has_assign, has_return, last_statement, node
             )
 
         # Statement blocks and function blocks don't produce values
@@ -199,13 +196,28 @@ class BlockAnalyzer:
         node: Dict,
     ) -> HexenType:
         """
-        Finalize expression block analysis following NEW UNIFIED_BLOCK_SYSTEM.md rules.
+        Finalize expression block analysis with explicit type context.
+
+        Expression blocks behave like inline functions and ALWAYS use explicit
+        type context for type resolution (no comptime type preservation).
 
         Expression blocks must end with EITHER:
         - 'assign expression' (produces block value)
         - 'return expression' (early function exit with value)
 
-        Dual capability: assign = block value, return = function exit
+        Type Resolution:
+        - Always uses function return type as explicit context
+        - Comptime types resolve immediately to concrete types
+        - Consistent with function and conditional type requirements
+
+        Args:
+            has_assign: Whether block has assign statement
+            has_return: Whether block has return statement
+            last_statement: The final statement in the block
+            node: Block node for error reporting
+
+        Returns:
+            Type of the expression block result (with explicit context)
         """
         if not (has_assign or has_return):
             self._error(
@@ -261,19 +273,19 @@ class BlockAnalyzer:
         evaluability: BlockEvaluability,
     ) -> HexenType:
         """
-        Finalize expression block analysis with evaluability-aware type resolution.
+        DEPRECATED: Legacy method with evaluability-aware type resolution.
 
-        Comptime Type Preservation Logic
-                This implements the enhanced unified block system functionality:
-        - COMPILE_TIME blocks: Preserve comptime types for maximum flexibility
-        - RUNTIME blocks: Require explicit context validation and immediate resolution
+        This method is no longer used after the expression block type requirement change.
+        All expression blocks now use explicit type context via _finalize_expression_block().
+
+        Kept for backward compatibility and potential future use with explicit `comptime` keyword.
 
         Args:
             has_assign: Whether block has assign statement
             has_return: Whether block has return statement
             last_statement: The final statement in the block
             node: Block node for error reporting
-            evaluability: Block evaluability classification
+            evaluability: Block evaluability classification (UNUSED)
 
         Returns:
             Type of the expression block result
@@ -330,26 +342,24 @@ class BlockAnalyzer:
         return HexenType.UNKNOWN
 
     # =========================================================================
-    # COMPTIME TYPE PRESERVATION LOGIC
+    # DEPRECATED: LEGACY COMPTIME TYPE PRESERVATION LOGIC
     # =========================================================================
+    # NOTE: These methods are no longer used after expression block type requirement change.
+    # All expression blocks now use explicit type context.
+    # Kept for backward compatibility and potential future use with explicit `comptime` keyword.
 
     def _analyze_expression_preserve_comptime(self, expression: Dict) -> HexenType:
         """
-        Analyze expression while preserving comptime types for maximum flexibility.
+        DEPRECATED: Analyze expression while preserving comptime types.
 
-        This is used for compile-time evaluable expression blocks to enable the
-        "one computation, multiple uses" pattern from UNIFIED_BLOCK_SYSTEM.md.
-
-        Key behavior:
-        - Comptime types (COMPTIME_INT, COMPTIME_FLOAT) are preserved as-is
-        - No target type context provided (preserves flexibility)
-        - All operations remain in comptime space until explicit context forces resolution
+        No longer used - all expression blocks now use explicit type context.
+        Kept for backward compatibility.
 
         Args:
             expression: Expression AST node to analyze
 
         Returns:
-            Expression type with comptime types preserved for later context-driven resolution
+            Expression type with comptime types preserved
         """
         # No target type context provided - this preserves comptime type flexibility
         return self._analyze_expression(expression, None)
@@ -358,15 +368,11 @@ class BlockAnalyzer:
         self, expression: Dict, target_type: Optional[HexenType]
     ) -> HexenType:
         """
-        Analyze expression with explicit target context for immediate resolution.
+        DEPRECATED: Analyze expression with explicit target context.
 
-        This is used for runtime blocks that require explicit context due to
-        runtime operations (function calls, conditionals, concrete variables).
-
-        Key behavior:
-        - Target type provides explicit context for type resolution
-        - Comptime types resolve immediately to concrete types
-        - All conversions happen with explicit context guidance
+        No longer used as a separate method - expression blocks now call
+        _analyze_expression() directly with explicit context.
+        Kept for backward compatibility.
 
         Args:
             expression: Expression AST node to analyze
@@ -382,16 +388,15 @@ class BlockAnalyzer:
         self, evaluability: BlockEvaluability, node: Dict
     ) -> bool:
         """
-        Validate that runtime blocks have the required explicit type context.
+        DEPRECATED: Validate that runtime blocks have required explicit type context.
 
-        This enforces the specification requirement:
-        "Runtime blocks require explicit type context due to runtime operations"
+        No longer used - validation moved to declaration_analyzer.py where it belongs
+        (at the point of variable declaration, not during block analysis).
 
-        The validation logic provides foundation for comprehensive error messages
-        and suggestions for proper usage patterns.
+        Kept for backward compatibility.
 
         Args:
-            evaluability: Block evaluability classification
+            evaluability: Block evaluability classification (UNUSED)
             node: Block node for error reporting context
 
         Returns:

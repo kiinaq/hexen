@@ -401,38 +401,31 @@ class DeclarationAnalyzer:
 
             inferred_type = self._analyze_expression(value)
 
-            # Runtime blocks without explicit type annotation should trigger enhanced error
+            # ALL expression blocks (assigned to variables) require explicit type annotation
+            # This enforces consistency: expression blocks behave like inline functions
             if value and value.get("type") == "block":
-                # Classify block evaluability to determine if explicit context is required
                 block_statements = value.get("statements", [])
-                evaluability = self.comptime_analyzer.classify_block_evaluability(
-                    block_statements
+
+                # Check if this is an expression block (produces value with assign statement)
+                # Blocks with only return statements (early exits) are allowed without explicit type
+                has_assign_statement = any(
+                    stmt.get("type") == "assign_statement"
+                    for stmt in block_statements
                 )
 
-                # If block is runtime evaluable, it requires explicit type context
-                from .types import BlockEvaluability
-
-                if evaluability == BlockEvaluability.RUNTIME:
-                    # REFINED: Only flag blocks that actually produce values with assign statements
-                    # Blocks with only return statements (early exits) don't need explicit context
-                    has_assign_statement = any(
-                        stmt.get("type") == "assign_statement"
-                        for stmt in block_statements
+                if has_assign_statement:
+                    # Expression blocks ALWAYS require explicit type annotation
+                    # (consistent with functions and conditionals)
+                    self._error(
+                        f"Expression blocks require explicit type annotation when assigned to variables. "
+                        f"Expression blocks behave like inline functions and always need explicit type context.\n\n"
+                        f"Example:\n"
+                        f"  val {name} = {{ ... }}           // ❌ Missing type annotation\n"
+                        f"  val {name} : i32 = {{ ... }}     // ✅ Explicit type annotation required\n\n"
+                        f"Note: This requirement applies to ALL expression blocks, regardless of their content.",
+                        node,
                     )
-
-                    if has_assign_statement:
-                        # Generate enhanced error message with actionable guidance
-                        runtime_reason = (
-                            self.comptime_analyzer.get_runtime_operation_reason(
-                                block_statements
-                            )
-                        )
-                        self._error(
-                            f"Explicit type annotation REQUIRED! Runtime block requires explicit type annotation because it {runtime_reason.lower()}. "
-                            f"Suggestion: val {name} : <type> = {{ ... }}",
-                            node,
-                        )
-                        return
+                    return
 
             # Use centralized type inference error analysis
             if self.comptime_analyzer.analyze_declaration_type_inference_error(

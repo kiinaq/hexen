@@ -23,19 +23,19 @@ class TestExpressionBlocks(StandardTestBase):
     """Test expression block semantics following unified block system"""
 
     def test_basic_expression_block_value_production(self):
-        """Test expression blocks produce values via -> statements"""
+        """Test expression blocks produce values via -> statements with explicit types"""
         source = """
         func test() : i32 = {
-            // ✅ Expression block produces value
-            val result = {
+            // ✅ Expression block produces value (explicit type required)
+            val result : i32 = {
                 val computed = 42 * 2
                 -> computed
             }
-            
-            val another = {
+
+            val another : string = {
                 -> "hello world"
             }
-            
+
             return result
         }
         """
@@ -82,22 +82,22 @@ class TestExpressionBlocks(StandardTestBase):
         assert errors == []
 
     def test_expression_block_comptime_type_context(self):
-        """Test expression blocks with comptime type context-driven resolution"""
+        """Test expression blocks with explicit type annotations (always required)"""
         source = """
         func test() : i32 = {
-            // Expression block with comptime type flexibility
-            val flexible_result = {
-                -> 42              // comptime_int (preserved for flexibility)
+            // Expression blocks always require explicit type annotations
+            val flexible_result : i32 = {
+                -> 42              // comptime_int adapts to i32
             }
-            
-            val string_result = {
+
+            val string_result : string = {
                 -> "hello"         // string (concrete)
             }
-            
-            val bool_result = {
+
+            val bool_result : bool = {
                 -> true            // bool (concrete)
             }
-            
+
             return flexible_result
         }
         """
@@ -106,20 +106,20 @@ class TestExpressionBlocks(StandardTestBase):
         assert errors == []
 
     def test_expression_block_complex_computation(self):
-        """Test expression blocks with complex internal computation"""
+        """Test expression blocks with complex internal computation (explicit type required)"""
         source = """
         func test() : i32 = {
-            val result = {
+            val result : i32 = {
                 val base = 10
                 val multiplier = 5
                 val offset = 3
-                
+
                 val intermediate = base * multiplier
                 val final_result = intermediate + offset
-                
+
                 -> final_result
             }
-            
+
             return result
         }
         """
