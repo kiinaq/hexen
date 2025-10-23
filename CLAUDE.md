@@ -4,6 +4,39 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ---
 
+## 📝 Git Commit Message Guidelines
+
+**IMPORTANT:** Keep commit messages concise and professional:
+
+- ✅ **Write clear, descriptive commit messages** (1-3 sentences max)
+- ✅ **Focus on WHAT changed and WHY** (skip implementation details)
+- ❌ **DO NOT add AI attribution footers** (no "🤖 Generated with Claude Code", no "Co-Authored-By: Claude")
+- ❌ **DO NOT write lengthy multi-paragraph explanations** (save details for PR descriptions)
+
+**Good Example:**
+```
+Require explicit type annotations for expression blocks
+
+All expression blocks assigned to variables now require explicit type
+annotations for consistency with functions and conditionals.
+```
+
+**Bad Example (Too verbose, unnecessary attribution):**
+```
+WEEK 2 TASK 7: Implement pass-by-value parameter semantics validation + array test coverage matrix
+
+Complete Week 2 Task 7 by adding comprehensive tests validating that ALL Hexen
+parameters (scalars, arrays, strings, bools) follow pass-by-value semantics...
+
+[5 more paragraphs of implementation details]
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+```
+
+---
+
 ## 🎯 Quick Reference
 
 ### Development Setup
