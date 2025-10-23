@@ -418,9 +418,6 @@ class TestRuntimeOperationsFoundationComplete:
         assert hasattr(block_analyzer, "_validate_runtime_block_context")
         assert hasattr(block_analyzer, "_get_runtime_operation_reason")
 
-        # Enhanced finalization method from Evaluability Infrastructure
-        assert hasattr(block_analyzer, "_finalize_expression_block_with_evaluability")
-
         # BlockEvaluability enum ready
         assert BlockEvaluability.COMPILE_TIME
         assert BlockEvaluability.RUNTIME

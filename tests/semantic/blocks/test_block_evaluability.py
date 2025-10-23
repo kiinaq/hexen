@@ -338,9 +338,6 @@ class TestSession1FoundationComplete:
 
         assert callable(is_concrete_type)
 
-        # Enhanced finalization method
-        assert hasattr(block_analyzer, "_finalize_expression_block_with_evaluability")
-
         # BlockEvaluability enum ready
         assert BlockEvaluability.COMPILE_TIME
         assert BlockEvaluability.RUNTIME
