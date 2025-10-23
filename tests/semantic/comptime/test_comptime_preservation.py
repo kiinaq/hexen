@@ -1,11 +1,14 @@
 """
-Comptime Type Preservation Logic Tests
+Comptime Type Adaptation in Expression Blocks Tests
 
-Tests the core comptime type preservation functionality for the enhanced unified block system:
-- Compile-time evaluable blocks preserve comptime types for maximum flexibility
-- Runtime blocks use explicit context for immediate resolution
-- "One computation, multiple uses" pattern from UNIFIED_BLOCK_SYSTEM.md
+Tests comptime type adaptation within expression blocks (all expression blocks now require explicit types):
+- Expression blocks with explicit type annotations allow comptime values to adapt
+- Comptime values (literals, arithmetic) adapt to explicit target types
+- "One computation, multiple uses" pattern - same comptime computation adapts to different explicit types
 - Integration with existing type system and comptime infrastructure
+
+NOTE: After Phase 1 implementation, ALL expression blocks assigned to variables require explicit type annotations.
+This file tests that comptime VALUES still adapt correctly within those explicitly-typed blocks.
 """
 
 import pytest
@@ -14,14 +17,14 @@ from src.hexen.parser import HexenParser
 from src.hexen.semantic.analyzer import SemanticAnalyzer
 
 
-class TestComptimePreservationInfrastructure:
-    """Test comptime preservation infrastructure is properly integrated."""
+class TestExpressionBlockInfrastructure:
+    """Test expression block analysis infrastructure with explicit type requirements."""
 
-    def test_comptime_preservation_infrastructure_available(self):
-        """Test comptime preservation methods are available and functional."""
+    def test_expression_block_analysis_methods_available(self):
+        """Test expression block analysis methods are available and functional."""
         analyzer = SemanticAnalyzer()
 
-        # Test that comptime preservation methods exist
+        # Test that expression block analysis methods exist (legacy methods kept for safety)
         assert hasattr(analyzer.block_analyzer, "_analyze_expression_preserve_comptime")
         assert hasattr(analyzer.block_analyzer, "_analyze_expression_with_context")
         assert hasattr(
@@ -35,12 +38,12 @@ class TestComptimePreservationInfrastructure:
             analyzer.block_analyzer._validate_runtime_block_context_requirement
         )
 
-    def test_comptime_preservation_enhanced_finalization_method(self):
-        """Test enhanced _finalize_expression_block_with_evaluability handles different evaluabilities."""
-        # Test compile-time evaluable block
+    def test_expression_block_with_explicit_type_annotation(self):
+        """Test expression blocks work correctly with explicit type annotations (universal requirement)."""
+        # All expression blocks now require explicit type annotations
         source = """
-        func test_comptime() : i32 = {
-            val result : i32 = {
+        func test_explicit_type() : i32 = {
+            val result : i32 = {  // Explicit type REQUIRED
                 val calc = 42 + 100
                 -> calc
             }
@@ -53,15 +56,15 @@ class TestComptimePreservationInfrastructure:
         analyzer = SemanticAnalyzer()
         errors = analyzer.analyze(ast)
 
-        # Should have no errors - compile-time evaluable block works
+        # Should have no errors - expression block with explicit type works
         assert len(errors) == 0, f"Unexpected errors: {[e.message for e in errors]}"
 
 
-class TestComptimePreservationBasics:
-    """Test basic comptime type preservation for compile-time evaluable blocks."""
+class TestComptimeValueAdaptation:
+    """Test comptime value adaptation within explicitly-typed expression blocks."""
 
-    def test_comptime_arithmetic_block_preserves_comptime_int(self):
-        """Test compile-time evaluable block with integer arithmetic preserves comptime_int."""
+    def test_comptime_int_adapts_to_explicit_i32_type(self):
+        """Test comptime_int values adapt to explicit i32 type annotation in expression blocks."""
         source = """
         func test_comptime_int() : i32 = {
             val flexible : i32 = {
@@ -82,8 +85,8 @@ class TestComptimePreservationBasics:
         # Should have no errors - comptime arithmetic should work
         assert len(errors) == 0, f"Unexpected errors: {[e.message for e in errors]}"
 
-    def test_comptime_arithmetic_block_preserves_comptime_float(self):
-        """Test expression block with float arithmetic and explicit type."""
+    def test_comptime_float_adapts_to_explicit_f64_type(self):
+        """Test comptime_float values adapt to explicit f64 type annotation in expression blocks."""
         source = """
         func test_comptime_float() : f64 = {
             val flexible : f64 = {  // Explicit type required (f64)
@@ -104,8 +107,8 @@ class TestComptimePreservationBasics:
         # Should have no errors - comptime values adapt to explicit type
         assert len(errors) == 0, f"Unexpected errors: {[e.message for e in errors]}"
 
-    def test_comptime_complex_arithmetic_block(self):
-        """Test compile-time evaluable block with complex arithmetic expressions."""
+    def test_complex_comptime_arithmetic_with_explicit_type(self):
+        """Test complex comptime arithmetic adapts to explicit type annotation in expression blocks."""
         source = """
         func test_complex_comptime() : f64 = {
             val computation : f64 = {  // Explicit type required for runtime block (contains concrete variable)
@@ -127,11 +130,11 @@ class TestComptimePreservationBasics:
         assert len(errors) == 0, f"Unexpected errors: {[e.message for e in errors]}"
 
 
-class TestRuntimeBlockContextResolution:
-    """Test runtime blocks use explicit context for immediate resolution."""
+class TestExpressionBlocksWithFunctionCalls:
+    """Test expression blocks containing function calls (with required explicit types)."""
 
-    def test_function_call_triggers_runtime_context(self):
-        """Test blocks with function calls use explicit context resolution."""
+    def test_expression_block_with_function_call_requires_explicit_type(self):
+        """Test expression blocks with function calls require explicit type annotations."""
         source = """
         func helper() : i32 = {
             return 42
@@ -154,8 +157,8 @@ class TestRuntimeBlockContextResolution:
         # Should have no errors - runtime blocks work with explicit context
         assert len(errors) == 0, f"Unexpected errors: {[e.message for e in errors]}"
 
-    def test_mixed_comptime_runtime_block(self):
-        """Test blocks mixing comptime and runtime operations."""
+    def test_mixed_comptime_and_runtime_values_with_explicit_type(self):
+        """Test expression blocks mixing comptime values and runtime operations with explicit type."""
         source = """
         func get_multiplier() : i32 = {
             return 5
@@ -181,11 +184,11 @@ class TestRuntimeBlockContextResolution:
         assert len(errors) == 0, f"Unexpected errors: {[e.message for e in errors]}"
 
 
-class TestOneComputationMultipleUsesPattern:
-    """Test the 'one computation, multiple uses' pattern from specification."""
+class TestComptimeAdaptationToMultipleTypes:
+    """Test comptime values adapt to different explicit types ('one computation, multiple uses' pattern)."""
 
-    def test_same_computation_different_function_contexts(self):
-        """Test expression blocks with explicit types adapt comptime values correctly."""
+    def test_same_comptime_computation_adapts_to_different_explicit_types(self):
+        """Test same comptime computation adapts to i32, i64, and f64 based on explicit type annotations."""
         source = """
         func test_as_i32() : i32 = {
             val flexible : i32 = {  // Explicit type required
@@ -220,8 +223,8 @@ class TestOneComputationMultipleUsesPattern:
         # Should have no errors - comptime values adapt to explicit types
         assert len(errors) == 0, f"Unexpected errors: {[e.message for e in errors]}"
 
-    def test_float_computation_different_contexts(self):
-        """Test expression blocks with explicit types adapt comptime values correctly."""
+    def test_comptime_float_computation_adapts_to_f32_and_f64(self):
+        """Test same comptime float computation adapts to f32 and f64 based on explicit type annotations."""
         source = """
         func test_as_f32() : f32 = {
             val flexible : f32 = {  // Explicit type required
@@ -252,8 +255,8 @@ class TestOneComputationMultipleUsesPattern:
 class TestNestedExpressionBlocks:
     """Test nested expression blocks with different evaluabilities."""
 
-    def test_nested_comptime_blocks(self):
-        """Test nested expression blocks with explicit types."""
+    def test_nested_expression_blocks_with_explicit_types(self):
+        """Test nested expression blocks each require explicit types, comptime values adapt correctly."""
         source = """
         func test_nested_comptime() : f64 = {
             val outer : f64 = {  // Explicit type required (f64 for outer)
@@ -276,8 +279,8 @@ class TestNestedExpressionBlocks:
         # Should have no errors - nested expression blocks with explicit types
         assert len(errors) == 0, f"Unexpected errors: {[e.message for e in errors]}"
 
-    def test_mixed_nested_blocks(self):
-        """Test nested blocks with mixed evaluabilities."""
+    def test_nested_blocks_mixing_comptime_and_runtime_values(self):
+        """Test nested expression blocks mixing comptime values and runtime operations."""
         source = """
         func get_base() : i32 = {
             return 50
@@ -309,8 +312,8 @@ class TestNestedExpressionBlocks:
 class TestDivisionOperatorsInBlocks:
     """Test division operators work correctly in expression blocks."""
 
-    def test_float_division_in_comptime_block(self):
-        """Test float division (/) in expression blocks with explicit types."""
+    def test_float_division_in_expression_block_with_explicit_type(self):
+        """Test float division (/) produces comptime_float that adapts to explicit f64 type."""
         source = """
         func test_float_division() : f64 = {
             val precise : f64 = {  // Explicit type required
@@ -330,8 +333,8 @@ class TestDivisionOperatorsInBlocks:
         # Should have no errors - comptime float division adapts to explicit type
         assert len(errors) == 0, f"Unexpected errors: {[e.message for e in errors]}"
 
-    def test_integer_division_in_comptime_block(self):
-        """Test integer division (\\) in compile-time evaluable blocks."""
+    def test_integer_division_in_expression_block_with_explicit_type(self):
+        """Test integer division (\\) produces comptime_int that adapts to explicit i32 type."""
         source = """
         func test_integer_division() : i32 = {
             val efficient : i32 = {
@@ -354,10 +357,10 @@ class TestDivisionOperatorsInBlocks:
 
 
 class TestExpressionBlocksWithConditionals:
-    """Test expression blocks containing conditionals (should be runtime)."""
+    """Test expression blocks containing conditionals (require explicit types)."""
 
-    def test_conditional_triggers_runtime_classification(self):
-        """Test conditionals in expression blocks trigger runtime classification."""
+    def test_conditional_expression_requires_explicit_type(self):
+        """Test conditional expressions require explicit type annotations."""
         source = """
         func test_conditional_runtime() : i32 = {
             val result : i32 = if 10 > 5 {
@@ -381,8 +384,8 @@ class TestExpressionBlocksWithConditionals:
 class TestReturnStatementsInExpressionBlocks:
     """Test return statements work correctly in expression blocks."""
 
-    def test_return_statement_in_comptime_block(self):
-        """Test return statements in compile-time evaluable expression blocks."""
+    def test_expression_block_with_comptime_values(self):
+        """Test expression blocks with comptime values and explicit type annotations."""
         source = """
         func test_early_return() : i32 = {
             val result : i32 = {
@@ -403,8 +406,8 @@ class TestReturnStatementsInExpressionBlocks:
         # Should have no errors - comptime blocks preserve flexibility
         assert len(errors) == 0, f"Unexpected errors: {[e.message for e in errors]}"
 
-    def test_return_statement_in_runtime_block(self):
-        """Test return statements in runtime expression blocks."""
+    def test_conditional_expression_with_function_call(self):
+        """Test conditional expressions with function calls require explicit type annotations."""
         source = """
         func get_condition() : bool = {
             return true
@@ -429,11 +432,11 @@ class TestReturnStatementsInExpressionBlocks:
         assert len(errors) == 0, f"Unexpected errors: {[e.message for e in errors]}"
 
 
-class TestComptimePreservationFoundationComplete:
-    """Test Comptime Preservation foundation is complete and ready for Enhanced Error Messages."""
+class TestComptimeAdaptationComprehensive:
+    """Test comprehensive comptime value adaptation within explicitly-typed expression blocks."""
 
-    def test_all_comptime_preservation_patterns_working(self):
-        """Test all comptime preservation patterns work together correctly."""
+    def test_comptime_adaptation_with_mixed_scenarios(self):
+        """Test comptime values adapt correctly in mixed scenarios with explicit type annotations."""
         source = """
         func helper(x: i32) : i32 = {
             return x * 2
@@ -466,8 +469,8 @@ class TestComptimePreservationFoundationComplete:
         # Should have no errors - all comptime preservation patterns work together
         assert len(errors) == 0, f"Unexpected errors: {[e.message for e in errors]}"
 
-    def test_comptime_preservation_ready_for_enhanced_error_messages(self):
-        """Test comptime preservation infrastructure is ready for enhanced error message enhancements."""
+    def test_expression_block_infrastructure_available(self):
+        """Test expression block analysis infrastructure is available for validation."""
         analyzer = SemanticAnalyzer()
 
         # Test that all comptime preservation infrastructure is available for enhanced error messages
