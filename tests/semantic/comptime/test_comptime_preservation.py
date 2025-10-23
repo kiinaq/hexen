@@ -1,63 +1,38 @@
 """
-Comptime Type Adaptation in Expression Blocks Tests
+Comptime Type Adaptation Tests
 
-Tests comptime type adaptation within expression blocks (all expression blocks now require explicit types):
-- Expression blocks with explicit type annotations allow comptime values to adapt
-- Comptime values (literals, arithmetic) adapt to explicit target types
-- "One computation, multiple uses" pattern - same comptime computation adapts to different explicit types
-- Integration with existing type system and comptime infrastructure
+Tests the core comptime type system feature: adaptation of comptime values
+to concrete types based on explicit type annotations in expression blocks.
 
-NOTE: After Phase 1 implementation, ALL expression blocks assigned to variables require explicit type annotations.
-This file tests that comptime VALUES still adapt correctly within those explicitly-typed blocks.
+FOCUS: Type adaptation behavior (not block semantics)
+COMPLEMENTS: tests/semantic/blocks/ (which focus on block semantics)
+
+Core features tested:
+1. Comptime values adapt to explicit target types (i32, i64, f32, f64)
+2. "One computation, multiple uses" - same literal adapts to different types
+3. Division operators produce correct comptime types (/ → float, \\ → int)
+4. Nested blocks preserve comptime adaptation capabilities
+5. Complex scenarios mixing comptime and explicit types
+
+NOTE: After Phase 1 implementation, ALL expression blocks assigned to variables
+require explicit type annotations. This file tests that comptime VALUES still
+adapt correctly within those explicitly-typed blocks.
+
+CONSOLIDATION NOTE: This file previously had 18 tests. After overlap analysis
+with tests/semantic/blocks/, 7 duplicate tests were removed (39% reduction).
+The remaining 11 tests (61%) validate unique comptime type adaptation behavior
+that is not tested elsewhere.
+
+Removed duplicates:
+- Infrastructure tests → Covered by test_block_evaluability.py
+- Runtime operation tests → Covered by test_runtime_operations.py
+- Basic expression block tests → Covered by test_expression_blocks.py
 """
 
 import pytest
 
 from src.hexen.parser import HexenParser
 from src.hexen.semantic.analyzer import SemanticAnalyzer
-
-
-class TestExpressionBlockInfrastructure:
-    """Test expression block analysis infrastructure with explicit type requirements."""
-
-    def test_expression_block_analysis_methods_available(self):
-        """Test expression block analysis methods are available and functional."""
-        analyzer = SemanticAnalyzer()
-
-        # Test that expression block analysis methods exist (legacy methods kept for safety)
-        assert hasattr(analyzer.block_analyzer, "_analyze_expression_preserve_comptime")
-        assert hasattr(analyzer.block_analyzer, "_analyze_expression_with_context")
-        assert hasattr(
-            analyzer.block_analyzer, "_validate_runtime_block_context_requirement"
-        )
-
-        # Test that methods are callable (basic infrastructure test)
-        assert callable(analyzer.block_analyzer._analyze_expression_preserve_comptime)
-        assert callable(analyzer.block_analyzer._analyze_expression_with_context)
-        assert callable(
-            analyzer.block_analyzer._validate_runtime_block_context_requirement
-        )
-
-    def test_expression_block_with_explicit_type_annotation(self):
-        """Test expression blocks work correctly with explicit type annotations (universal requirement)."""
-        # All expression blocks now require explicit type annotations
-        source = """
-        func test_explicit_type() : i32 = {
-            val result : i32 = {  // Explicit type REQUIRED
-                val calc = 42 + 100
-                -> calc
-            }
-            return result
-        }
-        """
-
-        parser = HexenParser()
-        ast = parser.parse(source)
-        analyzer = SemanticAnalyzer()
-        errors = analyzer.analyze(ast)
-
-        # Should have no errors - expression block with explicit type works
-        assert len(errors) == 0, f"Unexpected errors: {[e.message for e in errors]}"
 
 
 class TestComptimeValueAdaptation:
@@ -130,62 +105,16 @@ class TestComptimeValueAdaptation:
         assert len(errors) == 0, f"Unexpected errors: {[e.message for e in errors]}"
 
 
-class TestExpressionBlocksWithFunctionCalls:
-    """Test expression blocks containing function calls (with required explicit types)."""
-
-    def test_expression_block_with_function_call_requires_explicit_type(self):
-        """Test expression blocks with function calls require explicit type annotations."""
-        source = """
-        func helper() : i32 = {
-            return 42
-        }
-        
-        func test_runtime() : i32 = {
-            val result : i32 = {  // Explicit type required for runtime block (contains function call)
-                val computed : i32 = helper()  // Function call triggers runtime
-                -> computed
-            }
-            return result
-        }
-        """
-
-        parser = HexenParser()
-        ast = parser.parse(source)
-        analyzer = SemanticAnalyzer()
-        errors = analyzer.analyze(ast)
-
-        # Should have no errors - runtime blocks work with explicit context
-        assert len(errors) == 0, f"Unexpected errors: {[e.message for e in errors]}"
-
-    def test_mixed_comptime_and_runtime_values_with_explicit_type(self):
-        """Test expression blocks mixing comptime values and runtime operations with explicit type."""
-        source = """
-        func get_multiplier() : i32 = {
-            return 5
-        }
-        
-        func test_mixed() : i32 = {
-            val result : i32 = {  // Explicit type required for runtime block
-                val base = 42              // comptime_int
-                val runtime_mult : i32 = get_multiplier()  // runtime function call
-                val combined = base * runtime_mult   // mixed operation (comptime adapts to runtime_mult's i32)
-                -> combined
-            }
-            return result
-        }
-        """
-
-        parser = HexenParser()
-        ast = parser.parse(source)
-        analyzer = SemanticAnalyzer()
-        errors = analyzer.analyze(ast)
-
-        # Should have no errors - mixed operations work with explicit context
-        assert len(errors) == 0, f"Unexpected errors: {[e.message for e in errors]}"
-
-
 class TestComptimeAdaptationToMultipleTypes:
-    """Test comptime values adapt to different explicit types ('one computation, multiple uses' pattern)."""
+    """
+    Test comptime values adapt to different explicit types ('one computation, multiple uses' pattern).
+
+    This is the CORE FEATURE of Hexen's comptime system - the same literal or computation
+    can adapt to different concrete types based on context, providing ergonomic code reuse
+    without explicit conversions.
+
+    UNIQUE: This pattern is not tested anywhere else in the test suite.
+    """
 
     def test_same_comptime_computation_adapts_to_different_explicit_types(self):
         """Test same comptime computation adapts to i32, i64, and f64 based on explicit type annotations."""
@@ -253,7 +182,7 @@ class TestComptimeAdaptationToMultipleTypes:
 
 
 class TestNestedExpressionBlocks:
-    """Test nested expression blocks with different evaluabilities."""
+    """Test nested expression blocks preserve comptime adaptation through nesting levels."""
 
     def test_nested_expression_blocks_with_explicit_types(self):
         """Test nested expression blocks each require explicit types, comptime values adapt correctly."""
@@ -285,7 +214,7 @@ class TestNestedExpressionBlocks:
         func get_base() : i32 = {
             return 50
         }
-        
+
         func test_mixed_nested() : f64 = {
             val outer : f64 = {  // Explicit type required for runtime block
                 val comptime_part : i32 = {
@@ -310,7 +239,15 @@ class TestNestedExpressionBlocks:
 
 
 class TestDivisionOperatorsInBlocks:
-    """Test division operators work correctly in expression blocks."""
+    """
+    Test division operators produce correct comptime types in expression blocks.
+
+    Division operators in Hexen have unique type semantics:
+    - / (float division) always produces comptime_float
+    - \\ (integer division) always produces comptime_int
+
+    These tests validate that the division result types are correct for adaptation.
+    """
 
     def test_float_division_in_expression_block_with_explicit_type(self):
         """Test float division (/) produces comptime_float that adapts to explicit f64 type."""
@@ -356,33 +293,8 @@ class TestDivisionOperatorsInBlocks:
         assert len(errors) == 0, f"Unexpected errors: {[e.message for e in errors]}"
 
 
-class TestExpressionBlocksWithConditionals:
-    """Test expression blocks containing conditionals (require explicit types)."""
-
-    def test_conditional_expression_requires_explicit_type(self):
-        """Test conditional expressions require explicit type annotations."""
-        source = """
-        func test_conditional_runtime() : i32 = {
-            val result : i32 = if 10 > 5 {
-                -> 100
-            } else {
-                -> 200
-            }
-            return result
-        }
-        """
-
-        parser = HexenParser()
-        ast = parser.parse(source)
-        analyzer = SemanticAnalyzer()
-        errors = analyzer.analyze(ast)
-
-        # Should have no errors - conditional blocks work with explicit type annotation
-        assert len(errors) == 0, f"Unexpected errors: {[e.message for e in errors]}"
-
-
 class TestReturnStatementsInExpressionBlocks:
-    """Test return statements work correctly in expression blocks."""
+    """Test expression blocks with comptime values and return statements."""
 
     def test_expression_block_with_comptime_values(self):
         """Test expression blocks with comptime values and explicit type annotations."""
@@ -406,34 +318,9 @@ class TestReturnStatementsInExpressionBlocks:
         # Should have no errors - comptime blocks preserve flexibility
         assert len(errors) == 0, f"Unexpected errors: {[e.message for e in errors]}"
 
-    def test_conditional_expression_with_function_call(self):
-        """Test conditional expressions with function calls require explicit type annotations."""
-        source = """
-        func get_condition() : bool = {
-            return true
-        }
-        
-        func test_runtime_early_return() : i32 = {
-            val result : i32 = if get_condition() {
-                -> 777
-            } else {
-                -> 0
-            }
-            return result
-        }
-        """
-
-        parser = HexenParser()
-        ast = parser.parse(source)
-        analyzer = SemanticAnalyzer()
-        errors = analyzer.analyze(ast)
-
-        # Should have no errors - runtime blocks work with explicit type annotation
-        assert len(errors) == 0, f"Unexpected errors: {[e.message for e in errors]}"
-
 
 class TestComptimeAdaptationComprehensive:
-    """Test comprehensive comptime value adaptation within explicitly-typed expression blocks."""
+    """Test comprehensive comptime value adaptation in complex real-world scenarios."""
 
     def test_comptime_adaptation_with_mixed_scenarios(self):
         """Test comptime values adapt correctly in mixed scenarios with explicit type annotations."""
@@ -441,7 +328,7 @@ class TestComptimeAdaptationComprehensive:
         func helper(x: i32) : i32 = {
             return x * 2
         }
-        
+
         func test_comprehensive() : f64 = {
             // Expression block with explicit type required
             val comptime_calc : f64 = {  // Explicit type required (f64)
@@ -468,21 +355,3 @@ class TestComptimeAdaptationComprehensive:
 
         # Should have no errors - all comptime preservation patterns work together
         assert len(errors) == 0, f"Unexpected errors: {[e.message for e in errors]}"
-
-    def test_expression_block_infrastructure_available(self):
-        """Test expression block analysis infrastructure is available for validation."""
-        analyzer = SemanticAnalyzer()
-
-        # Test that all comptime preservation infrastructure is available for enhanced error messages
-        assert hasattr(analyzer.block_analyzer, "_validate_runtime_block_context")
-        assert hasattr(analyzer.block_analyzer, "_get_runtime_operation_reason")
-
-        # Test that runtime detection infrastructure is still available
-        assert hasattr(analyzer.block_analyzer, "_contains_runtime_operations")
-        assert hasattr(analyzer.block_analyzer, "_contains_function_calls")
-        assert hasattr(analyzer.block_analyzer, "_contains_conditionals")
-
-        # Test that evaluability infrastructure is still available
-        assert hasattr(analyzer.block_analyzer, "_classify_block_evaluability")
-        assert hasattr(analyzer.block_analyzer, "_has_comptime_only_operations")
-        assert hasattr(analyzer.block_analyzer, "_has_runtime_variables")
