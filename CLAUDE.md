@@ -352,31 +352,35 @@ val flat : [_]i32 = matrix[..]:[_]i32        // Flatten (explicit [..] + :type)
 
 ### Expression Block Patterns
 
-#### Block Classification
+#### Type Annotation Requirements
 
-| Block Type | Contains | Type Annotation | Example |
-|------------|----------|-----------------|---------|
-| **Comptime** | Only comptime operations | ❌ Optional | `val x = { -> 42 + 100 }` |
-| **Runtime** | Functions, conditionals, concrete types | ✅ **Required** | `val x : i32 = { val y = f(); -> y }` |
+**CRITICAL RULE:** Expression blocks assigned to variables **ALWAYS require explicit type annotations** (just like functions and conditionals).
 
-#### When Type Context Required
+| Context | Type Annotation Required? | Example |
+|---------|---------------------------|---------|
+| Assigned to `val` | ✅ **YES (mandatory)** | `val x : i32 = { -> 42 }` |
+| Assigned to `mut` | ✅ **YES (mandatory)** | `mut x : i32 = { -> 42 }` |
+| Function return | ❌ No | `return { -> 42 }` (function return type provides context) |
+| Function argument | ❌ No | `process({ -> 42 })` (parameter type provides context) |
+
+#### Expression Block Examples
 
 ```hexen
-// ✅ Comptime block (no context needed)
-val comptime_block = {
-    val base = 42                    // comptime_int
-    val result = base * 2            // comptime_int
-    -> result                        // comptime_int (preserved!)
+// ✅ Expression block with explicit type (ALWAYS required for variable assignment!)
+val result : i32 = {
+    val base = 42                    // comptime_int adapts to i32
+    val computed = base * 2          // comptime_int adapts to i32
+    -> computed                      // Resolves to i32 (explicit type)
 }
 
-// ✅ Runtime block (context REQUIRED!)
-val runtime_block : i32 = {          // Explicit type required!
-    val input = get_input()          // Function call → runtime
+// ✅ Expression block with function calls (explicit type required)
+val processed : i32 = {
+    val input = get_input()          // Function call returns concrete type
     -> input * 2
 }
 
-// ✅ Conditional in block → runtime (context required)
-val conditional_block : i32 = {      // Explicit type required (runtime block)!
+// ✅ Expression block with conditionals (explicit type required)
+val conditional_result : i32 = {
     val value : i32 = if true {      // Type REQUIRED (conditional = runtime)!
         -> 42
     } else {
@@ -385,10 +389,24 @@ val conditional_block : i32 = {      // Explicit type required (runtime block)!
     -> value
 }
 
-// ❌ Common mistake
-// val missing_context = {
-//     val input = get_input()       // Error: runtime block needs type annotation
-//     -> input * 2
+// ✅ Expression block in function return (no type annotation needed - context provided!)
+func calculate() : i32 = {
+    return {                         // Function return type provides context
+        val temp = 42
+        -> temp * 2
+    }
+}
+
+// ❌ Common mistake: Missing type annotation on variable assignment
+// val missing = {                   // ❌ Error: Missing explicit type annotation
+//     val temp = 42
+//     -> temp * 2
+// }
+//
+// Fix: Add explicit type annotation
+// val correct : i32 = {             // ✅ Explicit type annotation required
+//     val temp = 42
+//     -> temp * 2
 // }
 ```
 
@@ -574,27 +592,27 @@ val result : i32 = get_value()  // ✅ Type required for function returns
 
 ---
 
-#### ❌ Mistake 5: Missing Context for Runtime Blocks
+#### ❌ Mistake 5: Missing Type Annotation for Expression Blocks
 
 **Problem:**
 ```hexen
 val block_result = {
-    val input = get_user_input()  // Function call → runtime
+    val input = get_user_input()  // Function call
     -> input * 2                  // ❌ Error!
 }
 ```
 
-**Error:** `Runtime block requires explicit type annotation (contains function calls)`
+**Error:** `Expression blocks require explicit type annotation when assigned to variables`
 
 **Fix:**
 ```hexen
-val block_result : i32 = {        // ✅ Explicit context required
+val block_result : i32 = {        // ✅ Explicit type annotation required
     val input = get_user_input()
     -> input * 2
 }
 ```
 
-**Rule:** Blocks containing runtime operations (functions, conditionals) require explicit type context
+**Rule:** ALL expression blocks assigned to variables require explicit type annotations (consistent with functions and conditionals)
 
 ---
 
@@ -758,14 +776,20 @@ What are you doing with the array?
   └─ Flattening array → ✅ YES, both [..] AND :type required
 ```
 
-#### Does This Block Need Type Context?
+#### Does This Expression Block Need Type Annotation?
 
 ```
-What does the block contain?
-  ├─ Only comptime operations (literals, arithmetic) → ❌ No context needed
-  ├─ Function calls → ✅ YES, context required (runtime)
-  ├─ Conditionals (if/else) → ✅ YES, context required (runtime)
-  └─ Mixed concrete types → ✅ YES, context required (runtime)
+Is the expression block assigned to a variable?
+  ├─ YES → ✅ ALWAYS requires explicit type annotation (universal rule!)
+  │         Examples:
+  │         - val result : i32 = { -> 42 }              ✅ Explicit type required
+  │         - val result = { -> 42 }                    ❌ Error!
+  │
+  └─ NO (used in other contexts) → Check context:
+      ├─ Function return → ❌ No annotation (function return type provides context)
+      │   Example: return { -> 42 }
+      └─ Function argument → ❌ No annotation (parameter type provides context)
+          Example: process({ -> 42 })
 ```
 
 #### Does This Conditional Expression Need Type Annotation?
@@ -805,7 +829,7 @@ For detailed specifications, consult the following documents:
 - **Type conversion questions?** → `TYPE_SYSTEM.md` + `COMPTIME_QUICK_REFERENCE.md`
 - **Why does my array operation fail?** → `ARRAY_TYPE_SYSTEM.md` (sections on copy syntax `[..]` and flattening)
 - **Binary operation type errors?** → `BINARY_OPS.md` (section on type resolution rules)
-- **Expression block context issues?** → `UNIFIED_BLOCK_SYSTEM.md` (runtime vs comptime classification)
+- **Expression block type requirements?** → `UNIFIED_BLOCK_SYSTEM.md` (expression block type annotations)
 - **Function parameter/return rules?** → `FUNCTION_SYSTEM.md` (parameter context, return annotations)
 - **Conditional expression patterns?** → `CONDITIONAL_SYSTEM.md` (conditional expressions, -> vs return)
 - **Literal overflow errors?** → `LITERAL_OVERFLOW_BEHAVIOR.md` (type ranges, overflow detection)
@@ -817,7 +841,7 @@ For detailed specifications, consult the following documents:
 - Core concepts: `TYPE_SYSTEM.md`, `COMPTIME_QUICK_REFERENCE.md`
 - In binary operations: `BINARY_OPS.md` (comptime propagation)
 - In arrays: `ARRAY_TYPE_SYSTEM.md` (comptime arrays)
-- In blocks: `UNIFIED_BLOCK_SYSTEM.md` (comptime vs runtime blocks)
+- In blocks: `UNIFIED_BLOCK_SYSTEM.md` (expression block type requirements)
 
 **Explicit Conversions (`:type`):**
 - General rules: `TYPE_SYSTEM.md` (Transparent Costs principle)
@@ -825,10 +849,10 @@ For detailed specifications, consult the following documents:
 - In arrays: `ARRAY_TYPE_SYSTEM.md` (array type conversions, flattening)
 - In functions: `FUNCTION_SYSTEM.md` (parameter conversions)
 
-**Runtime vs Compile-time:**
-- Block classification: `UNIFIED_BLOCK_SYSTEM.md` (comptime vs runtime blocks)
-- Conditionals: `CONDITIONAL_SYSTEM.md` (all conditionals are runtime)
-- Type resolution: `TYPE_SYSTEM.md` (comptime type preservation)
+**Type Annotation Requirements:**
+- Expression blocks: `UNIFIED_BLOCK_SYSTEM.md` (all expression blocks require explicit types)
+- Conditionals: `CONDITIONAL_SYSTEM.md` (all conditionals require explicit types)
+- Type resolution: `TYPE_SYSTEM.md` (comptime type adaptation)
 
 ---
 

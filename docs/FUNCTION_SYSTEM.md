@@ -379,8 +379,8 @@ func simple_computation(input: i32, threshold: f64) : f64 = {
         val is_valid : bool = input > 0    // ✅ Explicit type required for concrete result (i32 > comptime_int → bool)
     }
     
-    // Expression block for intermediate calculation
-    val intermediate = {
+    // Expression block for intermediate calculation (explicit type REQUIRED!)
+    val intermediate : i32 = {
         val scaled : i32 = input * 2      // ✅ Explicit type required for concrete result (i32 * comptime_int → i32)
         val adjusted : i32 = scaled + 10  // ✅ Explicit type required for concrete result (i32 + comptime_int → i32)
         -> adjusted       // Expression block assigns value to intermediate
@@ -399,7 +399,7 @@ Expression blocks in function contexts support both `->` and `return` following 
 ```hexen
 // Expression blocks with validation and early returns
 func validate_and_process(input: i32) : i32 = {
-    val processed = {
+    val processed : i32 = {     // ✅ Explicit type REQUIRED for expression block!
         if input < 0 {
             return -1           // Early function exit with error code
         }
@@ -408,14 +408,14 @@ func validate_and_process(input: i32) : i32 = {
         }
         -> input * 2        // Success: -> processed value
     }
-    
+
     // This code only runs if validation succeeded
     return processed + 10
 }
 
 // Expression blocks with performance optimization
 func cached_calculation(key: string) : f64 = {
-    val result = {
+    val result : f64 = {        // ✅ Explicit type REQUIRED for expression block!
         val cached : f64 = lookup_cache(key)       // Type REQUIRED (function call)
         if cached != null {
             return cached       // Early function exit with cached result
@@ -447,7 +447,7 @@ func nested_scope_demo(base: i32, multiplier: f64) : f64 = {
         val debug_message = "calculation complete"  // ✅ String literal (comptime_string can be inferred)
     }
     
-    val final_result = {
+    val final_result : f64 = {  // ✅ Explicit type REQUIRED for expression block!
         // Expression block - parameters accessible
         val result : f64 = base:f64 * multiplier  // ✅ Explicit type and conversion required (i32 → f64 * f64 → f64)
         -> result                   // Expression block assigns value to final_result
