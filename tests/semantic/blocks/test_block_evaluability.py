@@ -41,7 +41,7 @@ class TestSession1Infrastructure:
         """Test blocks with only comptime literals work correctly (infrastructure test)"""
         source = """
         func test() : i32 = {
-            val result = {
+            val result : i32 = {  // Explicit type required for ALL expression blocks
                 val base = 42              // comptime_int
                 val multiplier = 100       // comptime_int
                 val calc = base * multiplier  // comptime_int * comptime_int
@@ -97,9 +97,9 @@ class TestSession1Infrastructure:
         """Test complex comptime arithmetic works correctly (infrastructure test)"""
         source = """
         func test() : i32 = {
-            val calculation = {
+            val calculation : i32 = {  // Explicit type required for ALL expression blocks
                 val a = 42                  // comptime_int
-                val b = 100                 // comptime_int  
+                val b = 100                 // comptime_int
                 val c = 2                   // comptime_int
                 val step1 = a * c           // comptime_int * comptime_int
                 val step2 = step1 + b       // comptime_int + comptime_int → comptime_int
@@ -136,8 +136,8 @@ class TestSession1Infrastructure:
         """Test nested expression blocks work correctly (infrastructure test)"""
         source = """
         func test() : i32 = {
-            val outer : i32 = {  // Explicit type required for runtime block (contains concrete variable)
-                val inner = {
+            val outer : i32 = {  // Explicit type required for ALL expression blocks
+                val inner : i32 = {  // Explicit type required for ALL expression blocks
                     val pure = 42 + 100    // Pure comptime
                     -> pure
                 }
@@ -157,16 +157,16 @@ class TestSession1Infrastructure:
         """Test various literal types work correctly (infrastructure test)"""
         source = """
         func test() : void = {
-            val int_literal = {
+            val int_literal : i32 = {  // Explicit type required for ALL expression blocks
                 -> 42                   // comptime_int
             }
-            val float_literal = {  
+            val float_literal : f64 = {  // Explicit type required for ALL expression blocks
                 -> 3.14                 // comptime_float
             }
-            val string_literal = {
+            val string_literal : string = {  // Explicit type required for ALL expression blocks
                 -> "hello"              // string literal (treated as comptime)
             }
-            val bool_literal = {
+            val bool_literal : bool = {  // Explicit type required for ALL expression blocks
                 -> true                 // bool literal (treated as comptime)
             }
         }
@@ -181,10 +181,10 @@ class TestSession1Infrastructure:
         """Test binary operations work correctly (infrastructure test)"""
         source = """
         func test() : void = {
-            val arithmetic = {
+            val arithmetic : i32 = {  // Explicit type required for ALL expression blocks
                 -> 42 + 100 * 3         // All comptime arithmetic
             }
-            val logical = {
+            val logical : bool = {  // Explicit type required for ALL expression blocks
                 -> true && false        // bool logical operation
             }
         }
@@ -199,7 +199,7 @@ class TestSession1Infrastructure:
         """Test explicit conversions work correctly (infrastructure test)"""
         source = """
         func test() : void = {
-            val converted = {
+            val converted : i32 = {  // Explicit type required for ALL expression blocks
                 val base = 42               // comptime_int
                 -> base:i32             // Explicit conversion of comptime value
             }
@@ -255,7 +255,7 @@ class TestSession1Infrastructure:
         source = """
         func test() : void = {
             val comptime_var = 42           // Inferred comptime_int (no explicit type)
-            val uses_comptime = {
+            val uses_comptime : i32 = {  // Explicit type required for ALL expression blocks
                 val doubled = comptime_var * 2  // Uses comptime variable
                 -> doubled
             }
@@ -271,7 +271,7 @@ class TestSession1Infrastructure:
         """Test simple blocks work correctly (infrastructure test)"""
         source = """
         func test() : i32 = {
-            val empty = {
+            val empty : i32 = {  // Explicit type required for ALL expression blocks
                 -> 42                   // Simple -> only
             }
             return empty
@@ -288,15 +288,15 @@ class TestSession1Infrastructure:
         # This is critical - Block Evaluability should not break existing functionality
         source = """
         func test() : i32 = {
-            val result = {
+            val result : i32 = {  // Explicit type required for ALL expression blocks
                 val temp = 42
                 -> temp * 2
             }
             return result
         }
-        
+
         func with_return() : i32 = {
-            val early_exit = {
+            val early_exit : i32 = {  // Explicit type required for ALL expression blocks
                 return 100                  // Early function exit
             }
             return 0                        // Never reached

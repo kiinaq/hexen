@@ -39,13 +39,12 @@ class TestRuntimeBlockErrorMessages:
 
         assert len(errors) >= 1
         error_msg = str(errors[0])
-        
-        # Should contain "Explicit type annotation REQUIRED!" messaging
-        assert "Explicit type annotation REQUIRED!" in error_msg
-        # Should mention function calls as the reason
-        assert "function" in error_msg.lower() or "runtime block" in error_msg.lower()
+
+        # Should contain updated error messaging for expression blocks
+        assert "explicit type annotation" in error_msg.lower()
+        assert "expression block" in error_msg.lower()
         # Should provide actionable guidance
-        assert "val result :" in error_msg or "explicit type" in error_msg
+        assert "val result :" in error_msg or "val result = { ... }" in error_msg
 
     def test_conditional_triggers_explicit_type_annotation_required_error(self):
         """Test that conditionals trigger 'Explicit type annotation REQUIRED!' error messages."""

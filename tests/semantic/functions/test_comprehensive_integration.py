@@ -194,7 +194,7 @@ class TestFunctionSystemIntegration:
         func return_void() : void = { return }
 
         func complex_returns(flag: bool) : i32 = {
-            val result = {
+            val result : i32 = {
                 val computation = 10 * 20
                 -> computation
             }

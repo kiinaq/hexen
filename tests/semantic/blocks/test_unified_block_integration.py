@@ -26,23 +26,20 @@ class TestUnifiedBlockSystemIntegration:
         self.analyzer = SemanticAnalyzer()
 
     def test_complete_specification_examples(self):
-        """Test all examples from UNIFIED_BLOCK_SYSTEM.md work correctly."""
-        # Example 1: Compile-time evaluable block preserves comptime types
+        """Test expression blocks with explicit types work correctly."""
+        # All expression blocks now require explicit type annotations
         source = """
-        func test_comptime_preservation() : void = {
-            val flexible_computation = {
+        func test_expression_blocks() : void = {
+            val calculation : f64 = {  // Explicit type required for ALL expression blocks
                 val base = 42              // comptime_int
-                val multiplier = 100       // comptime_int  
+                val multiplier = 100       // comptime_int
                 val factor = 3.14          // comptime_float
                 val result = base * multiplier + factor  // All comptime operations → comptime_float
-                -> result              // Block result: comptime_float (preserved!)
+                -> result              // Adapts to f64 (explicit type)
             }
-            
-            // Same block result adapts to different contexts (maximum flexibility!)
-            val as_f32 : f32 = flexible_computation    // comptime_float → f32 (implicit)
-            val as_f64 : f64 = flexible_computation    // SAME source → f64 (different context!)
-            val as_i32 : i32 = flexible_computation:i32  // SAME source → i32 (explicit conversion)
-            
+
+            // Use calculated value
+            val result : f64 = calculation + 1.0
             return
         }
         """
@@ -97,24 +94,24 @@ class TestUnifiedBlockSystemIntegration:
         assert_no_errors(errors)
 
     def test_complex_nested_scenarios(self):
-        """Test complex nesting with mixed evaluability - should error without explicit type annotation."""
+        """Test complex nesting with explicit type annotations."""
         source = """
         func helper() : i32 = { return 42 }
-        
+
         func test_complex_nesting() : void = {
-            // Nested blocks with different evaluability
-            val outer_result = {     // Missing explicit type annotation - should error!
-                val comptime_block = {
+            // Nested blocks ALL require explicit type annotations
+            val outer_result : i32 = {  // Explicit type required
+                val comptime_block : i32 = {  // Explicit type required
                     val calc = 42 + 100
                     -> calc  // Compile-time evaluable
                 }
-                
+
                 val runtime_block : i32 = {
                     val helper_result : i32 = helper()  // Function call -> runtime
                     -> helper_result
                 }
-                
-                -> comptime_block + runtime_block  // Mixed types - makes block runtime
+
+                -> comptime_block + runtime_block  // Both i32 now
             }
             return
         }
@@ -122,16 +119,8 @@ class TestUnifiedBlockSystemIntegration:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
 
-        # Should have error about runtime block requiring explicit type annotation
-        assert len(errors) >= 1
-        error_messages = [str(e) for e in errors]
-        # Check for either runtime type annotation error or mixed concrete types error
-        assert any(
-            "explicit type annotation" in msg.lower() or "mixed concrete" in msg.lower()
-            for msg in error_messages
-        ), (
-            f"Expected runtime type annotation or mixed concrete types error, got: {error_messages}"
-        )
+        # Should work with explicit type annotations
+        assert_no_errors(errors)
 
     def test_performance_optimization_patterns(self):
         """Test caching and optimization patterns work correctly."""
@@ -190,21 +179,21 @@ class TestUnifiedBlockSystemIntegration:
         source = """
         func calculate_tax(income: f64) : f64 = { return income * 0.2 }
         func get_deductions() : f64 = { return 1000.0 }
-        
+
         func tax_calculation(income: f64) : f64 = {
-            // Mix of comptime and runtime calculations
-            val base_calculations = {
+            // All expression blocks require explicit types
+            val base_calculations : f64 = {  // Explicit type required
                 val standard_deduction = 12000.0  // comptime_float
                 val rate = 0.22                    // comptime_float
                 -> standard_deduction * rate   // comptime calculation
             }
-            
+
             val runtime_calculations : f64 = {
                 val user_deductions : f64 = get_deductions()  // Function call -> runtime
                 val taxable = income - user_deductions
                 -> calculate_tax(taxable)
             }
-            
+
             val final_tax : f64 = runtime_calculations - base_calculations
             return final_tax
         }
@@ -242,21 +231,21 @@ class TestBackwardCompatibilityValidation:
         self.analyzer = SemanticAnalyzer()
 
     def test_existing_expression_blocks_still_work(self):
-        """Test that existing expression block patterns continue to work."""
+        """Test that expression blocks with explicit types work correctly."""
         source = """
         func test_existing_patterns() : i32 = {
-            // Simple expression block
-            val simple = {
+            // All expression blocks now require explicit types
+            val simple : i32 = {  // Explicit type required
                 val x = 42
                 -> x * 2
             }
-            
+
             // Block with explicit type
             val explicit : i32 = {
                 val calc = 100 + 200
                 -> calc
             }
-            
+
             return simple + explicit
         }
         """
@@ -324,20 +313,18 @@ class TestSpecificationComplianceValidation:
         self.analyzer = SemanticAnalyzer()
 
     def test_compile_time_vs_runtime_distinction(self):
-        """Test the core compile-time vs runtime distinction works correctly."""
+        """Test expression blocks with comptime operations work with explicit types."""
         source = """
         func test_distinction() : void = {
-            // Compile-time evaluable: only comptime operations
-            val comptime_block = {
+            // All expression blocks require explicit type annotations
+            val comptime_block : f64 = {  // Explicit type required
                 val a = 42        // comptime_int
                 val b = 3.14      // comptime_float
-                -> a + b      // comptime_int + comptime_float → comptime_float
+                -> a + b      // comptime_int + comptime_float → adapts to f64
             }
-            
-            // Same source, different targets (flexibility preserved)
-            val as_f32 : f32 = comptime_block
-            val as_f64 : f64 = comptime_block
-            
+
+            // Use the computed value
+            val result : f64 = comptime_block + 1.0
             return
         }
         """
@@ -412,18 +399,17 @@ class TestSessionIntegrationValidation:
         self.analyzer = SemanticAnalyzer()
 
     def test_session1_infrastructure_integration(self):
-        """Test Session 1 block evaluability detection integrates correctly."""
+        """Test expression blocks with explicit types work correctly."""
         source = """
         func test_session1() : void = {
-            // This should be detected as compile-time evaluable
-            val comptime_only = {
+            // All expression blocks require explicit type annotations
+            val comptime_only : i32 = {  // Explicit type required
                 val a = 42
                 val b = 100
                 -> a + b
             }
-            
-            val as_different_types_f32 : f32 = comptime_only
-            val as_different_types_i64 : i64 = comptime_only
+
+            val result : i32 = comptime_only + 10
             return
         }
         """
@@ -461,19 +447,16 @@ class TestSessionIntegrationValidation:
         assert_no_errors(errors)
 
     def test_session3_comptime_preservation_integration(self):
-        """Test Session 3 comptime type preservation integrates correctly."""
+        """Test comptime values adapt correctly with explicit types."""
         source = """
         func test_session3() : void = {
-            val preserved_comptime = {
+            val result : f64 = {  // Explicit type required
                 val calculation = 42 * 3.14  // comptime_int * comptime_float → comptime_float
-                -> calculation            // Preserved as comptime_float
+                -> calculation            // Adapts to f64
             }
-            
-            // Multiple uses of same preserved computation
-            val use1 : f32 = preserved_comptime
-            val use2 : f64 = preserved_comptime
-            val use3 : i32 = preserved_comptime:i32  // Explicit conversion
-            
+
+            // Use the computed value
+            val final : f64 = result + 1.0
             return
         }
         """
@@ -486,11 +469,11 @@ class TestSessionIntegrationValidation:
         # This tests that enhanced errors work but don't break analysis
         source = """
         func test_session4() : void = {
-            val valid_block = {
+            val valid_block : i32 = {  // Explicit type required
                 val computation = 42 + 100
                 -> computation
             }
-            
+
             val valid_typed : i32 = valid_block
             return
         }

@@ -212,7 +212,7 @@ class TestFunctionBodyReturnValidation:
         """Test early return handling in expression blocks (simplified - no if statements yet)."""
         program = """
         func simple_early_return(input: i32) : i32 = {
-            val result = {
+            val result : i32 = {
                 return input * 2
             }
             return result + 10
@@ -275,7 +275,7 @@ class TestUnifiedBlockSystemIntegration:
         """Test expression blocks use -> for value production."""
         program = """
         func expression_block_assign() : i32 = {
-            val computation = {
+            val computation : i32 = {
                 val base = 42
                 val result = base * 2
                 -> result
@@ -295,7 +295,7 @@ class TestUnifiedBlockSystemIntegration:
         """Test expression blocks use return for early function exits (simplified)."""
         program = """
         func validation_pattern(input: i32) : i32 = {
-            val validated = {
+            val validated : i32 = {
                 return input * 2
             }
             return validated + 10
@@ -356,7 +356,7 @@ class TestUnifiedBlockSystemIntegration:
         """Test that expression blocks cannot have bare returns (need value for function exit)."""
         program = """
         func invalid_bare_return_in_expression_block() : i32 = {
-            val result = {
+            val result : i32 = {
                 return
             }
             return 42

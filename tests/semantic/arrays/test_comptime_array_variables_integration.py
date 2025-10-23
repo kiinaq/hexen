@@ -216,10 +216,10 @@ class TestComptimeArrayExpressionBlocks:
         self.analyzer = SemanticAnalyzer()
 
     def test_expression_block_returns_comptime_array(self):
-        """Expression block producing comptime array"""
+        """Expression block producing comptime array with explicit type"""
         source = """
         func test() : void = {
-            val result = {
+            val result : [_]i32 = {  // Explicit array type required
                 -> [1, 2, 3]
             }
             return
@@ -233,7 +233,7 @@ class TestComptimeArrayExpressionBlocks:
         """Expression block with intermediate comptime array"""
         source = """
         func test() : void = {
-            val result = {
+            val result : [_]i32 = {  // Explicit array type required
                 val temp = [1, 2, 3, 4, 5]
                 -> temp
             }

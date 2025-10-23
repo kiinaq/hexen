@@ -24,7 +24,7 @@ class TestUnifiedBlockSystemAssign:
         """Test expression block ending with -> statement (NEW semantics)"""
         source = """
         func test() : i32 = {
-            val result = {
+            val result : i32 = {
                 val temp = 42
                 -> temp
             }
@@ -39,7 +39,7 @@ class TestUnifiedBlockSystemAssign:
         """Test expression block ending with return statement (dual capability)"""
         source = """
         func test() : i32 = {
-            val result = {
+            val result : i32 = {
                 val temp = 42
                 return temp  // This exits the function
             }
@@ -51,23 +51,23 @@ class TestUnifiedBlockSystemAssign:
         # Should work - return exits function
         assert errors == []
 
-    def test_expression_block_assign_comptime_preservation(self):
-        """Test -> preserves comptime types for maximum flexibility"""
+    def test_expression_block_assign_with_explicit_types(self):
+        """Test expression blocks with explicit type annotations work correctly"""
         source = """
         func test_i32() : i32 = {
-            val flexible = {
+            val flexible : i32 = {  // Explicit type required
                 val calc = 42 + 100
-                -> calc  // Should preserve comptime_int
+                -> calc  // Adapts to i32
             }
-            return flexible  // comptime_int -> i32
+            return flexible
         }
-        
+
         func test_f64() : f64 = {
-            val same_calc = {
+            val same_calc : f64 = {  // Explicit type required (f64 here)
                 val calc = 42 + 100
-                -> calc  // Same comptime_int source
+                -> calc  // Adapts to f64
             }
-            return same_calc  // Same source -> f64 (different context!)
+            return same_calc
         }
         """
         ast = self.parser.parse(source)
@@ -78,7 +78,7 @@ class TestUnifiedBlockSystemAssign:
         """Test expression block must end with -> OR return"""
         source = """
         func test() : i32 = {
-            val result = {
+            val result : i32 = {
                 val temp = 42
                 // Missing -> or return - ERROR
             }
@@ -97,7 +97,7 @@ class TestUnifiedBlockSystemAssign:
         """Test -> statement must be last statement in expression block"""
         source = """
         func test() : i32 = {
-            val result = {
+            val result : i32 = {
                 val temp = 42
                 -> temp  // -> not at end - ERROR
                 val more = 100
@@ -114,7 +114,7 @@ class TestUnifiedBlockSystemAssign:
         """Test return statement must be last statement in expression block"""
         source = """
         func test() : i32 = {
-            val result = {
+            val result : i32 = {
                 val temp = 42
                 return temp  // return not at end - ERROR
                 val more = 100
@@ -220,7 +220,7 @@ class TestUnifiedReturnSemantics:
         
         func test3() : i32 = {
             // Expression block return  
-            val result = {
+            val result : i32 = {
                 return 200  // Exits function
             }
             return result  // Never reached
@@ -257,7 +257,7 @@ class TestUnifiedReturnSemantics:
         """Test bare return fails in expression blocks"""
         source = """
         func test() : void = {
-            val result = {
+            val result : i32 = {
                 return  // Bare return in expression block - ERROR
             }
         }
@@ -279,7 +279,7 @@ class TestUnifiedBlockDualCapability:
         """Test validation pattern with -> (success path)"""
         source = """
         func process_input() : i32 = {
-            val validated = {
+            val validated : i32 = {
                 val raw = 42
                 // Validation logic here...
                 -> raw  // Success: assign validated input
@@ -295,7 +295,7 @@ class TestUnifiedBlockDualCapability:
         """Test validation pattern with early return (error path)"""
         source = """
         func process_input() : i32 = {
-            val validated = {
+            val validated : i32 = {
                 val raw = -1
                 // if raw < 0 { return -1 } // Simulated condition
                 return -1  // Early function exit on error
@@ -311,7 +311,7 @@ class TestUnifiedBlockDualCapability:
         """Test caching optimization with early return"""
         source = """
         func expensive_calc() : i32 = {
-            val result = {
+            val result : i32 = {
                 val cached = 100  // Simulated cache lookup
                 // if cached != null { return cached }
                 return cached  // Cache hit: early function exit
@@ -327,7 +327,7 @@ class TestUnifiedBlockDualCapability:
         """Test fallback pattern using both -> and return"""
         source = """
         func load_config() : i32 = {
-            val config = {
+            val config : i32 = {
                 val primary = 42  // Simulated primary config
                 // if primary is good, use it
                 -> primary   // Success path: assign primary config
@@ -336,7 +336,7 @@ class TestUnifiedBlockDualCapability:
         }
         
         func load_config_with_fallback() : i32 = {
-            val config = {
+            val config : i32 = {
                 val primary = 0   // Failed primary config
                 // if primary failed, try fallback then return default
                 return 100  // Complete failure: function exit with default
@@ -374,7 +374,7 @@ class TestUnifiedBlockErrors:
         # This should be caught at parse level, but test semantic handling
         source = """
         func test() : i32 = {
-            val result = {
+            val result : i32 = {
                 val temp = 42
                 -> temp
             }
@@ -396,8 +396,8 @@ class TestUnifiedBlockErrors:
         """Test nested expression blocks with different ending strategies"""
         source = """
         func test() : i32 = {
-            val outer = {
-                val inner = {
+            val outer : i32 = {
+                val inner : i32 = {
                     -> 42  // Inner uses assign
                 }
                 return inner  // Outer uses return (function exit)

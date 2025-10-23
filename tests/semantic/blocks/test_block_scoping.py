@@ -283,28 +283,28 @@ class TestComplexBlockScenarios(StandardTestBase):
         source = """
         func integration_test() : i32 = {
             val base = 42
-            
-            // Expression block assigned to val
-            val computed = {
+
+            // Expression block assigned to val (explicit type required)
+            val computed : i32 = {
                 return base + 10
             }
-            
-            // Expression block assigned to mut  
-            mut mutable_result:i32 = {
+
+            // Expression block assigned to mut (explicit type required)
+            mut mutable_result : i32 = {
                 return computed + 5
             }
-            
+
             // Statement block with assignments
             {
                 mutable_result = computed + 5    // Assignment in statement block
                 val local = mutable_result
             }
-            
-            // Expression block with outer variable access
-            val final = {
+
+            // Expression block with outer variable access (explicit type required)
+            val final : i32 = {
                 -> base + computed
             }
-            
+
             return final
         }
         """

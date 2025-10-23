@@ -430,20 +430,20 @@ class TestRuntimeOperationsFoundationComplete:
         # Test that complex Evaluability Infrastructure functionality still works with Runtime Operations enhancements
         source = """
         func test() : i32 = {
-            val comptime_only = {
-                val a = 42          // comptime_int  
+            val comptime_only : i32 = {  // Explicit type required for ALL expression blocks
+                val a = 42          // comptime_int
                 val b = 100         // comptime_int
                 val c = a * b       // comptime operation
-                -> c            // Pure comptime block
+                -> c            // Adapts to i32
             }
-            
+
             val concrete_mixed : i32 = {  // Explicit type required for runtime block (concrete variables)
                 val explicit : i32 = 42    // Concrete type
                 val doubled = explicit * 2  // Mixed operation
                 -> doubled
             }
-            
-            return comptime_only + concrete_mixed  // comptime_int + i32 -> i32 (comptime adapts)
+
+            return comptime_only + concrete_mixed  // i32 + i32 -> i32
         }
         """
 

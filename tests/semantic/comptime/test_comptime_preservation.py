@@ -40,7 +40,7 @@ class TestComptimePreservationInfrastructure:
         # Test compile-time evaluable block
         source = """
         func test_comptime() : i32 = {
-            val result = {
+            val result : i32 = {
                 val calc = 42 + 100
                 -> calc
             }
@@ -64,7 +64,7 @@ class TestComptimePreservationBasics:
         """Test compile-time evaluable block with integer arithmetic preserves comptime_int."""
         source = """
         func test_comptime_int() : i32 = {
-            val flexible = {
+            val flexible : i32 = {
                 val base = 42
                 val multiplier = 100
                 val result = base * multiplier
@@ -83,10 +83,10 @@ class TestComptimePreservationBasics:
         assert len(errors) == 0, f"Unexpected errors: {[e.message for e in errors]}"
 
     def test_comptime_arithmetic_block_preserves_comptime_float(self):
-        """Test compile-time evaluable block with float arithmetic preserves comptime_float."""
+        """Test expression block with float arithmetic and explicit type."""
         source = """
         func test_comptime_float() : f64 = {
-            val flexible = {
+            val flexible : f64 = {  // Explicit type required (f64)
                 val base = 42
                 val factor = 3.14
                 val result = base * factor
@@ -101,7 +101,7 @@ class TestComptimePreservationBasics:
         analyzer = SemanticAnalyzer()
         errors = analyzer.analyze(ast)
 
-        # Should have no errors - mixed comptime arithmetic should work
+        # Should have no errors - comptime values adapt to explicit type
         assert len(errors) == 0, f"Unexpected errors: {[e.message for e in errors]}"
 
     def test_comptime_complex_arithmetic_block(self):
@@ -185,30 +185,30 @@ class TestOneComputationMultipleUsesPattern:
     """Test the 'one computation, multiple uses' pattern from specification."""
 
     def test_same_computation_different_function_contexts(self):
-        """Test same comptime computation used in different function return contexts."""
+        """Test expression blocks with explicit types adapt comptime values correctly."""
         source = """
         func test_as_i32() : i32 = {
-            val flexible = {
+            val flexible : i32 = {  // Explicit type required
                 val calc = 42 + 100 * 3
                 -> calc
             }
-            return flexible  // comptime_int -> i32 (function context)
+            return flexible  // comptime_int adapts to i32
         }
-        
+
         func test_as_i64() : i64 = {
-            val same_calc = {
-                val calc = 42 + 100 * 3  // Same computation
+            val same_calc : i64 = {  // Explicit type required (i64 here)
+                val calc = 42 + 100 * 3  // Same computation source
                 -> calc
             }
-            return same_calc  // comptime_int -> i64 (different function context)
+            return same_calc  // comptime_int adapts to i64
         }
-        
+
         func test_as_f64() : f64 = {
-            val another_calc = {
-                val calc = 42 + 100 * 3  // Same computation again
+            val another_calc : f64 = {  // Explicit type required (f64 here)
+                val calc = 42 + 100 * 3  // Same computation source
                 -> calc
             }
-            return another_calc  // comptime_int -> f64 (different function context)
+            return another_calc  // comptime_int adapts to f64
         }
         """
 
@@ -217,26 +217,26 @@ class TestOneComputationMultipleUsesPattern:
         analyzer = SemanticAnalyzer()
         errors = analyzer.analyze(ast)
 
-        # Should have no errors - same computation adapts to different contexts
+        # Should have no errors - comptime values adapt to explicit types
         assert len(errors) == 0, f"Unexpected errors: {[e.message for e in errors]}"
 
     def test_float_computation_different_contexts(self):
-        """Test comptime float computation used in different precision contexts."""
+        """Test expression blocks with explicit types adapt comptime values correctly."""
         source = """
         func test_as_f32() : f32 = {
-            val flexible = {
+            val flexible : f32 = {  // Explicit type required
                 val calc = 42 * 3.14159
                 -> calc
             }
-            return flexible  // comptime_float -> f32
+            return flexible  // comptime_float adapts to f32
         }
-        
+
         func test_as_f64() : f64 = {
-            val same_calc = {
-                val calc = 42 * 3.14159  // Same computation
+            val same_calc : f64 = {  // Explicit type required (different type)
+                val calc = 42 * 3.14159  // Same computation source
                 -> calc
             }
-            return same_calc  // comptime_float -> f64 (higher precision)
+            return same_calc  // comptime_float adapts to f64
         }
         """
 
@@ -245,7 +245,7 @@ class TestOneComputationMultipleUsesPattern:
         analyzer = SemanticAnalyzer()
         errors = analyzer.analyze(ast)
 
-        # Should have no errors - same comptime float adapts to different precisions
+        # Should have no errors - comptime values adapt to explicit types
         assert len(errors) == 0, f"Unexpected errors: {[e.message for e in errors]}"
 
 
@@ -253,18 +253,18 @@ class TestNestedExpressionBlocks:
     """Test nested expression blocks with different evaluabilities."""
 
     def test_nested_comptime_blocks(self):
-        """Test nested compile-time evaluable blocks."""
+        """Test nested expression blocks with explicit types."""
         source = """
         func test_nested_comptime() : f64 = {
-            val outer = {
-                val inner = {
+            val outer : f64 = {  // Explicit type required (f64 for outer)
+                val inner : i32 = {  // Explicit type required (i32 for inner)
                     val calc = 42 + 100
-                    -> calc  // comptime_int
+                    -> calc  // comptime_int adapts to i32
                 }
-                val scaled = inner * 3.14  // comptime_int * comptime_float -> comptime_float
-                -> scaled
+                val scaled = inner * 3.14  // i32 * comptime_float -> comptime_float
+                -> scaled  // comptime_float adapts to f64
             }
-            return outer  // comptime_float -> f64
+            return outer
         }
         """
 
@@ -273,7 +273,7 @@ class TestNestedExpressionBlocks:
         analyzer = SemanticAnalyzer()
         errors = analyzer.analyze(ast)
 
-        # Should have no errors - nested comptime blocks should work
+        # Should have no errors - nested expression blocks with explicit types
         assert len(errors) == 0, f"Unexpected errors: {[e.message for e in errors]}"
 
     def test_mixed_nested_blocks(self):
@@ -285,7 +285,7 @@ class TestNestedExpressionBlocks:
         
         func test_mixed_nested() : f64 = {
             val outer : f64 = {  // Explicit type required for runtime block
-                val comptime_part = {
+                val comptime_part : i32 = {
                     val calc = 42 * 2
                     -> calc  // Compile-time evaluable -> comptime_int
                 }
@@ -310,15 +310,15 @@ class TestDivisionOperatorsInBlocks:
     """Test division operators work correctly in expression blocks."""
 
     def test_float_division_in_comptime_block(self):
-        """Test float division (/) in compile-time evaluable blocks."""
+        """Test float division (/) in expression blocks with explicit types."""
         source = """
         func test_float_division() : f64 = {
-            val precise = {
+            val precise : f64 = {  // Explicit type required
                 val numerator = 22
                 val denominator = 7
-                -> numerator / denominator  // comptime_int / comptime_int -> comptime_float
+                -> numerator / denominator  // comptime_int / comptime_int -> comptime_float adapts to f64
             }
-            return precise  // comptime_float -> f64 (adapts to function return type)
+            return precise
         }
         """
 
@@ -327,14 +327,14 @@ class TestDivisionOperatorsInBlocks:
         analyzer = SemanticAnalyzer()
         errors = analyzer.analyze(ast)
 
-        # Should have no errors - comptime float division should work per BINARY_OPS.md
+        # Should have no errors - comptime float division adapts to explicit type
         assert len(errors) == 0, f"Unexpected errors: {[e.message for e in errors]}"
 
     def test_integer_division_in_comptime_block(self):
         """Test integer division (\\) in compile-time evaluable blocks."""
         source = """
         func test_integer_division() : i32 = {
-            val efficient = {
+            val efficient : i32 = {
                 val total = 100
                 val parts = 3
                 val result = total \\ parts  // comptime integer division
@@ -385,7 +385,7 @@ class TestReturnStatementsInExpressionBlocks:
         """Test return statements in compile-time evaluable expression blocks."""
         source = """
         func test_early_return() : i32 = {
-            val result = {
+            val result : i32 = {
                 val base = 42  // comptime value
                 val check = base > 30  // comptime comparison
                 // For demonstration: comptime block that can preserve flexibility
@@ -440,20 +440,20 @@ class TestComptimePreservationFoundationComplete:
         }
         
         func test_comprehensive() : f64 = {
-            // Compile-time evaluable block
-            val comptime_calc = {
+            // Expression block with explicit type required
+            val comptime_calc : f64 = {  // Explicit type required (f64)
                 val base = 42 + 100
                 val scaled = base * 3.14
-                -> scaled  // Preserves comptime_float
+                -> scaled  // comptime_float adapts to f64
             }
-            
+
             // Runtime block with function call - explicit type required
             val runtime_calc : f64 = {
-                val runtime_val : i32 = helper(10)  // Function call triggers runtime
+                val runtime_val : i32 = helper(10)  // Function call
                 val combined = runtime_val:f64 + comptime_calc  // Explicit conversion for mixed types
                 -> combined
             }
-            
+
             return runtime_calc
         }
         """
