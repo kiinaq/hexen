@@ -239,7 +239,7 @@ val r1 : range[i32] = start..(end:i32)       // ✅ Explicit conversion
 val r2 : range[i64] = (start:i64)..end       // ✅ Explicit conversion
 
 // ✅ Option 3: Convert both to usize (for indexing)
-val idx : range[usize] = ((start:usize)..(end:usize))
+val idx : range[usize] = (start:usize)..(end:usize)
 ```
 
 ### Comptime Adaptation Bypasses Type Matching
@@ -786,7 +786,7 @@ val slice : [_]f64 = array[idx]          // ✅ Works
 val slice2 : [_]f64 = array[r_i32:range[usize]]  // ✅ Works
 
 // ✅ Or convert bounds directly
-val idx2 : range[usize] = ((start:usize)..(end:usize))
+val idx2 : range[usize] = (start:usize)..(end:usize)
 val slice3 : [_]f64 = array[idx2]        // ✅ Works
 ```
 
@@ -816,13 +816,15 @@ for i in r {                             // ✅ Type inferred from context
 
 ### Summary Table: User Types vs Index Type
 
-| Range Type | Materialization | Iteration (future) | Array Indexing |
-|------------|-----------------|-------------------|----------------|
-| `range[comptime_int]` | ✅ Adapts to type | ✅ Adapts to type | ✅ Adapts to usize |
-| `range[comptime_float]` | ✅ Adapts to type | ✅ Adapts to type | ❌ Float indices forbidden |
-| `range[i32]`, `range[i64]` | ✅ Yes | ✅ Yes (typed) | ❌ No (use `:range[usize]`) |
-| `range[f32]`, `range[f64]` | ✅ Yes | ✅ Yes (typed) | ❌ No (float indices forbidden) |
-| `range[usize]` | ✅ Yes | ✅ Yes (usize values) | ✅ **Only this!** |
+| Range Type | Materialization | Iteration (future) | Array Indexing | Conversion to `usize` |
+|------------|-----------------|-------------------|----------------|----------------------|
+| `range[comptime_int]` | ✅ Adapts to type | ✅ Adapts to type | ✅ Adapts to usize | ✅ Implicit (ergonomic) |
+| `range[comptime_float]` | ✅ Adapts to type | ✅ Adapts to type | ❌ Float indices forbidden | ❌ **Cannot convert** |
+| `range[i32]`, `range[i64]` | ✅ Yes | ✅ Yes (typed) | ❌ No | ✅ Via `:range[usize]` |
+| `range[f32]`, `range[f64]` | ✅ Yes | ✅ Yes (typed) | ❌ No | ❌ **Cannot convert** |
+| `range[usize]` | ✅ Yes | ✅ Yes (usize values) | ✅ **Only this!** | ✅ Already usize |
+
+**Critical Rule:** Float types (`comptime_float`, `f32`, `f64`) **cannot** be converted to `usize` under any circumstances. Only integer types can convert to index type.
 
 ## Float Range Restrictions
 
@@ -856,7 +858,8 @@ Note: Float ranges are only valid for iteration/materialization, not indexing
 Error: Cannot convert range[f32] to range[usize]
   val slice : [_]i32 = arr[float_r:range[usize]]
                            ^^^^^^^^^^^^^^^^^^^^
-Note: Float ranges cannot be used for indexing (fractional indices are meaningless)
+Note: Float types (f32, f64, comptime_float) cannot convert to usize
+Help: Float ranges cannot be used for array indexing (fractional indices are meaningless)
 ```
 
 **Rationale:**
@@ -917,12 +920,17 @@ val f64_range : range[f64] = good        // → range[f64]
 
 // ❌ Cannot adapt to usize (float ranges forbidden for indexing)
 val f32_arr : [_]f32 = get_array()
-// val bad_slice : [_]f32 = f32_arr[good]  // ❌ Error: float range for indexing
+// val bad_slice : [_]f32 = f32_arr[good]  // ❌ Error: comptime_float can't index
+
+// ❌ Cannot convert to usize (float types forbidden)
+// val idx : range[usize] = good         // ❌ Error: comptime_float → usize forbidden
+// val idx2 : range[usize] = good:range[usize]  // ❌ Error: cannot convert
 ```
 
 **Rationale:** Comptime flexibility doesn't bypass semantic constraints:
 - Step requirement (prevents iteration count ambiguity)
 - Float indexing prohibition (fractional indices meaningless)
+- **Float → usize conversion prohibition** (no implicit or explicit conversion allowed)
 
 ### Comptime Validation
 
@@ -966,15 +974,26 @@ val slice : [_]f64 = array[idx]               // ✅ Now works
 val slice2 : [_]f64 = array[r_i32:range[usize]]  // ✅ Also works
 ```
 
-**Comptime to any type (implicit adaptation):**
+**Comptime int to any integer type (implicit adaptation):**
 
 ```hexen
+// Comptime int range (flexible for integers)
 val flexible = 1..10                     // range[comptime_int]
 
-// Adapts implicitly
+// Adapts implicitly to integer types
 val r_i32 : range[i32] = flexible        // ✅ Adapts to range[i32]
 val r_i64 : range[i64] = flexible        // ✅ Adapts to range[i64]
 val idx : range[usize] = flexible        // ✅ Adapts to range[usize]
+
+// Comptime float range (NO adaptation to usize!)
+val float_flexible = 0.0..10.0:0.1       // range[comptime_float]
+
+// ✅ Adapts to float types
+val r_f32 : range[f32] = float_flexible  // ✅ Adapts to range[f32]
+val r_f64 : range[f64] = float_flexible  // ✅ Adapts to range[f64]
+
+// ❌ Cannot adapt to usize
+// val bad_idx : range[usize] = float_flexible  // ❌ Error: comptime_float → usize forbidden
 ```
 
 ### Indexing Type Requirements
@@ -1001,7 +1020,11 @@ val slice3 : [_]f64 = array[r_i32:range[usize]]  // ✅ OK
 // ❌ Invalid: float ranges (forbidden entirely)
 val r_f32 : range[f32] = 1.0..4.0:0.1
 // val bad2 : [_]f64 = array[r_f32]      // ❌ Error: float indices forbidden
-// val bad3 : [_]f64 = array[r_f32:range[usize]]  // ❌ Still error!
+// val bad3 : [_]f64 = array[r_f32:range[usize]]  // ❌ Error: cannot convert float → usize
+
+// ❌ Invalid: comptime_float ranges (also forbidden)
+val r_ct_float = 1.0..4.0:0.1            // range[comptime_float]
+// val bad4 : [_]f64 = array[r_ct_float]  // ❌ Error: comptime_float indices forbidden
 ```
 
 ## Examples
@@ -1348,6 +1371,7 @@ val stepped : range[i32] = r.step(2)     // 1..10:2
 - Comptime values adapt automatically (bypass type matching)
 - Explicit `:type` conversion required for mixed concrete types
 - Platform index type (`usize`) used universally for array indexing
+- **Float types cannot convert to `usize`** (no implicit or explicit conversion)
 
 **Integer vs Float Ranges:**
 - Integers: step optional (default 1), can be used for indexing (via `:range[usize]`)
