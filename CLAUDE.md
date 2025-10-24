@@ -8,6 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **IMPORTANT:** Keep commit messages concise and professional:
 
+- ✅ **Always ask user before committing** (never commit without explicit permission)
 - ✅ **Write clear, descriptive commit messages** (1-3 sentences max)
 - ✅ **Focus on WHAT changed and WHY** (skip implementation details)
 - ❌ **DO NOT add AI attribution footers** (no "🤖 Generated with Claude Code", no "Co-Authored-By: Claude")
