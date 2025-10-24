@@ -56,9 +56,38 @@ range[T]                             // Range with element type T
 ```
 
 **Supported element types:**
+
+**User types** (for materialization and iteration):
 - Integer types: `i32`, `i64`
 - Float types: `f32`, `f64` (step required!)
 - Comptime types: `comptime_int`, `comptime_float`
+
+**Platform index type** (for array slicing only):
+- `usize` - Platform-dependent unsigned integer (32-bit or 64-bit)
+
+### Critical Distinction: User Types vs Index Type
+
+Ranges serve **two distinct purposes** with **different type requirements**:
+
+| Purpose | Required Type | Use Cases | Examples |
+|---------|---------------|-----------|----------|
+| **Materialization/Iteration** | User types (`i32`, `i64`, `f32`, `f64`) | Creating arrays, looping over values | `val arr : [_]i32 = [range]`<br>`for i in range { }` |
+| **Array Indexing** | Index type (`usize` **only**) | Slicing arrays | `val slice : [_]T = array[range]` |
+
+**Key Principle:** User types produce typed values; index type produces array positions.
+
+```hexen
+// User type range: for values
+val r_i32 : range[i32] = 1..10
+val values : [_]i32 = [r_i32]            // ✅ Materialization: i32 values
+
+// Index type range: for slicing
+val idx : range[usize] = 1..5
+val slice : [_]f64 = array[idx]          // ✅ Indexing: works with any array type
+
+// ❌ Cannot mix purposes
+val bad : [_]f64 = array[r_i32]          // ❌ Error: i32 range can't index arrays
+```
 
 ### Internal Representation
 
@@ -159,6 +188,117 @@ val r : range[i32] = ..                  // Unbounded both directions
 | `..end` | ❌ No | `..10:2` ❌ | Ambiguous start point! |
 | `..=end` | ❌ No | `..=10:2` ❌ | Ambiguous start point! |
 | `..` | ❌ No | `..:2` ❌ | No start or end! |
+
+## Type Consistency Rules
+
+### Rule: Start and End Must Have Same Type
+
+**When constructing a range, start and end bounds must be the same type** (after comptime adaptation).
+
+```hexen
+// ✅ VALID: Both i32
+val start : i32 = 5
+val end : i32 = 10
+val r : range[i32] = start..end          // ✅ OK
+
+// ✅ VALID: Both comptime (will adapt)
+val r2 : range[i32] = 5..10              // ✅ OK (both adapt to i32)
+
+// ❌ INVALID: Mixed concrete types
+val start_i32 : i32 = 5
+val end_i64 : i64 = 10
+val bad : range[i32] = start_i32..end_i64    // ❌ Error: type mismatch!
+```
+
+**Error message:**
+```
+Error: Range bounds must have the same type
+  val r : range[i32] = start_i32..end_i64
+                       ^^^^^^^^^^^^^^^^^^
+  start: i32
+  end:   i64
+Help: Convert end to i32: start_i32..(end_i64:i32)
+Note: Range start and end must be the same type for type safety
+```
+
+### Explicit Type Conversion
+
+Use Hexen's standard `:type` syntax to convert bounds:
+
+```hexen
+val start : i32 = 5
+val end : i64 = 10
+
+// ❌ Error: Mixed types
+// val bad : range[i32] = start..end
+
+// ✅ Option 1: Convert end to i32
+val r1 : range[i32] = start..(end:i32)       // ✅ Explicit conversion
+
+// ✅ Option 2: Convert start to i64
+val r2 : range[i64] = (start:i64)..end       // ✅ Explicit conversion
+
+// ✅ Option 3: Convert both to usize (for indexing)
+val idx : range[usize] = ((start:usize)..(end:usize))
+```
+
+### Comptime Adaptation Bypasses Type Matching
+
+Comptime values adapt to the target type, so no explicit conversion needed:
+
+```hexen
+// Comptime values adapt automatically
+val start = 5                            // comptime_int
+val end = 10                             // comptime_int
+
+val r_i32 : range[i32] = start..end      // ✅ Both adapt to i32
+val r_i64 : range[i64] = start..end      // ✅ Both adapt to i64
+val r_usize : range[usize] = start..end  // ✅ Both adapt to usize
+
+// Mixed comptime + concrete: comptime adapts
+val concrete_end : i32 = 100
+val r : range[i32] = start..concrete_end // ✅ start adapts to i32
+```
+
+### Step Type Must Match Bound Type
+
+If a step is provided, it must match the bound type (or be comptime):
+
+```hexen
+val start : i32 = 0
+val end : i32 = 100
+val step : i64 = 2                       // Different type!
+
+// ❌ Error: Step type mismatch
+// val bad : range[i32] = start..end:step
+
+// ✅ Explicit conversion
+val r : range[i32] = start..end:(step:i32)   // ✅ OK
+
+// Comptime step adapts automatically
+val r2 : range[i32] = start..end:2           // ✅ OK (2 is comptime_int)
+```
+
+### Unbounded Ranges and Type Matching
+
+For unbounded ranges, only the present bound's type matters:
+
+```hexen
+// Unbounded from: only start type matters
+val start : i32 = 5
+val r1 : range[i32] = start..            // ✅ OK (matches start type)
+
+// Unbounded to: only end type matters
+val end : i64 = 10
+val r2 : range[i64] = ..end              // ✅ OK (matches end type)
+
+// Full unbounded: no bounds to check
+val r3 : range[usize] = ..               // ✅ OK (type from annotation)
+
+// Explicit type must match bound if present
+val bad : range[i64] = start..           // ❌ Error: start is i32, range is i64
+val good : range[i64] = (start:i64)..    // ✅ OK: explicit conversion
+```
 
 ## Integer vs Float Ranges
 
@@ -564,37 +704,166 @@ for elem in src[1..4] {                  // View only: { ptr: &src[1], length: 3
 
 **Cost:** O(1) space (just view metadata), O(n) time (iteration)
 
+## User Types vs Index Type: Detailed Rules
+
+### User Type Ranges (i32, i64, f32, f64)
+
+**Purpose:** Materialization and iteration (future)
+
+```hexen
+// Create user type range
+val r_i32 : range[i32] = 1..100
+val r_f64 : range[f64] = 0.0..1.0:0.01
+
+// ✅ Can materialize to arrays
+val ints : [_]i32 = [r_i32]              // ✅ [1, 2, 3, ..., 99]
+val floats : [_]f64 = [r_f64]            // ✅ [0.0, 0.01, ..., 0.99]
+
+// ✅ Can iterate (future)
+for i in r_i32 { }                       // ✅ i is i32
+for x in r_f64 { }                       // ✅ x is f64
+
+// ❌ Cannot index arrays
+val array : [_]f64 = get_array()
+val bad : [_]f64 = array[r_i32]          // ❌ Error: need range[usize]
+```
+
+**Error message:**
+```
+Error: Array indexing requires range[usize], found range[i32]
+  val slice : [_]f64 = array[r_i32]
+                             ^^^^^
+Help: Convert to range[usize]: r_i32:range[usize]
+Note: range[i32] is for iteration/materialization, not indexing
+```
+
+### Index Type Ranges (usize only)
+
+**Purpose:** Array slicing/indexing
+
+```hexen
+// Create index type range
+val idx : range[usize] = 1..5
+
+// ✅ Can index ANY array element type
+val i32_arr : [_]i32 = [10, 20, 30, 40, 50]
+val f64_arr : [_]f64 = [1.0, 2.0, 3.0, 4.0, 5.0]
+val slice1 : [_]i32 = i32_arr[idx]       // ✅ Works
+val slice2 : [_]f64 = f64_arr[idx]       // ✅ Works
+
+// ✅ Can materialize (produces usize values)
+val indices : [_]usize = [idx]           // ✅ [1, 2, 3, 4]
+
+// ✅ Can iterate (future - produces usize values)
+for i in idx {                           // ✅ i is usize
+    print_index(i)
+}
+```
+
+**Key advantage:** A single `range[usize]` works for slicing arrays of **any element type**.
+
+### Converting User Type Range to Index Type
+
+Use explicit `:range[usize]` conversion:
+
+```hexen
+// User has i32 bounds
+val start : i32 = 5
+val end : i32 = 10
+
+// Create i32 range
+val r_i32 : range[i32] = start..end
+
+// ❌ Can't use directly for indexing
+val array : [_]f64 = get_array()
+// val bad : [_]f64 = array[r_i32]       // ❌ Error
+
+// ✅ Explicit conversion to range[usize]
+val idx : range[usize] = r_i32:range[usize]
+val slice : [_]f64 = array[idx]          // ✅ Works
+
+// ✅ Or inline conversion
+val slice2 : [_]f64 = array[r_i32:range[usize]]  // ✅ Works
+
+// ✅ Or convert bounds directly
+val idx2 : range[usize] = ((start:usize)..(end:usize))
+val slice3 : [_]f64 = array[idx2]        // ✅ Works
+```
+
+### Comptime Ranges: Maximum Flexibility
+
+**Comptime ranges adapt to context** (either user type or index type):
+
+```hexen
+// Comptime range (flexible)
+val r = 1..10                            // range[comptime_int]
+
+// Context 1: Materialization → adapts to user type
+val i32_vals : [_]i32 = [r]              // ✅ Adapts to range[i32]
+val i64_vals : [_]i64 = [r]              // ✅ Adapts to range[i64]
+
+// Context 2: Indexing → adapts to usize
+val array : [_]f64 = [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]
+val slice : [_]f64 = array[r]            // ✅ Adapts to range[usize]
+
+// Context 3: Iteration (future) → adapts to context type
+for i in r {                             // ✅ Type inferred from context
+    process(i)
+}
+```
+
+**This is the most ergonomic approach** - use comptime ranges whenever possible!
+
+### Summary Table: User Types vs Index Type
+
+| Range Type | Materialization | Iteration (future) | Array Indexing |
+|------------|-----------------|-------------------|----------------|
+| `range[comptime_int]` | ✅ Adapts to type | ✅ Adapts to type | ✅ Adapts to usize |
+| `range[comptime_float]` | ✅ Adapts to type | ✅ Adapts to type | ❌ Float indices forbidden |
+| `range[i32]`, `range[i64]` | ✅ Yes | ✅ Yes (typed) | ❌ No (use `:range[usize]`) |
+| `range[f32]`, `range[f64]` | ✅ Yes | ✅ Yes (typed) | ❌ No (float indices forbidden) |
+| `range[usize]` | ✅ Yes | ✅ Yes (usize values) | ✅ **Only this!** |
+
 ## Float Range Restrictions
 
 ### Forbidden: Float Ranges for Slicing
 
-Array indices must be integers. Float ranges cannot be used for array slicing:
+Array indices must be integers. **Float ranges cannot be used for array slicing, even with explicit conversion:**
 
 ```hexen
 val arr : [_]i32 = [10, 20, 30, 40, 50]
 
 // ❌ ERROR: Float range for slicing
 val float_r : range[f32] = 1.5..3.7:0.1
-val bad : [_]i32 = arr[float_r]          // ❌ Comptime error: array indices must be integers
+val bad : [_]i32 = arr[float_r]          // ❌ Comptime error!
 
-// ✅ CORRECT: Integer range for slicing
-val int_r : range[i32] = 1..4
-val good : [_]i32 = arr[int_r]           // ✅ OK: [20, 30, 40]
+// ❌ ERROR: Even conversion doesn't help (float → usize is lossy)
+val also_bad : [_]i32 = arr[float_r:range[usize]]  // ❌ Still error!
+
+// ✅ CORRECT: Use usize range for indexing
+val idx : range[usize] = 1..4
+val good : [_]i32 = arr[idx]             // ✅ OK: [20, 30, 40]
 ```
 
-**Error message:**
+**Error messages:**
 ```
-Error: Array slicing requires integer range, found range[f32]
+Error: Array indexing requires range[usize], found range[f32]
   val slice : [_]i32 = arr[float_r]
                            ^^^^^^^^
-Help: Array indices must be integers (i32 or i64), not floats
-Note: Float ranges are only valid for iteration, not indexing
+Help: Use range[usize] for array indexing
+Note: Float ranges are only valid for iteration/materialization, not indexing
+
+Error: Cannot convert range[f32] to range[usize]
+  val slice : [_]i32 = arr[float_r:range[usize]]
+                           ^^^^^^^^^^^^^^^^^^^^
+Note: Float ranges cannot be used for indexing (fractional indices are meaningless)
 ```
 
 **Rationale:**
-- Array indices are positions (discrete integers)
-- Float indices have no meaningful interpretation
+- Array indices are positions (discrete, non-negative integers)
+- Float indices have no meaningful interpretation (what is array element 1.5?)
 - No mainstream language allows float array indices
+- Even conversion `range[f32]` → `range[usize]` is forbidden (lossy, confusing)
 
 ### Float Ranges for Iteration Only
 
@@ -633,7 +902,7 @@ val slice2 : [_]i64 = i64_arr[flexible]  // Same range adapts to i64 indices
 
 ### Comptime Float Ranges
 
-**Step still required:**
+**Step still required (semantic constraint applies even to comptime):**
 
 ```hexen
 // ❌ ERROR: Even comptime float ranges need step
@@ -642,12 +911,18 @@ val bad = 0.0..10.0                      // ❌ Error: float range requires step
 // ✅ CORRECT: Comptime float range with step
 val good = 0.0..10.0:0.1                 // range[comptime_float]
 
-// Adapts to concrete float types
+// Adapts to concrete float types (materialization/iteration)
 val f32_range : range[f32] = good        // → range[f32]
 val f64_range : range[f64] = good        // → range[f64]
+
+// ❌ Cannot adapt to usize (float ranges forbidden for indexing)
+val f32_arr : [_]f32 = get_array()
+// val bad_slice : [_]f32 = f32_arr[good]  // ❌ Error: float range for indexing
 ```
 
-**Rationale:** Comptime flexibility doesn't bypass semantic constraints (step requirement).
+**Rationale:** Comptime flexibility doesn't bypass semantic constraints:
+- Step requirement (prevents iteration count ambiguity)
+- Float indexing prohibition (fractional indices meaningless)
 
 ### Comptime Validation
 
@@ -664,42 +939,69 @@ val bad : [_]i32 = [r]                   // ❌ Comptime error: unbounded range
 
 ## Type Conversion Rules
 
-### Explicit Type Conversions
+### Explicit Range Type Conversions
 
-**Concrete to concrete (requires `:type`):**
+Use Hexen's standard `:type` syntax for range conversions:
+
+**User type to user type:**
 
 ```hexen
 val r_i32 : range[i32] = 1..10
-val r_i64 : range[i64] = r_i32:range[i64]     // Explicit conversion
+val r_i64 : range[i64] = r_i32:range[i64]     // ✅ Explicit conversion
 
 // Element-wise conversion happens during materialization
 val arr : [_]i64 = [r_i32:range[i64]]         // [1i64, 2i64, ..., 9i64]
 ```
 
-**Comptime to concrete (implicit):**
+**User type to index type (critical for slicing):**
+
+```hexen
+val r_i32 : range[i32] = 1..10
+val idx : range[usize] = r_i32:range[usize]   // ✅ Convert for indexing
+
+val array : [_]f64 = get_array()
+val slice : [_]f64 = array[idx]               // ✅ Now works
+
+// Or inline conversion
+val slice2 : [_]f64 = array[r_i32:range[usize]]  // ✅ Also works
+```
+
+**Comptime to any type (implicit adaptation):**
 
 ```hexen
 val flexible = 1..10                     // range[comptime_int]
-val concrete : range[i32] = flexible     // Implicit conversion (ergonomic!)
+
+// Adapts implicitly
+val r_i32 : range[i32] = flexible        // ✅ Adapts to range[i32]
+val r_i64 : range[i64] = flexible        // ✅ Adapts to range[i64]
+val idx : range[usize] = flexible        // ✅ Adapts to range[usize]
 ```
 
-### Range Element Type Must Match Array
+### Indexing Type Requirements
 
-When slicing, range element type must be compatible with array index type:
+**CRITICAL RULE:** Only `range[usize]` or `range[comptime_int]` can be used for array indexing.
 
 ```hexen
-val arr : [_]i32 = [10, 20, 30, 40, 50]
+val array : [_]f64 = [1.0, 2.0, 3.0, 4.0, 5.0]
 
-// ✅ Compatible types
+// ✅ Valid: usize range
+val idx : range[usize] = 1..4
+val slice1 : [_]f64 = array[idx]         // ✅ OK
+
+// ✅ Valid: comptime range (adapts to usize)
+val slice2 : [_]f64 = array[1..4]        // ✅ OK (comptime → usize)
+
+// ❌ Invalid: user type ranges
 val r_i32 : range[i32] = 1..4
-val slice1 : [_]i32 = arr[r_i32]         // ✅ OK: i32 indices
+// val bad : [_]f64 = array[r_i32]       // ❌ Error: need range[usize]
 
-val r_comptime = 1..4                    // range[comptime_int]
-val slice2 : [_]i32 = arr[r_comptime]    // ✅ OK: comptime adapts
+// ✅ Fix: explicit conversion
+val slice3 : [_]f64 = array[r_i32:range[usize]]  // ✅ OK
 
-// ❌ Incompatible types
+// ❌ Invalid: float ranges (forbidden entirely)
 val r_f32 : range[f32] = 1.0..4.0:0.1
-val bad : [_]i32 = arr[r_f32]            // ❌ Error: float indices forbidden
+// val bad2 : [_]f64 = array[r_f32]      // ❌ Error: float indices forbidden
+// val bad3 : [_]f64 = array[r_f32:range[usize]]  // ❌ Still error!
 ```
 
 ## Examples
@@ -707,7 +1009,7 @@ val bad : [_]i32 = arr[r_f32]            // ❌ Error: float indices forbidden
 ### Basic Range Usage
 
 ```hexen
-// Integer ranges
+// Integer ranges (user types)
 val r1 : range[i32] = 1..10              // [1, 2, 3, 4, 5, 6, 7, 8, 9]
 val r2 : range[i32] = 1..=10             // [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 val r3 : range[i32] = 0..100:10          // [0, 10, 20, 30, 40, 50, 60, 70, 80, 90]
@@ -716,10 +1018,15 @@ val r3 : range[i32] = 0..100:10          // [0, 10, 20, 30, 40, 50, 60, 70, 80, 
 val r4 : range[f32] = 0.0..1.0:0.1       // [0.0, 0.1, 0.2, ..., 0.9]
 val r5 : range[f64] = 0.0..=1.0:0.01     // [0.00, 0.01, 0.02, ..., 1.00]
 
+// Index ranges (for slicing)
+val idx1 : range[usize] = 0..10          // For indexing arrays
+val idx2 : range[usize] = 5..            // Unbounded from index 5
+val idx3 : range[usize] = ..             // Full array
+
 // Unbounded ranges
 val r6 : range[i32] = 5..                // [5, 6, 7, 8, ...] (infinite)
-val r7 : range[i32] = ..10               // [?, ?, ..., 9] (for slicing only)
-val r8 : range[i32] = ..                 // [?, ..., ?] (full range)
+val r7 : range[usize] = ..10             // [0, 1, ..., 9] (for slicing)
+val r8 : range[usize] = ..               // [0, ..., length-1] (full range)
 
 // Reverse ranges
 val r9 : range[i32] = 10..0:-1           // [10, 9, 8, 7, 6, 5, 4, 3, 2, 1]
@@ -731,7 +1038,7 @@ val r10 : range[f32] = 1.0..0.0:-0.1     // [1.0, 0.9, 0.8, ..., 0.1]
 ```hexen
 val arr : [_]i32 = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
 
-// Basic slicing
+// Basic slicing (comptime ranges - most ergonomic!)
 val s1 : [_]i32 = arr[2..5]              // [30, 40, 50]
 val s2 : [_]i32 = arr[2..=5]             // [30, 40, 50, 60]
 
@@ -746,41 +1053,104 @@ val odds : [_]i32 = arr[1..:2]           // [20, 40, 60, 80, 100]
 
 // Reverse slicing
 val rev : [_]i32 = arr[9..0:-1]          // [100, 90, 80, 70, 60, 50, 40, 30, 20, 10]
+
+// Runtime slicing (requires usize)
+val start : usize = get_start()
+val end : usize = get_end()
+val idx : range[usize] = start..end
+val runtime_slice : [_]i32 = arr[idx]    // Runtime bounds
+
+// Cross-type slicing (usize range works with any array type)
+val f64_arr : [_]f64 = [1.0, 2.0, 3.0, 4.0, 5.0]
+val idx2 : range[usize] = 1..4
+val f64_slice : [_]f64 = f64_arr[idx2]   // [2.0, 3.0, 4.0]
 ```
 
 ### Comptime Range Examples
 
 ```hexen
-// Comptime range preserves flexibility
+// Comptime range preserves maximum flexibility
 val flexible = 1..5                      // range[comptime_int]
 
-// Use in different contexts
+// Context 1: Indexing (adapts to usize)
 val i32_arr : [_]i32 = [10, 20, 30, 40, 50]
 val i64_arr : [_]i64 = [10, 20, 30, 40, 50]
+val f64_arr : [_]f64 = [1.0, 2.0, 3.0, 4.0, 5.0]
 
-val slice1 : [_]i32 = i32_arr[flexible]  // Adapts to i32
-val slice2 : [_]i64 = i64_arr[flexible]  // Adapts to i64
+val slice1 : [_]i32 = i32_arr[flexible]  // Adapts to usize
+val slice2 : [_]i64 = i64_arr[flexible]  // Adapts to usize
+val slice3 : [_]f64 = f64_arr[flexible]  // Adapts to usize
 
-// Materialize to different types
-val as_i32 : [_]i32 = [flexible]         // [1, 2, 3, 4] as i32
-val as_i64 : [_]i64 = [flexible]         // [1, 2, 3, 4] as i64
+// Context 2: Materialization (adapts to element type)
+val as_i32 : [_]i32 = [flexible]         // Adapts to range[i32] → [1, 2, 3, 4]
+val as_i64 : [_]i64 = [flexible]         // Adapts to range[i64] → [1, 2, 3, 4]
+```
+
+### Type Conversion Examples
+
+```hexen
+// Example 1: User type bounds to index type
+val start : i32 = 5
+val end : i32 = 10
+
+// Create i32 range
+val r_i32 : range[i32] = start..end
+
+// Convert to usize for indexing
+val idx : range[usize] = r_i32:range[usize]
+
+val array : [_]f64 = get_array()
+val slice : [_]f64 = array[idx]          // ✅ Works
+
+// Example 2: Direct bound conversion
+val start_i32 : i32 = 5
+val end_i64 : i64 = 10
+
+// ❌ Error: mixed types
+// val bad : range[usize] = start_i32..end_i64
+
+// ✅ Convert bounds explicitly
+val idx2 : range[usize] = ((start_i32:usize)..(end_i64:usize))
+val slice2 : [_]f64 = array[idx2]        // ✅ Works
+
+// Example 3: Comptime bypasses conversion
+val comptime_start = 5
+val comptime_end = 10
+
+// Adapts automatically to usize
+val idx3 : range[usize] = comptime_start..comptime_end
+val slice3 : [_]f64 = array[idx3]        // ✅ Works (no conversion needed!)
 ```
 
 ### Future Iteration Examples
 
 ```hexen
-// Integer range iteration
-for i in 0..10 {                         // 10 iterations
+// Integer range iteration (user type)
+val r : range[i32] = 0..10
+for i in r {                             // i is i32
     print(i)
 }
 
 // Float range iteration (step required!)
-for x in 0.0..10.0:0.5 {                 // 20 iterations
+val r_f64 : range[f64] = 0.0..10.0:0.5
+for x in r_f64 {                         // x is f64
     print(x)
 }
 
+// Index range iteration (usize values)
+val idx : range[usize] = 0..10
+for i in idx {                           // i is usize
+    print_index(i)
+}
+
+// Comptime range iteration (adapts to context)
+for i in 0..10 {                         // Type inferred from context
+    print(i)
+}
+
 // Unbounded range iteration
-for i in 5.. {                           // Infinite loop!
+val infinite : range[i32] = 5..
+for i in infinite {                      // Infinite loop!
     if i > 100 {
         break
     }
@@ -967,14 +1337,27 @@ val stepped : range[i32] = r.step(2)     // 1..10:2
 - Lazy sequences (O(1) space)
 - Comptime-aware (adapts to context)
 
+**User Types vs Index Type:**
+- User types (`i32`, `i64`, `f32`, `f64`): For materialization and iteration
+- Index type (`usize` only): For array slicing
+- Comptime ranges: Adapt to either context
+- Explicit conversion: `:range[usize]` for user type → index type
+
+**Type Consistency:**
+- Range bounds (start, end, step) must have same type
+- Comptime values adapt automatically (bypass type matching)
+- Explicit `:type` conversion required for mixed concrete types
+- Platform index type (`usize`) used universally for array indexing
+
 **Integer vs Float Ranges:**
-- Integers: step optional (default 1)
-- Floats: step required (transparent iteration count)
+- Integers: step optional (default 1), can be used for indexing (via `:range[usize]`)
+- Floats: step required (transparent iteration count), **cannot** be used for indexing
 
 **Bounded vs Unbounded:**
 - Bounded: Can materialize, iterate, slice
-- From: Can iterate (infinite), slice
-- To/Full: Can slice only
+- From (`start..`): Can iterate (infinite), slice; step allowed
+- To (`..end`): Can slice only; step **forbidden** (no start point)
+- Full (`..`): Can slice only; step **forbidden** (no bounds)
 
 **View Model:**
 - Slicing creates views (zero-cost)
@@ -982,14 +1365,16 @@ val stepped : range[i32] = r.step(2)     // 1..10:2
 - Cost visible through array type assignment
 
 **Array Slicing:**
-- Unified `[..]` operator (full range)
+- Unified `[..]` operator (full range `..`)
 - All slice operations return views
-- Integer ranges only (no float indices)
+- Only `usize` ranges for indexing (no user types, no floats)
+- Single `usize` range works for all array element types
 - Zig-style sequential indexing (now)
 - NumPy-style comma syntax (future)
 
 **Key Principles:**
-- Ergonomic Literals: Comptime ranges adapt
-- Transparent Costs: Assignment signals materialization
+- Ergonomic Literals: Comptime ranges adapt to context
+- Transparent Costs: Assignment signals materialization, `:range[usize]` conversion visible
 - Lazy by Default: Views until materialization needed
 - Explicit Operations: Costs visible through syntax
+- Type Safety: Bounds must match, explicit conversions required
