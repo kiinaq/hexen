@@ -22,11 +22,7 @@ class TestSymbolTableComptimeArrays:
         table = SymbolTable()
 
         comptime_type = ComptimeArrayType(HexenType.COMPTIME_INT, [5])
-        symbol = Symbol(
-            name="arr",
-            type=comptime_type,
-            mutability=Mutability.IMMUTABLE
-        )
+        symbol = Symbol(name="arr", type=comptime_type, mutability=Mutability.IMMUTABLE)
 
         assert table.declare_symbol(symbol) is True
 
@@ -36,9 +32,7 @@ class TestSymbolTableComptimeArrays:
 
         comptime_type = ComptimeArrayType(HexenType.COMPTIME_INT, [3])
         symbol = Symbol(
-            name="data",
-            type=comptime_type,
-            mutability=Mutability.IMMUTABLE
+            name="data", type=comptime_type, mutability=Mutability.IMMUTABLE
         )
 
         table.declare_symbol(symbol)
@@ -55,9 +49,7 @@ class TestSymbolTableComptimeArrays:
 
         comptime_type = ComptimeArrayType(HexenType.COMPTIME_INT, [3, 4])
         symbol = Symbol(
-            name="matrix",
-            type=comptime_type,
-            mutability=Mutability.IMMUTABLE
+            name="matrix", type=comptime_type, mutability=Mutability.IMMUTABLE
         )
 
         table.declare_symbol(symbol)
@@ -74,9 +66,7 @@ class TestSymbolTableComptimeArrays:
 
         comptime_type = ComptimeArrayType(HexenType.COMPTIME_FLOAT, [10])
         symbol = Symbol(
-            name="floats",
-            type=comptime_type,
-            mutability=Mutability.IMMUTABLE
+            name="floats", type=comptime_type, mutability=Mutability.IMMUTABLE
         )
 
         table.declare_symbol(symbol)
@@ -95,17 +85,17 @@ class TestSymbolTableComptimeArrays:
         arr1 = Symbol(
             name="small",
             type=ComptimeArrayType(HexenType.COMPTIME_INT, [3]),
-            mutability=Mutability.IMMUTABLE
+            mutability=Mutability.IMMUTABLE,
         )
         arr2 = Symbol(
             name="medium",
             type=ComptimeArrayType(HexenType.COMPTIME_INT, [10]),
-            mutability=Mutability.IMMUTABLE
+            mutability=Mutability.IMMUTABLE,
         )
         arr3 = Symbol(
             name="large",
             type=ComptimeArrayType(HexenType.COMPTIME_INT, [100]),
-            mutability=Mutability.IMMUTABLE
+            mutability=Mutability.IMMUTABLE,
         )
 
         assert table.declare_symbol(arr1) is True
@@ -130,7 +120,7 @@ class TestSymbolTableComptimeArrays:
         global_arr = Symbol(
             name="global_data",
             type=ComptimeArrayType(HexenType.COMPTIME_INT, [5]),
-            mutability=Mutability.IMMUTABLE
+            mutability=Mutability.IMMUTABLE,
         )
         table.declare_symbol(global_arr)
 
@@ -141,7 +131,7 @@ class TestSymbolTableComptimeArrays:
         local_arr = Symbol(
             name="local_data",
             type=ComptimeArrayType(HexenType.COMPTIME_INT, [3]),
-            mutability=Mutability.IMMUTABLE
+            mutability=Mutability.IMMUTABLE,
         )
         table.declare_symbol(local_arr)
 
@@ -171,7 +161,7 @@ class TestSymbolTableComptimeArrays:
         outer_arr = Symbol(
             name="data",
             type=ComptimeArrayType(HexenType.COMPTIME_INT, [5]),
-            mutability=Mutability.IMMUTABLE
+            mutability=Mutability.IMMUTABLE,
         )
         table.declare_symbol(outer_arr)
 
@@ -182,7 +172,7 @@ class TestSymbolTableComptimeArrays:
         inner_arr = Symbol(
             name="data",
             type=ComptimeArrayType(HexenType.COMPTIME_INT, [3]),
-            mutability=Mutability.IMMUTABLE
+            mutability=Mutability.IMMUTABLE,
         )
         table.declare_symbol(inner_arr)
 
@@ -205,9 +195,7 @@ class TestSymbolTableComptimeArrays:
         # But the symbol table should still accept the type
         comptime_type = ComptimeArrayType(HexenType.COMPTIME_INT, [5])
         symbol = Symbol(
-            name="mutable_arr",
-            type=comptime_type,
-            mutability=Mutability.MUTABLE
+            name="mutable_arr", type=comptime_type, mutability=Mutability.MUTABLE
         )
 
         assert table.declare_symbol(symbol) is True
@@ -223,9 +211,7 @@ class TestSymbolTableComptimeArrays:
 
         comptime_type = ComptimeArrayType(HexenType.COMPTIME_INT, [5])
         symbol = Symbol(
-            name="data",
-            type=comptime_type,
-            mutability=Mutability.IMMUTABLE
+            name="data", type=comptime_type, mutability=Mutability.IMMUTABLE
         )
         table.declare_symbol(symbol)
 
@@ -245,9 +231,7 @@ class TestSymbolTableComptimeArrays:
 
         comptime_type = ComptimeArrayType(HexenType.COMPTIME_INT, [2, 3, 4])
         symbol = Symbol(
-            name="tensor",
-            type=comptime_type,
-            mutability=Mutability.IMMUTABLE
+            name="tensor", type=comptime_type, mutability=Mutability.IMMUTABLE
         )
 
         table.declare_symbol(symbol)
@@ -268,7 +252,7 @@ class TestSymbolTableComptimeArrays:
             name="data",
             type=comptime_type,
             mutability=Mutability.IMMUTABLE,
-            declared_line=42
+            declared_line=42,
         )
         table.declare_symbol(symbol)
 
@@ -290,14 +274,14 @@ class TestSymbolTableComparisonWithConcreteArrays:
         comptime_arr = Symbol(
             name="comptime_data",
             type=ComptimeArrayType(HexenType.COMPTIME_INT, [5]),
-            mutability=Mutability.IMMUTABLE
+            mutability=Mutability.IMMUTABLE,
         )
 
         # Concrete array
         concrete_arr = Symbol(
             name="concrete_data",
             type=ConcreteArrayType(HexenType.I32, [5]),
-            mutability=Mutability.IMMUTABLE
+            mutability=Mutability.IMMUTABLE,
         )
 
         assert table.declare_symbol(comptime_arr) is True
@@ -319,13 +303,13 @@ class TestSymbolTableComparisonWithConcreteArrays:
         comptime_arr = Symbol(
             name="arr1",
             type=ComptimeArrayType(HexenType.COMPTIME_INT, [5]),
-            mutability=Mutability.IMMUTABLE
+            mutability=Mutability.IMMUTABLE,
         )
 
         concrete_arr = Symbol(
             name="arr2",
             type=ConcreteArrayType(HexenType.I32, [5]),
-            mutability=Mutability.IMMUTABLE
+            mutability=Mutability.IMMUTABLE,
         )
 
         table.declare_symbol(comptime_arr)

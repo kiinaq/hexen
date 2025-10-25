@@ -93,15 +93,6 @@ class ArrayErrorMessages:
         )
 
     @staticmethod
-    def flattening_element_count_mismatch(source_count: int, target_count: int) -> str:
-        """Generate error message for array flattening element count mismatches."""
-        return (
-            f"Array flattening element count mismatch:\n"
-            f"Source array has {source_count} elements, target requires {target_count}\n"
-            f"Element counts must match exactly for safe flattening"
-        )
-
-    @staticmethod
     def invalid_index_type(index_type: str) -> str:
         """Generate error message for invalid array index types."""
         return (
@@ -149,14 +140,6 @@ class ArrayErrorMessages:
         return (
             "Multidimensional array must contain sub-arrays\n"
             "Example: [[1, 2], [3, 4]] for 2D array"
-        )
-
-    @staticmethod
-    def cannot_flatten_inferred_dimensions() -> str:
-        """Generate error message for flattening arrays with inferred dimensions."""
-        return (
-            "Cannot flatten array with inferred dimensions to fixed-size array\n"
-            "Use explicit array dimensions for flattening operations"
         )
 
     @staticmethod

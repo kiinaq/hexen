@@ -1,13 +1,12 @@
 """
 Multidimensional Array Semantic Analysis
 
-Implements semantic analysis for multidimensional arrays and flattening operations.
-Supports N-dimensional arrays with row-major layout and safe flattening (no reshaping).
+Implements semantic analysis for multidimensional arrays.
+Supports N-dimensional arrays with row-major layout.
 
 Key Features:
 - Multidimensional array literal validation
 - Array structure consistency checking
-- Safe array flattening with element count validation
 - Integration with existing comptime type system
 """
 
@@ -35,7 +34,9 @@ class MultidimensionalArrayAnalyzer:
         self.comptime_analyzer = comptime_analyzer
 
     def analyze_multidimensional_literal(
-        self, node: Dict[str, Any], target_type: Optional[Union[HexenType, ComptimeArrayType]] = None
+        self,
+        node: Dict[str, Any],
+        target_type: Optional[Union[HexenType, ComptimeArrayType]] = None,
     ) -> Union[HexenType, ComptimeArrayType]:
         """
         Analyze multidimensional array literal for structure consistency.
@@ -53,7 +54,9 @@ class MultidimensionalArrayAnalyzer:
 
         if not elements:
             if target_type is None:
-                self._error(ArrayErrorMessages.empty_array_type_annotation_required(), node)
+                self._error(
+                    ArrayErrorMessages.empty_array_type_annotation_required(), node
+                )
                 return HexenType.UNKNOWN
             return target_type
 
@@ -63,8 +66,7 @@ class MultidimensionalArrayAnalyzer:
             # This is actually a 1D array, delegate back to regular analysis
             # CHANGE: Return ComptimeArrayType with 1D dimensions
             return ComptimeArrayType(
-                element_comptime_type=HexenType.COMPTIME_INT,
-                dimensions=[len(elements)]
+                element_comptime_type=HexenType.COMPTIME_INT, dimensions=[len(elements)]
             )
 
         # Validate multidimensional structure consistency
@@ -81,48 +83,8 @@ class MultidimensionalArrayAnalyzer:
         element_type = self._determine_element_type(elements)
 
         return ComptimeArrayType(
-            element_comptime_type=element_type,
-            dimensions=dimensions
+            element_comptime_type=element_type, dimensions=dimensions
         )
-
-    def analyze_array_flattening(
-        self, array_node: Dict[str, Any], target_type_str: str
-    ) -> Dict[str, Any]:
-        """
-        Analyze array flattening operation: multidim_array → 1D array
-
-        Implements safe array flattening from ARRAY_TYPE_SYSTEM.md:
-        - Row-major memory layout enables zero-cost flattening
-        - Compile-time element count validation
-        - Comptime type preservation when possible
-
-        Args:
-            array_node: Source multidimensional array AST node
-            target_type_str: Target 1D array type string (e.g., "[6]i32")
-
-        Returns:
-            Analysis result dictionary with flattening validation
-        """
-        # For now, this is a simplified implementation
-        # Full implementation would:
-        # 1. Extract source array type information
-        # 2. Parse target type string
-        # 3. Validate element count compatibility
-        # 4. Check element type compatibility
-
-        # Simplified validation
-        if not array_node:
-            self._error("Invalid array flattening: missing source array", None)
-            return {"type": "array_flattening", "valid": False}
-
-        return {
-            "type": "array_flattening",
-            "source": array_node,
-            "target_type": target_type_str,
-            "valid": True,
-            "zero_cost": True,  # Row-major layout enables zero-cost flattening
-            "element_count_validated": False,  # Would be True in full implementation
-        }
 
     def _validate_multidim_structure(self, elements: List[Dict[str, Any]]) -> None:
         """
@@ -338,47 +300,3 @@ class MultidimensionalArrayAnalyzer:
             "result_type": result_type,
             "bounds_validated": False,  # Would be True with constant index checking
         }
-
-
-class ArrayFlattening:
-    """Utility class for array flattening operations"""
-
-    @staticmethod
-    def can_flatten(source_info: ArrayTypeInfo, target_info: ArrayTypeInfo) -> bool:
-        """
-        Check if source multidimensional array can be flattened to target 1D array.
-
-        Args:
-            source_info: Source array type information
-            target_info: Target 1D array type information
-
-        Returns:
-            True if flattening is safe and valid, False otherwise
-        """
-        # Source must be multidimensional
-        if len(source_info.dimensions) < 2:
-            return False
-
-        # Target must be 1D
-        if len(target_info.dimensions) != 1:
-            return False
-
-        # Element types must be compatible
-        # (Simplified - full implementation would check type compatibility)
-        return True
-
-    @staticmethod
-    def calculate_flattened_size(source_info: ArrayTypeInfo) -> int:
-        """
-        Calculate total element count when flattening multidimensional array.
-
-        Args:
-            source_info: Source array type information
-
-        Returns:
-            Total number of elements after flattening
-        """
-        if not source_info.can_flatten_to_1d():
-            raise ValueError("Cannot calculate size for array with inferred dimensions")
-
-        return source_info.get_element_count()

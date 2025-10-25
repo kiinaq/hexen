@@ -119,10 +119,7 @@ class TestArrayCopy:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
 
-        assert_error_contains(
-            errors,
-            "Cannot use copy operator [..] on non-array type"
-        )
+        assert_error_contains(errors, "Cannot use copy operator [..] on non-array type")
 
     def test_copy_string_error(self):
         """Test error when using [..] on string type"""
@@ -136,10 +133,7 @@ class TestArrayCopy:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
 
-        assert_error_contains(
-            errors,
-            "Cannot use copy operator [..] on non-array type"
-        )
+        assert_error_contains(errors, "Cannot use copy operator [..] on non-array type")
 
 
 class TestPropertyAccess:
@@ -248,8 +242,7 @@ class TestPropertyAccess:
         errors = self.analyzer.analyze(ast)
 
         assert_error_contains(
-            errors,
-            "Property 'length' is only available on array types"
+            errors, "Property 'length' is only available on array types"
         )
 
     def test_length_on_string_error(self):
@@ -265,8 +258,7 @@ class TestPropertyAccess:
         errors = self.analyzer.analyze(ast)
 
         assert_error_contains(
-            errors,
-            "Property 'length' is only available on array types"
+            errors, "Property 'length' is only available on array types"
         )
 
     def test_unknown_property_error(self):
@@ -281,10 +273,7 @@ class TestPropertyAccess:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
 
-        assert_error_contains(
-            errors,
-            "Property 'unknown' not found on type"
-        )
+        assert_error_contains(errors, "Property 'unknown' not found on type")
 
 
 class TestCombinedOperations:

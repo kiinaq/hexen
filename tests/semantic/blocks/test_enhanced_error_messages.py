@@ -1,8 +1,8 @@
 """
 Test Enhanced Error Messages for Unified Block System
 
-Tests that enhanced error messages are properly generated when analyzing 
-problematic Hexen code, focusing on context-specific error messages with 
+Tests that enhanced error messages are properly generated when analyzing
+problematic Hexen code, focusing on context-specific error messages with
 actionable guidance for runtime blocks and type conversion issues.
 """
 
@@ -67,11 +67,16 @@ class TestRuntimeBlockErrorMessages:
 
         assert len(errors) >= 1
         error_msg = str(errors[0])
-        
+
         # Should indicate explicit type annotation is required for runtime operations
-        assert any(term in error_msg for term in [
-            "Explicit type annotation REQUIRED!", "explicit type", "runtime block"
-        ])
+        assert any(
+            term in error_msg
+            for term in [
+                "Explicit type annotation REQUIRED!",
+                "explicit type",
+                "runtime block",
+            ]
+        )
 
     def test_mixed_concrete_comptime_triggers_runtime_error(self):
         """Test that mixing concrete and comptime types triggers runtime error."""
@@ -90,11 +95,16 @@ class TestRuntimeBlockErrorMessages:
 
         assert len(errors) >= 1
         error_msg = str(errors[0])
-        
+
         # Should indicate explicit type annotation is needed
-        assert any(term in error_msg for term in [
-            "Explicit type annotation REQUIRED!", "explicit type", "runtime block"
-        ])
+        assert any(
+            term in error_msg
+            for term in [
+                "Explicit type annotation REQUIRED!",
+                "explicit type",
+                "runtime block",
+            ]
+        )
 
 
 class TestMixedConcreteTypeErrorMessages:
@@ -120,17 +130,20 @@ class TestMixedConcreteTypeErrorMessages:
 
         assert len(errors) >= 1
         error_msg = str(errors[0])
-        
+
         # Should mention mixed concrete types or explicit conversion
-        has_enhanced_content = any(term in error_msg.lower() for term in [
-            "mixed concrete types",
-            "explicit conversion", 
-            "transparent costs",
-            "value:",
-            "concrete",
-            "i32",
-            "i64"
-        ])
+        has_enhanced_content = any(
+            term in error_msg.lower()
+            for term in [
+                "mixed concrete types",
+                "explicit conversion",
+                "transparent costs",
+                "value:",
+                "concrete",
+                "i32",
+                "i64",
+            ]
+        )
         assert has_enhanced_content, f"Error message not enhanced: {error_msg}"
 
     def test_mixed_concrete_types_provides_conversion_guidance(self):
@@ -149,11 +162,12 @@ class TestMixedConcreteTypeErrorMessages:
 
         assert len(errors) >= 1
         error_msg = str(errors[0])
-        
+
         # Should provide actionable conversion guidance
-        has_conversion_guidance = any(term in error_msg for term in [
-            "value:", ":i64", "explicit conversion", "small:"
-        ])
+        has_conversion_guidance = any(
+            term in error_msg
+            for term in ["value:", ":i64", "explicit conversion", "small:"]
+        )
         assert has_conversion_guidance, f"Missing conversion guidance: {error_msg}"
 
     def test_float_integer_mixing_error_message(self):
@@ -172,11 +186,19 @@ class TestMixedConcreteTypeErrorMessages:
 
         assert len(errors) >= 1
         error_msg = str(errors[0])
-        
+
         # Should indicate type conversion is needed
-        has_type_guidance = any(term in error_msg.lower() for term in [
-            "explicit conversion", "value:", "i32", "f64", "concrete", "mixed"
-        ])
+        has_type_guidance = any(
+            term in error_msg.lower()
+            for term in [
+                "explicit conversion",
+                "value:",
+                "i32",
+                "f64",
+                "concrete",
+                "mixed",
+            ]
+        )
         assert has_type_guidance, f"Missing type conversion guidance: {error_msg}"
 
 
@@ -204,11 +226,18 @@ class TestBinaryOperationErrorMessages:
 
         assert len(errors) >= 1
         error_msg = str(errors[0])
-        
+
         # Should provide guidance for comparison type consistency
-        has_comparison_guidance = any(term in error_msg.lower() for term in [
-            "comparison", "explicit conversion", "value:", "concrete", "mixed"
-        ])
+        has_comparison_guidance = any(
+            term in error_msg.lower()
+            for term in [
+                "comparison",
+                "explicit conversion",
+                "value:",
+                "concrete",
+                "mixed",
+            ]
+        )
         assert has_comparison_guidance, f"Missing comparison guidance: {error_msg}"
 
     def test_division_operator_context_error_message(self):
@@ -228,9 +257,10 @@ class TestBinaryOperationErrorMessages:
         if len(errors) >= 1:
             error_msg = str(errors[0])
             # If there's an error, it should mention type conversion needs
-            has_division_context = any(term in error_msg.lower() for term in [
-                "division", "explicit conversion", "value:", "concrete"
-            ])
+            has_division_context = any(
+                term in error_msg.lower()
+                for term in ["division", "explicit conversion", "value:", "concrete"]
+            )
             assert has_division_context, f"Missing division context: {error_msg}"
 
 
@@ -264,12 +294,20 @@ class TestExpressionBlockErrorMessages:
 
         assert len(errors) >= 1
         error_msg = str(errors[0])
-        
+
         # Should indicate that explicit type annotation is required
-        has_type_annotation_guidance = any(term in error_msg for term in [
-            "Explicit type annotation REQUIRED!", "explicit type", "val computation :", "runtime block"
-        ])
-        assert has_type_annotation_guidance, f"Missing type annotation guidance: {error_msg}"
+        has_type_annotation_guidance = any(
+            term in error_msg
+            for term in [
+                "Explicit type annotation REQUIRED!",
+                "explicit type",
+                "val computation :",
+                "runtime block",
+            ]
+        )
+        assert has_type_annotation_guidance, (
+            f"Missing type annotation guidance: {error_msg}"
+        )
 
     def test_expression_block_with_return_statement_error(self):
         """Test error handling in expression blocks with early returns."""
@@ -294,9 +332,15 @@ class TestExpressionBlockErrorMessages:
         # the error should be clear about expression block requirements
         if len(errors) >= 1:
             error_msg = str(errors[0])
-            has_block_guidance = any(term in error_msg for term in [
-                "expression block", "return", "Explicit type annotation REQUIRED!", "explicit type"
-            ])
+            has_block_guidance = any(
+                term in error_msg
+                for term in [
+                    "expression block",
+                    "return",
+                    "Explicit type annotation REQUIRED!",
+                    "explicit type",
+                ]
+            )
             assert has_block_guidance, f"Missing block guidance: {error_msg}"
 
 
@@ -327,11 +371,19 @@ class TestFunctionCallErrorMessages:
 
         assert len(errors) >= 1
         error_msg = str(errors[0])
-        
+
         # Should provide guidance on parameter type conversion
-        has_param_guidance = any(term in error_msg.lower() for term in [
-            "parameter", "argument", "explicit conversion", "value:", "i64", "i32"
-        ])
+        has_param_guidance = any(
+            term in error_msg.lower()
+            for term in [
+                "parameter",
+                "argument",
+                "explicit conversion",
+                "value:",
+                "i64",
+                "i32",
+            ]
+        )
         assert has_param_guidance, f"Missing parameter guidance: {error_msg}"
 
     def test_function_return_type_mismatch_error(self):
@@ -348,11 +400,12 @@ class TestFunctionCallErrorMessages:
 
         assert len(errors) >= 1
         error_msg = str(errors[0])
-        
+
         # Should provide guidance on return type conversion
-        has_return_guidance = any(term in error_msg.lower() for term in [
-            "return", "explicit conversion", "value:", "i64", "i32"
-        ])
+        has_return_guidance = any(
+            term in error_msg.lower()
+            for term in ["return", "explicit conversion", "value:", "i64", "i32"]
+        )
         assert has_return_guidance, f"Missing return guidance: {error_msg}"
 
 
@@ -405,11 +458,18 @@ class TestVariableDeclarationErrorMessages:
 
         assert len(errors) >= 1
         error_msg = str(errors[0])
-        
+
         # Should provide clear assignment guidance
-        has_assignment_guidance = any(term in error_msg.lower() for term in [
-            "assignment", "explicit conversion", "value:", "mixed", "concrete"
-        ])
+        has_assignment_guidance = any(
+            term in error_msg.lower()
+            for term in [
+                "assignment",
+                "explicit conversion",
+                "value:",
+                "mixed",
+                "concrete",
+            ]
+        )
         assert has_assignment_guidance, f"Missing assignment guidance: {error_msg}"
 
 
@@ -457,14 +517,24 @@ class TestErrorMessageQuality:
         # Check that error messages use specification terminology
         error_messages = [str(error) for error in all_errors]
         spec_terms_found = any(
-            any(term in msg.lower() for term in [
-                "comptime", "runtime", "concrete", "explicit", 
-                "transparent costs", "context", "value:"
-            ])
+            any(
+                term in msg.lower()
+                for term in [
+                    "comptime",
+                    "runtime",
+                    "concrete",
+                    "explicit",
+                    "transparent costs",
+                    "context",
+                    "value:",
+                ]
+            )
             for msg in error_messages
         )
-        
-        assert spec_terms_found, f"No specification terminology found in: {error_messages}"
+
+        assert spec_terms_found, (
+            f"No specification terminology found in: {error_messages}"
+        )
 
     def test_error_messages_provide_actionable_guidance(self):
         """Test that error messages consistently provide actionable guidance."""
@@ -485,10 +555,21 @@ class TestErrorMessageQuality:
 
         # All errors should provide some form of actionable guidance
         actionable_keywords = [
-            "use", "try", "add", "specify", ":", "explicit conversion", 
-            "value:", "val", "mut", "i32", "i64", "f32", "f64"
+            "use",
+            "try",
+            "add",
+            "specify",
+            ":",
+            "explicit conversion",
+            "value:",
+            "val",
+            "mut",
+            "i32",
+            "i64",
+            "f32",
+            "f64",
         ]
-        
+
         for error_msg in error_messages:
             has_guidance = any(
                 keyword in error_msg.lower() for keyword in actionable_keywords
@@ -523,7 +604,15 @@ class TestErrorMessageQuality:
             # Each error should be informative
             assert len(error_msg) > 10, f"Error message too short: {error_msg}"
             # Should contain some helpful terminology
-            has_helpful_terms = any(term in error_msg.lower() for term in [
-                "type", "explicit", "conversion", "context", "concrete", "value"
-            ])
+            has_helpful_terms = any(
+                term in error_msg.lower()
+                for term in [
+                    "type",
+                    "explicit",
+                    "conversion",
+                    "context",
+                    "concrete",
+                    "value",
+                ]
+            )
             assert has_helpful_terms, f"Error message lacks helpful terms: {error_msg}"

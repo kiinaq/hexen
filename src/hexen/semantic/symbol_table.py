@@ -66,7 +66,9 @@ class Symbol:
     """
 
     name: str
-    type: Union[HexenType, ConcreteArrayType, ComptimeArrayType]  # Phase 2: Added ComptimeArrayType
+    type: Union[
+        HexenType, ConcreteArrayType, ComptimeArrayType
+    ]
     mutability: Mutability
     declared_line: Optional[int] = None  # For better error reporting (future)
     initialized: bool = True  # False for undef variables - prevents use-before-init

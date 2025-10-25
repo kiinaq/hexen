@@ -87,6 +87,8 @@ Now that you understand `val` and `mut`, let's explore how they interact with He
 
 ### Concrete Types
 
+#### User Types (General Purpose)
+
 | Type | Description | Size | Range |
 |------|-------------|------|-------|
 | `i32` | 32-bit signed integer | 4 bytes | -2,147,483,648 to 2,147,483,647 |
@@ -98,6 +100,22 @@ Now that you understand `val` and `mut`, let's explore how they interact with He
 | `void` | No value (functions only) | 0 bytes | N/A |
 
 **⚠️ Overflow Protection**: Literals that exceed these ranges trigger compile-time errors. See **[LITERAL_OVERFLOW_BEHAVIOR.md](LITERAL_OVERFLOW_BEHAVIOR.md)** for details.
+
+#### Platform Index Type (Array Indexing Only)
+
+| Type | Description | Size | Range | Purpose |
+|------|-------------|------|-------|---------|
+| `usize` | Platform-dependent unsigned integer | 4 or 8 bytes | 0 to 4,294,967,295 (32-bit)<br>0 to 18,446,744,073,709,551,615 (64-bit) | **Array indexing only** |
+
+**Critical Distinction:**
+- **User types** (`i32`, `i64`, `f32`, `f64`): General-purpose values for computation, variables, function parameters
+- **Index type** (`usize`): Exclusively for array indexing and slicing operations
+
+**Key Properties:**
+- **Platform-dependent**: Size matches pointer width (32-bit or 64-bit platform)
+- **Unsigned**: Only non-negative values (array indices can't be negative)
+- **Special purpose**: Used exclusively for array operations (see [RANGE_SYSTEM.md](RANGE_SYSTEM.md))
+- **Universal indexing**: A single `usize` value works for arrays of any element type
 
 ### Comptime Types (Compile-Time Only)
 
@@ -436,13 +454,16 @@ val y : f64 = some_f64_value  // f64 → f64 (no conversion)
 ### 2. Comptime Type Magic (Ergonomic Literals)
 
 **comptime_int** can adapt to:
-- `i32`, `i64` (integer types)
-- `f32`, `f64` (float types)
+- `i32`, `i64` (user integer types)
+- `f32`, `f64` (user float types)
+- `usize` (platform index type - for array indexing)
 - **Cannot** adapt to `bool`, `string` (not meaningful)
 
 **comptime_float** can adapt to:
-- `f32`, `f64` (float types)
-- **Cannot** adapt to `bool`, `string`, `i32`, `i64` (not meaningful without explicit conversion)
+- `f32`, `f64` (user float types)
+- **Cannot** adapt to `bool`, `string`, `i32`, `i64`, `usize` (not meaningful without explicit conversion)
+
+**Key Insight:** `comptime_int` can adapt to `usize` for ergonomic array indexing, but `comptime_float` cannot (fractional indices are meaningless).
 
 ```hexen
 // ✅ Comptime literals adapt seamlessly (ergonomic)
@@ -482,6 +503,72 @@ val truncated : i32 = f64_value:i32     // f64 → i32 (explicit truncation, dat
 - **No surprises**: No hidden performance costs or data loss
 - **Uniform syntax**: `value:target_type` for all concrete conversions
 
+### 4. Platform Index Type (`usize`) - Array Indexing
+
+The `usize` type is a special platform-dependent unsigned integer type used exclusively for array indexing and slicing operations.
+
+**Key Properties:**
+- **Platform-dependent**: 32-bit or 64-bit based on platform pointer size
+- **Unsigned**: Only non-negative values (0 to max)
+- **Special purpose**: Used exclusively for array operations
+- **Universal**: Works with arrays of any element type
+
+**Comptime int adaptation (ergonomic):**
+```hexen
+// ✅ Comptime literals adapt to usize (ergonomic array indexing!)
+val index : usize = 42              // comptime_int → usize (implicit, no cost)
+val arr : [_]i32 = [10, 20, 30, 40, 50]
+val elem : i32 = arr[0]             // comptime_int → usize (implicit)
+val slice : [_]i32 = arr[1..4]      // comptime_int → usize for both bounds
+```
+
+**User type to usize (explicit):**
+```hexen
+// 🔧 User types require explicit conversion to usize
+val start : i32 = 5
+val end : i32 = 10
+
+// ❌ Error: user type cannot be used directly for indexing
+// val slice : [_]i32 = arr[start..end]
+
+// ✅ Explicit conversion required
+val idx_start : usize = start:usize
+val idx_end : usize = end:usize
+val slice : [_]i32 = arr[idx_start..idx_end]
+
+// Or inline conversion:
+val slice2 : [_]i32 = arr[(start:usize)..(end:usize)]
+```
+
+**Float to usize (forbidden):**
+```hexen
+// ❌ Float types CANNOT convert to usize (even with explicit conversion)
+val float_idx : f32 = 2.5
+// val bad_idx : usize = float_idx:usize  // ❌ Compilation error!
+
+// Rationale: Fractional indices are meaningless for array positions
+// If you must, use explicit truncation chain: f32 → i32 → usize
+val truncated : usize = (float_idx:i32):usize  // ✅ Two-step conversion (very explicit!)
+```
+
+**usize to user types (explicit):**
+```hexen
+// 🔧 Converting usize back to user types requires explicit conversion
+val index : usize = 42
+val as_i32 : i32 = index:i32        // usize → i32 (explicit)
+val as_i64 : i64 = index:i64        // usize → i64 (explicit)
+val as_f64 : f64 = index:f64        // usize → f64 (explicit)
+```
+
+**Design rationale:**
+- **Separation of concerns**: User types for computation, `usize` for indexing
+- **Platform independence**: Code works correctly on 32-bit and 64-bit platforms
+- **Type safety**: Prevents accidental mixing of indices with values
+- **Ergonomic literals**: `comptime_int` adapts seamlessly to `usize` for common case
+- **Explicit conversions**: User type → `usize` requires visible syntax (transparent costs)
+
+**For complete range system details**: See **[RANGE_SYSTEM.md](RANGE_SYSTEM.md)**
+
 ## Type Conversion Rules Summary
 
 ### Quick Reference Table
@@ -494,6 +581,7 @@ val truncated : i32 = f64_value:i32     // f64 → i32 (explicit truncation, dat
 | `comptime_int` | `i64` | ✅ Implicit | `val x : i64 = 42` | No cost, ergonomic |
 | `comptime_int` | `f32` | ✅ Implicit | `val x : f32 = 42` | No cost, ergonomic |
 | `comptime_int` | `f64` | ✅ Implicit | `val x : f64 = 42` | No cost, ergonomic |
+| `comptime_int` | `usize` | ✅ Implicit | `val x : usize = 42` | No cost, ergonomic (array indexing!) |
 | `comptime_int` | `bool` | ❌ Forbidden | N/A | Use explicit logic: `(42 != 0)` |
 | `comptime_int` | `string` | ❌ Forbidden | N/A | Not meaningful |
 | `comptime_float` | `comptime_float` | ✅ Preserved | `val x = 3.14` | Comptime type preserved (flexible adaptation!) |
@@ -501,21 +589,30 @@ val truncated : i32 = f64_value:i32     // f64 → i32 (explicit truncation, dat
 | `comptime_float` | `f64` | ✅ Implicit | `val x : f64 = 3.14` | No cost, ergonomic |
 | `comptime_float` | `i32` | 🔧 Explicit | `val x : i32 = 3.14:i32` | Conversion cost visible |
 | `comptime_float` | `i64` | 🔧 Explicit | `val x : i64 = 3.14:i64` | Conversion cost visible |
+| `comptime_float` | `usize` | ❌ Forbidden | N/A | Float indices meaningless (no conversion!) |
 | `comptime_float` | `bool` | ❌ Forbidden | N/A | Use explicit logic: `(3.14 != 0.0)` |
 | `comptime_float` | `string` | ❌ Forbidden | N/A | Not meaningful |
 | **Concrete Types (All Explicit)** |
 | `i32` | `i64` | 🔧 Explicit | `val x : i64 = i32_val:i64` | Conversion cost visible |
 | `i32` | `f32` | 🔧 Explicit | `val x : f32 = i32_val:f32` | Conversion cost visible |
 | `i32` | `f64` | 🔧 Explicit | `val x : f64 = i32_val:f64` | Conversion cost visible |
+| `i32` | `usize` | 🔧 Explicit | `val x : usize = i32_val:usize` | Conversion cost visible (for array indexing) |
 | `i64` | `i32` | 🔧 Explicit | `val x : i32 = i64_val:i32` | Conversion + data loss visible |
 | `i64` | `f32` | 🔧 Explicit | `val x : f32 = i64_val:f32` | Conversion + precision loss visible |
 | `i64` | `f64` | 🔧 Explicit | `val x : f64 = i64_val:f64` | Conversion cost visible |
+| `i64` | `usize` | 🔧 Explicit | `val x : usize = i64_val:usize` | Conversion cost visible (for array indexing) |
 | `f32` | `f64` | 🔧 Explicit | `val x : f64 = f32_val:f64` | Conversion cost visible |
 | `f64` | `f32` | 🔧 Explicit | `val x : f32 = f64_val:f32` | Conversion + precision loss visible |
 | `f32` | `i32` | 🔧 Explicit | `val x : i32 = f32_val:i32` | Conversion + data loss visible |
 | `f64` | `i32` | 🔧 Explicit | `val x : i32 = f64_val:i32` | Conversion + data loss visible |
 | `f32` | `i64` | 🔧 Explicit | `val x : i64 = f32_val:i64` | Conversion + data loss visible |
 | `f64` | `i64` | 🔧 Explicit | `val x : i64 = f64_val:i64` | Conversion + data loss visible |
+| `f32` | `usize` | ❌ Forbidden | N/A | Float → usize conversion forbidden (use truncation: f32→i32→usize) |
+| `f64` | `usize` | ❌ Forbidden | N/A | Float → usize conversion forbidden (use truncation: f64→i64→usize) |
+| `usize` | `i32` | 🔧 Explicit | `val x : i32 = usize_val:i32` | Conversion cost visible |
+| `usize` | `i64` | 🔧 Explicit | `val x : i64 = usize_val:i64` | Conversion cost visible |
+| `usize` | `f32` | 🔧 Explicit | `val x : f32 = usize_val:f32` | Conversion cost visible |
+| `usize` | `f64` | 🔧 Explicit | `val x : f64 = usize_val:f64` | Conversion cost visible |
 | **Identity (No Conversion)** |
 | Any type | Same type | ✅ Identity | `val x : i32 = i32_val` | No conversion needed |
 | **Forbidden Conversions** |
@@ -1014,11 +1111,44 @@ func demonstrate_type_system() : void = {
     mut pending : i32 = undef   // ✅ OK: mut allows later assignment
     pending = compute_value()   // ✅ OK: if compute_value() returns i32
     pending = other_value:i32   // ✅ OK: explicit conversion if needed
-    
+
     // val bad = undef          // ❌ Error: no type context
+
+    // ===== Platform Index Type (usize) for Array Indexing =====
+    val array : [_]i32 = [10, 20, 30, 40, 50]
+
+    // ✅ Comptime literals adapt seamlessly (ergonomic!)
+    val elem1 : i32 = array[0]              // comptime_int → usize (implicit)
+    val elem2 : i32 = array[2]              // comptime_int → usize (implicit)
+    val slice1 : [_]i32 = array[1..4]       // comptime_int → usize for bounds
+
+    // ✅ Explicit usize variables
+    val idx : usize = 3
+    val elem3 : i32 = array[idx]            // usize (direct use)
+
+    // 🔧 User types require explicit conversion
+    val user_start : i32 = 1
+    val user_end : i32 = 4
+    val slice2 : [_]i32 = array[(user_start:usize)..(user_end:usize)]  // Explicit conversions
+
+    // ❌ Float types forbidden for indexing
+    val float_idx : f32 = 2.5
+    // val bad_elem : i32 = array[float_idx]          // ❌ Error: float cannot be index
+    // val bad_idx : usize = float_idx:usize          // ❌ Error: float → usize forbidden
+
+    // ✅ If absolutely necessary, use explicit truncation chain
+    val truncated_idx : usize = (float_idx:i32):usize  // Two-step: f32 → i32 → usize
+    val elem4 : i32 = array[truncated_idx]             // Now valid (but very explicit!)
+
+    // 🔧 Converting usize back to user types (explicit)
+    val index_value : usize = 42
+    val as_i32 : i32 = index_value:i32      // usize → i32 (explicit)
+    val as_i64 : i64 = index_value:i64      // usize → i64 (explicit)
+    val as_f64 : f64 = index_value:f64      // usize → f64 (explicit)
 }
 
 // For binary operations examples, see BINARY_OPS.md
+// For complete range system details, see RANGE_SYSTEM.md
 ```
 
 ## Benefits

@@ -134,7 +134,10 @@ class ComptimeArrayType:
             ValueError: If element type is not comptime or dimensions invalid
         """
         # Validate element type is comptime
-        if element_comptime_type not in {HexenType.COMPTIME_INT, HexenType.COMPTIME_FLOAT}:
+        if element_comptime_type not in {
+            HexenType.COMPTIME_INT,
+            HexenType.COMPTIME_FLOAT,
+        }:
             raise ValueError(
                 f"ComptimeArrayType element must be COMPTIME_INT or COMPTIME_FLOAT, "
                 f"got {element_comptime_type}"
@@ -147,7 +150,9 @@ class ComptimeArrayType:
 
         for dim in dimensions:
             if not isinstance(dim, int) or dim < 0:
-                raise ValueError(f"All dimensions must be non-negative integers, got {dim}")
+                raise ValueError(
+                    f"All dimensions must be non-negative integers, got {dim}"
+                )
 
         self.element_comptime_type = element_comptime_type
         self.dimensions = dimensions
@@ -155,7 +160,9 @@ class ComptimeArrayType:
     def __str__(self) -> str:
         """Human-readable string representation"""
         dims_str = "".join(f"[{d}]" for d in self.dimensions)
-        elem_str = "int" if self.element_comptime_type == HexenType.COMPTIME_INT else "float"
+        elem_str = (
+            "int" if self.element_comptime_type == HexenType.COMPTIME_INT else "float"
+        )
         return f"comptime_{dims_str}{elem_str}"
 
     def __repr__(self) -> str:
@@ -199,7 +206,7 @@ class ComptimeArrayType:
         """Check if this is a multidimensional array (2D or higher)"""
         return len(self.dimensions) > 1
 
-    def can_materialize_to(self, target: 'ConcreteArrayType') -> bool:
+    def can_materialize_to(self, target: "ConcreteArrayType") -> bool:
         """
         Check if this comptime array can materialize to target concrete type.
 
@@ -241,7 +248,7 @@ class ComptimeArrayType:
 
         return True
 
-    def dimension_mismatch_details(self, target: 'ConcreteArrayType') -> str:
+    def dimension_mismatch_details(self, target: "ConcreteArrayType") -> str:
         """
         Generate detailed error message for dimension mismatches.
 
@@ -258,7 +265,9 @@ class ComptimeArrayType:
             )
 
         mismatches = []
-        for i, (comptime_dim, concrete_dim) in enumerate(zip(self.dimensions, target.dimensions)):
+        for i, (comptime_dim, concrete_dim) in enumerate(
+            zip(self.dimensions, target.dimensions)
+        ):
             if concrete_dim != "_" and comptime_dim != concrete_dim:
                 mismatches.append(
                     f"dimension {i}: expected {concrete_dim}, got {comptime_dim}"
@@ -281,7 +290,7 @@ class ConcreteArrayType:
 
     Inferred dimensions ([_]) are used for:
     - Function parameters that accept any array size
-    - Array flattening with size inference
+    - Size inference in array type conversions
     """
 
     def __init__(self, element_type: HexenType, dimensions: list[int | str]):

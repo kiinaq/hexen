@@ -71,7 +71,11 @@ class ExpressionAnalyzer:
         self.array_literal_analyzer._analyze_expression = self.analyze_expression
 
     def analyze_expression(
-        self, node: Dict, target_type: Optional[Union[HexenType, ConcreteArrayType, ComptimeArrayType]] = None
+        self,
+        node: Dict,
+        target_type: Optional[
+            Union[HexenType, ConcreteArrayType, ComptimeArrayType]
+        ] = None,
     ) -> Union[HexenType, ConcreteArrayType, ComptimeArrayType]:
         """
         Analyze an expression and return its type.
@@ -88,7 +92,10 @@ class ExpressionAnalyzer:
         return self._dispatch_expression_analysis(expr_type, node, target_type)
 
     def _dispatch_expression_analysis(
-        self, expr_type: str, node: Dict, target_type: Optional[Union[HexenType, ConcreteArrayType, ComptimeArrayType]]
+        self,
+        expr_type: str,
+        node: Dict,
+        target_type: Optional[Union[HexenType, ConcreteArrayType, ComptimeArrayType]],
     ) -> Union[HexenType, ConcreteArrayType, ComptimeArrayType]:
         """
         Dispatch expression analysis to appropriate handler.
@@ -154,7 +161,9 @@ class ExpressionAnalyzer:
             self._error(f"Unknown expression type: {expr_type}", node)
             return HexenType.UNKNOWN
 
-    def _analyze_identifier(self, node: Dict) -> Union[HexenType, ConcreteArrayType, ComptimeArrayType]:
+    def _analyze_identifier(
+        self, node: Dict
+    ) -> Union[HexenType, ConcreteArrayType, ComptimeArrayType]:
         """
         Analyze an identifier reference (variable usage).
 
