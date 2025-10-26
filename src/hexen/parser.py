@@ -456,6 +456,136 @@ class HexenTransformer(Transformer):
         # primitive_type: TYPE_I32 | TYPE_I64 | TYPE_F32 | TYPE_F64 | TYPE_USIZE | TYPE_STRING | TYPE_BOOL | TYPE_VOID
         return children[0]
 
+    # Range expression transformers
+    def range_bounded(self, children):
+        """
+        Transform bounded range: start..end or start..=end (with optional step).
+
+        Grammar:
+            range_bounded: additive RANGE_EXCLUSIVE additive (":" additive)?
+                         | additive RANGE_INCLUSIVE additive (":" additive)?
+
+        Args:
+            children: [start_expr, operator_token, end_expr, ?step_expr]
+
+        Returns:
+            RangeExpr node with start, end, optional step, and inclusive flag
+        """
+        start = children[0]
+        operator = str(children[1])  # ".." or "..="
+        end = children[2]
+        step = children[3] if len(children) > 3 else None
+
+        inclusive = (operator == "..=")
+
+        return {
+            "type": NodeType.RANGE_EXPR.value,
+            "start": start,
+            "end": end,
+            "step": step,
+            "inclusive": inclusive,
+        }
+
+    def range_from(self, children):
+        """
+        Transform unbounded from range: start.. (with optional step).
+
+        Grammar:
+            range_from: additive RANGE_EXCLUSIVE (":" additive)?
+
+        Args:
+            children: [start_expr, operator_token, ?step_expr]
+
+        Returns:
+            RangeExpr with start, no end, optional step
+        """
+        start = children[0]
+        # operator = children[1]  # ".." (not needed, always exclusive for unbounded)
+        step = children[2] if len(children) > 2 else None
+
+        return {
+            "type": NodeType.RANGE_EXPR.value,
+            "start": start,
+            "end": None,
+            "step": step,
+            "inclusive": False,
+        }
+
+    def range_to(self, children):
+        """
+        Transform unbounded to range: ..end or ..=end (NO step allowed).
+
+        Grammar:
+            range_to: RANGE_EXCLUSIVE additive
+                    | RANGE_INCLUSIVE additive
+
+        Args:
+            children: [operator_token, end_expr]
+
+        Returns:
+            RangeExpr with no start, end, no step
+        """
+        operator = str(children[0])  # ".." or "..="
+        end = children[1]
+
+        inclusive = (operator == "..=")
+
+        return {
+            "type": NodeType.RANGE_EXPR.value,
+            "start": None,
+            "end": end,
+            "step": None,
+            "inclusive": inclusive,
+        }
+
+    def range_full(self, children):
+        """
+        Transform full unbounded range: .. (NO step allowed).
+
+        Grammar:
+            range_full: RANGE_EXCLUSIVE
+
+        Args:
+            children: [operator_token]
+
+        Returns:
+            RangeExpr with no start, no end, no step
+        """
+        return {
+            "type": NodeType.RANGE_EXPR.value,
+            "start": None,
+            "end": None,
+            "step": None,
+            "inclusive": False,
+        }
+
+    def range_type(self, children):
+        """
+        Transform range type annotation: range[T].
+
+        Grammar:
+            range_type: "range" "[" type "]"
+
+        Args:
+            children: [element_type]
+
+        Returns:
+            RangeType node with element type
+        """
+        element_type = children[0]
+
+        return {
+            "type": NodeType.RANGE_TYPE.value,
+            "element_type": element_type,
+        }
+
+    # Range operator terminal handlers
+    def RANGE_EXCLUSIVE(self, token):
+        return ".."
+
+    def RANGE_INCLUSIVE(self, token):
+        return "..="
+
     def _build_binary_operation_tree(self, children):
         # print("[DEBUG] _build_binary_operation_tree children:", children)
         if len(children) == 1:

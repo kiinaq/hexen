@@ -22,7 +22,7 @@ class TestArrayCopy:
         self.parser = HexenParser()
 
     def test_simple_array_copy(self):
-        """Test simple array copy: source[..]"""
+        """Test simple array copy: source[..] (now unified as range indexing)"""
         source = """
         func test() : void = {
             val copy : [3]i32 = source[..]
@@ -33,14 +33,22 @@ class TestArrayCopy:
         # Navigate to variable declaration
         func = ast["functions"][0]
         val_decl = func["body"]["statements"][0]
-        array_copy = val_decl["value"]
+        array_access = val_decl["value"]
 
-        # Verify array copy node structure
-        assert array_copy["type"] == NodeType.ARRAY_COPY.value
+        # Verify array indexing with range (unified model!)
+        assert array_access["type"] == NodeType.ARRAY_ACCESS.value
 
         # Check array (should be an identifier)
-        assert array_copy["array"]["type"] == NodeType.IDENTIFIER.value
-        assert array_copy["array"]["name"] == "source"
+        assert array_access["array"]["type"] == NodeType.IDENTIFIER.value
+        assert array_access["array"]["name"] == "source"
+
+        # Check index is a full unbounded range
+        range_index = array_access["index"]
+        assert range_index["type"] == NodeType.RANGE_EXPR.value
+        assert range_index["start"] is None
+        assert range_index["end"] is None
+        assert range_index["step"] is None
+        assert range_index["inclusive"] is False
 
     def test_array_copy_in_function_call(self):
         """Test array copy as function argument: process(arr[..])"""
@@ -60,11 +68,19 @@ class TestArrayCopy:
         assert func_call["function_name"] == "process"
         assert len(func_call["arguments"]) == 1
 
-        # First argument: arr[..]
+        # First argument: arr[..] (now unified as range indexing)
         arg = func_call["arguments"][0]
-        assert arg["type"] == NodeType.ARRAY_COPY.value
+        assert arg["type"] == NodeType.ARRAY_ACCESS.value
         assert arg["array"]["type"] == NodeType.IDENTIFIER.value
         assert arg["array"]["name"] == "arr"
+
+        # Check index is a full unbounded range
+        range_index = arg["index"]
+        assert range_index["type"] == NodeType.RANGE_EXPR.value
+        assert range_index["start"] is None
+        assert range_index["end"] is None
+        assert range_index["step"] is None
+        assert range_index["inclusive"] is False
 
     def test_array_copy_in_return_statement(self):
         """Test array copy in return: return data[..]"""
@@ -81,10 +97,19 @@ class TestArrayCopy:
 
         assert return_stmt["type"] == NodeType.RETURN_STATEMENT.value
 
-        array_copy = return_stmt["value"]
-        assert array_copy["type"] == NodeType.ARRAY_COPY.value
-        assert array_copy["array"]["type"] == NodeType.IDENTIFIER.value
-        assert array_copy["array"]["name"] == "data"
+        # data[..] is now unified as range indexing
+        array_access = return_stmt["value"]
+        assert array_access["type"] == NodeType.ARRAY_ACCESS.value
+        assert array_access["array"]["type"] == NodeType.IDENTIFIER.value
+        assert array_access["array"]["name"] == "data"
+
+        # Check index is a full unbounded range
+        range_index = array_access["index"]
+        assert range_index["type"] == NodeType.RANGE_EXPR.value
+        assert range_index["start"] is None
+        assert range_index["end"] is None
+        assert range_index["step"] is None
+        assert range_index["inclusive"] is False
 
     def test_array_copy_of_array_access(self):
         """Test copying array element (row copy): matrix[0][..]"""
@@ -98,19 +123,27 @@ class TestArrayCopy:
         # Navigate to variable declaration
         func = ast["functions"][0]
         val_decl = func["body"]["statements"][0]
-        array_copy = val_decl["value"]
+        outer_access = val_decl["value"]
 
-        # Outer operation: [..]
-        assert array_copy["type"] == NodeType.ARRAY_COPY.value
+        # Outer operation: [..] (now unified as range indexing)
+        assert outer_access["type"] == NodeType.ARRAY_ACCESS.value
+
+        # Check outer index is a full unbounded range
+        range_index = outer_access["index"]
+        assert range_index["type"] == NodeType.RANGE_EXPR.value
+        assert range_index["start"] is None
+        assert range_index["end"] is None
+        assert range_index["step"] is None
+        assert range_index["inclusive"] is False
 
         # Inner operation: matrix[0]
-        array_access = array_copy["array"]
-        assert array_access["type"] == NodeType.ARRAY_ACCESS.value
-        assert array_access["index"]["type"] == NodeType.COMPTIME_INT.value
-        assert array_access["index"]["value"] == 0
+        inner_access = outer_access["array"]
+        assert inner_access["type"] == NodeType.ARRAY_ACCESS.value
+        assert inner_access["index"]["type"] == NodeType.COMPTIME_INT.value
+        assert inner_access["index"]["value"] == 0
 
         # Base array
-        base_array = array_access["array"]
+        base_array = inner_access["array"]
         assert base_array["type"] == NodeType.IDENTIFIER.value
         assert base_array["name"] == "matrix"
 
@@ -126,12 +159,21 @@ class TestArrayCopy:
         # Navigate to variable declaration
         func = ast["functions"][0]
         val_decl = func["body"]["statements"][0]
-        array_copy = val_decl["value"]
+        array_access = val_decl["value"]
 
-        assert array_copy["type"] == NodeType.ARRAY_COPY.value
+        # get_array()[..] is now unified as range indexing
+        assert array_access["type"] == NodeType.ARRAY_ACCESS.value
+
+        # Check index is a full unbounded range
+        range_index = array_access["index"]
+        assert range_index["type"] == NodeType.RANGE_EXPR.value
+        assert range_index["start"] is None
+        assert range_index["end"] is None
+        assert range_index["step"] is None
+        assert range_index["inclusive"] is False
 
         # Check array (should be a function call)
-        function_call = array_copy["array"]
+        function_call = array_access["array"]
         assert function_call["type"] == NodeType.FUNCTION_CALL.value
         assert function_call["function_name"] == "get_array"
 
@@ -152,15 +194,29 @@ class TestArrayCopy:
         assert func_call["type"] == NodeType.FUNCTION_CALL.value
         assert len(func_call["arguments"]) == 2
 
-        # First argument: a[..]
+        # First argument: a[..] (now unified as range indexing)
         arg1 = func_call["arguments"][0]
-        assert arg1["type"] == NodeType.ARRAY_COPY.value
+        assert arg1["type"] == NodeType.ARRAY_ACCESS.value
         assert arg1["array"]["name"] == "a"
 
-        # Second argument: b[..]
+        range_index1 = arg1["index"]
+        assert range_index1["type"] == NodeType.RANGE_EXPR.value
+        assert range_index1["start"] is None
+        assert range_index1["end"] is None
+        assert range_index1["step"] is None
+        assert range_index1["inclusive"] is False
+
+        # Second argument: b[..] (now unified as range indexing)
         arg2 = func_call["arguments"][1]
-        assert arg2["type"] == NodeType.ARRAY_COPY.value
+        assert arg2["type"] == NodeType.ARRAY_ACCESS.value
         assert arg2["array"]["name"] == "b"
+
+        range_index2 = arg2["index"]
+        assert range_index2["type"] == NodeType.RANGE_EXPR.value
+        assert range_index2["start"] is None
+        assert range_index2["end"] is None
+        assert range_index2["step"] is None
+        assert range_index2["inclusive"] is False
 
     def test_nested_array_copy(self):
         """Test copy of multidimensional array row: matrix[i][j][..]"""
@@ -174,13 +230,20 @@ class TestArrayCopy:
         # Navigate to variable declaration
         func = ast["functions"][0]
         val_decl = func["body"]["statements"][0]
-        array_copy = val_decl["value"]
+        access3 = val_decl["value"]
 
-        # Outermost operation: [..]
-        assert array_copy["type"] == NodeType.ARRAY_COPY.value
+        # Outermost operation: [..] (now unified as range indexing)
+        assert access3["type"] == NodeType.ARRAY_ACCESS.value
+
+        range_index = access3["index"]
+        assert range_index["type"] == NodeType.RANGE_EXPR.value
+        assert range_index["start"] is None
+        assert range_index["end"] is None
+        assert range_index["step"] is None
+        assert range_index["inclusive"] is False
 
         # Second access: [j]
-        access2 = array_copy["array"]
+        access2 = access3["array"]
         assert access2["type"] == NodeType.ARRAY_ACCESS.value
         assert access2["index"]["name"] == "j"
 
@@ -427,10 +490,17 @@ class TestCombinedOperations:
         assert property_access["type"] == NodeType.PROPERTY_ACCESS.value
         assert property_access["property"] == "length"
 
-        # Inner operation: arr[..]
-        array_copy = property_access["object"]
-        assert array_copy["type"] == NodeType.ARRAY_COPY.value
-        assert array_copy["array"]["name"] == "arr"
+        # Inner operation: arr[..] (now unified as range indexing)
+        array_access = property_access["object"]
+        assert array_access["type"] == NodeType.ARRAY_ACCESS.value
+        assert array_access["array"]["name"] == "arr"
+
+        range_index = array_access["index"]
+        assert range_index["type"] == NodeType.RANGE_EXPR.value
+        assert range_index["start"] is None
+        assert range_index["end"] is None
+        assert range_index["step"] is None
+        assert range_index["inclusive"] is False
 
     def test_access_then_copy_then_length(self):
         """Test complex chain: matrix[i][..].length"""
@@ -450,15 +520,22 @@ class TestCombinedOperations:
         assert property_access["type"] == NodeType.PROPERTY_ACCESS.value
         assert property_access["property"] == "length"
 
-        # Middle: [..]
-        array_copy = property_access["object"]
-        assert array_copy["type"] == NodeType.ARRAY_COPY.value
+        # Middle: [..] (now unified as range indexing)
+        outer_access = property_access["object"]
+        assert outer_access["type"] == NodeType.ARRAY_ACCESS.value
+
+        range_index = outer_access["index"]
+        assert range_index["type"] == NodeType.RANGE_EXPR.value
+        assert range_index["start"] is None
+        assert range_index["end"] is None
+        assert range_index["step"] is None
+        assert range_index["inclusive"] is False
 
         # Innermost: matrix[i]
-        array_access = array_copy["array"]
-        assert array_access["type"] == NodeType.ARRAY_ACCESS.value
-        assert array_access["index"]["name"] == "i"
-        assert array_access["array"]["name"] == "matrix"
+        inner_access = outer_access["array"]
+        assert inner_access["type"] == NodeType.ARRAY_ACCESS.value
+        assert inner_access["index"]["name"] == "i"
+        assert inner_access["array"]["name"] == "matrix"
 
     def test_multidimensional_access_then_length(self):
         """Test multidimensional access then length: matrix[i][j].length"""
@@ -501,18 +578,25 @@ class TestCombinedOperations:
         # Navigate to variable declaration
         func = ast["functions"][0]
         val_decl = func["body"]["statements"][0]
-        array_access = val_decl["value"]
+        outer_access = val_decl["value"]
 
         # Outermost: [0]
-        assert array_access["type"] == NodeType.ARRAY_ACCESS.value
-        assert array_access["index"]["value"] == 0
+        assert outer_access["type"] == NodeType.ARRAY_ACCESS.value
+        assert outer_access["index"]["value"] == 0
 
-        # Middle: [..]
-        array_copy = array_access["array"]
-        assert array_copy["type"] == NodeType.ARRAY_COPY.value
+        # Middle: [..] (now unified as range indexing)
+        middle_access = outer_access["array"]
+        assert middle_access["type"] == NodeType.ARRAY_ACCESS.value
+
+        range_index = middle_access["index"]
+        assert range_index["type"] == NodeType.RANGE_EXPR.value
+        assert range_index["start"] is None
+        assert range_index["end"] is None
+        assert range_index["step"] is None
+        assert range_index["inclusive"] is False
 
         # Innermost: get_matrix()
-        function_call = array_copy["array"]
+        function_call = middle_access["array"]
         assert function_call["type"] == NodeType.FUNCTION_CALL.value
         assert function_call["function_name"] == "get_matrix"
 
@@ -538,12 +622,20 @@ class TestCombinedOperations:
         assert property_access["type"] == NodeType.PROPERTY_ACCESS.value
         assert property_access["property"] == "length"
 
-        array_copy = property_access["object"]
-        assert array_copy["type"] == NodeType.ARRAY_COPY.value
+        # matrix[0][..] (now unified as range indexing)
+        outer_access = property_access["object"]
+        assert outer_access["type"] == NodeType.ARRAY_ACCESS.value
 
-        array_access = array_copy["array"]
-        assert array_access["type"] == NodeType.ARRAY_ACCESS.value
-        assert array_access["array"]["name"] == "matrix"
+        range_index = outer_access["index"]
+        assert range_index["type"] == NodeType.RANGE_EXPR.value
+        assert range_index["start"] is None
+        assert range_index["end"] is None
+        assert range_index["step"] is None
+        assert range_index["inclusive"] is False
+
+        inner_access = outer_access["array"]
+        assert inner_access["type"] == NodeType.ARRAY_ACCESS.value
+        assert inner_access["array"]["name"] == "matrix"
 
     def test_multiple_properties_different_arrays(self):
         """Test multiple property accesses: a.length + b.length"""
