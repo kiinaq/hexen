@@ -46,6 +46,7 @@ COMPTIME_INT_TARGETS: FrozenSet[HexenType] = frozenset(
         HexenType.I64,
         HexenType.F32,
         HexenType.F64,
+        HexenType.USIZE,  # comptime_int can coerce to usize (ergonomic for indexing)
     }
 )
 
@@ -73,6 +74,7 @@ TYPE_STRING_TO_HEXEN_TYPE: Dict[str, HexenType] = {
     "i64": HexenType.I64,
     "f32": HexenType.F32,
     "f64": HexenType.F64,
+    "usize": HexenType.USIZE,  # Platform-dependent unsigned integer for array indexing
     "string": HexenType.STRING,
     "bool": HexenType.BOOL,
     "void": HexenType.VOID,

@@ -14,7 +14,7 @@ This analyzer handles:
 from typing import Dict, Optional, Callable, Union
 
 from .type_util import parse_type
-from .types import HexenType, ConcreteArrayType
+from .types import HexenType, ConcreteArrayType, RangeType, ComptimeRangeType
 
 
 class ConversionAnalyzer:
@@ -33,15 +33,17 @@ class ConversionAnalyzer:
         error_callback: Callable[[str, Optional[Dict]], None],
         analyze_expression_callback: Callable[[Dict, Optional[HexenType]], HexenType],
         parse_array_type_callback: Optional[Callable[[Dict], ConcreteArrayType]] = None,
+        parse_range_type_callback: Optional[Callable[[Dict], RangeType]] = None,
     ):
         """Initialize with callbacks to main analyzer functionality."""
         self._error = error_callback
         self._analyze_expression = analyze_expression_callback
         self._parse_array_type = parse_array_type_callback
+        self._parse_range_type = parse_range_type_callback
 
     def analyze_conversion(
         self, node: Dict, context: Optional[HexenType] = None
-    ) -> Union[HexenType, ConcreteArrayType]:
+    ) -> Union[HexenType, ConcreteArrayType, RangeType]:
         """
         Analyze explicit conversion expressions following TYPE_SYSTEM.md rules.
 
@@ -53,7 +55,9 @@ class ConversionAnalyzer:
             Target type if conversion is valid, HexenType.UNKNOWN if invalid
 
         Implementation follows TYPE_SYSTEM.md Quick Reference Table exactly.
-        Extends to handle array type conversions per ARRAY_IMPLEMENTATION_PLAN.md.
+        Extends to handle:
+        - Array type conversions per ARRAY_IMPLEMENTATION_PLAN.md
+        - Range type conversions per RANGE_SYSTEM_SEMANTIC_IMPLEMENTATION_PLAN.md
         """
         # Extract source expression and target type
         source_expr = node.get("expression")
@@ -65,7 +69,7 @@ class ConversionAnalyzer:
             )
             return HexenType.UNKNOWN
 
-        # Parse target type - can be string (scalar) or dict (array type)
+        # Parse target type - can be string (scalar), dict (array type), or range type
         target_type = self._parse_target_type(target_type_spec, node)
         if target_type == HexenType.UNKNOWN:
             return HexenType.UNKNOWN
@@ -76,7 +80,8 @@ class ConversionAnalyzer:
             # Source expression analysis failed - propagate error
             return HexenType.UNKNOWN
 
-        # Validate conversion per TYPE_SYSTEM.md rules (scalars) or ARRAY_IMPLEMENTATION_PLAN.md (arrays)
+        # Validate conversion per TYPE_SYSTEM.md rules (scalars), ARRAY_IMPLEMENTATION_PLAN.md (arrays),
+        # or RANGE_SYSTEM_SEMANTIC_IMPLEMENTATION_PLAN.md (ranges)
         if isinstance(target_type, ConcreteArrayType) and isinstance(
             source_type, ConcreteArrayType
         ):
@@ -85,6 +90,15 @@ class ConversionAnalyzer:
                 return target_type
             else:
                 # Error already reported in _is_valid_array_conversion
+                return HexenType.UNKNOWN
+        elif isinstance(target_type, RangeType) and isinstance(
+            source_type, (RangeType, ComptimeRangeType)
+        ):
+            # Range-to-range conversion
+            if self._is_valid_range_conversion(source_type, target_type, node):
+                return target_type
+            else:
+                # Error already reported in _is_valid_range_conversion
                 return HexenType.UNKNOWN
         elif self._is_valid_conversion(source_type, target_type):
             # Scalar conversion
@@ -99,18 +113,21 @@ class ConversionAnalyzer:
 
         Conversion Rules:
         ✅ Comptime Types (Ergonomic Literals):
-        - comptime_int → i32, i64, f32, f64 (implicit, no cost)
+        - comptime_int → i32, i64, f32, f64, usize (implicit, no cost)
         - comptime_float → f32, f64 (implicit, no cost)
         - comptime_float → i32, i64 (explicit conversion required - this function)
 
         🔧 Concrete Types (All Explicit):
         - Any concrete → any other concrete type (explicit conversion - this function)
+        - i32, i64 → usize (explicit conversion required)
+        - usize → i32, i64, f32, f64 (explicit conversion required)
 
         ❌ Forbidden Conversions:
         - Any numeric → bool (use explicit comparison: (value != 0))
         - Any numeric → string (use string formatting functions)
         - bool → Any numeric (use conditional expression)
         - string → Any numeric (use parsing functions)
+        - f32, f64, comptime_float → usize (float indices forbidden)
         """
         # Identity conversion always valid
         if source == target:
@@ -118,20 +135,22 @@ class ConversionAnalyzer:
 
         # Comptime type conversions (following TYPE_SYSTEM.md table)
         if source == HexenType.COMPTIME_INT:
-            # comptime_int can convert to any numeric type
+            # comptime_int can convert to any numeric type (including usize)
             return target in [
                 HexenType.I32,
                 HexenType.I64,
                 HexenType.F32,
                 HexenType.F64,
+                HexenType.USIZE,  # NEW: comptime_int → usize (ergonomic!)
             ]
         elif source == HexenType.COMPTIME_FLOAT:
-            # comptime_float can convert to any numeric type
+            # comptime_float can convert to numeric types EXCEPT usize
             return target in [
                 HexenType.I32,  # Explicit conversion (data loss)
                 HexenType.I64,  # Explicit conversion (data loss)
                 HexenType.F32,
                 HexenType.F64,
+                # NOTE: usize NOT included - float → usize forbidden
             ]
 
         # Concrete type conversions (all explicit per TYPE_SYSTEM.md)
@@ -140,10 +159,14 @@ class ConversionAnalyzer:
             HexenType.I64,
             HexenType.F32,
             HexenType.F64,
+            HexenType.USIZE,  # NEW: usize in numeric types
         }
 
         if source in numeric_types and target in numeric_types:
-            # All numeric → numeric conversions are valid with explicit syntax
+            # VALIDATION: Float → usize conversion forbidden
+            if source in {HexenType.F32, HexenType.F64} and target == HexenType.USIZE:
+                return False  # Forbidden: float → usize
+            # All other numeric → numeric conversions valid with explicit syntax
             return True
 
         # Forbidden conversions per TYPE_SYSTEM.md
@@ -159,8 +182,16 @@ class ConversionAnalyzer:
         - Forbidden conversions suggest alternative approaches
         - Invalid comptime conversions clarify which are allowed
         """
+        # NEW: Float → usize conversion (forbidden)
+        if target == HexenType.USIZE and source in {HexenType.F32, HexenType.F64, HexenType.COMPTIME_FLOAT}:
+            self._error(
+                f"Cannot convert {source.value} to usize. "
+                f"Float types cannot be used for array indexing (fractional indices are meaningless). "
+                f"Use integer types for indexing instead",
+                node,
+            )
         # Forbidden conversion patterns with guidance
-        if target == HexenType.BOOL:
+        elif target == HexenType.BOOL:
             self._error(
                 f"Cannot convert {source.value} to bool. "
                 f"Use explicit comparison instead: (value != 0) for numeric types, "
@@ -202,16 +233,16 @@ class ConversionAnalyzer:
 
     def _parse_target_type(
         self, target_type_spec: Union[str, Dict], node: Dict
-    ) -> Union[HexenType, ConcreteArrayType]:
+    ) -> Union[HexenType, ConcreteArrayType, RangeType]:
         """
-        Parse target type specification - handles both scalar strings and array type dicts.
+        Parse target type specification - handles scalar strings, array types, and range types.
 
         Args:
-            target_type_spec: Either string ("i32") or dict (array type AST node)
+            target_type_spec: Either string ("i32") or dict (array/range type AST node)
             node: AST node for error reporting
 
         Returns:
-            Parsed type (HexenType or ConcreteArrayType), or HexenType.UNKNOWN if invalid
+            Parsed type (HexenType, ConcreteArrayType, or RangeType), or HexenType.UNKNOWN if invalid
         """
         # Handle scalar types (string)
         if isinstance(target_type_spec, str):
@@ -220,9 +251,14 @@ class ConversionAnalyzer:
                 self._error(f"Invalid target type: {target_type_spec}", node)
             return target_type
 
-        # Handle array types (dict)
-        if isinstance(target_type_spec, dict) and self._parse_array_type:
-            return self._parse_array_type(target_type_spec)
+        # Handle dict types (array or range)
+        if isinstance(target_type_spec, dict):
+            # Check if it's a range type
+            if target_type_spec.get("type") == "range_type" and self._parse_range_type:
+                return self._parse_range_type(target_type_spec)
+            # Otherwise try array type
+            elif self._parse_array_type:
+                return self._parse_array_type(target_type_spec)
 
         # Unknown format
         self._error(f"Invalid target type specification format", node)
@@ -329,3 +365,67 @@ class ConversionAnalyzer:
         """Format array type for error messages."""
         dims_str = "".join(f"[{dim}]" for dim in array_type.dimensions)
         return f"{dims_str}{array_type.element_type.name.lower()}"
+
+    def _is_valid_range_conversion(
+        self,
+        source: Union[RangeType, ComptimeRangeType],
+        target: RangeType,
+        node: Dict,
+    ) -> bool:
+        """
+        Validate range type conversion per RANGE_SYSTEM_SEMANTIC_IMPLEMENTATION_PLAN.md.
+
+        Conversion Rules:
+        1. Comptime range adaptation:
+           - comptime_int range → any integer range type (implicit)
+           - comptime_float range → float range types only (NOT usize)
+
+        2. Concrete range conversions:
+           - i32/i64 range → usize range (explicit :range[usize])
+           - float range → usize range (FORBIDDEN)
+
+        3. Element type conversion must be valid per _is_valid_conversion rules
+
+        Args:
+            source: Source range type (RangeType or ComptimeRangeType)
+            target: Target range type
+            node: AST node for error reporting
+
+        Returns:
+            True if conversion is valid, False otherwise (with error reported)
+        """
+        from_elem = source.element_type
+        to_elem = target.element_type
+
+        # Comptime range adaptation
+        if isinstance(source, ComptimeRangeType):
+            if source.can_adapt_to(to_elem):
+                return True
+
+            # Comptime float trying to convert to usize
+            if from_elem == HexenType.COMPTIME_FLOAT and to_elem == HexenType.USIZE:
+                self._error(
+                    "Cannot convert range[comptime_float] to range[usize]\n"
+                    "Float ranges cannot be used for array indexing\n"
+                    "Use integer range for indexing",
+                    node,
+                )
+                return False
+
+        # Concrete range conversions
+        # Integer ranges can convert to usize
+        if from_elem in {HexenType.I32, HexenType.I64} and to_elem == HexenType.USIZE:
+            return True  # Explicit :range[usize] required
+
+        # Float ranges CANNOT convert to usize
+        if from_elem in {HexenType.F32, HexenType.F64} and to_elem == HexenType.USIZE:
+            self._error(
+                f"Cannot convert range[{from_elem.value}] to range[usize]\n"
+                f"Float types cannot convert to usize (fractional indices meaningless)\n"
+                f"Float ranges are for iteration only, not array indexing",
+                node,
+            )
+            return False
+
+        # All other conversions follow standard type conversion rules
+        return self._is_valid_conversion(from_elem, to_elem)
