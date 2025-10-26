@@ -453,7 +453,7 @@ class HexenTransformer(Transformer):
             }
 
     def primitive_type(self, children):
-        # primitive_type: TYPE_I32 | TYPE_I64 | ...
+        # primitive_type: TYPE_I32 | TYPE_I64 | TYPE_F32 | TYPE_F64 | TYPE_USIZE | TYPE_STRING | TYPE_BOOL | TYPE_VOID
         return children[0]
 
     def _build_binary_operation_tree(self, children):
@@ -495,6 +495,9 @@ class HexenTransformer(Transformer):
 
     def TYPE_F64(self, token):
         return "f64"
+
+    def TYPE_USIZE(self, token):
+        return "usize"
 
     def TYPE_STRING(self, token):
         return "string"

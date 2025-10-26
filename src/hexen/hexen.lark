@@ -80,6 +80,7 @@ primitive_type: TYPE_I32
               | TYPE_I64
               | TYPE_F32
               | TYPE_F64
+              | TYPE_USIZE
               | TYPE_STRING
               | TYPE_BOOL
               | TYPE_VOID
@@ -92,6 +93,7 @@ TYPE_I32: "i32"
 TYPE_I64: "i64"
 TYPE_F32: "f32"
 TYPE_F64: "f64"
+TYPE_USIZE: "usize"
 TYPE_STRING: "string"
 TYPE_BOOL: "bool"
 TYPE_VOID: "void"
@@ -117,7 +119,7 @@ DIGITS: /[0-9]+/
 SIGN: /[+-]/
 
 // Conversion operator (tight binding, high priority)
-CONVERSION_OP.10: /:(?=i32|i64|f32|f64|string|bool|void|\[)/
+CONVERSION_OP.10: /:(?=i32|i64|f32|f64|usize|string|bool|void|\[)/
 
 // Ignore whitespace and comments
 %import common.WS
