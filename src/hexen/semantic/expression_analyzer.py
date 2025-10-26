@@ -14,10 +14,11 @@ Implements the context-guided resolution strategy from TYPE_SYSTEM.md and BINARY
 from typing import Dict, Optional, Callable, List, Union
 
 from .arrays.literal_analyzer import ArrayLiteralAnalyzer
+from .range_analyzer import RangeAnalyzer
 from .type_util import (
     infer_type_from_value,
 )
-from .types import HexenType, ComptimeArrayType, ConcreteArrayType
+from .types import HexenType, ComptimeArrayType, ConcreteArrayType, RangeType, ComptimeRangeType
 from ..ast_nodes import NodeType
 
 
@@ -70,13 +71,19 @@ class ExpressionAnalyzer:
         # Set the expression analysis callback after initialization
         self.array_literal_analyzer._analyze_expression = self.analyze_expression
 
+        # Initialize range analyzer (callback set after init to avoid circular dependency)
+        self.range_analyzer = RangeAnalyzer(
+            error_callback=error_callback,
+            analyze_expression_callback=self.analyze_expression,
+        )
+
     def analyze_expression(
         self,
         node: Dict,
         target_type: Optional[
-            Union[HexenType, ConcreteArrayType, ComptimeArrayType]
+            Union[HexenType, ConcreteArrayType, ComptimeArrayType, RangeType, ComptimeRangeType]
         ] = None,
-    ) -> Union[HexenType, ConcreteArrayType, ComptimeArrayType]:
+    ) -> Union[HexenType, ConcreteArrayType, ComptimeArrayType, RangeType, ComptimeRangeType]:
         """
         Analyze an expression and return its type.
 
@@ -95,8 +102,8 @@ class ExpressionAnalyzer:
         self,
         expr_type: str,
         node: Dict,
-        target_type: Optional[Union[HexenType, ConcreteArrayType, ComptimeArrayType]],
-    ) -> Union[HexenType, ConcreteArrayType, ComptimeArrayType]:
+        target_type: Optional[Union[HexenType, ConcreteArrayType, ComptimeArrayType, RangeType, ComptimeRangeType]],
+    ) -> Union[HexenType, ConcreteArrayType, ComptimeArrayType, RangeType, ComptimeRangeType]:
         """
         Dispatch expression analysis to appropriate handler.
 
@@ -114,6 +121,7 @@ class ExpressionAnalyzer:
         - ARRAY_ACCESS: Delegate to array access analyzer
         - ARRAY_COPY: Delegate to array copy analyzer ([..] operator)
         - PROPERTY_ACCESS: Delegate to property access analyzer (.length, etc)
+        - RANGE_EXPR: Delegate to range analyzer
         """
         if expr_type == NodeType.EXPLICIT_CONVERSION_EXPRESSION.value:
             # Handle explicit conversion expressions - implements TYPE_SYSTEM.md rules
@@ -157,6 +165,9 @@ class ExpressionAnalyzer:
         elif expr_type == NodeType.PROPERTY_ACCESS.value:
             # Property access expressions - delegate to property access analyzer
             return self.array_literal_analyzer.analyze_property_access(node, target_type)
+        elif expr_type == NodeType.RANGE_EXPR.value:
+            # Range expressions - delegate to range analyzer
+            return self.range_analyzer.analyze_range_expr(node, target_type)
         else:
             self._error(f"Unknown expression type: {expr_type}", node)
             return HexenType.UNKNOWN

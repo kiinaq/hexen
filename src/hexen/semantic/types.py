@@ -38,6 +38,7 @@ class HexenType(Enum):
     I64 = "i64"
     F32 = "f32"  # New: 32-bit float
     F64 = "f64"
+    USIZE = "usize"  # Platform-dependent unsigned integer for array indexing
     STRING = "string"
     BOOL = "bool"
     VOID = "void"  # For functions/blocks that don't return values
@@ -371,3 +372,279 @@ class ConcreteArrayType:
             # comptime_array_float can coerce to float element types only (following comptime_float rules)
             return self.element_type in {HexenType.F32, HexenType.F64}
         return False
+
+
+class RangeType:
+    """
+    Represents a range type (e.g., range[i32], range[usize], range[f64]).
+
+    Ranges are lazy sequences that describe numeric sequences without storing elements.
+    They serve two distinct purposes:
+
+    1. **User Type Ranges** (i32, i64, f32, f64):
+       - For materialization to arrays: [range]
+       - For iteration (future): for x in range { }
+
+    2. **Index Type Ranges** (usize only):
+       - For array slicing: array[range]
+       - Works with any array element type
+
+    Key Properties:
+    - Immutable: Ranges cannot be modified after creation
+    - Lazy: No storage cost (O(1) space regardless of size)
+    - Typed: Element type determines valid operations
+
+    Design Rules:
+    - User types → materialization & iteration
+    - Index type (usize) → array indexing only
+    - Float types cannot convert to usize (no indexing)
+
+    Attributes:
+        element_type: Type of elements the range produces
+        has_start: Whether range has start bound (False for ..end and ..)
+        has_end: Whether range has end bound (False for start.. and ..)
+        has_step: Whether range has explicit step
+        inclusive: True for ..=, False for ..
+
+    Examples:
+        range[i32]   → User type range (materialization/iteration)
+        range[usize] → Index type range (array slicing)
+        range[f64]   → User type range (iteration only, step required)
+    """
+
+    def __init__(
+        self,
+        element_type: HexenType,
+        has_start: bool,
+        has_end: bool,
+        has_step: bool,
+        inclusive: bool,
+    ):
+        """
+        Create a range type.
+
+        Args:
+            element_type: Type of elements (i32, i64, f32, f64, usize)
+            has_start: Whether range has start bound
+            has_end: Whether range has end bound
+            has_step: Whether range has explicit step
+            inclusive: True for ..=, False for ..
+
+        Raises:
+            ValueError: If element type is invalid for ranges
+        """
+        # Validate element type is numeric
+        valid_types = {
+            HexenType.I32,
+            HexenType.I64,
+            HexenType.F32,
+            HexenType.F64,
+            HexenType.USIZE,
+            HexenType.COMPTIME_INT,
+            HexenType.COMPTIME_FLOAT,
+        }
+
+        if element_type not in valid_types:
+            raise ValueError(
+                f"Range element type must be numeric, got {element_type}"
+            )
+
+        self.element_type = element_type
+        self.has_start = has_start
+        self.has_end = has_end
+        self.has_step = has_step
+        self.inclusive = inclusive
+
+    def is_bounded(self) -> bool:
+        """Check if range has both start and end bounds"""
+        return self.has_start and self.has_end
+
+    def is_unbounded(self) -> bool:
+        """Check if range has neither start nor end bound"""
+        return not self.has_start and not self.has_end
+
+    def can_materialize(self) -> bool:
+        """Check if range can be materialized to array (requires both bounds)"""
+        return self.is_bounded()
+
+    def can_iterate(self) -> bool:
+        """Check if range can be iterated (requires start bound)"""
+        return self.has_start
+
+    def can_slice(self) -> bool:
+        """Check if range can be used for array slicing (any bounds OK)"""
+        return True  # All ranges can slice (even unbounded)
+
+    def requires_step(self) -> bool:
+        """Check if range element type requires explicit step (floats only)"""
+        return self.element_type in {
+            HexenType.F32,
+            HexenType.F64,
+            HexenType.COMPTIME_FLOAT,
+        }
+
+    def is_user_type(self) -> bool:
+        """Check if this is a user type range (i32, i64, f32, f64)"""
+        return self.element_type in {
+            HexenType.I32,
+            HexenType.I64,
+            HexenType.F32,
+            HexenType.F64,
+            HexenType.COMPTIME_INT,
+            HexenType.COMPTIME_FLOAT,
+        }
+
+    def is_index_type(self) -> bool:
+        """Check if this is an index type range (usize only)"""
+        return self.element_type == HexenType.USIZE
+
+    def is_comptime(self) -> bool:
+        """Check if this is a comptime range (flexible adaptation)"""
+        return self.element_type in {HexenType.COMPTIME_INT, HexenType.COMPTIME_FLOAT}
+
+    def __str__(self) -> str:
+        """Human-readable string representation"""
+        elem_str = self.element_type.value
+        bounds = []
+        if self.has_start:
+            bounds.append("start")
+        if self.has_end:
+            bounds.append("end")
+        if self.has_step:
+            bounds.append("step")
+
+        bounds_str = ",".join(bounds) if bounds else "unbounded"
+        inclusive_str = "inclusive" if self.inclusive else "exclusive"
+
+        return f"range[{elem_str}]({bounds_str},{inclusive_str})"
+
+    def __repr__(self) -> str:
+        """Debug representation"""
+        return (
+            f"RangeType(element_type={self.element_type!r}, "
+            f"has_start={self.has_start}, has_end={self.has_end}, "
+            f"has_step={self.has_step}, inclusive={self.inclusive})"
+        )
+
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, RangeType):
+            return False
+        return (
+            self.element_type == other.element_type
+            and self.has_start == other.has_start
+            and self.has_end == other.has_end
+            and self.has_step == other.has_step
+            and self.inclusive == other.inclusive
+        )
+
+    def __hash__(self) -> int:
+        return hash(
+            (
+                self.element_type,
+                self.has_start,
+                self.has_end,
+                self.has_step,
+                self.inclusive,
+            )
+        )
+
+
+class ComptimeRangeType(RangeType):
+    """
+    Comptime range type that preserves flexibility for context-dependent adaptation.
+
+    Comptime ranges (e.g., 1..10, 0.0..1.0:0.1) can adapt to different concrete types:
+    - range[comptime_int] → range[i32], range[i64], range[f32], range[f64], range[usize]
+    - range[comptime_float] → range[f32], range[f64] (NOT usize - floats can't index!)
+
+    This enables ergonomic range literals without type annotations while maintaining
+    type safety through context-driven resolution.
+
+    Examples:
+        val r = 1..10                    # ComptimeRangeType(COMPTIME_INT)
+        val idx : range[usize] = r       # Adapts to range[usize] for indexing
+        val vals : range[i32] = r        # Adapts to range[i32] for materialization
+    """
+
+    def __init__(
+        self,
+        element_comptime_type: HexenType,
+        has_start: bool,
+        has_end: bool,
+        has_step: bool,
+        inclusive: bool,
+    ):
+        """
+        Create a comptime range type.
+
+        Args:
+            element_comptime_type: COMPTIME_INT or COMPTIME_FLOAT
+            has_start: Whether range has start bound
+            has_end: Whether range has end bound
+            has_step: Whether range has explicit step
+            inclusive: True for ..=, False for ..
+
+        Raises:
+            ValueError: If element type is not comptime
+        """
+        if element_comptime_type not in {
+            HexenType.COMPTIME_INT,
+            HexenType.COMPTIME_FLOAT,
+        }:
+            raise ValueError(
+                f"ComptimeRangeType element must be COMPTIME_INT or COMPTIME_FLOAT, "
+                f"got {element_comptime_type}"
+            )
+
+        super().__init__(
+            element_type=element_comptime_type,
+            has_start=has_start,
+            has_end=has_end,
+            has_step=has_step,
+            inclusive=inclusive,
+        )
+
+    def can_adapt_to(self, target_type: HexenType) -> bool:
+        """
+        Check if this comptime range can adapt to target concrete type.
+
+        Rules (following comptime type system):
+        - comptime_int → i32, i64, f32, f64, usize (any numeric)
+        - comptime_float → f32, f64 ONLY (NOT usize - float indices forbidden)
+
+        Args:
+            target_type: Target element type to adapt to
+
+        Returns:
+            True if adaptation is safe, False otherwise
+        """
+        if self.element_type == HexenType.COMPTIME_INT:
+            # comptime_int can adapt to any numeric type
+            return target_type in {
+                HexenType.I32,
+                HexenType.I64,
+                HexenType.F32,
+                HexenType.F64,
+                HexenType.USIZE,
+            }
+        elif self.element_type == HexenType.COMPTIME_FLOAT:
+            # comptime_float CANNOT adapt to usize (float indices forbidden)
+            return target_type in {HexenType.F32, HexenType.F64}
+
+        return False
+
+    def __str__(self) -> str:
+        """Human-readable string representation"""
+        elem_str = "int" if self.element_type == HexenType.COMPTIME_INT else "float"
+        bounds = []
+        if self.has_start:
+            bounds.append("start")
+        if self.has_end:
+            bounds.append("end")
+        if self.has_step:
+            bounds.append("step")
+
+        bounds_str = ",".join(bounds) if bounds else "unbounded"
+        inclusive_str = "inclusive" if self.inclusive else "exclusive"
+
+        return f"comptime_range[{elem_str}]({bounds_str},{inclusive_str})"

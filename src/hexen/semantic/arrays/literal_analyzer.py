@@ -16,8 +16,8 @@ from typing import Dict, List, Any, Optional, Callable, Union
 
 from .error_messages import ArrayErrorMessages
 from .multidim_analyzer import MultidimensionalArrayAnalyzer
-from ..type_util import is_array_type, get_type_name_for_error
-from ..types import HexenType, ConcreteArrayType, ComptimeArrayType
+from ..type_util import is_array_type, get_type_name_for_error, is_range_type
+from ..types import HexenType, ConcreteArrayType, ComptimeArrayType, RangeType, ComptimeRangeType
 
 
 class ArrayLiteralAnalyzer:
@@ -344,14 +344,23 @@ class ArrayLiteralAnalyzer:
             self._error(ArrayErrorMessages.non_array_indexing(type_name), node)
             return HexenType.UNKNOWN
 
-        # 2. Validate the index is an integer type
+        # 2. Analyze the index expression
         index_type = self._get_index_semantic_type(index_expr)
+
+        # 2.1. Check if index is a range (for array slicing)
+        if is_range_type(index_type):
+            # Range-based slicing - validate and return array type
+            # Range slicing returns same array type (element type preserved)
+            # The range_analyzer validates that the range is valid for indexing
+            return array_type
+
+        # 2.2. Otherwise, index must be an integer type
         if index_type not in {HexenType.COMPTIME_INT, HexenType.I32, HexenType.I64}:
             index_type_name = get_type_name_for_error(index_type)
             self._error(ArrayErrorMessages.invalid_index_type(index_type_name), node)
             return HexenType.UNKNOWN
 
-        # 3. Determine element type based on array type
+        # 3. Determine element type based on array type (single element access)
         return self._get_element_type_from_array_access(array_type, target_type)
 
     def _analyze_array_expression(self, array_expr: Dict) -> HexenType:

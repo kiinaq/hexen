@@ -119,7 +119,8 @@ class TestArrayCopy:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
 
-        assert_error_contains(errors, "Cannot use copy operator [..] on non-array type")
+        # After range system migration: [..] is now range indexing, not a separate operator
+        assert_error_contains(errors, "Cannot index non-array type")
 
     def test_copy_string_error(self):
         """Test error when using [..] on string type"""
@@ -133,7 +134,8 @@ class TestArrayCopy:
         ast = self.parser.parse(source)
         errors = self.analyzer.analyze(ast)
 
-        assert_error_contains(errors, "Cannot use copy operator [..] on non-array type")
+        # After range system migration: [..] is now range indexing, not a separate operator
+        assert_error_contains(errors, "Cannot index non-array type")
 
 
 class TestPropertyAccess:

@@ -233,6 +233,22 @@ class FunctionAnalyzer:
             # Explicit copy present - this is correct!
             return
 
+        # NEW: After range system migration, arr[..] is now array_access with range index
+        # Check if this is array_access with an unbounded range (which is equivalent to [..])
+        if arg_type == "array_access":
+            index_expr = argument.get("index", {})
+            # Check if index is an unbounded range expression (..)
+            if index_expr.get("type") == "range_expr":
+                start = index_expr.get("start")
+                end = index_expr.get("end")
+                step = index_expr.get("step")
+                # Unbounded range (..) has no start, end, or step
+                if start is None and end is None and step is None:
+                    # This is arr[..] - explicit copy present!
+                    return
+            # Other array_access expressions (with specific indices or bounded ranges)
+            # fall through to require wrapping in [..]
+
         # Allowed without explicit copy: function calls (return fresh arrays)
         if arg_type == "function_call":
             # Function returns fresh array - no copy needed
@@ -246,11 +262,25 @@ class FunctionAnalyzer:
         # Allowed without explicit copy: type conversion expressions that include [..]
         # Example: matrix[..]:[6]i32 already has explicit copy, produces fresh array
         if arg_type == "explicit_conversion_expression":
-            # Check if the inner expression is an array_copy operation
+            # Check if the inner expression is an array_copy operation (old parser)
+            # or array_access with unbounded range (new parser)
             inner_expr = argument.get("expression", {})
-            if inner_expr.get("type") == "array_copy":
-                # Type conversion with [..] produces fresh array - no additional copy needed
+            inner_type = inner_expr.get("type")
+
+            if inner_type == "array_copy":
+                # Old parser: Type conversion with [..] produces fresh array
                 return
+
+            if inner_type == "array_access":
+                # New parser: Check if this is array[..] pattern
+                index_expr = inner_expr.get("index", {})
+                if index_expr.get("type") == "range_expr":
+                    start = index_expr.get("start")
+                    end = index_expr.get("end")
+                    step = index_expr.get("step")
+                    # Unbounded range (..) means explicit copy
+                    if start is None and end is None and step is None:
+                        return
             # Otherwise, fall through to require explicit copy
 
         # Everything else requires explicit [..]

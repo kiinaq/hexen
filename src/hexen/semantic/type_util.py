@@ -8,7 +8,7 @@ the semantic analysis phase.
 
 from typing import Optional, Dict, FrozenSet, Union
 
-from .types import HexenType, ConcreteArrayType, ComptimeArrayType
+from .types import HexenType, ConcreteArrayType, ComptimeArrayType, RangeType, ComptimeRangeType
 
 # Module-level constants for type sets and maps
 NUMERIC_TYPES: FrozenSet[HexenType] = frozenset(
@@ -17,6 +17,7 @@ NUMERIC_TYPES: FrozenSet[HexenType] = frozenset(
         HexenType.I64,
         HexenType.F32,
         HexenType.F64,
+        HexenType.USIZE,
         HexenType.COMPTIME_INT,
         HexenType.COMPTIME_FLOAT,
     }
@@ -506,12 +507,13 @@ def is_array_type(
 
 
 def get_type_name_for_error(
-    type_obj: Union[HexenType, ConcreteArrayType, ComptimeArrayType],
+    type_obj: Union[HexenType, ConcreteArrayType, ComptimeArrayType, RangeType, ComptimeRangeType],
 ) -> str:
     """
     Get a human-readable type name for error messages.
 
     CHANGE (Phase 2): Extended to handle ComptimeArrayType instances.
+    CHANGE (Range System): Extended to handle RangeType and ComptimeRangeType.
     """
     if isinstance(type_obj, ConcreteArrayType):
         # ConcreteArrayType.dimensions is a list of integers, not ArrayDimension objects
@@ -524,5 +526,174 @@ def get_type_name_for_error(
         # Use ComptimeArrayType's __str__ method: comptime_[5]int
         return str(type_obj)
 
+    # RANGE SYSTEM: Handle RangeType and ComptimeRangeType
+    if isinstance(type_obj, (RangeType, ComptimeRangeType)):
+        # Use RangeType's __str__ method for consistent formatting
+        return str(type_obj)
+
     # Use the inverse mapping from TYPE_STRING_TO_HEXEN_TYPE for consistency
     return HEXEN_TYPE_TO_STRING.get(type_obj, "unknown")
+
+
+# ============================================================================
+# Range Type Utilities
+# ============================================================================
+
+
+def is_range_type(type_obj) -> bool:
+    """Check if a type is a range type (concrete or comptime)"""
+    return isinstance(type_obj, (RangeType, ComptimeRangeType))
+
+
+def is_comptime_range(type_obj) -> bool:
+    """Check if a type is a comptime range type"""
+    return isinstance(type_obj, ComptimeRangeType)
+
+
+def is_numeric_type(type_obj) -> bool:
+    """
+    Check if type is numeric (for range bounds/steps).
+
+    Includes:
+    - Concrete numeric types: i32, i64, f32, f64, usize
+    - Comptime types: comptime_int, comptime_float
+    """
+    if isinstance(type_obj, HexenType):
+        return type_obj in {
+            HexenType.I32,
+            HexenType.I64,
+            HexenType.F32,
+            HexenType.F64,
+            HexenType.USIZE,
+            HexenType.COMPTIME_INT,
+            HexenType.COMPTIME_FLOAT,
+        }
+    return False
+
+
+def can_convert_to_usize(type_obj) -> bool:
+    """
+    Check if type can convert to usize (for array indexing).
+
+    Rules:
+    - comptime_int → usize (implicit, ergonomic)
+    - i32, i64 → usize (explicit conversion required)
+    - f32, f64, comptime_float → NEVER (float indices forbidden)
+    """
+    if isinstance(type_obj, HexenType):
+        # Comptime int adapts implicitly
+        if type_obj == HexenType.COMPTIME_INT:
+            return True
+
+        # Integer types require explicit conversion
+        if type_obj in {HexenType.I32, HexenType.I64}:
+            return True
+
+        # Float types CANNOT convert to usize
+        if type_obj in {HexenType.F32, HexenType.F64, HexenType.COMPTIME_FLOAT}:
+            return False
+
+    return False
+
+
+def resolve_range_element_type(
+    start_type,
+    end_type,
+    step_type,
+    target_type=None,
+) -> HexenType:
+    """
+    Resolve the element type of a range expression.
+
+    Rules:
+    1. All bounds (start, end, step) must have same type (after comptime adaptation)
+    2. If target_type provided, comptime bounds adapt to it
+    3. If no target, comptime types preserved (maximum flexibility)
+    4. Concrete types must match exactly (no automatic conversion)
+
+    Args:
+        start_type: Type of start bound (None if unbounded)
+        end_type: Type of end bound (None if unbounded)
+        step_type: Type of step (None if no step)
+        target_type: Optional target range type for context
+
+    Returns:
+        Resolved element type
+
+    Raises:
+        TypeError: If types are incompatible
+    """
+    # Collect all present bound types
+    bound_types = []
+    if start_type is not None:
+        bound_types.append(("start", start_type))
+    if end_type is not None:
+        bound_types.append(("end", end_type))
+    if step_type is not None:
+        bound_types.append(("step", step_type))
+
+    if not bound_types:
+        # Fully unbounded range (..) - use target type if provided, otherwise default to comptime_int
+        # This is valid for array slicing where context determines the type
+        if target_type is not None:
+            return target_type
+        # Default to comptime_int for maximum flexibility
+        return HexenType.COMPTIME_INT
+
+    # If target type provided, use it for comptime adaptation
+    if target_type is not None:
+        # Verify all bounds can adapt to target
+        for name, bound_type in bound_types:
+            if not can_coerce(bound_type, target_type):
+                raise TypeError(
+                    f"Range {name} bound type {bound_type} cannot adapt to target {target_type}"
+                )
+        return target_type
+
+    # No target type - resolve from bounds
+    # If all bounds are comptime, preserve comptime flexibility
+    all_comptime = all(
+        bound_type in {HexenType.COMPTIME_INT, HexenType.COMPTIME_FLOAT}
+        for _, bound_type in bound_types
+    )
+
+    if all_comptime:
+        # Check for mixed comptime types
+        has_int = any(bt == HexenType.COMPTIME_INT for _, bt in bound_types)
+        has_float = any(bt == HexenType.COMPTIME_FLOAT for _, bt in bound_types)
+
+        if has_int and has_float:
+            # Mixed comptime_int + comptime_float → comptime_float
+            return HexenType.COMPTIME_FLOAT
+        elif has_float:
+            return HexenType.COMPTIME_FLOAT
+        else:
+            return HexenType.COMPTIME_INT
+
+    # At least one concrete type - all must match
+    concrete_types = [
+        bt
+        for _, bt in bound_types
+        if bt not in {HexenType.COMPTIME_INT, HexenType.COMPTIME_FLOAT}
+    ]
+
+    if not concrete_types:
+        # Should be caught by all_comptime above
+        raise ValueError("Unexpected: no concrete types but not all comptime")
+
+    # Check all concrete types match
+    first_concrete = concrete_types[0]
+    if not all(ct == first_concrete for ct in concrete_types):
+        raise TypeError(
+            f"Range bounds have incompatible types: {[bt for _, bt in bound_types]}"
+        )
+
+    # Verify comptime bounds can adapt to concrete type
+    for name, bound_type in bound_types:
+        if bound_type in {HexenType.COMPTIME_INT, HexenType.COMPTIME_FLOAT}:
+            if not can_coerce(bound_type, first_concrete):
+                raise TypeError(
+                    f"Range {name} bound (comptime) cannot adapt to {first_concrete}"
+                )
+
+    return first_concrete
