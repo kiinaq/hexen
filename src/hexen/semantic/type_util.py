@@ -376,6 +376,10 @@ def get_wider_type(left_type: HexenType, right_type: HexenType) -> HexenType:
             HexenType.F64 if HexenType.F64 in {left_type, right_type} else HexenType.F32
         )
     # Both are integers
+    # Handle usize: usize + usize = usize (no implicit mixing with signed types)
+    if left_type == HexenType.USIZE and right_type == HexenType.USIZE:
+        return HexenType.USIZE
+    # For signed integers, use standard widening
     return HexenType.I64 if HexenType.I64 in {left_type, right_type} else HexenType.I32
 
 

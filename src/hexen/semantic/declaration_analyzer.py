@@ -324,6 +324,12 @@ class DeclarationAnalyzer:
                     self.comptime_analyzer.validate_variable_declaration_type_compatibility(
                         value_type, var_type, value, name, self._error, node
                     )
+
+                    # For range types, use the actual analyzed type (which has correct has_step)
+                    # instead of the annotation type (which always has has_step=False)
+                    from .types import RangeType, ComptimeRangeType
+                    if isinstance(value_type, (RangeType, ComptimeRangeType)):
+                        var_type = value_type
         else:
             # Type inference path - must have value
             if not value:

@@ -71,7 +71,22 @@ class RangeAnalyzer:
         has_end = end_node is not None
         has_step = step_node is not None
 
-        # VALIDATION 1: Check step restrictions on unbounded ranges
+        # VALIDATION 1: Check inclusive range without end bound
+        if inclusive and not has_end:
+            # ..= without end is syntactically invalid (inclusive needs end bound)
+            self._error(
+                "Inclusive range operator '..=' requires an end bound. Use '..' for unbounded ranges.",
+                node,
+            )
+            return RangeType(
+                element_type=HexenType.UNKNOWN,
+                has_start=has_start,
+                has_end=False,
+                has_step=has_step,
+                inclusive=inclusive,
+            )
+
+        # VALIDATION 2: Check step restrictions on unbounded ranges
         if has_step and not has_start:
             # Step on ..end or .. is forbidden (grammar should prevent this)
             self._error(
@@ -123,7 +138,7 @@ class RangeAnalyzer:
                     step_node,
                 )
 
-        # VALIDATION 2: Resolve element type (checks type consistency)
+        # VALIDATION 3: Resolve element type (checks type consistency)
         try:
             element_type = resolve_range_element_type(
                 start_type,
@@ -141,7 +156,7 @@ class RangeAnalyzer:
                 inclusive=inclusive,
             )
 
-        # VALIDATION 3: Check float step requirement
+        # VALIDATION 4: Check float step requirement
         if element_type in {HexenType.F32, HexenType.F64, HexenType.COMPTIME_FLOAT}:
             if has_start and has_end and not has_step:
                 self._error(

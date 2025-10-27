@@ -364,7 +364,7 @@ class ArrayLiteralAnalyzer:
             return array_type
 
         # 2.2. Otherwise, index must be an integer type
-        if index_type not in {HexenType.COMPTIME_INT, HexenType.I32, HexenType.I64}:
+        if index_type not in {HexenType.COMPTIME_INT, HexenType.I32, HexenType.I64, HexenType.USIZE}:
             index_type_name = get_type_name_for_error(index_type)
             self._error(ArrayErrorMessages.invalid_index_type(index_type_name), node)
             return HexenType.UNKNOWN

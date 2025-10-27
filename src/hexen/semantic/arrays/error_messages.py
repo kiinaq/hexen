@@ -97,7 +97,7 @@ class ArrayErrorMessages:
         """Generate error message for invalid array index types."""
         return (
             f"Array index must be integer type, got {index_type}\n"
-            f"Valid index types: i32, i64, comptime_int"
+            f"Valid index types: i32, i64, usize, comptime_int"
         )
 
     @staticmethod

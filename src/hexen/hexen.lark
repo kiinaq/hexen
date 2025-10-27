@@ -65,10 +65,11 @@ range_bounded: additive RANGE_EXCLUSIVE additive (":" additive)?
 
 range_from: additive RANGE_EXCLUSIVE (":" additive)?
 
-range_to: RANGE_EXCLUSIVE additive
-        | RANGE_INCLUSIVE additive
+range_to: RANGE_EXCLUSIVE additive (":" additive)?
+        | RANGE_INCLUSIVE additive (":" additive)?
 
-range_full: RANGE_EXCLUSIVE
+range_full: RANGE_EXCLUSIVE (":" additive)?
+          | RANGE_INCLUSIVE (":" additive)?  // Invalid: parsed but rejected semantically
 
 array_suffix: array_access
 array_access: "[" expression "]"

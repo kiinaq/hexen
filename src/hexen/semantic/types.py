@@ -49,6 +49,10 @@ class HexenType(Enum):
     UNKNOWN = "unknown"  # For type inference failures - internal use only
     UNINITIALIZED = "undef"  # For explicit undef values - different from null
 
+    def __str__(self) -> str:
+        """Return the string value of the enum for cleaner output."""
+        return self.value
+
 
 class Mutability(Enum):
     """

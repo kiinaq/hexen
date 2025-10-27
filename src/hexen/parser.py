@@ -513,20 +513,21 @@ class HexenTransformer(Transformer):
 
     def range_to(self, children):
         """
-        Transform unbounded to range: ..end or ..=end (NO step allowed).
+        Transform unbounded to range: ..end or ..=end (with optional step for error checking).
 
         Grammar:
-            range_to: RANGE_EXCLUSIVE additive
-                    | RANGE_INCLUSIVE additive
+            range_to: RANGE_EXCLUSIVE additive (":" additive)?
+                    | RANGE_INCLUSIVE additive (":" additive)?
 
         Args:
-            children: [operator_token, end_expr]
+            children: [operator_token, end_expr, ?step_expr]
 
         Returns:
-            RangeExpr with no start, end, no step
+            RangeExpr with no start, end, optional step (for semantic validation)
         """
         operator = str(children[0])  # ".." or "..="
         end = children[1]
+        step = children[2] if len(children) > 2 else None
 
         inclusive = (operator == "..=")
 
@@ -534,29 +535,35 @@ class HexenTransformer(Transformer):
             "type": NodeType.RANGE_EXPR.value,
             "start": None,
             "end": end,
-            "step": None,
+            "step": step,
             "inclusive": inclusive,
         }
 
     def range_full(self, children):
         """
-        Transform full unbounded range: .. (NO step allowed).
+        Transform full unbounded range: .. or ..= (with optional step for error checking).
 
         Grammar:
-            range_full: RANGE_EXCLUSIVE
+            range_full: RANGE_EXCLUSIVE (":" additive)?
+                      | RANGE_INCLUSIVE (":" additive)?
 
         Args:
-            children: [operator_token]
+            children: [operator_token, ?step_expr]
 
         Returns:
-            RangeExpr with no start, no end, no step
+            RangeExpr with no start, no end, optional step (for semantic validation)
+            Note: ..= is parsed but should be rejected semantically (inclusive needs end)
         """
+        operator = str(children[0])  # ".." or "..="
+        step = children[1] if len(children) > 1 else None
+        inclusive = (operator == "..=")
+
         return {
             "type": NodeType.RANGE_EXPR.value,
             "start": None,
             "end": None,
-            "step": None,
-            "inclusive": False,
+            "step": step,
+            "inclusive": inclusive,
         }
 
     def range_type(self, children):
