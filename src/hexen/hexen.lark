@@ -138,7 +138,7 @@ DIGITS: /[0-9]+/
 SIGN: /[+-]/
 
 // Conversion operator (tight binding, high priority)
-CONVERSION_OP.10: /:(?=i32|i64|f32|f64|usize|string|bool|void|\[)/
+CONVERSION_OP.10: /:(?=i32|i64|f32|f64|usize|string|bool|void|\[|range)/
 
 // Ignore whitespace and comments
 %import common.WS

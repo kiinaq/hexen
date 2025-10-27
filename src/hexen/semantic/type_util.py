@@ -149,8 +149,8 @@ def is_integer_type(type_: HexenType) -> bool:
 
 
 def can_coerce(
-    from_type: Union[HexenType, ArrayType, ComptimeArrayType],
-    to_type: Union[HexenType, ArrayType, ComptimeArrayType],
+    from_type: Union[HexenType, ArrayType, ComptimeArrayType, RangeType, ComptimeRangeType],
+    to_type: Union[HexenType, ArrayType, ComptimeArrayType, RangeType, ComptimeRangeType],
 ) -> bool:
     """
     Check if from_type can be automatically coerced to to_type.
@@ -227,6 +227,57 @@ def can_coerce(
     # PHASE 5 ADDITION: Handle ComptimeArrayType → HexenType (invalid coercion)
     if isinstance(from_type, ComptimeArrayType) and isinstance(to_type, HexenType):
         # Cannot coerce array to scalar type
+        return False
+
+    # RANGE SYSTEM ADDITION: Handle ComptimeRangeType → RangeType coercion
+    if isinstance(from_type, ComptimeRangeType) and isinstance(to_type, RangeType):
+        # Comptime range can coerce to any compatible concrete range type
+        # Check element type compatibility: comptime_int → i32/i64/usize, comptime_float → f32/f64
+        if from_type.element_type == HexenType.COMPTIME_INT:
+            # comptime_int ranges can coerce to any integer or usize range types
+            if to_type.element_type not in {
+                HexenType.I32,
+                HexenType.I64,
+                HexenType.USIZE,
+            }:
+                return False
+        elif from_type.element_type == HexenType.COMPTIME_FLOAT:
+            # comptime_float ranges can coerce to float range types
+            if to_type.element_type not in {HexenType.F32, HexenType.F64}:
+                return False
+        else:
+            # Other types (bool, string) must match exactly
+            if from_type.element_type != to_type.element_type:
+                return False
+
+        # Comptime ranges can coerce to concrete ranges regardless of structure
+        # (Type annotations like `range[f32]` accept any range structure)
+        # Specific validation (e.g., float ranges requiring steps) happens elsewhere
+        return True
+
+    # RANGE SYSTEM ADDITION: Handle ComptimeRangeType → ComptimeRangeType coercion
+    if isinstance(from_type, ComptimeRangeType) and isinstance(
+        to_type, ComptimeRangeType
+    ):
+        # Both comptime ranges - they must have the same element type and structure
+        return from_type.element_type == to_type.element_type
+
+    # RANGE SYSTEM ADDITION: Handle RangeType → RangeType coercion
+    if isinstance(from_type, RangeType) and isinstance(to_type, RangeType):
+        # Concrete range to concrete range coercion
+        # Allow coercion if element types match (type annotations are flexible about structure)
+        # Only require exact match if both are from non-annotation contexts
+        if from_type.element_type == to_type.element_type:
+            # Same element type: allow coercion (type annotations don't enforce structure)
+            return True
+        # Different element types: require explicit conversion :type syntax
+        return False
+
+    # RANGE SYSTEM ADDITION: Invalid range coercions
+    if isinstance(from_type, (RangeType, ComptimeRangeType)) or isinstance(
+        to_type, (RangeType, ComptimeRangeType)
+    ):
+        # Cannot coerce range to/from non-range types
         return False
 
     # Handle ConcreteArrayType cases
