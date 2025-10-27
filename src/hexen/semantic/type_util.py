@@ -8,7 +8,7 @@ the semantic analysis phase.
 
 from typing import Optional, Dict, FrozenSet, Union
 
-from .types import HexenType, ConcreteArrayType, ComptimeArrayType, RangeType, ComptimeRangeType
+from .types import HexenType, ArrayType, ComptimeArrayType, RangeType, ComptimeRangeType
 
 # Module-level constants for type sets and maps
 NUMERIC_TYPES: FrozenSet[HexenType] = frozenset(
@@ -149,8 +149,8 @@ def is_integer_type(type_: HexenType) -> bool:
 
 
 def can_coerce(
-    from_type: Union[HexenType, ConcreteArrayType, ComptimeArrayType],
-    to_type: Union[HexenType, ConcreteArrayType, ComptimeArrayType],
+    from_type: Union[HexenType, ArrayType, ComptimeArrayType],
+    to_type: Union[HexenType, ArrayType, ComptimeArrayType],
 ) -> bool:
     """
     Check if from_type can be automatically coerced to to_type.
@@ -185,7 +185,7 @@ def can_coerce(
         return True
 
     if isinstance(from_type, ComptimeArrayType) and isinstance(
-        to_type, ConcreteArrayType
+        to_type, ArrayType
     ):
         # Array coercion requires exact dimension count match
         if len(from_type.dimensions) != len(to_type.dimensions):
@@ -230,9 +230,9 @@ def can_coerce(
         return False
 
     # Handle ConcreteArrayType cases
-    if isinstance(to_type, ConcreteArrayType):
+    if isinstance(to_type, ArrayType):
         # Handle inferred-size parameter matching: [N]T can coerce to [_]T
-        if isinstance(from_type, ConcreteArrayType):
+        if isinstance(from_type, ArrayType):
             # Element types must match
             if from_type.element_type != to_type.element_type:
                 return False
@@ -260,7 +260,7 @@ def can_coerce(
         return False
 
     # ConcreteArrayType cannot coerce to HexenType
-    if isinstance(from_type, ConcreteArrayType):
+    if isinstance(from_type, ArrayType):
         return False
 
     # Standard HexenType coercion rules
@@ -488,7 +488,7 @@ def validate_literal_range(
 
 
 def is_array_type(
-    type_: Union[HexenType, ConcreteArrayType, ComptimeArrayType],
+    type_: Union[HexenType, ArrayType, ComptimeArrayType],
 ) -> bool:
     """
     Check if type represents an array (comptime or concrete).
@@ -496,7 +496,7 @@ def is_array_type(
     CHANGE (Phase 2): Extended to handle ComptimeArrayType instances.
     """
     # Handle ConcreteArrayType instances
-    if isinstance(type_, ConcreteArrayType):
+    if isinstance(type_, ArrayType):
         return True
     # Handle ComptimeArrayType instances
     if isinstance(type_, ComptimeArrayType):
@@ -509,7 +509,7 @@ def is_array_type(
 
 
 def get_type_name_for_error(
-    type_obj: Union[HexenType, ConcreteArrayType, ComptimeArrayType, RangeType, ComptimeRangeType],
+    type_obj: Union[HexenType, ArrayType, ComptimeArrayType, RangeType, ComptimeRangeType],
 ) -> str:
     """
     Get a human-readable type name for error messages.
@@ -517,7 +517,7 @@ def get_type_name_for_error(
     CHANGE (Phase 2): Extended to handle ComptimeArrayType instances.
     CHANGE (Range System): Extended to handle RangeType and ComptimeRangeType.
     """
-    if isinstance(type_obj, ConcreteArrayType):
+    if isinstance(type_obj, ArrayType):
         # ConcreteArrayType.dimensions is a list of integers, not ArrayDimension objects
         # Build dimension string: [2][3]i32 for 2D array
         dim_str = "".join(f"[{dim}]" for dim in type_obj.dimensions)

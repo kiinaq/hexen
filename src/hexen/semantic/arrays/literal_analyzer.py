@@ -17,7 +17,7 @@ from typing import Dict, List, Any, Optional, Callable, Union
 from .error_messages import ArrayErrorMessages
 from .multidim_analyzer import MultidimensionalArrayAnalyzer
 from ..type_util import is_array_type, get_type_name_for_error, is_range_type
-from ..types import HexenType, ConcreteArrayType, ComptimeArrayType, RangeType, ComptimeRangeType
+from ..types import HexenType, ArrayType, ComptimeArrayType, RangeType, ComptimeRangeType
 
 
 class ArrayLiteralAnalyzer:
@@ -28,8 +28,9 @@ class ArrayLiteralAnalyzer:
         error_callback: Callable[[str, Optional[Dict]], None],
         comptime_analyzer,
         analyze_expression_callback: Optional[
-            Callable[[Dict, Optional[Union[HexenType, ConcreteArrayType]]], HexenType]
+            Callable[[Dict, Optional[Union[HexenType, ArrayType]]], HexenType]
         ] = None,
+        range_analyzer=None,
     ):
         """
         Initialize with callback pattern for integration.
@@ -38,10 +39,12 @@ class ArrayLiteralAnalyzer:
             error_callback: Error reporting callback to main analyzer
             comptime_analyzer: Existing ComptimeAnalyzer instance
             analyze_expression_callback: Callback to analyze individual expressions
+            range_analyzer: Range analyzer for validating range-based indexing
         """
         self._error = error_callback
         self.comptime_analyzer = comptime_analyzer
         self._analyze_expression = analyze_expression_callback
+        self.range_analyzer = range_analyzer
 
         # Initialize multidimensional analyzer
         self.multidim_analyzer = MultidimensionalArrayAnalyzer(
@@ -51,7 +54,7 @@ class ArrayLiteralAnalyzer:
     def analyze_array_literal(
         self,
         node: Dict[str, Any],
-        target_type: Optional[Union[HexenType, ConcreteArrayType, ComptimeArrayType]] = None,
+        target_type: Optional[Union[HexenType, ArrayType, ComptimeArrayType]] = None,
     ) -> Union[HexenType, ComptimeArrayType]:
         """
         Analyze array literal and return type WITH FULL DIMENSIONAL INFORMATION.
@@ -76,7 +79,7 @@ class ArrayLiteralAnalyzer:
                 return HexenType.UNKNOWN
 
             # For ConcreteArrayType, return the concrete type (no longer comptime)
-            if isinstance(target_type, ConcreteArrayType):
+            if isinstance(target_type, ArrayType):
                 # For empty arrays with concrete context, we create a concrete array
                 # This prevents empty arrays from staying comptime
                 return (
@@ -94,7 +97,7 @@ class ArrayLiteralAnalyzer:
             )
 
         # Handle ConcreteArrayType context
-        if isinstance(target_type, ConcreteArrayType):
+        if isinstance(target_type, ArrayType):
             return self._analyze_with_concrete_context(node, target_type)
 
         # If we have an expression analyzer callback, use it to analyze each element
@@ -179,8 +182,8 @@ class ArrayLiteralAnalyzer:
         return HexenType.UNKNOWN
 
     def _analyze_with_concrete_context(
-        self, node: Dict[str, Any], target_type: ConcreteArrayType
-    ) -> ConcreteArrayType:
+        self, node: Dict[str, Any], target_type: ArrayType
+    ) -> ArrayType:
         """
         Analyze array literal with explicit concrete array type context.
 
@@ -249,8 +252,8 @@ class ArrayLiteralAnalyzer:
         return target_type
 
     def _analyze_multidim_concrete_context(
-        self, node: Dict[str, Any], target_type: ConcreteArrayType
-    ) -> ConcreteArrayType:
+        self, node: Dict[str, Any], target_type: ArrayType
+    ) -> ArrayType:
         """
         Analyze multidimensional array literal with concrete context.
 
@@ -259,7 +262,7 @@ class ArrayLiteralAnalyzer:
         elements = node.get("elements", [])
 
         # Each element should be an array literal matching the inner dimensions
-        inner_target_type = ConcreteArrayType(
+        inner_target_type = ArrayType(
             target_type.element_type,
             target_type.dimensions[1:],  # Remove first dimension
         )
@@ -350,8 +353,14 @@ class ArrayLiteralAnalyzer:
         # 2.1. Check if index is a range (for array slicing)
         if is_range_type(index_type):
             # Range-based slicing - validate and return array type
+            # Validate that the range type is valid for indexing (usize or comptime_int)
+            if self.range_analyzer:
+                is_valid = self.range_analyzer.validate_range_indexing(
+                    array_type, index_type, index_expr
+                )
+                if not is_valid:
+                    return HexenType.UNKNOWN
             # Range slicing returns same array type (element type preserved)
-            # The range_analyzer validates that the range is valid for indexing
             return array_type
 
         # 2.2. Otherwise, index must be an integer type
@@ -433,7 +442,7 @@ class ArrayLiteralAnalyzer:
                 # Multidimensional array access reduces by one dimension
                 # ConcreteArrayType already imported at top of file
                 new_dimensions = array_type.dimensions[1:]  # Remove first dimension
-                return ConcreteArrayType(array_type.element_type, new_dimensions)
+                return ArrayType(array_type.element_type, new_dimensions)
 
         # Handle basic HexenType array access
         elif array_type in [

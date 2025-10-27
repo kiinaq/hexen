@@ -14,7 +14,7 @@ Implements UNIFIED_BLOCK_SYSTEM.md return semantics:
 from typing import Dict, List, Optional, Callable, Union
 
 from .type_util import is_precision_loss_operation
-from .types import HexenType, ConcreteArrayType
+from .types import HexenType, ArrayType
 
 
 class ReturnAnalyzer:
@@ -35,11 +35,11 @@ class ReturnAnalyzer:
         self,
         error_callback: Callable[[str, Optional[Dict]], None],
         analyze_expression_callback: Callable[
-            [Dict, Optional[Union[HexenType, ConcreteArrayType]]], HexenType
+            [Dict, Optional[Union[HexenType, ArrayType]]], HexenType
         ],
         get_block_context_callback: Callable[[], List[str]],
         get_current_function_return_type_callback: Callable[
-            [], Optional[Union[HexenType, ConcreteArrayType]]
+            [], Optional[Union[HexenType, ArrayType]]
         ],
         comptime_analyzer,
     ):
@@ -88,7 +88,7 @@ class ReturnAnalyzer:
     def _analyze_bare_return(
         self,
         node: Dict,
-        current_function_return_type: Optional[Union[HexenType, ConcreteArrayType]],
+        current_function_return_type: Optional[Union[HexenType, ArrayType]],
         block_context: List[str],
     ) -> None:
         """
@@ -129,7 +129,7 @@ class ReturnAnalyzer:
         self,
         node: Dict,
         value: Dict,
-        current_function_return_type: Optional[Union[HexenType, ConcreteArrayType]],
+        current_function_return_type: Optional[Union[HexenType, ArrayType]],
         block_context: List[str],
     ) -> None:
         """
@@ -159,7 +159,7 @@ class ReturnAnalyzer:
         node: Dict,
         value: Dict,
         return_type: HexenType,
-        expected_return_type: Union[HexenType, ConcreteArrayType],
+        expected_return_type: Union[HexenType, ArrayType],
     ) -> None:
         """Validate return statement against function signature."""
         if expected_return_type == HexenType.VOID:

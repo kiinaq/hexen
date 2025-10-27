@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from typing import Dict, List, Optional, Any, Union
 
 from .type_util import parse_type
-from .types import HexenType, Mutability, ConcreteArrayType, ComptimeArrayType
+from .types import HexenType, Mutability, ArrayType, ComptimeArrayType, RangeType, ComptimeRangeType
 
 
 @dataclass
@@ -23,7 +23,7 @@ class Parameter:
     """
 
     name: str
-    param_type: Union[HexenType, ConcreteArrayType]
+    param_type: Union[HexenType, ArrayType, RangeType]
     is_mutable: bool
 
 
@@ -43,7 +43,7 @@ class FunctionSignature:
 
     name: str
     parameters: List[Parameter]
-    return_type: Union[HexenType, ConcreteArrayType]
+    return_type: Union[HexenType, ArrayType, RangeType]
     declared_line: Optional[int] = None  # For better error reporting (future)
 
 
@@ -67,7 +67,7 @@ class Symbol:
 
     name: str
     type: Union[
-        HexenType, ConcreteArrayType, ComptimeArrayType
+        HexenType, ArrayType, ComptimeArrayType, RangeType, ComptimeRangeType
     ]
     mutability: Mutability
     declared_line: Optional[int] = None  # For better error reporting (future)
@@ -384,13 +384,13 @@ def _parse_parameter_type(param_type_raw):
     return HexenType.UNKNOWN
 
 
-def _parse_array_parameter_type(array_type_node: Dict) -> ConcreteArrayType:
+def _parse_array_parameter_type(array_type_node: Dict) -> ArrayType:
     """
     Parse array type AST node for function parameters into ConcreteArrayType.
 
     Similar to DeclarationAnalyzer._parse_array_type_annotation but without error reporting.
     """
-    from .types import ConcreteArrayType  # Import here to avoid circular imports
+    from .types import ArrayType  # Import here to avoid circular imports
 
     # Extract element type
     element_type_str = array_type_node.get("element_type", "unknown")
@@ -433,7 +433,7 @@ def _parse_array_parameter_type(array_type_node: Dict) -> ConcreteArrayType:
 
     # Create and return concrete array type
     try:
-        return ConcreteArrayType(element_type, dimensions)
+        return ArrayType(element_type, dimensions)
     except ValueError:
         return HexenType.UNKNOWN
 

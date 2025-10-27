@@ -266,7 +266,7 @@ class TestSymbolTableComparisonWithConcreteArrays:
 
     def test_both_array_types_coexist(self):
         """Symbol table can store both comptime and concrete arrays"""
-        from src.hexen.semantic.types import ConcreteArrayType
+        from src.hexen.semantic.types import ArrayType
 
         table = SymbolTable()
 
@@ -280,7 +280,7 @@ class TestSymbolTableComparisonWithConcreteArrays:
         # Concrete array
         concrete_arr = Symbol(
             name="concrete_data",
-            type=ConcreteArrayType(HexenType.I32, [5]),
+            type=ArrayType(HexenType.I32, [5]),
             mutability=Mutability.IMMUTABLE,
         )
 
@@ -292,11 +292,11 @@ class TestSymbolTableComparisonWithConcreteArrays:
         assert isinstance(comptime_lookup.type, ComptimeArrayType)
 
         concrete_lookup = table.lookup_symbol("concrete_data")
-        assert isinstance(concrete_lookup.type, ConcreteArrayType)
+        assert isinstance(concrete_lookup.type, ArrayType)
 
     def test_comptime_vs_concrete_same_size(self):
         """Comptime [5] and concrete [5]i32 are different types"""
-        from src.hexen.semantic.types import ConcreteArrayType
+        from src.hexen.semantic.types import ArrayType
 
         table = SymbolTable()
 
@@ -308,7 +308,7 @@ class TestSymbolTableComparisonWithConcreteArrays:
 
         concrete_arr = Symbol(
             name="arr2",
-            type=ConcreteArrayType(HexenType.I32, [5]),
+            type=ArrayType(HexenType.I32, [5]),
             mutability=Mutability.IMMUTABLE,
         )
 
@@ -321,4 +321,4 @@ class TestSymbolTableComparisonWithConcreteArrays:
 
         assert type(lookup1.type) != type(lookup2.type)
         assert isinstance(lookup1.type, ComptimeArrayType)
-        assert isinstance(lookup2.type, ConcreteArrayType)
+        assert isinstance(lookup2.type, ArrayType)

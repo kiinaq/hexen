@@ -14,7 +14,7 @@ This analyzer handles:
 from typing import Dict, Optional, Callable, Union
 
 from .type_util import parse_type
-from .types import HexenType, ConcreteArrayType, RangeType, ComptimeRangeType
+from .types import HexenType, ArrayType, RangeType, ComptimeRangeType
 
 
 class ConversionAnalyzer:
@@ -32,7 +32,7 @@ class ConversionAnalyzer:
         self,
         error_callback: Callable[[str, Optional[Dict]], None],
         analyze_expression_callback: Callable[[Dict, Optional[HexenType]], HexenType],
-        parse_array_type_callback: Optional[Callable[[Dict], ConcreteArrayType]] = None,
+        parse_array_type_callback: Optional[Callable[[Dict], ArrayType]] = None,
         parse_range_type_callback: Optional[Callable[[Dict], RangeType]] = None,
     ):
         """Initialize with callbacks to main analyzer functionality."""
@@ -43,7 +43,7 @@ class ConversionAnalyzer:
 
     def analyze_conversion(
         self, node: Dict, context: Optional[HexenType] = None
-    ) -> Union[HexenType, ConcreteArrayType, RangeType]:
+    ) -> Union[HexenType, ArrayType, RangeType]:
         """
         Analyze explicit conversion expressions following TYPE_SYSTEM.md rules.
 
@@ -82,8 +82,8 @@ class ConversionAnalyzer:
 
         # Validate conversion per TYPE_SYSTEM.md rules (scalars), ARRAY_IMPLEMENTATION_PLAN.md (arrays),
         # or RANGE_SYSTEM_SEMANTIC_IMPLEMENTATION_PLAN.md (ranges)
-        if isinstance(target_type, ConcreteArrayType) and isinstance(
-            source_type, ConcreteArrayType
+        if isinstance(target_type, ArrayType) and isinstance(
+            source_type, ArrayType
         ):
             # Array-to-array conversion
             if self._is_valid_array_conversion(source_type, target_type, node):
@@ -233,7 +233,7 @@ class ConversionAnalyzer:
 
     def _parse_target_type(
         self, target_type_spec: Union[str, Dict], node: Dict
-    ) -> Union[HexenType, ConcreteArrayType, RangeType]:
+    ) -> Union[HexenType, ArrayType, RangeType]:
         """
         Parse target type specification - handles scalar strings, array types, and range types.
 
@@ -265,7 +265,7 @@ class ConversionAnalyzer:
         return HexenType.UNKNOWN
 
     def _is_valid_array_conversion(
-        self, source: ConcreteArrayType, target: ConcreteArrayType, node: Dict
+        self, source: ArrayType, target: ArrayType, node: Dict
     ) -> bool:
         """
         Validate array-to-array conversion per ARRAY_IMPLEMENTATION_PLAN.md.
@@ -305,7 +305,7 @@ class ConversionAnalyzer:
         return True
 
     def _validate_array_size_compatibility(
-        self, source: ConcreteArrayType, target: ConcreteArrayType, node: Dict
+        self, source: ArrayType, target: ArrayType, node: Dict
     ) -> bool:
         """
         Validate array size compatibility per ARRAY_IMPLEMENTATION_PLAN.md.
@@ -361,7 +361,7 @@ class ConversionAnalyzer:
 
         return True
 
-    def _format_array_type(self, array_type: ConcreteArrayType) -> str:
+    def _format_array_type(self, array_type: ArrayType) -> str:
         """Format array type for error messages."""
         dims_str = "".join(f"[{dim}]" for dim in array_type.dimensions)
         return f"{dims_str}{array_type.element_type.name.lower()}"

@@ -20,7 +20,7 @@ from .symbol_table import (
 from .type_util import (
     parse_type,
 )
-from .types import HexenType, Mutability, ConcreteArrayType
+from .types import HexenType, Mutability, ArrayType
 from .arrays.multidim_analyzer import MultidimensionalArrayAnalyzer
 from ..ast_nodes import NodeType
 
@@ -450,12 +450,14 @@ class DeclarationAnalyzer:
         if isinstance(type_annotation, str):
             return parse_type(type_annotation)
 
-        # Handle complex AST node types (like array types)
+        # Handle complex AST node types (like array types, range types)
         if isinstance(type_annotation, dict):
             node_type = type_annotation.get("type")
 
             if node_type == "array_type":
                 return self._parse_array_type_annotation(type_annotation)
+            elif node_type == "range_type":
+                return self._parse_range_type_annotation(type_annotation)
             else:
                 # Unknown complex type - return unknown for graceful degradation
                 return HexenType.UNKNOWN
@@ -463,7 +465,7 @@ class DeclarationAnalyzer:
         # Fallback for unexpected type annotation format
         return HexenType.UNKNOWN
 
-    def _parse_array_type_annotation(self, array_type_node: Dict) -> ConcreteArrayType:
+    def _parse_array_type_annotation(self, array_type_node: Dict) -> ArrayType:
         """
         Parse array type AST node into ConcreteArrayType.
 
@@ -541,12 +543,58 @@ class DeclarationAnalyzer:
 
         # Create and return concrete array type
         try:
-            return ConcreteArrayType(element_type, dimensions)
+            return ArrayType(element_type, dimensions)
         except ValueError as e:
             self._error(f"Invalid array type: {e}", array_type_node)
             return HexenType.UNKNOWN
 
-    def _extract_array_type_info(self, array_type: ConcreteArrayType) -> Dict:
+    def _parse_range_type_annotation(self, range_type_node: Dict):
+        """
+        Parse range type AST node into RangeType.
+
+        Creates proper RangeType instances for explicit range type contexts
+        like range[i32], range[usize], range[f64].
+
+        Args:
+            range_type_node: AST node with "element_type" field
+
+        Returns:
+            RangeType instance representing the explicit range type
+        """
+        from .types import RangeType
+
+        # Extract element type
+        element_type_str = range_type_node.get("element_type", "unknown")
+        element_type = parse_type(element_type_str)
+
+        # Validate element type is numeric
+        valid_types = {
+            HexenType.I32,
+            HexenType.I64,
+            HexenType.F32,
+            HexenType.F64,
+            HexenType.USIZE,
+        }
+
+        if element_type not in valid_types:
+            self._error(
+                f"Range element type must be numeric (i32, i64, f32, f64, usize), got {element_type_str}",
+                range_type_node,
+            )
+            return HexenType.UNKNOWN
+
+        # Create range type annotation
+        # Type annotation doesn't specify bounds/step, so we use generic values
+        # Actual bounds will be determined by the range expression
+        return RangeType(
+            element_type=element_type,
+            has_start=True,  # Annotation doesn't specify, assume generic bounded
+            has_end=True,
+            has_step=False,
+            inclusive=False,
+        )
+
+    def _extract_array_type_info(self, array_type: ArrayType) -> Dict:
         """
         Extract array type information for multidim analyzer.
 
@@ -558,7 +606,7 @@ class DeclarationAnalyzer:
             "is_concrete": True,
         }
 
-    def _format_array_type(self, array_type: ConcreteArrayType) -> str:
+    def _format_array_type(self, array_type: ArrayType) -> str:
         """Format array type for error messages."""
         dims_str = "".join(f"[{dim}]" for dim in array_type.dimensions)
         return f"{dims_str}{array_type.element_type.name.lower()}"

@@ -207,7 +207,7 @@ class ComptimeArrayType:
         """Check if this is a multidimensional array (2D or higher)"""
         return len(self.dimensions) > 1
 
-    def can_materialize_to(self, target: "ConcreteArrayType") -> bool:
+    def can_materialize_to(self, target: "ArrayType") -> bool:
         """
         Check if this comptime array can materialize to target concrete type.
 
@@ -249,7 +249,7 @@ class ComptimeArrayType:
 
         return True
 
-    def dimension_mismatch_details(self, target: "ConcreteArrayType") -> str:
+    def dimension_mismatch_details(self, target: "ArrayType") -> str:
         """
         Generate detailed error message for dimension mismatches.
 
@@ -280,7 +280,7 @@ class ComptimeArrayType:
         return "dimensions compatible"
 
 
-class ConcreteArrayType:
+class ArrayType:
     """
     Represents explicit concrete array types like [3]i32, [2][4]f64, [_]i32.
 
@@ -329,7 +329,7 @@ class ConcreteArrayType:
         return f"ConcreteArrayType({self.element_type!r}, {self.dimensions!r})"
 
     def __eq__(self, other) -> bool:
-        if not isinstance(other, ConcreteArrayType):
+        if not isinstance(other, ArrayType):
             return False
         return (
             self.element_type == other.element_type

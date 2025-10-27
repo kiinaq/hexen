@@ -10,7 +10,7 @@ These tests validate the complete type coercion integration for Issue #1 fix.
 """
 
 import pytest
-from src.hexen.semantic.types import ComptimeArrayType, ConcreteArrayType, HexenType
+from src.hexen.semantic.types import ComptimeArrayType, ArrayType, HexenType
 from src.hexen.semantic.type_util import can_coerce
 
 
@@ -20,61 +20,61 @@ class TestComptimeArrayToConcreteArrayCoercion:
     def test_comptime_int_array_to_i32_array_succeeds(self):
         """Comptime int array can coerce to i32 array"""
         comptime = ComptimeArrayType(HexenType.COMPTIME_INT, [5])
-        concrete = ConcreteArrayType(HexenType.I32, [5])
+        concrete = ArrayType(HexenType.I32, [5])
         assert can_coerce(comptime, concrete) is True
 
     def test_comptime_int_array_to_i64_array_succeeds(self):
         """Comptime int array can coerce to i64 array"""
         comptime = ComptimeArrayType(HexenType.COMPTIME_INT, [5])
-        concrete = ConcreteArrayType(HexenType.I64, [5])
+        concrete = ArrayType(HexenType.I64, [5])
         assert can_coerce(comptime, concrete) is True
 
     def test_comptime_int_array_to_f32_array_succeeds(self):
         """Comptime int array can coerce to f32 array"""
         comptime = ComptimeArrayType(HexenType.COMPTIME_INT, [5])
-        concrete = ConcreteArrayType(HexenType.F32, [5])
+        concrete = ArrayType(HexenType.F32, [5])
         assert can_coerce(comptime, concrete) is True
 
     def test_comptime_int_array_to_f64_array_succeeds(self):
         """Comptime int array can coerce to f64 array"""
         comptime = ComptimeArrayType(HexenType.COMPTIME_INT, [5])
-        concrete = ConcreteArrayType(HexenType.F64, [5])
+        concrete = ArrayType(HexenType.F64, [5])
         assert can_coerce(comptime, concrete) is True
 
     def test_comptime_float_array_to_f32_array_succeeds(self):
         """Comptime float array can coerce to f32 array"""
         comptime = ComptimeArrayType(HexenType.COMPTIME_FLOAT, [3])
-        concrete = ConcreteArrayType(HexenType.F32, [3])
+        concrete = ArrayType(HexenType.F32, [3])
         assert can_coerce(comptime, concrete) is True
 
     def test_comptime_float_array_to_f64_array_succeeds(self):
         """Comptime float array can coerce to f64 array"""
         comptime = ComptimeArrayType(HexenType.COMPTIME_FLOAT, [3])
-        concrete = ConcreteArrayType(HexenType.F64, [3])
+        concrete = ArrayType(HexenType.F64, [3])
         assert can_coerce(comptime, concrete) is True
 
     def test_comptime_float_array_to_i32_array_fails(self):
         """Comptime float array CANNOT coerce to i32 array (element type incompatible)"""
         comptime = ComptimeArrayType(HexenType.COMPTIME_FLOAT, [3])
-        concrete = ConcreteArrayType(HexenType.I32, [3])
+        concrete = ArrayType(HexenType.I32, [3])
         assert can_coerce(comptime, concrete) is False
 
     def test_comptime_float_array_to_i64_array_fails(self):
         """Comptime float array CANNOT coerce to i64 array (element type incompatible)"""
         comptime = ComptimeArrayType(HexenType.COMPTIME_FLOAT, [3])
-        concrete = ConcreteArrayType(HexenType.I64, [3])
+        concrete = ArrayType(HexenType.I64, [3])
         assert can_coerce(comptime, concrete) is False
 
     def test_2d_comptime_int_array_to_i32_array_succeeds(self):
         """2D comptime int array can coerce to 2D i32 array"""
         comptime = ComptimeArrayType(HexenType.COMPTIME_INT, [2, 3])
-        concrete = ConcreteArrayType(HexenType.I32, [2, 3])
+        concrete = ArrayType(HexenType.I32, [2, 3])
         assert can_coerce(comptime, concrete) is True
 
     def test_3d_comptime_float_array_to_f64_array_succeeds(self):
         """3D comptime float array can coerce to 3D f64 array"""
         comptime = ComptimeArrayType(HexenType.COMPTIME_FLOAT, [2, 3, 4])
-        concrete = ConcreteArrayType(HexenType.F64, [2, 3, 4])
+        concrete = ArrayType(HexenType.F64, [2, 3, 4])
         assert can_coerce(comptime, concrete) is True
 
 
@@ -205,7 +205,7 @@ class TestEdgeCases:
     def test_single_element_array_to_i32_array(self):
         """Single-element comptime array can coerce to single-element concrete array"""
         comptime = ComptimeArrayType(HexenType.COMPTIME_INT, [1])
-        concrete = ConcreteArrayType(HexenType.I32, [1])
+        concrete = ArrayType(HexenType.I32, [1])
         assert can_coerce(comptime, concrete) is True
 
     def test_single_element_array_cannot_coerce_to_scalar(self):
@@ -216,11 +216,11 @@ class TestEdgeCases:
     def test_large_array_coercion(self):
         """Large comptime array can coerce to concrete array"""
         comptime = ComptimeArrayType(HexenType.COMPTIME_INT, [1000])
-        concrete = ConcreteArrayType(HexenType.I64, [1000])
+        concrete = ArrayType(HexenType.I64, [1000])
         assert can_coerce(comptime, concrete) is True
 
     def test_deeply_nested_array_coercion(self):
         """Deeply nested comptime array can coerce to concrete array"""
         comptime = ComptimeArrayType(HexenType.COMPTIME_FLOAT, [2, 2, 2, 2])
-        concrete = ConcreteArrayType(HexenType.F32, [2, 2, 2, 2])
+        concrete = ArrayType(HexenType.F32, [2, 2, 2, 2])
         assert can_coerce(comptime, concrete) is True

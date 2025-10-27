@@ -18,7 +18,7 @@ from .range_analyzer import RangeAnalyzer
 from .type_util import (
     infer_type_from_value,
 )
-from .types import HexenType, ComptimeArrayType, ConcreteArrayType, RangeType, ComptimeRangeType
+from .types import HexenType, ComptimeArrayType, ArrayType, RangeType, ComptimeRangeType
 from ..ast_nodes import NodeType
 
 
@@ -62,28 +62,29 @@ class ExpressionAnalyzer:
         self._conversion_analyzer = conversion_analyzer
         self.comptime_analyzer = comptime_analyzer
 
-        # Initialize array literal analyzer (callback set after init to avoid circular dependency)
-        self.array_literal_analyzer = ArrayLiteralAnalyzer(
-            error_callback=error_callback,
-            comptime_analyzer=comptime_analyzer,
-            analyze_expression_callback=None,  # Set after initialization
-        )
-        # Set the expression analysis callback after initialization
-        self.array_literal_analyzer._analyze_expression = self.analyze_expression
-
-        # Initialize range analyzer (callback set after init to avoid circular dependency)
+        # Initialize range analyzer (needed by array analyzer)
         self.range_analyzer = RangeAnalyzer(
             error_callback=error_callback,
             analyze_expression_callback=self.analyze_expression,
         )
 
+        # Initialize array literal analyzer (callback set after init to avoid circular dependency)
+        self.array_literal_analyzer = ArrayLiteralAnalyzer(
+            error_callback=error_callback,
+            comptime_analyzer=comptime_analyzer,
+            analyze_expression_callback=None,  # Set after initialization
+            range_analyzer=self.range_analyzer,  # Pass range analyzer for validation
+        )
+        # Set the expression analysis callback after initialization
+        self.array_literal_analyzer._analyze_expression = self.analyze_expression
+
     def analyze_expression(
         self,
         node: Dict,
         target_type: Optional[
-            Union[HexenType, ConcreteArrayType, ComptimeArrayType, RangeType, ComptimeRangeType]
+            Union[HexenType, ArrayType, ComptimeArrayType, RangeType, ComptimeRangeType]
         ] = None,
-    ) -> Union[HexenType, ConcreteArrayType, ComptimeArrayType, RangeType, ComptimeRangeType]:
+    ) -> Union[HexenType, ArrayType, ComptimeArrayType, RangeType, ComptimeRangeType]:
         """
         Analyze an expression and return its type.
 
@@ -102,8 +103,8 @@ class ExpressionAnalyzer:
         self,
         expr_type: str,
         node: Dict,
-        target_type: Optional[Union[HexenType, ConcreteArrayType, ComptimeArrayType, RangeType, ComptimeRangeType]],
-    ) -> Union[HexenType, ConcreteArrayType, ComptimeArrayType, RangeType, ComptimeRangeType]:
+        target_type: Optional[Union[HexenType, ArrayType, ComptimeArrayType, RangeType, ComptimeRangeType]],
+    ) -> Union[HexenType, ArrayType, ComptimeArrayType, RangeType, ComptimeRangeType]:
         """
         Dispatch expression analysis to appropriate handler.
 
@@ -174,7 +175,7 @@ class ExpressionAnalyzer:
 
     def _analyze_identifier(
         self, node: Dict
-    ) -> Union[HexenType, ConcreteArrayType, ComptimeArrayType]:
+    ) -> Union[HexenType, ArrayType, ComptimeArrayType]:
         """
         Analyze an identifier reference (variable usage).
 

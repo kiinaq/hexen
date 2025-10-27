@@ -33,7 +33,7 @@ safe behavior without requiring reference semantics or borrow checking.
 from typing import Dict, Optional, Callable, Union
 
 from .type_util import can_coerce
-from .types import HexenType, ConcreteArrayType, ComptimeArrayType
+from .types import HexenType, ArrayType, ComptimeArrayType
 
 
 class FunctionAnalyzer:
@@ -54,8 +54,8 @@ class FunctionAnalyzer:
         self,
         error_callback: Callable[[str, Optional[Dict]], None],
         analyze_expression_callback: Callable[
-            [Dict, Optional[Union[HexenType, ConcreteArrayType, ComptimeArrayType]]],
-            Union[HexenType, ConcreteArrayType, ComptimeArrayType],
+            [Dict, Optional[Union[HexenType, ArrayType, ComptimeArrayType]]],
+            Union[HexenType, ArrayType, ComptimeArrayType],
         ],
         lookup_function_callback: Callable[[str], Optional[object]],
     ):
@@ -145,7 +145,7 @@ class FunctionAnalyzer:
         # OPTIMIZATION: Only perform double-analysis for array parameters
         # This avoids spurious errors from contextless analysis of non-array expressions
         # (e.g., conditional expressions with mixed comptime types that would resolve with context)
-        if isinstance(parameter.param_type, ConcreteArrayType):
+        if isinstance(parameter.param_type, ArrayType):
             # FIRST: Analyze argument WITHOUT context to preserve ComptimeArrayType for size validation
             argument_type_without_context = self._analyze_expression(argument, None)
 
@@ -168,8 +168,8 @@ class FunctionAnalyzer:
         # Validate type compatibility using TYPE_SYSTEM.md conversion rules
         if not can_coerce(argument_type, parameter.param_type):
             # Check if this is an array size mismatch for better error message
-            if isinstance(argument_type, ConcreteArrayType) and isinstance(
-                parameter.param_type, ConcreteArrayType
+            if isinstance(argument_type, ArrayType) and isinstance(
+                parameter.param_type, ArrayType
             ):
                 # Array size mismatch - provide array-specific error
                 self._error_array_size_mismatch(
@@ -331,7 +331,7 @@ class FunctionAnalyzer:
         function_name: str,
         position: int,
         parameter,
-        argument_type: ConcreteArrayType,
+        argument_type: ArrayType,
         argument: Dict,
     ):
         """
@@ -407,7 +407,7 @@ class FunctionAnalyzer:
     def _validate_comptime_array_size(
         self,
         comptime_type: ComptimeArrayType,
-        target_type: ConcreteArrayType,
+        target_type: ArrayType,
         function_name: str,
         position: int,
         argument_node: Dict
@@ -475,7 +475,7 @@ class FunctionAnalyzer:
     def _error_comptime_array_dimension_count_mismatch(
         self,
         comptime_type: ComptimeArrayType,
-        target_type: ConcreteArrayType,
+        target_type: ArrayType,
         function_name: str,
         position: int,
         argument_node: Dict
@@ -501,7 +501,7 @@ class FunctionAnalyzer:
     def _error_comptime_array_size_mismatch(
         self,
         comptime_type: ComptimeArrayType,
-        target_type: ConcreteArrayType,
+        target_type: ArrayType,
         function_name: str,
         position: int,
         mismatched_dims: list,

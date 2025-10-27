@@ -253,12 +253,10 @@ class RangeAnalyzer:
         # User types (i32, i64) require explicit conversion
         if element_type in {HexenType.I32, HexenType.I64}:
             self._error(
-                f"Array indexing requires range[usize], found range[{element_type.value}]",
+                f"Array indexing requires range[usize], found range[{element_type.value}]. "
+                f"Convert to usize: range_value:range[usize]. "
+                f"Note: range[{element_type.value}] is for iteration/materialization, not indexing",
                 node,
-                extra={
-                    "help": f"Convert to usize: range_value:range[usize]",
-                    "note": f"range[{element_type.value}] is for iteration/materialization, not indexing",
-                },
             )
             return False
 
