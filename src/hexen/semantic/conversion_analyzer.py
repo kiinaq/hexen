@@ -96,7 +96,15 @@ class ConversionAnalyzer:
         ):
             # Range-to-range conversion
             if self._is_valid_range_conversion(source_type, target_type, node):
-                return target_type
+                # Preserve source metadata (has_step, has_start, has_end, inclusive)
+                # Only change the element type to the target
+                return RangeType(
+                    element_type=target_type.element_type,
+                    has_start=source_type.has_start,
+                    has_end=source_type.has_end,
+                    has_step=source_type.has_step,
+                    inclusive=source_type.inclusive,
+                )
             else:
                 # Error already reported in _is_valid_range_conversion
                 return HexenType.UNKNOWN

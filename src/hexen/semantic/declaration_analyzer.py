@@ -325,10 +325,17 @@ class DeclarationAnalyzer:
                         value_type, var_type, value, name, self._error, node
                     )
 
-                    # For range types, use the actual analyzed type (which has correct has_step)
-                    # instead of the annotation type (which always has has_step=False)
+                    # For range types, handle comptime → concrete adaptation
                     from .types import RangeType, ComptimeRangeType
-                    if isinstance(value_type, (RangeType, ComptimeRangeType)):
+                    from .type_util import adapt_comptime_range_to_concrete
+
+                    if isinstance(value_type, ComptimeRangeType) and isinstance(var_type, RangeType):
+                        # Adapt comptime range to concrete range (ergonomic adaptation)
+                        # Preserves metadata (has_step, inclusive, etc.) while adapting element type
+                        var_type = adapt_comptime_range_to_concrete(value_type, var_type)
+                    elif isinstance(value_type, (RangeType, ComptimeRangeType)):
+                        # For concrete ranges or comptime→comptime, use the actual analyzed type
+                        # (which has correct has_step) instead of annotation type (always has_step=False)
                         var_type = value_type
         else:
             # Type inference path - must have value

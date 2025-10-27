@@ -232,12 +232,17 @@ def can_coerce(
     # RANGE SYSTEM ADDITION: Handle ComptimeRangeType → RangeType coercion
     if isinstance(from_type, ComptimeRangeType) and isinstance(to_type, RangeType):
         # Comptime range can coerce to any compatible concrete range type
-        # Check element type compatibility: comptime_int → i32/i64/usize, comptime_float → f32/f64
+        # Check element type compatibility (mirrors scalar comptime adaptation):
+        # - comptime_int → i32/i64/f32/f64/usize (any numeric type)
+        # - comptime_float → f32/f64 (float types only)
         if from_type.element_type == HexenType.COMPTIME_INT:
-            # comptime_int ranges can coerce to any integer or usize range types
+            # comptime_int ranges can coerce to ANY numeric range type
+            # (mirrors how comptime_int scalar adapts to any numeric type)
             if to_type.element_type not in {
                 HexenType.I32,
                 HexenType.I64,
+                HexenType.F32,
+                HexenType.F64,
                 HexenType.USIZE,
             }:
                 return False
@@ -626,6 +631,33 @@ def is_numeric_type(type_obj) -> bool:
             HexenType.COMPTIME_FLOAT,
         }
     return False
+
+
+def adapt_comptime_range_to_concrete(
+    comptime_range: ComptimeRangeType, target_type: RangeType
+) -> RangeType:
+    """
+    Adapt a comptime range to a concrete range type.
+
+    This implements the ergonomic adaptation for ranges similar to how
+    comptime_int adapts to i32/i64. The comptime range's element type
+    is adapted to the target range's element type while preserving
+    metadata (has_start, has_end, has_step, inclusive).
+
+    Args:
+        comptime_range: The comptime range to adapt
+        target_type: The target concrete range type
+
+    Returns:
+        A new RangeType with the target element type and comptime range's metadata
+    """
+    return RangeType(
+        element_type=target_type.element_type,
+        has_start=comptime_range.has_start,
+        has_end=comptime_range.has_end,
+        has_step=comptime_range.has_step,
+        inclusive=comptime_range.inclusive,
+    )
 
 
 def can_convert_to_usize(type_obj) -> bool:
