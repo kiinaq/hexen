@@ -232,6 +232,42 @@ class TestRangeMaterializationEdgeCases(StandardTestBase):
         errors = self.analyzer.analyze(ast)
         assert_no_errors(errors)
 
+    def test_descending_integer_range(self):
+        """Test descending range [10..1:-1] with negative step"""
+        code = """
+        val arr : [_]i32 = [10..1:-1]
+        """
+        ast = self.parser.parse(code)
+        errors = self.analyzer.analyze(ast)
+        assert_no_errors(errors)
+
+    def test_descending_range_with_step_2(self):
+        """Test descending range [20..0:-2] materializes correctly"""
+        code = """
+        val arr : [_]i32 = [20..0:-2]
+        """
+        ast = self.parser.parse(code)
+        errors = self.analyzer.analyze(ast)
+        assert_no_errors(errors)
+
+    def test_descending_float_range(self):
+        """Test descending float range [10.0..0.0:-1.0]"""
+        code = """
+        val arr : [_]f32 = [10.0..0.0:-1.0]
+        """
+        ast = self.parser.parse(code)
+        errors = self.analyzer.analyze(ast)
+        assert_no_errors(errors)
+
+    def test_descending_inclusive_range(self):
+        """Test descending inclusive range [10..=1:-1]"""
+        code = """
+        val arr : [_]i32 = [10..=1:-1]
+        """
+        ast = self.parser.parse(code)
+        errors = self.analyzer.analyze(ast)
+        assert_no_errors(errors)
+
 
 class TestRangeMaterializationIntegration(StandardTestBase):
     """Test range materialization in realistic scenarios"""
