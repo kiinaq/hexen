@@ -64,6 +64,10 @@ class NodeType(Enum):
     ARRAY_COPY = "array_copy"
     PROPERTY_ACCESS = "property_access"
 
+    # Range System
+    RANGE_EXPR = "range_expr"
+    RANGE_TYPE = "range_type"
+
     def __str__(self):
         """Return the string value for convenient usage"""
         return self.value

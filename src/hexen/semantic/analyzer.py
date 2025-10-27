@@ -17,9 +17,10 @@ from .declaration_analyzer import DeclarationAnalyzer
 from .errors import SemanticError
 from .expression_analyzer import ExpressionAnalyzer
 from .function_analyzer import FunctionAnalyzer
+from .range_analyzer import RangeAnalyzer
 from .return_analyzer import ReturnAnalyzer
 from .symbol_table import SymbolTable
-from .types import HexenType, ConcreteArrayType
+from .types import HexenType, ArrayType
 from .unary_ops_analyzer import UnaryOpsAnalyzer
 from ..ast_nodes import NodeType
 
@@ -46,7 +47,7 @@ class SemanticAnalyzer:
         self.symbol_table = SymbolTable()
         self.errors: List[SemanticError] = []  # Collect all errors for batch reporting
         self.current_function_return_type: Optional[
-            Union[HexenType, ConcreteArrayType]
+            Union[HexenType, ArrayType]
         ] = None
 
         # Context tracking for unified block concept
@@ -75,6 +76,12 @@ class SemanticAnalyzer:
             error_callback=self._error,
             analyze_expression_callback=self._analyze_expression,
             comptime_analyzer=self.comptime_analyzer,
+        )
+
+        # Initialize range analyzer with callbacks
+        self.range_analyzer = RangeAnalyzer(
+            error_callback=self._error,
+            analyze_expression_callback=self._analyze_expression,
         )
 
         # Initialize block analyzer with callbacks
@@ -127,6 +134,7 @@ class SemanticAnalyzer:
             error_callback=self._error,
             analyze_expression_callback=self._analyze_expression,
             parse_array_type_callback=self.declaration_analyzer._parse_array_type_annotation,
+            parse_range_type_callback=self.declaration_analyzer._parse_range_type_annotation,
         )
 
         # Initialize function analyzer with callbacks
@@ -325,7 +333,7 @@ class SemanticAnalyzer:
             self._error("'assign' statement requires an expression", node)
 
     def _set_function_context(
-        self, name: str, return_type: Union[HexenType, ConcreteArrayType]
+        self, name: str, return_type: Union[HexenType, ArrayType]
     ) -> None:
         """Set the current function context for return type validation."""
         self.symbol_table.current_function = name

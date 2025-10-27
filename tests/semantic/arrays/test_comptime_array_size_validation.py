@@ -81,6 +81,7 @@ class TestComptimeArraySizeMismatchVariations:
         assert len(errors) > 0, "Expected error"
         error_text = " ".join(str(e) for e in errors).lower()
         assert "size mismatch" in error_text or "dimension" in error_text
+
     def test_off_by_one_too_small(self):
         """Comptime [2] cannot pass to [3] parameter"""
         code = """
@@ -97,6 +98,7 @@ class TestComptimeArraySizeMismatchVariations:
         assert len(errors) > 0, "Expected error"
         error_text = " ".join(str(e) for e in errors).lower()
         assert "size mismatch" in error_text or "dimension" in error_text
+
     def test_way_off_large_array(self):
         """Comptime [20] cannot pass to [10] parameter"""
         code = """
@@ -113,6 +115,8 @@ class TestComptimeArraySizeMismatchVariations:
         assert len(errors) > 0, "Expected error"
         error_text = " ".join(str(e) for e in errors).lower()
         assert "size mismatch" in error_text or "dimension" in error_text
+
+
 class TestComptimeArrayMultidimensionalSizeMismatch:
     """Test size validation for multidimensional comptime arrays"""
 
@@ -135,6 +139,7 @@ class TestComptimeArrayMultidimensionalSizeMismatch:
         assert len(errors) > 0, "Expected error"
         error_text = " ".join(str(e) for e in errors).lower()
         assert "size mismatch" in error_text or "dimension" in error_text
+
     def test_2d_inner_dimension_mismatch(self):
         """Comptime [2][3] cannot pass to fixed [2][2] parameter"""
         code = """
@@ -154,6 +159,7 @@ class TestComptimeArrayMultidimensionalSizeMismatch:
         assert len(errors) > 0, "Expected error"
         error_text = " ".join(str(e) for e in errors).lower()
         assert "size mismatch" in error_text or "dimension" in error_text
+
     def test_2d_both_dimensions_mismatch(self):
         """Comptime [3][3] cannot pass to fixed [2][2] parameter"""
         code = """
@@ -173,6 +179,7 @@ class TestComptimeArrayMultidimensionalSizeMismatch:
         assert len(errors) > 0, "Expected error"
         error_text = " ".join(str(e) for e in errors).lower()
         assert "size mismatch" in error_text or "dimension" in error_text
+
     # NOTE: Success cases for 2D arrays (exact match, inferred dimensions) are
     # already tested in test_comptime_array_parameter_adaptation.py
 
@@ -202,8 +209,8 @@ class TestComptimeArrayDimensionCountMismatch:
         # Should mention dimension mismatch
         # Dimension check already covered above
 
-    def test_2d_can_flatten_to_1d_parameter_when_element_count_matches(self):
-        """Comptime [2][3] CAN pass to [6]i32 parameter (flattening with matching element count)"""
+    def test_2d_cannot_pass_to_1d_parameter_dimension_mismatch(self):
+        """Comptime [2][3] CANNOT pass to [6]i32 parameter (dimension mismatch - flattening removed)"""
         code = """
         func flat_func(data: [6]i32) : i32 = {
             return data[0]
@@ -218,10 +225,10 @@ class TestComptimeArrayDimensionCountMismatch:
 
         errors = analyzer.analyze(ast)
 
-        # After implementing comptime array flattening in function calls,
-        # this should now SUCCEED (element counts match: 2*3 = 6)
-        assert len(errors) == 0, f"Expected no errors, but got: {errors}"
-
+        # Flattening has been removed - dimension mismatch should error
+        # Array dimension transformations will be provided by future standard library
+        assert len(errors) == 1
+        assert "dimension count mismatch" in str(errors[0]).lower()
 
     # NOTE: Regression tests for existing behavior are covered in:
     # - test_comptime_array_parameter_adaptation.py (comptime array adaptation)

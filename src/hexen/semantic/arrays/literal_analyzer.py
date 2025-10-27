@@ -13,11 +13,13 @@ Key Integration Points:
 """
 
 from typing import Dict, List, Any, Optional, Callable, Union
+import math
 
 from .error_messages import ArrayErrorMessages
 from .multidim_analyzer import MultidimensionalArrayAnalyzer
-from ..type_util import is_array_type, get_type_name_for_error
-from ..types import HexenType, ConcreteArrayType, ComptimeArrayType
+from ..type_util import is_array_type, get_type_name_for_error, is_range_type
+from ..types import HexenType, ArrayType, ComptimeArrayType, RangeType, ComptimeRangeType
+from ...ast_nodes import NodeType
 
 
 class ArrayLiteralAnalyzer:
@@ -28,8 +30,9 @@ class ArrayLiteralAnalyzer:
         error_callback: Callable[[str, Optional[Dict]], None],
         comptime_analyzer,
         analyze_expression_callback: Optional[
-            Callable[[Dict, Optional[Union[HexenType, ConcreteArrayType]]], HexenType]
+            Callable[[Dict, Optional[Union[HexenType, ArrayType]]], HexenType]
         ] = None,
+        range_analyzer=None,
     ):
         """
         Initialize with callback pattern for integration.
@@ -38,10 +41,12 @@ class ArrayLiteralAnalyzer:
             error_callback: Error reporting callback to main analyzer
             comptime_analyzer: Existing ComptimeAnalyzer instance
             analyze_expression_callback: Callback to analyze individual expressions
+            range_analyzer: Range analyzer for validating range-based indexing
         """
         self._error = error_callback
         self.comptime_analyzer = comptime_analyzer
         self._analyze_expression = analyze_expression_callback
+        self.range_analyzer = range_analyzer
 
         # Initialize multidimensional analyzer
         self.multidim_analyzer = MultidimensionalArrayAnalyzer(
@@ -51,7 +56,7 @@ class ArrayLiteralAnalyzer:
     def analyze_array_literal(
         self,
         node: Dict[str, Any],
-        target_type: Optional[Union[HexenType, ConcreteArrayType, ComptimeArrayType]] = None,
+        target_type: Optional[Union[HexenType, ArrayType, ComptimeArrayType]] = None,
     ) -> Union[HexenType, ComptimeArrayType]:
         """
         Analyze array literal and return type WITH FULL DIMENSIONAL INFORMATION.
@@ -76,7 +81,7 @@ class ArrayLiteralAnalyzer:
                 return HexenType.UNKNOWN
 
             # For ConcreteArrayType, return the concrete type (no longer comptime)
-            if isinstance(target_type, ConcreteArrayType):
+            if isinstance(target_type, ArrayType):
                 # For empty arrays with concrete context, we create a concrete array
                 # This prevents empty arrays from staying comptime
                 return (
@@ -93,8 +98,13 @@ class ArrayLiteralAnalyzer:
                 node, target_type
             )
 
+        # Check if this is range materialization (single range element)
+        if len(elements) == 1 and first_element.get("type") == NodeType.RANGE_EXPR.value:
+            # Delegate to range materialization analyzer
+            return self._analyze_range_materialization(first_element, target_type, node)
+
         # Handle ConcreteArrayType context
-        if isinstance(target_type, ConcreteArrayType):
+        if isinstance(target_type, ArrayType):
             return self._analyze_with_concrete_context(node, target_type)
 
         # If we have an expression analyzer callback, use it to analyze each element
@@ -179,8 +189,8 @@ class ArrayLiteralAnalyzer:
         return HexenType.UNKNOWN
 
     def _analyze_with_concrete_context(
-        self, node: Dict[str, Any], target_type: ConcreteArrayType
-    ) -> ConcreteArrayType:
+        self, node: Dict[str, Any], target_type: ArrayType
+    ) -> ArrayType:
         """
         Analyze array literal with explicit concrete array type context.
 
@@ -249,8 +259,8 @@ class ArrayLiteralAnalyzer:
         return target_type
 
     def _analyze_multidim_concrete_context(
-        self, node: Dict[str, Any], target_type: ConcreteArrayType
-    ) -> ConcreteArrayType:
+        self, node: Dict[str, Any], target_type: ArrayType
+    ) -> ArrayType:
         """
         Analyze multidimensional array literal with concrete context.
 
@@ -259,7 +269,7 @@ class ArrayLiteralAnalyzer:
         elements = node.get("elements", [])
 
         # Each element should be an array literal matching the inner dimensions
-        inner_target_type = ConcreteArrayType(
+        inner_target_type = ArrayType(
             target_type.element_type,
             target_type.dimensions[1:],  # Remove first dimension
         )
@@ -344,14 +354,29 @@ class ArrayLiteralAnalyzer:
             self._error(ArrayErrorMessages.non_array_indexing(type_name), node)
             return HexenType.UNKNOWN
 
-        # 2. Validate the index is an integer type
+        # 2. Analyze the index expression
         index_type = self._get_index_semantic_type(index_expr)
-        if index_type not in {HexenType.COMPTIME_INT, HexenType.I32, HexenType.I64}:
+
+        # 2.1. Check if index is a range (for array slicing)
+        if is_range_type(index_type):
+            # Range-based slicing - validate and return array type
+            # Validate that the range type is valid for indexing (usize or comptime_int)
+            if self.range_analyzer:
+                is_valid = self.range_analyzer.validate_range_indexing(
+                    array_type, index_type, index_expr
+                )
+                if not is_valid:
+                    return HexenType.UNKNOWN
+            # Range slicing returns same array type (element type preserved)
+            return array_type
+
+        # 2.2. Otherwise, index must be an integer type
+        if index_type not in {HexenType.COMPTIME_INT, HexenType.I32, HexenType.I64, HexenType.USIZE}:
             index_type_name = get_type_name_for_error(index_type)
             self._error(ArrayErrorMessages.invalid_index_type(index_type_name), node)
             return HexenType.UNKNOWN
 
-        # 3. Determine element type based on array type
+        # 3. Determine element type based on array type (single element access)
         return self._get_element_type_from_array_access(array_type, target_type)
 
     def _analyze_array_expression(self, array_expr: Dict) -> HexenType:
@@ -424,7 +449,7 @@ class ArrayLiteralAnalyzer:
                 # Multidimensional array access reduces by one dimension
                 # ConcreteArrayType already imported at top of file
                 new_dimensions = array_type.dimensions[1:]  # Remove first dimension
-                return ConcreteArrayType(array_type.element_type, new_dimensions)
+                return ArrayType(array_type.element_type, new_dimensions)
 
         # Handle basic HexenType array access
         elif array_type in [
@@ -554,3 +579,196 @@ class ArrayLiteralAnalyzer:
                 node
             )
             return HexenType.UNKNOWN
+
+    def _analyze_range_materialization(
+        self,
+        range_node: Dict[str, Any],
+        target_type: Optional[Union[HexenType, ArrayType, ComptimeArrayType]],
+        array_literal_node: Dict[str, Any],
+    ) -> Union[ArrayType, ComptimeArrayType, HexenType]:
+        """
+        Analyze range materialization: [range_expr] → array
+
+        From RANGE_SYSTEM.md:
+        - ✅ Bounded ranges can materialize: [start..end], [start..=end]
+        - ❌ Unbounded ranges cannot: [start..], [..end], [..]
+        - ✅ Float ranges require explicit step
+        - ✅ Comptime ranges adapt to target type
+
+        Args:
+            range_node: The RANGE_EXPR AST node
+            target_type: Optional target array type for context
+            array_literal_node: The parent ARRAY_LITERAL node (for error reporting)
+
+        Returns:
+            ArrayType or ComptimeArrayType representing the materialized array
+        """
+        # 1. Validate range is bounded (can materialize)
+        has_start = range_node.get("start") is not None
+        has_end = range_node.get("end") is not None
+
+        if not has_start or not has_end:
+            # Determine which bound is missing for helpful error
+            if not has_start and not has_end:
+                bound_desc = "neither start nor end"
+                suggestion = "Range .. cannot be materialized"
+            elif not has_start:
+                bound_desc = "no start bound"
+                suggestion = f"Range ..{range_node.get('end', {}).get('value', 'end')} cannot be materialized"
+            else:
+                bound_desc = "no end bound"
+                suggestion = f"Range {range_node.get('start', {}).get('value', 'start')}.. cannot be materialized"
+
+            self._error(
+                f"Cannot materialize unbounded range to array (range has {bound_desc})\n"
+                f"  Help: Only bounded ranges (start..end or start..=end) can be converted to arrays\n"
+                f"  Note: {suggestion}",
+                array_literal_node
+            )
+            return HexenType.UNKNOWN
+
+        # 2. Analyze the range expression to get its type
+        if not self.range_analyzer:
+            self._error(
+                "Internal error: Range analyzer not initialized for range materialization",
+                array_literal_node
+            )
+            return HexenType.UNKNOWN
+
+        # Extract target element type if provided
+        target_element_type = None
+        if isinstance(target_type, ArrayType):
+            target_element_type = target_type.element_type
+        elif isinstance(target_type, ComptimeArrayType):
+            target_element_type = target_type.element_comptime_type
+
+        range_type = self.range_analyzer.analyze_range_expr(range_node, target_element_type)
+
+        # Check for errors in range analysis
+        if isinstance(range_type, (RangeType, ComptimeRangeType)):
+            element_type = range_type.element_type
+            if element_type == HexenType.UNKNOWN:
+                # Error already reported by range analyzer
+                return HexenType.UNKNOWN
+        else:
+            self._error(
+                "Internal error: Unexpected range analysis result",
+                array_literal_node
+            )
+            return HexenType.UNKNOWN
+
+        # 3. Validate float ranges have explicit step
+        if element_type in {HexenType.F32, HexenType.F64, HexenType.COMPTIME_FLOAT}:
+            if not range_node.get("step"):
+                self._error(
+                    f"Float range requires explicit step for materialization\n"
+                    f"  Help: Specify step size using syntax: start..end:step\n"
+                    f"  Example: [0.0..10.0:0.1] for float range with step 0.1\n"
+                    f"  Note: Float ranges cannot have implicit step due to precision ambiguity",
+                    array_literal_node
+                )
+                return HexenType.UNKNOWN
+
+        # 4. Compute materialized array size
+        array_size = self._compute_range_length(range_node, element_type)
+
+        # 5. Create appropriate array type
+        if element_type in {HexenType.COMPTIME_INT, HexenType.COMPTIME_FLOAT}:
+            # Comptime range materializes to comptime array
+            return ComptimeArrayType(
+                element_comptime_type=element_type,
+                dimensions=[array_size]
+            )
+        else:
+            # Concrete range materializes to concrete array
+            return ArrayType(
+                element_type=element_type,
+                dimensions=[array_size]
+            )
+
+    def _compute_range_length(
+        self,
+        range_node: Dict[str, Any],
+        element_type: HexenType
+    ) -> Union[int, str]:
+        """
+        Compute range length at compile time (for constant ranges).
+
+        Formula (exclusive): length = ceil((end - start) / step)
+        Formula (inclusive): length = floor((end - start) / step) + 1
+
+        Args:
+            range_node: The RANGE_EXPR AST node
+            element_type: The range element type
+
+        Returns:
+            - Integer length (for constant ranges with comptime bounds)
+            - "_" string (for runtime-computed ranges)
+        """
+        # Extract constant values (if available)
+        start_value = self._extract_constant_value(range_node.get("start"))
+        end_value = self._extract_constant_value(range_node.get("end"))
+        step_node = range_node.get("step")
+
+        # If bounds are not constant, size is determined at runtime
+        if start_value is None or end_value is None:
+            return "_"
+
+        # Extract step value (default to 1 for integer types, must be explicit for floats)
+        if step_node:
+            step_value = self._extract_constant_value(step_node)
+            if step_value is None:
+                return "_"  # Runtime step
+        else:
+            # Default step for integer types
+            if element_type in {HexenType.COMPTIME_INT, HexenType.I32, HexenType.I64, HexenType.USIZE}:
+                step_value = 1
+            else:
+                # Floats require explicit step (should be caught earlier)
+                return "_"
+
+        # Compute length based on inclusive flag
+        inclusive = range_node.get("inclusive", False)
+
+        if step_value == 0:
+            # Step of 0 would create infinite loop - this should be caught elsewhere
+            return "_"
+
+        if inclusive:
+            # Inclusive: [start, start+step, ..., end]
+            # Formula: floor((end - start) / step) + 1
+            length = math.floor((end_value - start_value) / step_value) + 1
+        else:
+            # Exclusive: [start, start+step, ..., end-step]
+            # Formula: ceil((end - start) / step)
+            length = math.ceil((end_value - start_value) / step_value)
+
+        # Ensure non-negative length
+        return max(0, int(length))
+
+    def _extract_constant_value(
+        self,
+        node: Optional[Dict[str, Any]]
+    ) -> Optional[Union[int, float]]:
+        """
+        Extract compile-time constant value from a node.
+
+        Args:
+            node: AST node (typically a literal)
+
+        Returns:
+            Numeric value if node is a compile-time constant, None otherwise
+        """
+        if node is None:
+            return None
+
+        node_type = node.get("type")
+
+        # Handle comptime literals
+        if node_type == NodeType.COMPTIME_INT.value:
+            return node.get("value")
+        elif node_type == NodeType.COMPTIME_FLOAT.value:
+            return node.get("value")
+
+        # Non-constant expression
+        return None

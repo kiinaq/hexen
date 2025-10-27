@@ -30,6 +30,14 @@ class SemanticError(Exception):
         self.node = node  # AST node where error occurred (for future line/col info)
         super().__init__(message)
 
+    def __str__(self) -> str:
+        """Return the error message for string operations."""
+        return self.message
+
+    def lower(self) -> str:
+        """Support .lower() calls on error objects for test compatibility."""
+        return self.message.lower()
+
 
 class BlockAnalysisError:
     """

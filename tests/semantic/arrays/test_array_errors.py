@@ -186,8 +186,8 @@ class TestArrayAccessErrorMessages:
 
         # Should clearly state index type requirement
         assert "Array index must be integer type" in error_msg
-        # Should provide guidance on valid types
-        assert "i32, i64, comptime_int" in error_msg
+        # Should provide guidance on valid types (including usize)
+        assert "i32, i64, usize, comptime_int" in error_msg
 
     def test_non_array_indexing_error_message(self):
         """Test clear error message for indexing non-array types."""

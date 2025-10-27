@@ -10,7 +10,7 @@ Core Components:
 - ArrayDimension: Individual dimension specification
 - Array literal analysis with comptime type inference
 - Array access bounds checking and type validation
-- Multidimensional array support with flattening
+- Multidimensional array support
 
 The module follows the established pattern of extending rather than
 duplicating the existing comptime type system.

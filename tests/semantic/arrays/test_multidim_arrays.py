@@ -173,29 +173,5 @@ class TestMultidimensionalArrays:
         assert_error_contains(errors, "Inconsistent inner array dimensions")
 
 
-class TestArrayFlattening:
-    """Test array flattening functionality (basic implementation)"""
-
-    def setup_method(self):
-        """Standard setup method used by all semantic test classes."""
-        self.parser = HexenParser()
-        self.analyzer = SemanticAnalyzer()
-
-    def test_simple_2d_flattening_concept(self):
-        """Test that 2D arrays can conceptually be flattened (validation test)"""
-        source = """
-        func test() : void = {
-            val matrix = [[1, 2], [3, 4]]
-            // In full implementation, this would be: val flattened : [4]i32 = flatten(matrix)
-            return
-        }
-        """
-        ast = self.parser.parse(source)
-        errors = self.analyzer.analyze(ast)
-
-        # Basic 2D array should parse and analyze correctly
-        assert_no_errors(errors)
-
-
 if __name__ == "__main__":
     pytest.main([__file__])

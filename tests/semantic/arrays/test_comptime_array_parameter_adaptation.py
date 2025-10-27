@@ -351,7 +351,11 @@ class TestComptimeArrayNoExplicitCopy:
 
         # Error message should mention explicit copy or [..]
         error_msg = str(errors[0]).lower()
-        assert "explicit copy" in error_msg or "[..]" in error_msg or "copy operator" in error_msg
+        assert (
+            "explicit copy" in error_msg
+            or "[..]" in error_msg
+            or "copy operator" in error_msg
+        )
 
 
 class TestComptimeArrayEdgeCases:

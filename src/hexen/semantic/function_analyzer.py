@@ -33,7 +33,7 @@ safe behavior without requiring reference semantics or borrow checking.
 from typing import Dict, Optional, Callable, Union
 
 from .type_util import can_coerce
-from .types import HexenType, ConcreteArrayType, ComptimeArrayType
+from .types import HexenType, ArrayType, ComptimeArrayType
 
 
 class FunctionAnalyzer:
@@ -54,7 +54,8 @@ class FunctionAnalyzer:
         self,
         error_callback: Callable[[str, Optional[Dict]], None],
         analyze_expression_callback: Callable[
-            [Dict, Optional[Union[HexenType, ConcreteArrayType, ComptimeArrayType]]], Union[HexenType, ConcreteArrayType, ComptimeArrayType]
+            [Dict, Optional[Union[HexenType, ArrayType, ComptimeArrayType]]],
+            Union[HexenType, ArrayType, ComptimeArrayType],
         ],
         lookup_function_callback: Callable[[str], Optional[object]],
     ):
@@ -144,14 +145,18 @@ class FunctionAnalyzer:
         # OPTIMIZATION: Only perform double-analysis for array parameters
         # This avoids spurious errors from contextless analysis of non-array expressions
         # (e.g., conditional expressions with mixed comptime types that would resolve with context)
-        if isinstance(parameter.param_type, ConcreteArrayType):
+        if isinstance(parameter.param_type, ArrayType):
             # FIRST: Analyze argument WITHOUT context to preserve ComptimeArrayType for size validation
             argument_type_without_context = self._analyze_expression(argument, None)
 
             # NEW: Validate comptime array size compatibility BEFORE materialization (Issue #1 fix)
             if isinstance(argument_type_without_context, ComptimeArrayType):
                 if not self._validate_comptime_array_size(
-                    argument_type_without_context, parameter.param_type, function_name, position, argument
+                    argument_type_without_context,
+                    parameter.param_type,
+                    function_name,
+                    position,
+                    argument,
                 ):
                     # Error already reported, skip further validation
                     return
@@ -163,7 +168,9 @@ class FunctionAnalyzer:
         # Validate type compatibility using TYPE_SYSTEM.md conversion rules
         if not can_coerce(argument_type, parameter.param_type):
             # Check if this is an array size mismatch for better error message
-            if isinstance(argument_type, ConcreteArrayType) and isinstance(parameter.param_type, ConcreteArrayType):
+            if isinstance(argument_type, ArrayType) and isinstance(
+                parameter.param_type, ArrayType
+            ):
                 # Array size mismatch - provide array-specific error
                 self._error_array_size_mismatch(
                     function_name, position, parameter, argument_type, argument
@@ -226,6 +233,22 @@ class FunctionAnalyzer:
             # Explicit copy present - this is correct!
             return
 
+        # NEW: After range system migration, arr[..] is now array_access with range index
+        # Check if this is array_access with an unbounded range (which is equivalent to [..])
+        if arg_type == "array_access":
+            index_expr = argument.get("index", {})
+            # Check if index is an unbounded range expression (..)
+            if index_expr.get("type") == "range_expr":
+                start = index_expr.get("start")
+                end = index_expr.get("end")
+                step = index_expr.get("step")
+                # Unbounded range (..) has no start, end, or step
+                if start is None and end is None and step is None:
+                    # This is arr[..] - explicit copy present!
+                    return
+            # Other array_access expressions (with specific indices or bounded ranges)
+            # fall through to require wrapping in [..]
+
         # Allowed without explicit copy: function calls (return fresh arrays)
         if arg_type == "function_call":
             # Function returns fresh array - no copy needed
@@ -239,11 +262,25 @@ class FunctionAnalyzer:
         # Allowed without explicit copy: type conversion expressions that include [..]
         # Example: matrix[..]:[6]i32 already has explicit copy, produces fresh array
         if arg_type == "explicit_conversion_expression":
-            # Check if the inner expression is an array_copy operation
+            # Check if the inner expression is an array_copy operation (old parser)
+            # or array_access with unbounded range (new parser)
             inner_expr = argument.get("expression", {})
-            if inner_expr.get("type") == "array_copy":
-                # Type conversion with [..] produces fresh array - no additional copy needed
+            inner_type = inner_expr.get("type")
+
+            if inner_type == "array_copy":
+                # Old parser: Type conversion with [..] produces fresh array
                 return
+
+            if inner_type == "array_access":
+                # New parser: Check if this is array[..] pattern
+                index_expr = inner_expr.get("index", {})
+                if index_expr.get("type") == "range_expr":
+                    start = index_expr.get("start")
+                    end = index_expr.get("end")
+                    step = index_expr.get("step")
+                    # Unbounded range (..) means explicit copy
+                    if start is None and end is None and step is None:
+                        return
             # Otherwise, fall through to require explicit copy
 
         # Everything else requires explicit [..]
@@ -290,7 +327,12 @@ class FunctionAnalyzer:
         )
 
     def _error_array_size_mismatch(
-        self, function_name: str, position: int, parameter, argument_type: ConcreteArrayType, argument: Dict
+        self,
+        function_name: str,
+        position: int,
+        parameter,
+        argument_type: ArrayType,
+        argument: Dict,
     ):
         """
         Generate array-specific error message for size mismatches.
@@ -330,13 +372,19 @@ class FunctionAnalyzer:
             # Size mismatch in at least one dimension
             # Find which dimension(s) mismatch
             mismatched_dims = []
-            for i, (arg_dim, param_dim) in enumerate(zip(argument_type.dimensions, param_array_type.dimensions)):
+            for i, (arg_dim, param_dim) in enumerate(
+                zip(argument_type.dimensions, param_array_type.dimensions)
+            ):
                 if arg_dim != param_dim:
                     mismatched_dims.append((i, arg_dim, param_dim))
 
             if len(mismatched_dims) == 1:
                 dim_idx, arg_size, param_size = mismatched_dims[0]
-                dim_name = f"dimension {dim_idx}" if len(argument_type.dimensions) > 1 else "size"
+                dim_name = (
+                    f"dimension {dim_idx}"
+                    if len(argument_type.dimensions) > 1
+                    else "size"
+                )
 
                 self._error(
                     f"Function '{function_name}' argument {position}: Array size mismatch\n"
@@ -359,7 +407,7 @@ class FunctionAnalyzer:
     def _validate_comptime_array_size(
         self,
         comptime_type: ComptimeArrayType,
-        target_type: ConcreteArrayType,
+        target_type: ArrayType,
         function_name: str,
         position: int,
         argument_node: Dict
@@ -391,18 +439,7 @@ class FunctionAnalyzer:
         """
         # Check dimension count
         if len(comptime_type.dimensions) != len(target_type.dimensions):
-            # Check if this is a valid flattening scenario
-            if self._can_flatten_comptime_array_to_parameter(comptime_type, target_type):
-                # Valid comptime array flattening - validate element counts
-                # Element type compatibility already checked by caller
-                if not self._validate_flattening_element_count(
-                    comptime_type, target_type, function_name, position, argument_node
-                ):
-                    return False
-                # Flattening validation successful - allow materialization
-                return True
-
-            # Not a valid flattening scenario - report error
+            # Report dimension mismatch error
             self._error_comptime_array_dimension_count_mismatch(
                 comptime_type, target_type, function_name, position, argument_node
             )
@@ -423,125 +460,22 @@ class FunctionAnalyzer:
 
         if mismatched_dims:
             self._error_comptime_array_size_mismatch(
-                comptime_type, target_type, function_name, position,
-                mismatched_dims, argument_node
+                comptime_type,
+                target_type,
+                function_name,
+                position,
+                mismatched_dims,
+                argument_node,
             )
             return False
 
         # All dimensions compatible
         return True
 
-    def _can_flatten_comptime_array_to_parameter(
-        self,
-        comptime_type: ComptimeArrayType,
-        target_type: ConcreteArrayType
-    ) -> bool:
-        """
-        Check if comptime array can flatten to target parameter type.
-
-        Flattening is allowed when:
-        - Target has fewer dimensions than source
-        - Total element counts match
-        - Element types are compatible
-
-        Examples:
-        - comptime_[2][2]int → [4]i32  ✅ (4 elements = 4 elements)
-        - comptime_[2][3]int → [6]i32  ✅ (6 elements = 6 elements)
-        - comptime_[2][2]int → [5]i32  ❌ (4 elements ≠ 5 elements)
-        - comptime_[2][2]int → [2][2]i32 ❌ (same dimensions, not flattening)
-
-        Args:
-            comptime_type: Source comptime array type
-            target_type: Target concrete array parameter type
-
-        Returns:
-            True if flattening is possible and valid
-        """
-        # Only allow flattening to fewer dimensions (typically 1D)
-        if len(comptime_type.dimensions) <= len(target_type.dimensions):
-            return False
-
-        # Calculate total element count of comptime array
-        comptime_element_count = 1
-        for dim in comptime_type.dimensions:
-            comptime_element_count *= dim
-
-        # Calculate total element count of target array
-        target_element_count = 1
-        has_inferred = False
-        for dim in target_type.dimensions:
-            if dim == "_":
-                # Inferred dimension - can adapt to any size
-                has_inferred = True
-                continue
-            target_element_count *= dim
-
-        # If target has inferred dimensions, element count will match by inference
-        if has_inferred:
-            return True
-
-        # Element counts must match for valid flattening
-        return comptime_element_count == target_element_count
-
-    def _validate_flattening_element_count(
-        self,
-        comptime_type: ComptimeArrayType,
-        target_type: ConcreteArrayType,
-        function_name: str,
-        position: int,
-        argument_node: Dict
-    ) -> bool:
-        """
-        Validate element counts match for comptime array flattening.
-
-        Returns:
-            True if element counts match, False if mismatch (error reported)
-        """
-        # Calculate comptime array total elements
-        comptime_count = 1
-        for dim in comptime_type.dimensions:
-            comptime_count *= dim
-
-        # Calculate target array total elements
-        target_count = 1
-        has_inferred = False
-        for dim in target_type.dimensions:
-            if dim == "_":
-                has_inferred = True
-                # For inferred dimensions, we'll set the size to match
-                continue
-            target_count *= dim
-
-        # If target has inferred dimensions, we need to set them
-        if has_inferred:
-            # For 1D targets with [_], set the inferred size to total element count
-            if len(target_type.dimensions) == 1 and target_type.dimensions[0] == "_":
-                target_type.dimensions[0] = comptime_count
-            return True
-
-        # Check if counts match
-        if comptime_count != target_count:
-            self._error(
-                f"Array flattening element count mismatch in function call\n"
-                f"  Function: {function_name}(...)\n"
-                f"  Argument {position}: comptime array {comptime_type}\n"
-                f"  Parameter expects: {target_type}\n"
-                f"\n"
-                f"  Source has {comptime_count} total elements "
-                f"({' × '.join(map(str, comptime_type.dimensions))})\n"
-                f"  Target expects {target_count} elements\n"
-                f"\n"
-                f"  Comptime arrays can flatten on-the-fly, but element counts must match exactly",
-                argument_node
-            )
-            return False
-
-        return True
-
     def _error_comptime_array_dimension_count_mismatch(
         self,
         comptime_type: ComptimeArrayType,
-        target_type: ConcreteArrayType,
+        target_type: ArrayType,
         function_name: str,
         position: int,
         argument_node: Dict
@@ -560,17 +494,14 @@ class FunctionAnalyzer:
             f"  Parameter expects {len(target_type.dimensions)} dimension(s)\n"
             f"\n"
             f"  Cannot materialize {len(comptime_type.dimensions)}D array to "
-            f"{len(target_type.dimensions)}D parameter\n"
-            f"\n"
-            f"  Note: Comptime arrays can flatten to 1D parameters when element counts match.\n"
-            f"  Example: [[1,2],[3,4]] can materialize to [4]i32 parameter",
-            argument_node
+            f"{len(target_type.dimensions)}D parameter",
+            argument_node,
         )
 
     def _error_comptime_array_size_mismatch(
         self,
         comptime_type: ComptimeArrayType,
-        target_type: ConcreteArrayType,
+        target_type: ArrayType,
         function_name: str,
         position: int,
         mismatched_dims: list,
@@ -600,7 +531,9 @@ class FunctionAnalyzer:
                 dim_lines.append(
                     f"    - Dimension {dim_idx}: {comptime_size} ≠ {target_size}"
                 )
-            dim_detail = "  Multiple dimension mismatches:\n" + "\n".join(dim_lines) + "\n"
+            dim_detail = (
+                "  Multiple dimension mismatches:\n" + "\n".join(dim_lines) + "\n"
+            )
 
         self._error(
             f"Comptime array size mismatch in function call\n"

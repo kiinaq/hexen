@@ -54,10 +54,6 @@ class ArrayTypeInfo:
             count *= dim.get_size()
         return count
 
-    def can_flatten_to_1d(self) -> bool:
-        """Check if array can be safely flattened to 1D"""
-        return not any(dim.is_inferred() for dim in self.dimensions)
-
     def get_dimensionality(self) -> int:
         """Get the number of dimensions"""
         return len(self.dimensions)

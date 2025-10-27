@@ -47,6 +47,10 @@ logical_or: logical_and (OR_OP logical_and)*
 logical_and: equality (AND_OP equality)*
 equality: relational (EQ_OP relational)*
 relational: additive (REL_OP additive)*
+          | range_bounded
+          | range_from
+          | range_to
+          | range_full
 additive: multiplicative (ADD_OP multiplicative)*
 multiplicative: unary (MUL_OP unary)*
 unary: UNARY_OP unary
@@ -55,9 +59,20 @@ conversion: postfix (CONVERSION_OP type)?
 postfix: primary (array_suffix | property_access)*
 primary: NUMBER | STRING | BOOLEAN | function_call | IDENTIFIER | block | conditional_stmt | array_literal | "(" expression ")"
 
-array_suffix: array_access | array_copy
+// Range expressions (between relational and additive precedence)
+range_bounded: additive RANGE_EXCLUSIVE additive (":" additive)?
+             | additive RANGE_INCLUSIVE additive (":" additive)?
+
+range_from: additive RANGE_EXCLUSIVE (":" additive)?
+
+range_to: RANGE_EXCLUSIVE additive (":" additive)?
+        | RANGE_INCLUSIVE additive (":" additive)?
+
+range_full: RANGE_EXCLUSIVE (":" additive)?
+          | RANGE_INCLUSIVE (":" additive)?  // Invalid: parsed but rejected semantically
+
+array_suffix: array_access
 array_access: "[" expression "]"
-array_copy: "[" ".." "]"
 property_access: "." IDENTIFIER
 array_literal: "[" [expression ("," expression)*] "]"
 
@@ -72,14 +87,20 @@ REL_OP: "<" | ">" | "<=" | ">="
 ADD_OP: "+" | "-"
 MUL_OP: "*" | "/" | "\\" | "%"
 UNARY_OP: "-" | "!"
+RANGE_EXCLUSIVE: ".."
+RANGE_INCLUSIVE: "..="
 
 type: primitive_type
     | array_type
+    | range_type
+
+range_type: "range" "[" type "]"
 
 primitive_type: TYPE_I32
               | TYPE_I64
               | TYPE_F32
               | TYPE_F64
+              | TYPE_USIZE
               | TYPE_STRING
               | TYPE_BOOL
               | TYPE_VOID
@@ -92,6 +113,7 @@ TYPE_I32: "i32"
 TYPE_I64: "i64"
 TYPE_F32: "f32"
 TYPE_F64: "f64"
+TYPE_USIZE: "usize"
 TYPE_STRING: "string"
 TYPE_BOOL: "bool"
 TYPE_VOID: "void"
@@ -117,7 +139,7 @@ DIGITS: /[0-9]+/
 SIGN: /[+-]/
 
 // Conversion operator (tight binding, high priority)
-CONVERSION_OP.10: /:(?=i32|i64|f32|f64|string|bool|void|\[)/
+CONVERSION_OP.10: /:(?=i32|i64|f32|f64|usize|string|bool|void|\[|range)/
 
 // Ignore whitespace and comments
 %import common.WS

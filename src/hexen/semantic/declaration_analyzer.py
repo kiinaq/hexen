@@ -20,7 +20,7 @@ from .symbol_table import (
 from .type_util import (
     parse_type,
 )
-from .types import HexenType, Mutability, ConcreteArrayType
+from .types import HexenType, Mutability, ArrayType
 from .arrays.multidim_analyzer import MultidimensionalArrayAnalyzer
 from ..ast_nodes import NodeType
 
@@ -81,7 +81,7 @@ class DeclarationAnalyzer:
         self.comptime_analyzer = comptime_analyzer
         self._get_modified_parameters = get_modified_parameters_callback
 
-        # Initialize multidimensional array analyzer for flattening operations
+        # Initialize multidimensional array analyzer
         self.multidim_analyzer = MultidimensionalArrayAnalyzer(
             error_callback=error_callback, comptime_analyzer=comptime_analyzer
         )
@@ -319,24 +319,24 @@ class DeclarationAnalyzer:
                     # Explicit conversions are handled in _analyze_expression using value:type syntax
                     # If we get here without errors, the operation was either safe or explicitly converted
 
-                    # Check for array flattening before type compatibility validation
-                    flattening_handled = False
-                    if self._is_flattening_assignment(var_type, value_type):
-                        if self._handle_flattening_assignment(
-                            node, var_type, value_type, name, value
-                        ):
-                            # Flattening successful - skip regular type compatibility check
-                            flattening_handled = True
-                        else:
-                            # Flattening failed - error already reported
-                            return
+                    # Use centralized declaration type compatibility validation
+                    # Don't return early to avoid cascading errors - still create the symbol
+                    self.comptime_analyzer.validate_variable_declaration_type_compatibility(
+                        value_type, var_type, value, name, self._error, node
+                    )
 
-                    # Use centralized declaration type compatibility validation only if not flattening
-                    if not flattening_handled:
-                        # Don't return early to avoid cascading errors - still create the symbol
-                        self.comptime_analyzer.validate_variable_declaration_type_compatibility(
-                            value_type, var_type, value, name, self._error, node
-                        )
+                    # For range types, handle comptime → concrete adaptation
+                    from .types import RangeType, ComptimeRangeType
+                    from .type_util import adapt_comptime_range_to_concrete
+
+                    if isinstance(value_type, ComptimeRangeType) and isinstance(var_type, RangeType):
+                        # Adapt comptime range to concrete range (ergonomic adaptation)
+                        # Preserves metadata (has_step, inclusive, etc.) while adapting element type
+                        var_type = adapt_comptime_range_to_concrete(value_type, var_type)
+                    elif isinstance(value_type, (RangeType, ComptimeRangeType)):
+                        # For concrete ranges or comptime→comptime, use the actual analyzed type
+                        # (which has correct has_step) instead of annotation type (always has_step=False)
+                        var_type = value_type
         else:
             # Type inference path - must have value
             if not value:
@@ -463,12 +463,14 @@ class DeclarationAnalyzer:
         if isinstance(type_annotation, str):
             return parse_type(type_annotation)
 
-        # Handle complex AST node types (like array types)
+        # Handle complex AST node types (like array types, range types)
         if isinstance(type_annotation, dict):
             node_type = type_annotation.get("type")
 
             if node_type == "array_type":
                 return self._parse_array_type_annotation(type_annotation)
+            elif node_type == "range_type":
+                return self._parse_range_type_annotation(type_annotation)
             else:
                 # Unknown complex type - return unknown for graceful degradation
                 return HexenType.UNKNOWN
@@ -476,7 +478,7 @@ class DeclarationAnalyzer:
         # Fallback for unexpected type annotation format
         return HexenType.UNKNOWN
 
-    def _parse_array_type_annotation(self, array_type_node: Dict) -> ConcreteArrayType:
+    def _parse_array_type_annotation(self, array_type_node: Dict) -> ArrayType:
         """
         Parse array type AST node into ConcreteArrayType.
 
@@ -527,7 +529,7 @@ class DeclarationAnalyzer:
         for dim_node in dimension_nodes:
             size = dim_node.get("size")
             if size == "_":
-                # Allow [_] dimensions - they will be resolved during flattening or other inference contexts
+                # Allow [_] dimensions - they will be resolved during size inference
                 dimensions.append("_")
             else:
                 try:
@@ -554,144 +556,58 @@ class DeclarationAnalyzer:
 
         # Create and return concrete array type
         try:
-            return ConcreteArrayType(element_type, dimensions)
+            return ArrayType(element_type, dimensions)
         except ValueError as e:
             self._error(f"Invalid array type: {e}", array_type_node)
             return HexenType.UNKNOWN
 
-    def _is_flattening_assignment(
-        self, target_type: HexenType, source_type: HexenType
-    ) -> bool:
+    def _parse_range_type_annotation(self, range_type_node: Dict):
         """
-        Detect if assignment is array flattening operation.
+        Parse range type AST node into RangeType.
 
-        Flattening occurs when:
-        - Both target and source are array types
-        - Target is 1D array
-        - Source is multidimensional array (2D+)
-        - Element types are compatible
-        """
-        return (
-            isinstance(target_type, ConcreteArrayType)
-            and isinstance(source_type, ConcreteArrayType)
-            and len(target_type.dimensions) == 1  # Target is 1D
-            and len(source_type.dimensions) > 1  # Source is multidimensional
-        )
-
-    def _handle_flattening_assignment(
-        self,
-        node: Dict,
-        target_type: ConcreteArrayType,
-        source_type: ConcreteArrayType,
-        var_name: str,
-        value_node: Dict,
-    ) -> bool:
-        """
-        Handle array flattening assignment with proper validation.
+        Creates proper RangeType instances for explicit range type contexts
+        like range[i32], range[usize], range[f64].
 
         Args:
-            node: AST node for error reporting
-            target_type: Target 1D array type
-            source_type: Source multidimensional array type
-            var_name: Variable name for error messages
-            value_node: Value AST node to check for explicit copy operator
+            range_type_node: AST node with "element_type" field
 
         Returns:
-            True if flattening is valid and processed, False if error occurred
+            RangeType instance representing the explicit range type
         """
-        # 0. Explicit copy operator AND type conversion check - flattening requires BOTH!
-        value_type = value_node.get("type")
+        from .types import RangeType
 
-        # Comptime array literals can flatten without [..] (first materialization)
-        if value_type == "array_literal":
-            # Comptime array - first materialization, no copy needed
-            pass
-        # Array copy operator [..] is explicitly present
-        elif value_type == "array_copy":
-            # Explicit copy present, but for dimension changes we also need :type!
-            # This enforces that BOTH [..] AND :type are required for flattening
+        # Extract element type
+        element_type_str = range_type_node.get("element_type", "unknown")
+        element_type = parse_type(element_type_str)
+
+        # Validate element type is numeric
+        valid_types = {
+            HexenType.I32,
+            HexenType.I64,
+            HexenType.F32,
+            HexenType.F64,
+            HexenType.USIZE,
+        }
+
+        if element_type not in valid_types:
             self._error(
-                f"Missing explicit type conversion syntax for array flattening\n"
-                f"Variable '{var_name}' expects flattened array\n"
-                f"Array dimension changes require BOTH [..] (copy) AND :type (conversion) operators\n"
-                f"The [..] operator alone is not sufficient for dimension conversion\n"
-                f"Suggestion: use combined syntax: value[..]:[type]\n"
-                f"Example: val {var_name} : {self._format_array_type(target_type)} = {self._get_value_hint(value_node)}[..]:{self._format_array_type(target_type)}",
-                node,
+                f"Range element type must be numeric (i32, i64, f32, f64, usize), got {element_type_str}",
+                range_type_node,
             )
-            return False
-        # Everything else requires explicit [..]
-        else:
-            # Most common case: identifier (variable reference to existing array)
-            if value_type == "identifier":
-                array_name = value_node.get("name", "<unknown>")
-                target_type_str = f"[{target_type.dimensions[0]}]{target_type.element_type.name.lower()}"
+            return HexenType.UNKNOWN
 
-                self._error(
-                    f"Missing explicit copy syntax for array flattening\n"
-                    f"Variable '{var_name}' expects type {target_type_str}\n"
-                    f"Concrete array '{array_name}' requires explicit copy operator [..] for flattening\n"
-                    f"Array flattening is a copy operation and requires explicit syntax to make performance costs visible\n"
-                    f"Suggestion: val {var_name} : {target_type_str} = {array_name}[..]",
-                    node,
-                )
-                return False
+        # Create range type annotation
+        # Type annotation doesn't specify bounds/step, so we use generic values
+        # Actual bounds will be determined by the range expression
+        return RangeType(
+            element_type=element_type,
+            has_start=True,  # Annotation doesn't specify, assume generic bounded
+            has_end=True,
+            has_step=False,
+            inclusive=False,
+        )
 
-            # Other expression types also need explicit copy
-            self._error(
-                f"Array flattening requires explicit copy operator [..]\n"
-                f"Variable '{var_name}' expects flattened array\n"
-                f"Complex array expressions must use explicit [..] to make copy costs visible\n"
-                f"Suggestion: wrap expression in array copy: (<expression>)[..]",
-                node,
-            )
-            return False
-
-        # 1. Element type compatibility check
-        if source_type.element_type != target_type.element_type:
-            self._error(
-                f"Array flattening type mismatch for variable '{var_name}': "
-                f"cannot flatten {source_type.element_type} array to {target_type.element_type} array. "
-                f"Element types must match exactly",
-                node,
-            )
-            return False
-
-        # 2. Calculate source array total element count
-        source_element_count = 1
-        for dim_size in source_type.dimensions:
-            if dim_size == "_":
-                self._error(
-                    f"Cannot flatten array with inferred source dimensions for variable '{var_name}'. "
-                    f"Source array must have explicit dimensions",
-                    node,
-                )
-                return False
-            source_element_count *= dim_size
-
-        # 3. Handle size inference for [_] targets
-        if target_type.dimensions[0] == "_":
-            # Infer the size from source array element count
-            target_type.dimensions[0] = source_element_count
-            # Size inference complete - no need for further validation
-        else:
-            # 4. Explicit target size - validate against source
-            target_size = target_type.dimensions[0]
-            if source_element_count != target_size:
-                self._error(
-                    f"Array flattening element count mismatch for variable '{var_name}': "
-                    f"source array has {source_element_count} elements "
-                    f"({' × '.join(map(str, source_type.dimensions))}) "
-                    f"but target array expects {target_size} elements. "
-                    f"Element counts must match exactly for safe flattening",
-                    node,
-                )
-                return False
-
-        # All validation passed - flattening is valid
-        return True
-
-    def _extract_array_type_info(self, array_type: ConcreteArrayType) -> Dict:
+    def _extract_array_type_info(self, array_type: ArrayType) -> Dict:
         """
         Extract array type information for multidim analyzer.
 
@@ -703,7 +619,7 @@ class DeclarationAnalyzer:
             "is_concrete": True,
         }
 
-    def _format_array_type(self, array_type: ConcreteArrayType) -> str:
+    def _format_array_type(self, array_type: ArrayType) -> str:
         """Format array type for error messages."""
         dims_str = "".join(f"[{dim}]" for dim in array_type.dimensions)
         return f"{dims_str}{array_type.element_type.name.lower()}"

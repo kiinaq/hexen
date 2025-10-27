@@ -249,7 +249,7 @@ class TestArrayLiteralSemantics:
         func process(arr: [3]i32) : void = {
             return
         }
-        
+
         func test() : void = {
             process([1, 2, 3])
             return
@@ -259,6 +259,234 @@ class TestArrayLiteralSemantics:
         errors = self.analyzer.analyze(ast)
 
         # Function parameter context should work
+        assert_no_errors(errors)
+
+
+class TestRangeMaterializationInArrayContext:
+    """
+    Test range materialization from the array literal perspective.
+
+    Focus: How range expressions [start..end] integrate with array literal
+    type inference and comptime array semantics.
+
+    Complementary to tests/semantic/ranges/test_range_materialization.py which
+    tests ranges from the range system perspective.
+    """
+
+    def setup_method(self):
+        """Standard setup method used by all semantic test classes."""
+        self.parser = HexenParser()
+        self.analyzer = SemanticAnalyzer()
+
+    def test_range_materialization_comptime_preservation(self):
+        """Test range materialization preserves comptime flexibility like array literals"""
+        source = """
+        func test() : void = {
+            val flexible = [1..5]
+            val as_i32 : [_]i32 = flexible
+            val as_i64 : [_]i64 = flexible
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        # Range should materialize to comptime array, then adapt to both types
+        assert_no_errors(errors)
+
+    def test_range_materialization_immediate_concrete(self):
+        """Test range materialization with immediate type annotation"""
+        source = """
+        func test() : void = {
+            val concrete : [_]i32 = [1..10]
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        # Range should materialize directly to [N]i32
+        assert_no_errors(errors)
+
+    def test_range_materialization_mixed_with_literals(self):
+        """Test error when mixing range materialization with regular literals"""
+        source = """
+        func test() : void = {
+            val mixed = [1, 2, [3..5]]
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        # Should error: nested array syntax not allowed
+        assert len(errors) > 0
+
+    def test_range_materialization_to_different_sizes(self):
+        """Test multiple range materializations with different sizes"""
+        source = """
+        func test() : void = {
+            val small : [_]i32 = [1..5]
+            val large : [_]i32 = [1..100]
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        # Both should materialize successfully with inferred sizes
+        assert_no_errors(errors)
+
+    def test_range_materialization_inclusive_vs_exclusive(self):
+        """Test inclusive and exclusive range materialization in array context"""
+        source = """
+        func test() : void = {
+            val exclusive : [_]i32 = [1..10]
+            val inclusive : [_]i32 = [1..=10]
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        # Both should materialize (different sizes: 9 vs 10 elements)
+        assert_no_errors(errors)
+
+    def test_range_materialization_with_step(self):
+        """Test stepped range materialization in array literal context"""
+        source = """
+        func test() : void = {
+            val stepped : [_]i32 = [0..100:10]
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        # Should materialize to array with step values
+        assert_no_errors(errors)
+
+    def test_range_materialization_float_requires_step(self):
+        """Test float range materialization requires explicit step"""
+        source = """
+        func test() : void = {
+            val floats : [_]f32 = [0.0..10.0]
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        # Should error: float range requires step
+        assert_error_contains(errors, "step")
+
+    def test_range_materialization_float_with_step_succeeds(self):
+        """Test float range materialization with step succeeds"""
+        source = """
+        func test() : void = {
+            val floats : [_]f32 = [0.0..10.0:0.5]
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        # Should succeed
+        assert_no_errors(errors)
+
+    def test_range_materialization_unbounded_error(self):
+        """Test unbounded range cannot materialize in array literal context"""
+        source = """
+        func test() : void = {
+            val unbounded : [_]i32 = [5..]
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        # Should error: unbounded range cannot materialize
+        assert_error_contains(errors, "unbounded")
+
+    def test_range_materialization_as_function_argument(self):
+        """Test range materialization in function parameter context"""
+        source = """
+        func process(data: [_]i32) : void = {
+            return
+        }
+
+        func test() : void = {
+            process([1..10])
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        # Range should materialize to match parameter type
+        assert_no_errors(errors)
+
+    def test_range_materialization_in_return(self):
+        """Test range materialization in return statement"""
+        source = """
+        func create_sequence() : [_]i32 = {
+            return [1..10]
+        }
+
+        func test() : void = {
+            val seq : [_]i32 = create_sequence()
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        # Range should materialize to match return type
+        assert_no_errors(errors)
+
+    def test_range_materialization_comptime_to_multiple_contexts(self):
+        """Test same comptime range materializes to different array types"""
+        source = """
+        func test() : void = {
+            val range_source = [1..5]
+            val as_i32 : [_]i32 = range_source
+            val as_i64 : [_]i64 = range_source
+            val as_f64 : [_]f64 = range_source
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        # Comptime range array should adapt to all numeric types
+        assert_no_errors(errors)
+
+    def test_range_materialization_negative_range(self):
+        """Test negative range materialization"""
+        source = """
+        func test() : void = {
+            val negatives : [_]i32 = [-10..-5]
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        # Negative ranges should materialize correctly
+        assert_no_errors(errors)
+
+    def test_range_materialization_descending_with_negative_step(self):
+        """Test descending range with negative step"""
+        source = """
+        func test() : void = {
+            val descending : [_]i32 = [10..1:-1]
+            return
+        }
+        """
+        ast = self.parser.parse(source)
+        errors = self.analyzer.analyze(ast)
+
+        # Descending range should materialize
         assert_no_errors(errors)
 
 

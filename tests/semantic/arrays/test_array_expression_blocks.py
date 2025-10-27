@@ -223,7 +223,11 @@ def test_runtime_array_block_missing_context_error():
 
     # Error message should mention context requirement
     error_msg = str(errors[0]).lower()
-    assert "explicit type" in error_msg or "type annotation" in error_msg or "context" in error_msg
+    assert (
+        "explicit type" in error_msg
+        or "type annotation" in error_msg
+        or "context" in error_msg
+    )
 
 
 def test_array_block_with_mixed_operations():
@@ -658,7 +662,11 @@ def test_error_runtime_block_with_conditional_missing_context():
 
     # Error message should mention context requirement or conditional
     error_msg = str(errors[0]).lower()
-    assert "explicit type" in error_msg or "type annotation" in error_msg or "conditional" in error_msg
+    assert (
+        "explicit type" in error_msg
+        or "type annotation" in error_msg
+        or "conditional" in error_msg
+    )
 
 
 def test_error_mixed_concrete_array_types_without_conversion():
@@ -685,7 +693,12 @@ def test_error_mixed_concrete_array_types_without_conversion():
 
     # Error message should mention type mismatch or conversion
     error_msg = str(errors[0]).lower()
-    assert "type" in error_msg or "conversion" in error_msg or "incompatible" in error_msg or "mismatch" in error_msg
+    assert (
+        "type" in error_msg
+        or "conversion" in error_msg
+        or "incompatible" in error_msg
+        or "mismatch" in error_msg
+    )
 
 
 def test_error_array_block_wrong_size_annotation():
@@ -711,7 +724,12 @@ def test_error_array_block_wrong_size_annotation():
 
     # Error message should mention size/length/type mismatch
     error_msg = str(errors[0]).lower()
-    assert "size" in error_msg or "length" in error_msg or "type" in error_msg or "mismatch" in error_msg
+    assert (
+        "size" in error_msg
+        or "length" in error_msg
+        or "type" in error_msg
+        or "mismatch" in error_msg
+    )
 
 
 def test_error_early_return_type_mismatch():
@@ -739,7 +757,12 @@ def test_error_early_return_type_mismatch():
 
     # Error message should mention type/size/return mismatch
     error_msg = str(errors[0]).lower()
-    assert "type" in error_msg or "size" in error_msg or "return" in error_msg or "mismatch" in error_msg
+    assert (
+        "type" in error_msg
+        or "size" in error_msg
+        or "return" in error_msg
+        or "mismatch" in error_msg
+    )
 
 
 def test_error_block_result_type_mismatch():
@@ -839,7 +862,12 @@ def test_error_multidim_array_size_mismatch():
 
     # Error message should mention size, type, or dimension mismatch
     error_msg = str(errors[0]).lower()
-    assert "size" in error_msg or "type" in error_msg or "dimension" in error_msg or "mismatch" in error_msg
+    assert (
+        "size" in error_msg
+        or "type" in error_msg
+        or "dimension" in error_msg
+        or "mismatch" in error_msg
+    )
 
 
 def test_error_inferred_size_concrete_mismatch():
@@ -864,7 +892,12 @@ def test_error_inferred_size_concrete_mismatch():
 
     # Error message should mention size, type, or inferred
     error_msg = str(errors[0]).lower()
-    assert "size" in error_msg or "type" in error_msg or "inferred" in error_msg or "[_]" in error_msg
+    assert (
+        "size" in error_msg
+        or "type" in error_msg
+        or "inferred" in error_msg
+        or "[_]" in error_msg
+    )
 
 
 def test_error_property_access_on_non_array():

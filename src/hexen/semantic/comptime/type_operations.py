@@ -328,7 +328,9 @@ class TypeOperations:
     # ARRAY TYPE OPERATIONS (NEW)
     # =========================================================================
 
-    def is_comptime_array_type(self, type_: Union[HexenType, 'ComptimeArrayType']) -> bool:
+    def is_comptime_array_type(
+        self, type_: Union[HexenType, "ComptimeArrayType"]
+    ) -> bool:
         """Check if type is a comptime array type."""
         from ..types import ComptimeArrayType
         return isinstance(type_, ComptimeArrayType)
@@ -343,7 +345,7 @@ class TypeOperations:
 
     def unify_comptime_array_types(
         self, element_types: List[HexenType], num_elements: int = 0
-    ) -> Optional['ComptimeArrayType']:
+    ) -> Optional["ComptimeArrayType"]:
         """
         Unify array element types into comptime array types.
 
@@ -360,15 +362,21 @@ class TypeOperations:
 
         # Check for all comptime_int
         if all(t == HexenType.COMPTIME_INT for t in element_types):
-            return ComptimeArrayType(HexenType.COMPTIME_INT, [num_elements or len(element_types)])
+            return ComptimeArrayType(
+                HexenType.COMPTIME_INT, [num_elements or len(element_types)]
+            )
 
         # Check for all comptime_float
         if all(t == HexenType.COMPTIME_FLOAT for t in element_types):
-            return ComptimeArrayType(HexenType.COMPTIME_FLOAT, [num_elements or len(element_types)])
+            return ComptimeArrayType(
+                HexenType.COMPTIME_FLOAT, [num_elements or len(element_types)]
+            )
 
         # Mixed comptime types → comptime_float (promotion)
         comptime_types = {HexenType.COMPTIME_INT, HexenType.COMPTIME_FLOAT}
         if all(t in comptime_types for t in element_types):
-            return ComptimeArrayType(HexenType.COMPTIME_FLOAT, [num_elements or len(element_types)])
+            return ComptimeArrayType(
+                HexenType.COMPTIME_FLOAT, [num_elements or len(element_types)]
+            )
 
         return None  # Mixed concrete/comptime requires explicit context

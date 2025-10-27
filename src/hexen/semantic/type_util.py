@@ -8,7 +8,7 @@ the semantic analysis phase.
 
 from typing import Optional, Dict, FrozenSet, Union
 
-from .types import HexenType, ConcreteArrayType, ComptimeArrayType
+from .types import HexenType, ArrayType, ComptimeArrayType, RangeType, ComptimeRangeType
 
 # Module-level constants for type sets and maps
 NUMERIC_TYPES: FrozenSet[HexenType] = frozenset(
@@ -17,6 +17,7 @@ NUMERIC_TYPES: FrozenSet[HexenType] = frozenset(
         HexenType.I64,
         HexenType.F32,
         HexenType.F64,
+        HexenType.USIZE,
         HexenType.COMPTIME_INT,
         HexenType.COMPTIME_FLOAT,
     }
@@ -45,6 +46,7 @@ COMPTIME_INT_TARGETS: FrozenSet[HexenType] = frozenset(
         HexenType.I64,
         HexenType.F32,
         HexenType.F64,
+        HexenType.USIZE,  # comptime_int can coerce to usize (ergonomic for indexing)
     }
 )
 
@@ -72,6 +74,7 @@ TYPE_STRING_TO_HEXEN_TYPE: Dict[str, HexenType] = {
     "i64": HexenType.I64,
     "f32": HexenType.F32,
     "f64": HexenType.F64,
+    "usize": HexenType.USIZE,  # Platform-dependent unsigned integer for array indexing
     "string": HexenType.STRING,
     "bool": HexenType.BOOL,
     "void": HexenType.VOID,
@@ -146,8 +149,8 @@ def is_integer_type(type_: HexenType) -> bool:
 
 
 def can_coerce(
-    from_type: Union[HexenType, ConcreteArrayType, ComptimeArrayType],
-    to_type: Union[HexenType, ConcreteArrayType, ComptimeArrayType],
+    from_type: Union[HexenType, ArrayType, ComptimeArrayType, RangeType, ComptimeRangeType],
+    to_type: Union[HexenType, ArrayType, ComptimeArrayType, RangeType, ComptimeRangeType],
 ) -> bool:
     """
     Check if from_type can be automatically coerced to to_type.
@@ -181,38 +184,30 @@ def can_coerce(
     if from_type == to_type:
         return True
 
-    # PHASE 2 ADDITION: Handle ComptimeArrayType → ConcreteArrayType coercion
-    if isinstance(from_type, ComptimeArrayType) and isinstance(to_type, ConcreteArrayType):
-        # Check if dimensions match exactly
-        dimensions_match_exactly = from_type.dimensions == to_type.dimensions
-
-        # Check if this is a valid flattening operation (multidim → 1D)
-        is_valid_flattening = False
-        if len(to_type.dimensions) == 1:  # Target is 1D
-            # Calculate total element count of source array
-            source_element_count = 1
-            for dim in from_type.dimensions:
-                source_element_count *= dim
-
-            # Check if target dimension matches total element count or is inferred
-            target_size = to_type.dimensions[0]
-            if target_size == "_":
-                # Inferred size always allows flattening
-                is_valid_flattening = True
-            elif source_element_count == int(target_size):
-                # Fixed size must match element count
-                is_valid_flattening = True
-
-        # Allow coercion if dimensions match exactly OR if valid flattening
-        if not (dimensions_match_exactly or is_valid_flattening):
+    if isinstance(from_type, ComptimeArrayType) and isinstance(
+        to_type, ArrayType
+    ):
+        # Array coercion requires exact dimension count match
+        if len(from_type.dimensions) != len(to_type.dimensions):
             return False
+
+        # Check each dimension (allow [_] inference)
+        for from_dim, to_dim in zip(from_type.dimensions, to_type.dimensions):
+            if to_dim == "_":
+                # Inferred dimension - accepts any size
+                continue
+            if from_dim != to_dim:
+                # Concrete dimensions must match exactly
+                return False
 
         # Check element type compatibility
         if from_type.element_comptime_type == HexenType.COMPTIME_INT:
             # comptime_int can coerce to any numeric type
             return to_type.element_type in {
-                HexenType.I32, HexenType.I64,
-                HexenType.F32, HexenType.F64
+                HexenType.I32,
+                HexenType.I64,
+                HexenType.F32,
+                HexenType.F64,
             }
         elif from_type.element_comptime_type == HexenType.COMPTIME_FLOAT:
             # comptime_float can coerce to float types only
@@ -220,7 +215,9 @@ def can_coerce(
         return False
 
     # PHASE 5 ADDITION: Handle ComptimeArrayType → ComptimeArrayType coercion
-    if isinstance(from_type, ComptimeArrayType) and isinstance(to_type, ComptimeArrayType):
+    if isinstance(from_type, ComptimeArrayType) and isinstance(
+        to_type, ComptimeArrayType
+    ):
         # Both comptime arrays - check if dimensions and element types match exactly
         return (
             from_type.dimensions == to_type.dimensions
@@ -232,10 +229,66 @@ def can_coerce(
         # Cannot coerce array to scalar type
         return False
 
+    # RANGE SYSTEM ADDITION: Handle ComptimeRangeType → RangeType coercion
+    if isinstance(from_type, ComptimeRangeType) and isinstance(to_type, RangeType):
+        # Comptime range can coerce to any compatible concrete range type
+        # Check element type compatibility (mirrors scalar comptime adaptation):
+        # - comptime_int → i32/i64/f32/f64/usize (any numeric type)
+        # - comptime_float → f32/f64 (float types only)
+        if from_type.element_type == HexenType.COMPTIME_INT:
+            # comptime_int ranges can coerce to ANY numeric range type
+            # (mirrors how comptime_int scalar adapts to any numeric type)
+            if to_type.element_type not in {
+                HexenType.I32,
+                HexenType.I64,
+                HexenType.F32,
+                HexenType.F64,
+                HexenType.USIZE,
+            }:
+                return False
+        elif from_type.element_type == HexenType.COMPTIME_FLOAT:
+            # comptime_float ranges can coerce to float range types
+            if to_type.element_type not in {HexenType.F32, HexenType.F64}:
+                return False
+        else:
+            # Other types (bool, string) must match exactly
+            if from_type.element_type != to_type.element_type:
+                return False
+
+        # Comptime ranges can coerce to concrete ranges regardless of structure
+        # (Type annotations like `range[f32]` accept any range structure)
+        # Specific validation (e.g., float ranges requiring steps) happens elsewhere
+        return True
+
+    # RANGE SYSTEM ADDITION: Handle ComptimeRangeType → ComptimeRangeType coercion
+    if isinstance(from_type, ComptimeRangeType) and isinstance(
+        to_type, ComptimeRangeType
+    ):
+        # Both comptime ranges - they must have the same element type and structure
+        return from_type.element_type == to_type.element_type
+
+    # RANGE SYSTEM ADDITION: Handle RangeType → RangeType coercion
+    if isinstance(from_type, RangeType) and isinstance(to_type, RangeType):
+        # Concrete range to concrete range coercion
+        # Allow coercion if element types match (type annotations are flexible about structure)
+        # Only require exact match if both are from non-annotation contexts
+        if from_type.element_type == to_type.element_type:
+            # Same element type: allow coercion (type annotations don't enforce structure)
+            return True
+        # Different element types: require explicit conversion :type syntax
+        return False
+
+    # RANGE SYSTEM ADDITION: Invalid range coercions
+    if isinstance(from_type, (RangeType, ComptimeRangeType)) or isinstance(
+        to_type, (RangeType, ComptimeRangeType)
+    ):
+        # Cannot coerce range to/from non-range types
+        return False
+
     # Handle ConcreteArrayType cases
-    if isinstance(to_type, ConcreteArrayType):
+    if isinstance(to_type, ArrayType):
         # Handle inferred-size parameter matching: [N]T can coerce to [_]T
-        if isinstance(from_type, ConcreteArrayType):
+        if isinstance(from_type, ArrayType):
             # Element types must match
             if from_type.element_type != to_type.element_type:
                 return False
@@ -263,7 +316,7 @@ def can_coerce(
         return False
 
     # ConcreteArrayType cannot coerce to HexenType
-    if isinstance(from_type, ConcreteArrayType):
+    if isinstance(from_type, ArrayType):
         return False
 
     # Standard HexenType coercion rules
@@ -328,6 +381,10 @@ def get_wider_type(left_type: HexenType, right_type: HexenType) -> HexenType:
             HexenType.F64 if HexenType.F64 in {left_type, right_type} else HexenType.F32
         )
     # Both are integers
+    # Handle usize: usize + usize = usize (no implicit mixing with signed types)
+    if left_type == HexenType.USIZE and right_type == HexenType.USIZE:
+        return HexenType.USIZE
+    # For signed integers, use standard widening
     return HexenType.I64 if HexenType.I64 in {left_type, right_type} else HexenType.I32
 
 
@@ -490,14 +547,16 @@ def validate_literal_range(
 # =============================================================================
 
 
-def is_array_type(type_: Union[HexenType, ConcreteArrayType, ComptimeArrayType]) -> bool:
+def is_array_type(
+    type_: Union[HexenType, ArrayType, ComptimeArrayType],
+) -> bool:
     """
     Check if type represents an array (comptime or concrete).
 
     CHANGE (Phase 2): Extended to handle ComptimeArrayType instances.
     """
     # Handle ConcreteArrayType instances
-    if isinstance(type_, ConcreteArrayType):
+    if isinstance(type_, ArrayType):
         return True
     # Handle ComptimeArrayType instances
     if isinstance(type_, ComptimeArrayType):
@@ -509,13 +568,16 @@ def is_array_type(type_: Union[HexenType, ConcreteArrayType, ComptimeArrayType])
 # Legacy comptime array helper functions removed - use ComptimeArrayType class instead
 
 
-def get_type_name_for_error(type_obj: Union[HexenType, ConcreteArrayType, ComptimeArrayType]) -> str:
+def get_type_name_for_error(
+    type_obj: Union[HexenType, ArrayType, ComptimeArrayType, RangeType, ComptimeRangeType],
+) -> str:
     """
     Get a human-readable type name for error messages.
 
     CHANGE (Phase 2): Extended to handle ComptimeArrayType instances.
+    CHANGE (Range System): Extended to handle RangeType and ComptimeRangeType.
     """
-    if isinstance(type_obj, ConcreteArrayType):
+    if isinstance(type_obj, ArrayType):
         # ConcreteArrayType.dimensions is a list of integers, not ArrayDimension objects
         # Build dimension string: [2][3]i32 for 2D array
         dim_str = "".join(f"[{dim}]" for dim in type_obj.dimensions)
@@ -526,5 +588,201 @@ def get_type_name_for_error(type_obj: Union[HexenType, ConcreteArrayType, Compti
         # Use ComptimeArrayType's __str__ method: comptime_[5]int
         return str(type_obj)
 
+    # RANGE SYSTEM: Handle RangeType and ComptimeRangeType
+    if isinstance(type_obj, (RangeType, ComptimeRangeType)):
+        # Use RangeType's __str__ method for consistent formatting
+        return str(type_obj)
+
     # Use the inverse mapping from TYPE_STRING_TO_HEXEN_TYPE for consistency
     return HEXEN_TYPE_TO_STRING.get(type_obj, "unknown")
+
+
+# ============================================================================
+# Range Type Utilities
+# ============================================================================
+
+
+def is_range_type(type_obj) -> bool:
+    """Check if a type is a range type (concrete or comptime)"""
+    return isinstance(type_obj, (RangeType, ComptimeRangeType))
+
+
+def is_comptime_range(type_obj) -> bool:
+    """Check if a type is a comptime range type"""
+    return isinstance(type_obj, ComptimeRangeType)
+
+
+def is_numeric_type(type_obj) -> bool:
+    """
+    Check if type is numeric (for range bounds/steps).
+
+    Includes:
+    - Concrete numeric types: i32, i64, f32, f64, usize
+    - Comptime types: comptime_int, comptime_float
+    """
+    if isinstance(type_obj, HexenType):
+        return type_obj in {
+            HexenType.I32,
+            HexenType.I64,
+            HexenType.F32,
+            HexenType.F64,
+            HexenType.USIZE,
+            HexenType.COMPTIME_INT,
+            HexenType.COMPTIME_FLOAT,
+        }
+    return False
+
+
+def adapt_comptime_range_to_concrete(
+    comptime_range: ComptimeRangeType, target_type: RangeType
+) -> RangeType:
+    """
+    Adapt a comptime range to a concrete range type.
+
+    This implements the ergonomic adaptation for ranges similar to how
+    comptime_int adapts to i32/i64. The comptime range's element type
+    is adapted to the target range's element type while preserving
+    metadata (has_start, has_end, has_step, inclusive).
+
+    Args:
+        comptime_range: The comptime range to adapt
+        target_type: The target concrete range type
+
+    Returns:
+        A new RangeType with the target element type and comptime range's metadata
+    """
+    return RangeType(
+        element_type=target_type.element_type,
+        has_start=comptime_range.has_start,
+        has_end=comptime_range.has_end,
+        has_step=comptime_range.has_step,
+        inclusive=comptime_range.inclusive,
+    )
+
+
+def can_convert_to_usize(type_obj) -> bool:
+    """
+    Check if type can convert to usize (for array indexing).
+
+    Rules:
+    - comptime_int → usize (implicit, ergonomic)
+    - i32, i64 → usize (explicit conversion required)
+    - f32, f64, comptime_float → NEVER (float indices forbidden)
+    """
+    if isinstance(type_obj, HexenType):
+        # Comptime int adapts implicitly
+        if type_obj == HexenType.COMPTIME_INT:
+            return True
+
+        # Integer types require explicit conversion
+        if type_obj in {HexenType.I32, HexenType.I64}:
+            return True
+
+        # Float types CANNOT convert to usize
+        if type_obj in {HexenType.F32, HexenType.F64, HexenType.COMPTIME_FLOAT}:
+            return False
+
+    return False
+
+
+def resolve_range_element_type(
+    start_type,
+    end_type,
+    step_type,
+    target_type=None,
+) -> HexenType:
+    """
+    Resolve the element type of a range expression.
+
+    Rules:
+    1. All bounds (start, end, step) must have same type (after comptime adaptation)
+    2. If target_type provided, comptime bounds adapt to it
+    3. If no target, comptime types preserved (maximum flexibility)
+    4. Concrete types must match exactly (no automatic conversion)
+
+    Args:
+        start_type: Type of start bound (None if unbounded)
+        end_type: Type of end bound (None if unbounded)
+        step_type: Type of step (None if no step)
+        target_type: Optional target range type for context
+
+    Returns:
+        Resolved element type
+
+    Raises:
+        TypeError: If types are incompatible
+    """
+    # Collect all present bound types
+    bound_types = []
+    if start_type is not None:
+        bound_types.append(("start", start_type))
+    if end_type is not None:
+        bound_types.append(("end", end_type))
+    if step_type is not None:
+        bound_types.append(("step", step_type))
+
+    if not bound_types:
+        # Fully unbounded range (..) - use target type if provided, otherwise default to comptime_int
+        # This is valid for array slicing where context determines the type
+        if target_type is not None:
+            return target_type
+        # Default to comptime_int for maximum flexibility
+        return HexenType.COMPTIME_INT
+
+    # If target type provided, use it for comptime adaptation
+    if target_type is not None:
+        # Verify all bounds can adapt to target
+        for name, bound_type in bound_types:
+            if not can_coerce(bound_type, target_type):
+                raise TypeError(
+                    f"Range {name} bound type {bound_type} cannot adapt to target {target_type}"
+                )
+        return target_type
+
+    # No target type - resolve from bounds
+    # If all bounds are comptime, preserve comptime flexibility
+    all_comptime = all(
+        bound_type in {HexenType.COMPTIME_INT, HexenType.COMPTIME_FLOAT}
+        for _, bound_type in bound_types
+    )
+
+    if all_comptime:
+        # Check for mixed comptime types
+        has_int = any(bt == HexenType.COMPTIME_INT for _, bt in bound_types)
+        has_float = any(bt == HexenType.COMPTIME_FLOAT for _, bt in bound_types)
+
+        if has_int and has_float:
+            # Mixed comptime_int + comptime_float → comptime_float
+            return HexenType.COMPTIME_FLOAT
+        elif has_float:
+            return HexenType.COMPTIME_FLOAT
+        else:
+            return HexenType.COMPTIME_INT
+
+    # At least one concrete type - all must match
+    concrete_types = [
+        bt
+        for _, bt in bound_types
+        if bt not in {HexenType.COMPTIME_INT, HexenType.COMPTIME_FLOAT}
+    ]
+
+    if not concrete_types:
+        # Should be caught by all_comptime above
+        raise ValueError("Unexpected: no concrete types but not all comptime")
+
+    # Check all concrete types match
+    first_concrete = concrete_types[0]
+    if not all(ct == first_concrete for ct in concrete_types):
+        raise TypeError(
+            f"Range bounds have incompatible types: {[bt for _, bt in bound_types]}"
+        )
+
+    # Verify comptime bounds can adapt to concrete type
+    for name, bound_type in bound_types:
+        if bound_type in {HexenType.COMPTIME_INT, HexenType.COMPTIME_FLOAT}:
+            if not can_coerce(bound_type, first_concrete):
+                raise TypeError(
+                    f"Range {name} bound (comptime) cannot adapt to {first_concrete}"
+                )
+
+    return first_concrete

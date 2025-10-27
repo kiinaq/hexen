@@ -8,6 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **IMPORTANT:** Keep commit messages concise and professional:
 
+- ✅ **Always ask user before committing** (never commit without explicit permission)
 - ✅ **Write clear, descriptive commit messages** (1-3 sentences max)
 - ✅ **Focus on WHAT changed and WHY** (skip implementation details)
 - ❌ **DO NOT add AI attribution footers** (no "🤖 Generated with Claude Code", no "Co-Authored-By: Claude")
@@ -149,8 +150,8 @@ Hexen follows two core principles:
 
 | Category | Types | Flexibility | When They Exist |
 |----------|-------|-------------|-----------------|
-| **Comptime Types** | `comptime_int`, `comptime_float`, `comptime_array_int`, `comptime_array_float` | Adapt to any compatible concrete type | Only at compile time |
-| **Concrete Types** | `i32`, `i64`, `f32`, `f64`, `bool`, `string`, `[N]T` arrays | Fixed, require explicit conversions | Runtime values |
+| **Comptime Types** | `comptime_int`, `comptime_float`, `comptime_array_int`, `comptime_array_float`, `comptime_range` | Adapt to any compatible concrete type | Only at compile time |
+| **Concrete Types** | `i32`, `i64`, `f32`, `f64`, `bool`, `string`, `usize`, `[N]T` arrays, `range[T]` | Fixed, require explicit conversions | Runtime values |
 
 ### Quick Syntax Overview
 
@@ -169,6 +170,12 @@ func name(param : type) : return_type = {
 val numbers = [1, 2, 3]         // Comptime array (flexible!)
 val fixed : [3]i32 = [1, 2, 3]  // Fixed-size concrete array
 val inferred : [_]i32 = [1, 2, 3]  // Inferred-size array
+
+// Ranges
+val r = 1..10                   // Comptime range (flexible!)
+val typed : range[i32] = 1..10  // Concrete range type
+val arr : [_]i32 = [1..10]      // Range materialization to array
+val slice : [_]i32 = data[2..8] // Range-based array slicing
 
 // Conditionals (no parentheses, braces required)
 if condition {
@@ -207,10 +214,11 @@ This is the **core mental model** for all type conversions in Hexen:
 
 | Comptime Type | Description | Adapts To | Example |
 |---------------|-------------|-----------|---------|
-| `comptime_int` | Integer literals | `i32`, `i64`, `f32`, `f64` | `42`, `-100`, `1024` |
+| `comptime_int` | Integer literals | `i32`, `i64`, `f32`, `f64`, `usize` | `42`, `-100`, `1024` |
 | `comptime_float` | Float literals or mixed numeric | `f32`, `f64` | `3.14`, `42 + 3.14` (mixed) |
 | `comptime_array_int` | Array of integer literals | `[N]i32`, `[N]i64`, `[N]f32`, `[N]f64` | `[1, 2, 3]` |
 | `comptime_array_float` | Array of float/mixed literals | `[N]f32`, `[N]f64` | `[3.14, 2.71]`, `[42, 3.14]` |
+| `comptime_range` | Range literals | `range[i32]`, `range[i64]`, `range[f32]`, `range[f64]`, `range[usize]` | `1..10`, `0..100:5` |
 
 ### Concrete Types Reference
 
@@ -220,9 +228,11 @@ This is the **core mental model** for all type conversions in Hexen:
 | `i64` | -9,223,372,036,854,775,808 to 9,223,372,036,854,775,807 | Large integers |
 | `f32` | ±3.4028235e+38 (~7 decimal digits) | Graphics, fast math |
 | `f64` | ±1.7976931e+308 (~15 decimal digits) | Scientific computing |
+| `usize` | 0 to platform-dependent max | Array indexing (unsigned) |
 | `bool` | `true` or `false` | Boolean logic |
 | `string` | Text data | Strings |
 | `[N]T` | Fixed-size array of N elements of type T | Arrays with known size |
+| `range[T]` | Range with element type T | Iteration, slicing, sequences |
 
 ### When Do I Need `:type` Conversion?
 
@@ -341,16 +351,17 @@ func wrapper() : i32 = {
 | `[_]T` | Inferred | Concrete | `val x : [_]i32 = [1, 2, 3]` | Size auto-detected |
 | `[N]T` | Fixed | Concrete | `val x : [3]i32 = [1, 2, 3]` | Explicit size |
 
-#### Array Copy Syntax `[..]`
+#### Array Slicing with Ranges
 
-**Critical Rule:** ALL concrete array copying requires explicit `[..]` syntax to make performance costs visible.
+**Critical Rule:** ALL concrete array slicing uses range syntax. The `[..]` operator is the unbounded range for full array slicing.
 
-| Operation | Syntax Required? | Example | Notes |
-|-----------|------------------|---------|-------|
-| Comptime → Concrete | ❌ No (first materialization) | `val arr : [_]i32 = [1, 2, 3]` | Comptime adapts (ergonomic!) |
-| Concrete → Concrete | ✅ **YES** `[..]` | `val copy : [_]i32 = source[..]` | Explicit copy required |
-| Row access for assignment | ✅ **YES** `[..]` | `val row : [_]i32 = matrix[0][..]` | Explicit copy required |
-| Flattening (2D → 1D) | ✅ **YES** `[..]:[_]T` | `val flat : [_]i32 = matrix[..]:[_]i32` | Both copy + conversion explicit |
+| Operation | Syntax | Example | Notes |
+|-----------|--------|---------|-------|
+| Comptime → Concrete | Direct assignment | `val arr : [_]i32 = [1, 2, 3]` | First materialization (ergonomic!) |
+| Full array slice/copy | `[..]` (unbounded range) | `val copy : [_]i32 = source[..]` | `..` = unbounded range |
+| Partial slice | `[start..end]` (bounded range) | `val slice : [_]i32 = source[2..5]` | Range-based slicing |
+| Row slice | `[..]` on row | `val row : [_]i32 = matrix[0][..]` | Unbounded range on row |
+| Flattening (2D → 1D) | `[..]:[_]T` | `val flat : [_]i32 = matrix[..]:[_]i32` | Unbounded range + type conversion |
 
 #### Array Examples
 
@@ -364,9 +375,10 @@ val as_i64 : [_]i64 = flexible               // Same source → [3]i64 (flexible
 val numbers : [_]i32 = [10, 20, 30]          // [3]i32
 val fixed : [3]i32 = [10, 20, 30]            // [3]i32 with explicit size
 
-// ✅ Array copying (explicit [..] required!)
+// ✅ Array slicing with ranges
 val source : [_]i32 = [1, 2, 3]
-val copy : [_]i32 = source[..]               // Explicit copy
+val copy : [_]i32 = source[..]               // Full slice (unbounded range)
+val slice : [_]i32 = source[0..2]            // Partial slice (bounded range)
 
 // ✅ Array element access
 val elem : i32 = numbers[0]                  // Element type required (concrete array)
@@ -374,13 +386,98 @@ val comptime_elem = flexible[0]              // comptime_int (from comptime arra
 
 // ✅ Multidimensional arrays
 val matrix : [_][_]i32 = [[1, 2], [3, 4]]    // [2][2]i32
-val row : [_]i32 = matrix[0][..]             // Copy row (explicit [..])
-val flat : [_]i32 = matrix[..]:[_]i32        // Flatten (explicit [..] + :type)
+val row : [_]i32 = matrix[0][..]             // Slice row (unbounded range)
+val flat : [_]i32 = matrix[..]:[_]i32        // Flatten (unbounded range + type conversion)
 
 // ❌ Common mistakes
-// val implicit_copy = source                // Error: missing [..] for copy
-// val implicit_row = matrix[0]              // Error: missing [..] for row copy
+// val implicit_copy = source                // Error: missing [..] for slice
+// val implicit_row = matrix[0]              // Error: missing [..] for row slice
 // val implicit_flatten = matrix[..]         // Error: missing :type for dimension change
+```
+
+### Range Patterns
+
+#### Range Syntax
+
+| Syntax | Description | Example | Notes |
+|--------|-------------|---------|-------|
+| `start..end` | Exclusive end | `1..10` | Produces [1, 2, ..., 9] |
+| `start..=end` | Inclusive end | `1..=10` | Produces [1, 2, ..., 10] |
+| `start..end:step` | With step | `0..100:10` | Produces [0, 10, 20, ..., 90] |
+| `start..` | Unbounded from | `5..` | From 5 to infinity |
+| `..end` | Unbounded to | `..10` | From beginning to 9 |
+| `..` | Full unbounded | `..` | All elements |
+
+**Critical Rules:**
+- Float ranges **require explicit step**: `0.0..10.0:0.1` ✅ | `0.0..10.0` ❌
+- Only integer ranges (`range[i32]`, `range[i64]`, `range[usize]`) can index arrays
+- Comptime ranges adapt to context like comptime integers
+
+#### Range Materialization
+
+Ranges can materialize into arrays using `[range]` syntax:
+
+```hexen
+// ✅ Range materialization (bounded ranges only)
+val arr : [_]i32 = [1..10]              // Materialize to array
+val stepped : [_]i32 = [0..100:10]      // Stepped range to array
+val inclusive : [_]i32 = [1..=10]       // Inclusive range to array
+
+// ✅ Float range materialization (requires step)
+val floats : [_]f32 = [0.0..10.0:0.5]
+
+// ✅ Comptime range flexibility
+val flexible = [1..5]                    // Comptime array from comptime range
+val as_i32 : [_]i32 = flexible
+val as_i64 : [_]i64 = flexible           // Same source, different types!
+
+// ❌ Common mistakes
+// val unbounded : [_]i32 = [5..]        // Error: unbounded cannot materialize
+// val no_step : [_]f32 = [0.0..10.0]   // Error: float range needs step
+```
+
+#### Range-Based Array Slicing
+
+Arrays can be sliced using range expressions:
+
+```hexen
+// ✅ Range slicing
+val data : [_]i32 = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+val slice : [_]i32 = data[2..8]          // Elements [2..8) → [2,3,4,5,6,7]
+val stepped : [_]i32 = data[0..10:2]     // Every 2nd element → [0,2,4,6,8]
+
+// ✅ Unbounded slicing
+val tail : [_]i32 = data[5..]            // From index 5 to end
+val head : [_]i32 = data[..5]            // From start to index 5
+val full : [_]i32 = data[..]             // Full copy (same as [..])
+
+// ✅ Range slicing + operations
+val len : i32 = data[2..8].length        // Chaining with .length
+val copy : [_]i32 = data[2..8][..]       // Slice then copy
+
+// ✅ Comptime range adaptation to usize
+val s : [_]i32 = data[1..4]              // Comptime 1..4 adapts to range[usize]
+
+// ❌ Common mistakes
+// val r : range[i32] = 1..4
+// val s : [_]i32 = data[r]              // Error: range[i32] needs :range[usize]
+```
+
+#### Range Type Conversions
+
+```hexen
+// ✅ Range type conversions (explicit :type syntax)
+val r_i32 : range[i32] = 1..10
+val r_usize : range[usize] = r_i32:range[usize]  // For array indexing
+
+// ✅ Comptime range adaptation (no conversion needed)
+val flexible = 1..10
+val as_i32 : range[i32] = flexible
+val as_usize : range[usize] = flexible    // Adapts seamlessly
+
+// ❌ Float ranges cannot convert to usize
+// val r_f32 : range[f32] = 1.0..10.0:0.1
+// val r_usize : range[usize] = r_f32:range[usize]  // Error!
 ```
 
 ### Expression Block Patterns
@@ -570,7 +667,7 @@ val result : i64 = a:i64 + b    // ✅ Explicit conversion
 
 ---
 
-#### ❌ Mistake 2: Missing Array Copy Syntax `[..]`
+#### ❌ Mistake 2: Missing Array Slice Syntax `[..]`
 
 **Problem:**
 ```hexen
@@ -578,14 +675,14 @@ val source : [_]i32 = [1, 2, 3]
 val copy = source               // ❌ Error!
 ```
 
-**Error:** `Implicit array copying not allowed`
+**Error:** `Array slicing requires explicit range syntax`
 
 **Fix:**
 ```hexen
-val copy : [_]i32 = source[..]  // ✅ Explicit copy with [..]
+val copy : [_]i32 = source[..]  // ✅ Unbounded range slice [..]
 ```
 
-**Rule:** Array copying always requires `[..]` operator to make performance costs visible
+**Rule:** Array slicing always requires range syntax. Use `[..]` (unbounded range) to slice entire array, making performance costs visible
 
 ---
 
@@ -710,10 +807,10 @@ val flat = matrix[..]           // ❌ Error!
 
 **Fix:**
 ```hexen
-val flat : [_]i32 = matrix[..]:[_]i32  // ✅ Both [..] and :type explicit
+val flat : [_]i32 = matrix[..]:[_]i32  // ✅ Unbounded range + type conversion
 ```
 
-**Rule:** Dimension changes (like 2D → 1D flattening) require BOTH `[..]` (copy) AND `:type` (conversion)
+**Rule:** Dimension changes (like 2D → 1D flattening) require BOTH `[..]` (unbounded range slice) AND `:type` (conversion)
 
 ---
 
@@ -798,15 +895,16 @@ Is the value a comptime type? (literal, comptime operation)
       └─ NO → Check if it's an array/special case
 ```
 
-#### Do I Need `[..]` for Arrays?
+#### Do I Need Range Syntax for Arrays?
 
 ```
 What are you doing with the array?
-  ├─ First materialization (comptime → concrete) → ❌ No [..] needed
-  ├─ Copying concrete array → ✅ YES, [..] required
-  ├─ Accessing element → ❌ No [..] needed (use [index])
-  ├─ Copying matrix row → ✅ YES, [..] required
-  └─ Flattening array → ✅ YES, both [..] AND :type required
+  ├─ First materialization (comptime → concrete) → ❌ No range needed
+  ├─ Slicing entire array → ✅ YES, [..] (unbounded range) required
+  ├─ Slicing part of array → ✅ YES, [start..end] (bounded range) required
+  ├─ Accessing single element → ❌ No range (use [index])
+  ├─ Slicing matrix row → ✅ YES, [..] (unbounded range) required
+  └─ Flattening array → ✅ YES, [..] (unbounded range) AND :type required
 ```
 
 #### Does This Expression Block Need Type Annotation?
@@ -856,17 +954,21 @@ For detailed specifications, consult the following documents:
 | **Conditionals (if/else)** | `docs/CONDITIONAL_SYSTEM.md` | Syntax, Type Integration, Runtime Treatment |
 | **Literal Overflow Safety** | `docs/LITERAL_OVERFLOW_BEHAVIOR.md` | Detection Rules, Type Ranges, Error Messages |
 | **Arrays (All Dimensions)** | `docs/ARRAY_TYPE_SYSTEM.md` | Array Syntax, Comptime Arrays, Flattening, Multidimensional |
+| **Ranges & Iteration** | `docs/RANGE_SYSTEM.md` | Range Syntax, Materialization, Slicing, usize Type |
 
 ### When to Consult Which Doc
 
 - **Type conversion questions?** → `TYPE_SYSTEM.md` + `COMPTIME_QUICK_REFERENCE.md`
-- **Why does my array operation fail?** → `ARRAY_TYPE_SYSTEM.md` (sections on copy syntax `[..]` and flattening)
+- **Why does my array operation fail?** → `ARRAY_TYPE_SYSTEM.md` (sections on range-based slicing and flattening)
+- **Range syntax and materialization?** → `RANGE_SYSTEM.md` (range types, array slicing, iteration)
+- **Array slicing with ranges?** → `RANGE_SYSTEM.md` + `ARRAY_TYPE_SYSTEM.md` (integration patterns)
 - **Binary operation type errors?** → `BINARY_OPS.md` (section on type resolution rules)
 - **Expression block type requirements?** → `UNIFIED_BLOCK_SYSTEM.md` (expression block type annotations)
 - **Function parameter/return rules?** → `FUNCTION_SYSTEM.md` (parameter context, return annotations)
 - **Conditional expression patterns?** → `CONDITIONAL_SYSTEM.md` (conditional expressions, -> vs return)
 - **Literal overflow errors?** → `LITERAL_OVERFLOW_BEHAVIOR.md` (type ranges, overflow detection)
 - **Adding new array features?** → `ARRAY_TYPE_SYSTEM.md` (comprehensive array specification)
+- **usize type for indexing?** → `RANGE_SYSTEM.md` (usize definition, indexing requirements)
 
 ### Cross-Reference Guide
 
@@ -874,18 +976,25 @@ For detailed specifications, consult the following documents:
 - Core concepts: `TYPE_SYSTEM.md`, `COMPTIME_QUICK_REFERENCE.md`
 - In binary operations: `BINARY_OPS.md` (comptime propagation)
 - In arrays: `ARRAY_TYPE_SYSTEM.md` (comptime arrays)
+- In ranges: `RANGE_SYSTEM.md` (comptime ranges)
 - In blocks: `UNIFIED_BLOCK_SYSTEM.md` (expression block type requirements)
 
 **Explicit Conversions (`:type`):**
 - General rules: `TYPE_SYSTEM.md` (Transparent Costs principle)
 - In operations: `BINARY_OPS.md` (mixed concrete types)
 - In arrays: `ARRAY_TYPE_SYSTEM.md` (array type conversions, flattening)
+- In ranges: `RANGE_SYSTEM.md` (range type conversions for indexing)
 - In functions: `FUNCTION_SYSTEM.md` (parameter conversions)
 
 **Type Annotation Requirements:**
 - Expression blocks: `UNIFIED_BLOCK_SYSTEM.md` (all expression blocks require explicit types)
 - Conditionals: `CONDITIONAL_SYSTEM.md` (all conditionals require explicit types)
 - Type resolution: `TYPE_SYSTEM.md` (comptime type adaptation)
+
+**Range System:**
+- Range types: `RANGE_SYSTEM.md` (syntax, bounds, step validation)
+- Array integration: `RANGE_SYSTEM.md` + `ARRAY_TYPE_SYSTEM.md` (materialization, slicing)
+- usize type: `RANGE_SYSTEM.md` (indexing requirements, conversions)
 
 ---
 
@@ -895,7 +1004,7 @@ For detailed specifications, consult the following documents:
 
 - **Parser tests** (`tests/parser/`): Validate syntax and AST generation
 - **Semantic tests** (`tests/semantic/`): Validate type checking and program semantics
-- **Current status**: 1,354/1,354 tests passing (100% success rate)
+- **Current status**: 1,564/1,564 tests passing (100% success rate)
 - All tests use pytest framework
 
 ### Code Style
