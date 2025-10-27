@@ -15,10 +15,11 @@ Hexen's array type system extends the language's comptime philosophy to collecti
 
 ### Relationship with Range System
 
-This document focuses on **array types and full-array operations**. For **array slicing** (extracting sub-arrays), see **[RANGE_SYSTEM.md](RANGE_SYSTEM.md)**:
+This document focuses on **array types and full-array operations**. For **range operations** (creation and slicing), see **[RANGE_SYSTEM.md](RANGE_SYSTEM.md)**:
 
 | Operation | Operator | Nature | Example |
 |-----------|----------|--------|---------|
+| **Range materialization** | `[range_expr]` | Create array from range (bounded only) | `val arr : [_]i32 = [1..10]` |
 | **Full-range slice** | `[..]` | Range operation (unbounded `..`) | `val copy : [_]i32 = source[..]` |
 | **Partial slice** | `[start..end]` | Range operation (bounded) | `val slice : [_]i32 = array[1..4]` |
 | **Row access** | `[index]` | Element/row extraction | `val row : [_]i32 = matrix[0]` |
@@ -58,6 +59,62 @@ Array literals use square brackets with comma-separated elements:
 [true, false, true]    // Array literal with boolean elements
 ["hello", "world"]     // Array literal with string elements
 ```
+
+### Range-Based Array Materialization `[range_expr]`
+
+**Key Concept:** Ranges can be **materialized** into arrays using the `[range_expr]` syntax, providing a concise way to generate sequences.
+
+As detailed in **[RANGE_SYSTEM.md](RANGE_SYSTEM.md)** (Materialization section), range expressions are **lazy sequences** that compute values on-demand. Wrapping a range in square brackets creates an array by materializing all elements:
+
+```hexen
+// Basic range materialization
+val r : range[i32] = 1..10               // Range: lazy sequence specification
+val arr : [_]i32 = [r]                   // Materialize: [1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+// Direct inline materialization (most common pattern)
+val sequence : [_]i32 = [1..10]          // [1, 2, 3, 4, 5, 6, 7, 8, 9]
+val inclusive : [_]i32 = [1..=10]        // [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+val stepped : [_]i32 = [0..100:10]       // [0, 10, 20, 30, 40, 50, 60, 70, 80, 90]
+
+// Float ranges (step required!)
+val floats : [_]f32 = [0.0..1.0:0.1]     // [0.0, 0.1, 0.2, ..., 0.9]
+val precise : [_]f64 = [0.0..=1.0:0.01]  // [0.00, 0.01, 0.02, ..., 1.00]
+```
+
+**Materialization Requirements** (from RANGE_SYSTEM.md):
+- ✅ **Bounded ranges** can be materialized: `[start..end]`, `[start..=end]`
+- ❌ **Unbounded ranges** cannot be materialized: `[start..]` (infinite), `[..end]` (no start), `[..]` (unbounded both ends)
+- ✅ **Comptime ranges** adapt to target type seamlessly
+- ✅ **Float ranges** require explicit step: `[0.0..1.0:0.1]` (not `[0.0..1.0]`)
+
+```hexen
+// ❌ ERROR: Unbounded ranges cannot be materialized
+val infinite : range[i32] = 5..
+// val bad : [_]i32 = [infinite]         // ❌ Comptime error: unbounded range
+
+// ❌ ERROR: Float ranges require explicit step
+// val no_step : [_]f32 = [0.0..10.0]    // ❌ Error: float range requires step
+
+// ✅ CORRECT: Bounded range with explicit step for floats
+val valid : [_]f32 = [0.0..10.0:0.5]     // ✅ OK
+```
+
+**Type Adaptation** (comptime range flexibility):
+```hexen
+// Comptime range preserves flexibility until materialization
+val flexible_range = 1..10               // range[comptime_int]
+
+// Same range materializes to different array types
+val as_i32 : [_]i32 = [flexible_range]   // → [9]i32
+val as_i64 : [_]i64 = [flexible_range]   // Same range → [9]i64
+val as_f64 : [_]f64 = [flexible_range]   // Same range → [9]f64
+```
+
+**For complete details** on range semantics, type rules, and materialization constraints, see **[RANGE_SYSTEM.md](RANGE_SYSTEM.md)** sections:
+- **Materialization (Range → Array)** - Core operation and error handling
+- **Type Consistency Rules** - User types vs index types
+- **Integer vs Float Ranges** - Step requirements and behavior
+- **Comptime Range Semantics** - Type preservation and adaptation
 
 ### Full-Range Slice Operator `[..]`
 
@@ -333,10 +390,11 @@ floats[1] = double_val:f32   // f64 → f32 (explicit conversion)
 ### Array Creation and Element Access
 
 ```hexen
-// Array creation
-val numbers = [1, 2, 3, 4, 5]           // comptime_array_int
-val fixed : [5]i32 = numbers            // → [5]i32
-val inferred : [_]i32 = numbers         // → [5]i32
+// Array creation methods
+val literal = [1, 2, 3, 4, 5]           // Array literal: comptime_array_int
+val from_range : [_]i32 = [1..6]        // Range materialization: [1, 2, 3, 4, 5]
+val fixed : [5]i32 = literal            // → [5]i32
+val inferred : [_]i32 = literal         // → [5]i32
 
 // Element access
 val first : i32 = fixed[0]              // Access first element
@@ -822,6 +880,17 @@ func demonstrate_array_system() : void = {
     val flexible_ints = [1, 2, 3, 4, 5]         // comptime_array_int (flexible!)
     val flexible_floats = [3.14, 2.71, 1.41]    // comptime_array_float (flexible!)
     val flexible_mixed = [42, 3.14, 100]        // comptime_array_float (mixed → float)
+
+    // ===== Range-Based Array Materialization =====
+    val sequence : [_]i32 = [1..6]              // Range materialization: [1, 2, 3, 4, 5]
+    val inclusive : [_]i32 = [1..=5]            // Inclusive range: [1, 2, 3, 4, 5]
+    val stepped : [_]i32 = [0..100:10]          // Stepped range: [0, 10, 20, ..., 90]
+    val floats : [_]f32 = [0.0..1.0:0.1]        // Float range (step required!): [0.0, 0.1, ..., 0.9]
+
+    // Comptime range flexibility
+    val flex_range = 1..10                      // range[comptime_int]
+    val range_as_i32 : [_]i32 = [flex_range]    // → [1, 2, 3, ..., 9] as i32
+    val range_as_f64 : [_]f64 = [flex_range]    // Same range → [1.0, 2.0, ..., 9.0] as f64
     
     // Same flexible arrays adapt to different contexts
     val ints_as_i32 : [_]i32 = flexible_ints    // → [5]i32
@@ -963,11 +1032,13 @@ func demonstrate_array_system() : void = {
 - **Transparent Costs**: All type conversion costs visible (uniform `value:type` syntax)
 
 ### Compatibility with RANGE_SYSTEM.md
+- **Range Materialization**: `[range_expr]` creates arrays from bounded ranges (only bounded ranges supported)
 - **Unified View Model**: `[..]` is the unbounded range `..` (not a separate operator)
 - **Zero-Cost Views**: All range operations (including `[..]`) create views first (O(1))
 - **Explicit Materialization**: Assignment to array type triggers copy (cost visible)
-- **Clean Separation**: Array types focus on structure; RANGE_SYSTEM.md handles slicing semantics
-- **Cross-Reference**: Complete range slicing details documented in RANGE_SYSTEM.md
+- **Comptime Range Flexibility**: Comptime ranges adapt to array element types seamlessly
+- **Clean Separation**: Array types focus on structure; RANGE_SYSTEM.md handles range semantics and slicing operations
+- **Cross-Reference**: Complete range materialization and slicing details documented in RANGE_SYSTEM.md
 
 This array type system extends Hexen's proven comptime philosophy to collections, maintaining consistency with existing language patterns while focusing on the core essentials: **type safety**, **memory layout**, and **element access**.
 
