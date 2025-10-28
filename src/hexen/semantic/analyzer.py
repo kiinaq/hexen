@@ -172,6 +172,7 @@ class SemanticAnalyzer:
             label_stack=self.label_stack,
             get_current_function_return_type_callback=lambda: self.current_function_return_type,
             comptime_analyzer=self.comptime_analyzer,
+            block_context_stack=self.block_context,
         )
 
     def analyze(self, ast: Dict) -> List[SemanticError]:
@@ -426,12 +427,16 @@ class SemanticAnalyzer:
                 condition,
             )
 
-        # 2. Analyze if branch as statement block
+        # 2. Analyze if branch (inherit context from parent, or default to statement)
+        # If we're in a loop expression, the block_context will be "expression"
+        # and we need to preserve that for nested blocks
+        current_context = self.block_context[-1] if self.block_context else "statement"
+
         if_branch = node.get("if_branch")
         if if_branch:
             self.symbol_table.enter_scope()
             try:
-                self._analyze_block(if_branch, node, context="statement")
+                self._analyze_block(if_branch, node, context=current_context)
             finally:
                 self.symbol_table.exit_scope()
 
@@ -448,12 +453,12 @@ class SemanticAnalyzer:
                         clause_condition,
                     )
 
-            # Analyze else clause branch as statement block
+            # Analyze else clause branch (inherit context from parent)
             clause_branch = else_clause.get("branch")
             if clause_branch:
                 self.symbol_table.enter_scope()
                 try:
-                    self._analyze_block(clause_branch, node, context="statement")
+                    self._analyze_block(clause_branch, node, context=current_context)
                 finally:
                     self.symbol_table.exit_scope()
 
