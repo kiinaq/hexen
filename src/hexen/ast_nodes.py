@@ -68,6 +68,13 @@ class NodeType(Enum):
     RANGE_EXPR = "range_expr"
     RANGE_TYPE = "range_type"
 
+    # Loop System
+    FOR_IN_LOOP = "for_in_loop"
+    WHILE_LOOP = "while_loop"
+    BREAK_STATEMENT = "break_statement"
+    CONTINUE_STATEMENT = "continue_statement"
+    LABELED_STATEMENT = "labeled_statement"
+
     def __str__(self):
         """Return the string value for convenient usage"""
         return self.value

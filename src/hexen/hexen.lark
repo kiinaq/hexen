@@ -17,6 +17,11 @@ statement: var_declaration
          | assign_stmt
          | assignment_stmt
          | conditional_stmt
+         | for_in_loop
+         | while_loop
+         | break_stmt
+         | continue_stmt
+         | labeled_stmt
          | block
          | function_call_stmt
 
@@ -41,6 +46,17 @@ conditional_stmt: "if" expression block else_clause*
 else_clause: "else" "if" expression block
            | "else" block
 
+// Loop System
+for_in_loop: FOR IDENTIFIER (":" type)? IN expression block
+
+while_loop: WHILE expression block
+
+break_stmt: BREAK IDENTIFIER?
+
+continue_stmt: CONTINUE IDENTIFIER?
+
+labeled_stmt: IDENTIFIER ":" statement
+
 expression: logical_or
 
 logical_or: logical_and (OR_OP logical_and)*
@@ -57,7 +73,7 @@ unary: UNARY_OP unary
      | conversion
 conversion: postfix (CONVERSION_OP type)?
 postfix: primary (array_suffix | property_access)*
-primary: NUMBER | STRING | BOOLEAN | function_call | IDENTIFIER | block | conditional_stmt | array_literal | "(" expression ")"
+primary: NUMBER | STRING | BOOLEAN | function_call | IDENTIFIER | block | conditional_stmt | for_in_loop | array_literal | "(" expression ")"
 
 // Range expressions (between relational and additive precedence)
 range_bounded: additive RANGE_EXCLUSIVE additive (":" additive)?
@@ -121,9 +137,14 @@ TYPE_VOID: "void"
 VAL: /val\b/
 MUT: /mut\b/
 FUNC: /func\b/
+FOR: /for\b/
+WHILE: /while\b/
+BREAK: /break\b/
+CONTINUE: /continue\b/
+IN: /in\b/
 
 // Terminals
-IDENTIFIER: /(?!val\b|mut\b|func\b|return\b|true\b|false\b|if\b|else\b)[a-zA-Z_][a-zA-Z0-9_]*/
+IDENTIFIER: /(?!val\b|mut\b|func\b|return\b|true\b|false\b|if\b|else\b|for\b|while\b|break\b|continue\b|in\b)[a-zA-Z_][a-zA-Z0-9_]*/
 NUMBER: SIGN? (SCIENTIFIC | HEXADECIMAL | BINARY | DECIMAL | INTEGER)
 STRING: /\"[^\"]*\"/
 BOOLEAN: "true" | "false"

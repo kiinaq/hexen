@@ -616,6 +616,87 @@ class HexenTransformer(Transformer):
     def statement(self, stmt):
         return stmt
 
+    # Loop System Transformers
+    def for_in_loop(self, args):
+        """Transform for-in loop: FOR IDENTIFIER [":" type]? IN expression block"""
+        # Grammar: FOR IDENTIFIER (":" type)? IN expression block
+        # Filter out keyword tokens (FOR, IN)
+        from lark import Token
+
+        filtered = [arg for arg in args if not isinstance(arg, Token)]
+
+        if len(filtered) == 3:
+            # No type annotation: [name, iterable, body]
+            name, iterable, body = filtered
+            return {
+                "type": NodeType.FOR_IN_LOOP.value,
+                "variable": name["name"],
+                "variable_type": None,
+                "iterable": iterable,
+                "body": body,
+            }
+        else:
+            # With type annotation: [name, type, iterable, body]
+            name, variable_type, iterable, body = filtered
+            return {
+                "type": NodeType.FOR_IN_LOOP.value,
+                "variable": name["name"],
+                "variable_type": variable_type,
+                "iterable": iterable,
+                "body": body,
+            }
+
+    def while_loop(self, args):
+        """Transform while loop: WHILE expression block"""
+        # Grammar: WHILE expression block
+        # Filter out WHILE keyword token
+        from lark import Token
+
+        filtered = [arg for arg in args if not isinstance(arg, Token)]
+        condition, body = filtered
+        return {
+            "type": NodeType.WHILE_LOOP.value,
+            "condition": condition,
+            "body": body,
+        }
+
+    def break_stmt(self, args):
+        """Transform break statement: BREAK [IDENTIFIER]?"""
+        # Grammar: BREAK IDENTIFIER?
+        # Filter out BREAK keyword token
+        from lark import Token
+
+        filtered = [arg for arg in args if not isinstance(arg, Token)]
+        label = filtered[0]["name"] if filtered else None
+        return {
+            "type": NodeType.BREAK_STATEMENT.value,
+            "label": label,
+        }
+
+    def continue_stmt(self, args):
+        """Transform continue statement: CONTINUE [IDENTIFIER]?"""
+        # Grammar: CONTINUE IDENTIFIER?
+        # Filter out CONTINUE keyword token
+        from lark import Token
+
+        filtered = [arg for arg in args if not isinstance(arg, Token)]
+        label = filtered[0]["name"] if filtered else None
+        return {
+            "type": NodeType.CONTINUE_STATEMENT.value,
+            "label": label,
+        }
+
+    def labeled_stmt(self, args):
+        """Transform labeled statement: IDENTIFIER ":" statement"""
+        # Grammar: IDENTIFIER ":" statement
+        # Colon is consumed, so args = [label_name, statement]
+        label_name, statement = args
+        return {
+            "type": NodeType.LABELED_STATEMENT.value,
+            "label": label_name["name"],
+            "statement": statement,
+        }
+
     def type(self, children):
         # Handle multiple types through terminal tokens
         return children[0]
