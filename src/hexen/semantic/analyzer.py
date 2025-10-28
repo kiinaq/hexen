@@ -17,6 +17,7 @@ from .declaration_analyzer import DeclarationAnalyzer
 from .errors import SemanticError
 from .expression_analyzer import ExpressionAnalyzer
 from .function_analyzer import FunctionAnalyzer
+from .loop_analyzer import LoopAnalyzer
 from .range_analyzer import RangeAnalyzer
 from .return_analyzer import ReturnAnalyzer
 from .symbol_table import SymbolTable
@@ -158,6 +159,19 @@ class SemanticAnalyzer:
             analyze_function_call_callback=self._analyze_function_call,
             conversion_analyzer=self.conversion_analyzer,
             comptime_analyzer=self.comptime_analyzer,
+            analyze_for_in_loop_callback=self._analyze_for_in_loop_expression,
+        )
+
+        # Initialize loop analyzer with callbacks
+        self.loop_analyzer = LoopAnalyzer(
+            error_callback=self._error,
+            analyze_expression_callback=self._analyze_expression,
+            analyze_statement_callback=self._analyze_statement,
+            symbol_table=self.symbol_table,
+            loop_stack=self.loop_stack,
+            label_stack=self.label_stack,
+            get_current_function_return_type_callback=lambda: self.current_function_return_type,
+            comptime_analyzer=self.comptime_analyzer,
         )
 
     def analyze(self, ast: Dict) -> List[SemanticError]:
@@ -275,6 +289,17 @@ class SemanticAnalyzer:
             self._analyze_conditional_statement(node)
         elif stmt_type == NodeType.FUNCTION_CALL_STATEMENT.value:
             self._analyze_function_call_statement(node)
+        # Loop statements
+        elif stmt_type == NodeType.FOR_IN_LOOP.value:
+            self.loop_analyzer.analyze_for_in_loop(node)
+        elif stmt_type == NodeType.WHILE_LOOP.value:
+            self.loop_analyzer.analyze_while_loop(node)
+        elif stmt_type == NodeType.BREAK_STATEMENT.value:
+            self.loop_analyzer.analyze_break_statement(node)
+        elif stmt_type == NodeType.CONTINUE_STATEMENT.value:
+            self.loop_analyzer.analyze_continue_statement(node)
+        elif stmt_type == NodeType.LABELED_STATEMENT.value:
+            self.loop_analyzer.analyze_labeled_statement(node)
         else:
             self._error(f"Unknown statement type: {stmt_type}", node)
 
@@ -315,6 +340,21 @@ class SemanticAnalyzer:
         Analyze a function call by delegating to FunctionAnalyzer.
         """
         return self.function_analyzer.analyze_function_call(node, target_type)
+
+    def _analyze_for_in_loop_expression(
+        self, node: Dict, target_type: Optional[Union[HexenType, ArrayType]] = None
+    ) -> Union[HexenType, ArrayType]:
+        """
+        Analyze for-in loop in expression context by delegating to LoopAnalyzer.
+
+        Args:
+            node: For-in loop AST node
+            target_type: Expected type annotation (required for loop expressions)
+
+        Returns:
+            Array type for loop expression
+        """
+        return self.loop_analyzer.analyze_for_in_loop(node, target_type)
 
     def _analyze_assign_statement(self, node: Dict) -> None:
         """

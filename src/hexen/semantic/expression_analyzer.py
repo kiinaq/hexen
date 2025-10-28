@@ -51,6 +51,7 @@ class ExpressionAnalyzer:
         ],
         conversion_analyzer,
         comptime_analyzer=None,
+        analyze_for_in_loop_callback: Optional[Callable[[Dict, Optional[Union[HexenType, ArrayType]]], Union[HexenType, ArrayType]]] = None,
     ):
         """Initialize with callbacks to main analyzer functionality."""
         self._error = error_callback
@@ -61,6 +62,7 @@ class ExpressionAnalyzer:
         self._analyze_function_call = analyze_function_call_callback
         self._conversion_analyzer = conversion_analyzer
         self.comptime_analyzer = comptime_analyzer
+        self._analyze_for_in_loop_callback = analyze_for_in_loop_callback
 
         # Initialize range analyzer (needed by array analyzer)
         self.range_analyzer = RangeAnalyzer(
@@ -169,6 +171,20 @@ class ExpressionAnalyzer:
         elif expr_type == NodeType.RANGE_EXPR.value:
             # Range expressions - delegate to range analyzer
             return self.range_analyzer.analyze_range_expr(node, target_type)
+        elif expr_type == NodeType.FOR_IN_LOOP.value:
+            # For-in loop expressions - must have type annotation (will be delegated to loop analyzer)
+            # This is handled similarly to conditional expressions - requires explicit type
+            return self._analyze_for_in_loop_expression(node, target_type)
+        elif expr_type == NodeType.WHILE_LOOP.value:
+            # While loops CANNOT be expressions
+            self._error(
+                "While loops cannot be used in expression context\n"
+                "Help: Use for-in loop for array generation: for i in range { -> value }\n"
+                "Note: While loops are statements only (cannot produce values)\n"
+                "      Rationale: Unbounded iteration risk (no comptime-checkable bounds)",
+                node,
+            )
+            return HexenType.UNKNOWN
         else:
             self._error(f"Unknown expression type: {expr_type}", node)
             return HexenType.UNKNOWN
@@ -481,6 +497,32 @@ class ExpressionAnalyzer:
             # Mixed types require explicit target context for resolution
             self._error(
                 f"Mixed types across conditional branches require explicit target type context",
+                node,
+            )
+            return HexenType.UNKNOWN
+
+    def _analyze_for_in_loop_expression(
+        self, node: Dict, target_type: Optional[Union[HexenType, ArrayType]] = None
+    ) -> Union[HexenType, ArrayType]:
+        """
+        Delegate for-in loop expression analysis to loop analyzer.
+
+        Loop expressions must have explicit type annotations (runtime operation).
+        Actual analysis is delegated to the main analyzer's loop_analyzer via callback.
+
+        Args:
+            node: For-in loop AST node
+            target_type: Expected type annotation (required!)
+
+        Returns:
+            Array type for loop expression
+        """
+        if self._analyze_for_in_loop_callback:
+            return self._analyze_for_in_loop_callback(node, target_type)
+        else:
+            # Fallback error if callback not set
+            self._error(
+                "Loop expression analysis not available (internal error)",
                 node,
             )
             return HexenType.UNKNOWN
