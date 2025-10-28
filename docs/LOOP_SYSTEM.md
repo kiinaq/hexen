@@ -1026,9 +1026,18 @@ for i in 1..10 {
 
 **Key insight:** Comptime types flow through loops just like other expressions (Ergonomic Literals principle).
 
-### Array Size Inference
+### Array Size: Inferred vs Fixed
 
-Loop expressions produce arrays with **inferred size** (`[_]T` notation):
+Loop expressions support **both inferred size** (`[_]T`) **and fixed size** (`[N]T`) type annotations:
+
+| Notation | Size Known | Validation | Use Case |
+|----------|------------|------------|----------|
+| `[_]T` | Inferred at runtime | No size validation | Flexible (most common) |
+| `[N]T` | Fixed at comptime | Comptime + runtime validation | Type safety, function params |
+
+#### Inferred Size (`[_]T`)
+
+Loop expressions with **inferred size** determine array length from loop execution:
 
 ```hexen
 // Size inferred from loop (bounded range)
@@ -1055,7 +1064,202 @@ val partial : [_]i32 = for i in 1..100 {
 // Type: [_]i32 (size determined at runtime: 50 elements)
 ```
 
-**Key principle:** Array size is inferred (using `[_]T` notation) because loop expressions can filter or break early.
+**Key principle:** Inferred size is flexible - no validation, adapts to actual element count.
+
+#### Fixed Size (`[N]T`)
+
+Loop expressions with **fixed size** enforce exact element count (comptime or runtime validation):
+
+```hexen
+// ✅ Fixed size with bounded range (comptime validated)
+val arr : [9]i32 = for i in 1..10 {
+    -> i * i
+}
+// Range 1..10 produces 9 elements ✅ Comptime verified
+
+// ✅ Fixed size matches range exactly
+val exact : [10]i32 = for i in 1..=10 {
+    -> i
+}
+// Range 1..=10 produces 10 elements ✅ Comptime verified
+
+// ❌ Fixed size mismatch (comptime error)
+val bad : [10]i32 = for i in 1..10 {
+    -> i
+}
+// ❌ Error: Range 1..10 produces 9 elements, expected 10
+
+// Runtime validation (filtering)
+val filtered : [5]i32 = for i in 1..20 {
+    if i % 2 == 0 {
+        -> i
+    }
+}
+// Produces: [2, 4, 6, 8, 10] ✅ Exactly 5 elements (runtime verified)
+// If wrong count → runtime panic
+```
+
+**Comptime validation:** When loop uses bounded range without filtering/break, size checked at comptime.
+
+**Runtime validation:** When filtering or break present, size checked at runtime (panic if mismatch).
+
+#### Fixed Size Use Cases
+
+**Use case 1: Function parameters with fixed dimensions**
+
+```hexen
+func process_matrix(m : [3][4]i32) : i32 = {
+    return 0
+}
+
+// Generate exactly 3x4 matrix
+val matrix : [3][4]i32 = for i in 1..=3 {
+    -> for j in 1..=4 {
+        -> i * j
+    }
+}
+// Both dimensions validated: 3 rows, 4 columns ✅
+
+process_matrix(matrix)  // ✅ Type matches exactly
+```
+
+**Use case 2: Type safety guarantees**
+
+```hexen
+// Enforce exact dimensions
+val identity : [5][5]i32 = for i in 0..5 {
+    -> for j in 0..5 {
+        if i == j { -> 1 } else { -> 0 }
+    }
+}
+// Compiler/runtime ensures: exactly 5x5 ✅
+```
+
+**Use case 3: Mixed inferred + fixed dimensions**
+
+```hexen
+// Fix outer dimension, infer inner
+val rows_fixed : [3][_]i32 = for i in 1..=3 {
+    -> for j in 1..20 {
+        if j % i == 0 {
+            -> j                    // Inner size varies per row
+        }
+    }
+}
+// Outer: 3 rows (validated)
+// Inner: inferred per row (flexible)
+// Note: All inner arrays must still have uniform length!
+```
+
+#### Fixed Size Validation
+
+**Comptime validation (bounded ranges, no control flow):**
+
+```hexen
+// ✅ Comptime success: exact match
+val good : [9]i32 = for i in 1..10 { -> i }
+
+// ❌ Comptime error: size mismatch
+val bad : [10]i32 = for i in 1..10 { -> i }
+```
+
+**Comptime error message:**
+
+```
+Error: Loop expression size mismatch
+  val bad : [10]i32 = for i in 1..10 { -> i }
+            ^^^^^^^^
+Expected: 10 elements (from type annotation [10]i32)
+Produces: 9 elements (from range 1..10)
+
+Help: Use range 1..=10 (inclusive) or adjust type to [9]i32
+Note: Fixed-size arrays require exact element count from loop
+```
+
+**Runtime validation (filtering, break, dynamic conditions):**
+
+```hexen
+// Runtime check required (filtering)
+val runtime : [5]i32 = for i in 1..20 {
+    if i % 2 == 0 {
+        -> i
+    }
+}
+// Produces: [2, 4, 6, 8, 10] - exactly 5 elements ✅
+// If different count → runtime panic
+```
+
+**Runtime error message:**
+
+```
+Runtime panic: Loop expression produced wrong number of elements
+  val arr : [5]i32 = for i in 1..10 { if i % 2 == 0 { -> i } }
+Expected: 5 elements (from type [5]i32)
+Got:      4 elements (from loop execution)
+
+Location: for i in 1..10 (completed)
+
+Help: Use inferred size [_]i32 if element count is runtime-dependent
+Note: Fixed-size arrays require exact match at runtime
+```
+
+#### Nested Fixed Size Validation
+
+All dimensions can be fixed or inferred independently:
+
+```hexen
+// Both dimensions fixed
+val matrix : [3][4]i32 = for i in 1..=3 {
+    -> for j in 1..=4 {
+        -> i * j
+    }
+}
+// Validates: 3 rows, 4 columns ✅
+
+// Outer fixed, inner inferred
+val mixed : [3][_]i32 = for i in 1..=3 {
+    -> for j in 1..5 {
+        -> j
+    }
+}
+// Validates: 3 rows (all must have same inner size!)
+
+// Both inferred (most flexible)
+val flexible : [_][_]i32 = for i in 1..10 {
+    if i % 2 == 0 {
+        -> for j in 1..5 { -> j }
+    }
+}
+// No validation, adapts to actual dimensions
+```
+
+**Nested dimension mismatch error:**
+
+```
+Error: Nested loop expression dimension mismatch
+  val matrix : [3][4]i32 = for i in 1..5 { -> for j in 1..=4 { -> i*j } }
+               ^^^^^^^^^^
+Expected: [3][4]i32
+Outer loop produces: 5 rows (range 1..5)
+Expected: 3 rows
+
+Help: Use range 1..=3 or adjust type to [5][4]i32
+Note: All dimensions with fixed size require exact match
+```
+
+#### When to Use Fixed vs Inferred Size
+
+**Use inferred size (`[_]T`) when:**
+- Loop uses filtering (element count unknown)
+- Loop uses break (early termination)
+- Maximum flexibility desired
+- Element count naturally varies
+
+**Use fixed size (`[N]T`) when:**
+- Function parameters require exact dimensions
+- Type safety is critical (enforce exact size)
+- Working with fixed-dimension data (3x3 transform matrices, etc.)
+- Comptime validation desired (catch size mismatches early)
 
 ## Nested Loop Expressions (Multidimensional Arrays)
 
