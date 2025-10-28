@@ -7,6 +7,7 @@ the semantic analysis phase.
 """
 
 from enum import Enum
+from typing import Optional, Union
 
 
 class HexenType(Enum):
@@ -652,3 +653,65 @@ class ComptimeRangeType(RangeType):
         inclusive_str = "inclusive" if self.inclusive else "exclusive"
 
         return f"comptime_range[{elem_str}]({bounds_str},{inclusive_str})"
+
+
+class LoopContext:
+    """
+    Context information for loop analysis tracking.
+
+    Used by the semantic analyzer to track active loops for:
+    - Break/continue validation (must be inside a loop)
+    - Label resolution (break/continue to specific loops)
+    - Loop variable scope management
+    - Expression mode detection (statement vs expression)
+
+    Attributes:
+        loop_type: Type of loop ("for-in" or "while")
+        label: Optional label for the loop (e.g., "outer" in outer: for ...)
+        is_expression_mode: True if loop produces array value
+        iterable_type: Type of iterable (for for-in loops only)
+        variable_name: Name of loop variable (for for-in loops only)
+        variable_type: Type of loop variable (for for-in loops only)
+    """
+
+    def __init__(
+        self,
+        loop_type: str,
+        label: Optional[str] = None,
+        is_expression_mode: bool = False,
+        iterable_type: Optional[Union[HexenType, "ArrayType", "RangeType"]] = None,
+        variable_name: Optional[str] = None,
+        variable_type: Optional[HexenType] = None,
+    ):
+        """
+        Create a loop context.
+
+        Args:
+            loop_type: "for-in" or "while"
+            label: Optional loop label
+            is_expression_mode: True if loop produces array
+            iterable_type: Type being iterated over (for-in only)
+            variable_name: Loop variable name (for-in only)
+            variable_type: Loop variable type (for-in only)
+        """
+        self.loop_type = loop_type
+        self.label = label
+        self.is_expression_mode = is_expression_mode
+        self.iterable_type = iterable_type
+        self.variable_name = variable_name
+        self.variable_type = variable_type
+
+    def __str__(self) -> str:
+        """Human-readable representation"""
+        label_str = f" '{self.label}'" if self.label else ""
+        mode_str = "expression" if self.is_expression_mode else "statement"
+        var_str = f" (var: {self.variable_name}: {self.variable_type})" if self.variable_name else ""
+        return f"{self.loop_type}{label_str} [{mode_str}]{var_str}"
+
+    def __repr__(self) -> str:
+        """Debug representation"""
+        return (
+            f"LoopContext(loop_type={self.loop_type!r}, label={self.label!r}, "
+            f"is_expression_mode={self.is_expression_mode}, "
+            f"variable_name={self.variable_name!r})"
+        )

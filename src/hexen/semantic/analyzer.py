@@ -20,7 +20,7 @@ from .function_analyzer import FunctionAnalyzer
 from .range_analyzer import RangeAnalyzer
 from .return_analyzer import ReturnAnalyzer
 from .symbol_table import SymbolTable
-from .types import HexenType, ArrayType
+from .types import HexenType, ArrayType, LoopContext
 from .unary_ops_analyzer import UnaryOpsAnalyzer
 from ..ast_nodes import NodeType
 
@@ -55,6 +55,10 @@ class SemanticAnalyzer:
 
         # Parameter modification tracking for mut parameter enforcement (Week 2 Task 8)
         self.modified_mut_parameters: set = set()  # Track which mut parameters were modified in current function
+
+        # Loop context tracking (for break/continue/label validation)
+        self.loop_stack: List[LoopContext] = []  # Track nested loops
+        self.label_stack: Dict[str, LoopContext] = {}  # Track labels in scope
 
         # Initialize comptime analyzer first (needed by other analyzers)
         self.comptime_analyzer = ComptimeAnalyzer(self.symbol_table)
