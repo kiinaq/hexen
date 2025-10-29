@@ -412,41 +412,13 @@ class ExpressionAnalyzer:
             else self._branch_uses_assign(branch_node)
         )
 
-        if uses_assign and target_type:
-            # Use centralized logic if available
-            if self.comptime_analyzer:
-                result = self.comptime_analyzer.analyze_conditional_branch_with_target_context(
-                    branch_node, target_type, self.analyze_expression
-                )
-                if result is not None:
-                    return result
-
-            # Fallback to original logic
-            if not branch_node or branch_node.get("type") != "block":
-                return HexenType.UNKNOWN
-
-            statements = branch_node.get("statements", [])
-            if not statements:
-                return HexenType.UNKNOWN
-
-            # The last statement should be an assign statement
-            last_statement = statements[-1]
-            if last_statement.get("type") != "assign_statement":
-                return HexenType.UNKNOWN
-
-            # Analyze the assign statement with target type propagation
-            assign_value = last_statement.get("value")
-            if assign_value:
-                # Use the target type for context-guided resolution
-                return self.analyze_expression(assign_value, target_type)
-            else:
-                return HexenType.UNKNOWN
-        else:
-            # For return branches or branches without target type, use standard block analysis
-            block_type = self._analyze_block(
-                branch_node, conditional_node, context="expression"
-            )
-            return block_type
+        # Always use standard block analysis to ensure ALL statements are validated
+        # This includes control flow statements (break, continue, return) that may
+        # appear before the final -> or return statement
+        block_type = self._analyze_block(
+            branch_node, conditional_node, context="expression"
+        )
+        return block_type
 
     def _fallback_branch_type_unification(
         self,

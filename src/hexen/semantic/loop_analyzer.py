@@ -107,6 +107,20 @@ class LoopAnalyzer:
             ArrayType for expression mode
         """
         # Step 1: Determine loop mode (statement vs expression)
+        # Expression mode requires explicit type annotation
+        body = node.get("body")
+        has_assign_statements = self._check_body_has_assign_statements(body)
+
+        if has_assign_statements and expected_type is None:
+            # Loop contains -> statements but no type annotation
+            self._error(
+                "Loop expression requires explicit type annotation (runtime operation)\n"
+                "Help: Add type annotation: val result : [_]i32 = for i in ... { -> value }\n"
+                "Note: Loop expressions are runtime operations like functions and conditionals",
+                node,
+            )
+            return HexenType.UNKNOWN
+
         is_expression_mode = expected_type is not None
 
         # Step 2: Analyze iterable expression
@@ -479,6 +493,60 @@ class LoopAnalyzer:
                     node,
                 )
         # Arrays are always bounded - no check needed
+
+    def _check_body_has_assign_statements(self, body: Dict) -> bool:
+        """
+        Check if loop body contains -> statements (assign statements).
+
+        This detects whether a loop is intended as an expression (produces values)
+        even if no type annotation was provided.
+
+        Args:
+            body: Loop body block
+
+        Returns:
+            True if body contains any -> statements
+        """
+        if not body or body.get("type") != NodeType.BLOCK.value:
+            return False
+
+        statements = body.get("statements", [])
+
+        for stmt in statements:
+            stmt_type = stmt.get("type")
+
+            # Direct assign statement
+            if stmt_type == NodeType.ASSIGN_STATEMENT.value:
+                return True
+
+            # Recursively check nested blocks (if, for, etc.)
+            if stmt_type == NodeType.CONDITIONAL_STATEMENT.value:
+                # Check if branch
+                if_branch = stmt.get("if_branch")
+                if if_branch and self._check_body_has_assign_statements(if_branch):
+                    return True
+
+                # Check else clauses
+                else_clauses = stmt.get("else_clauses", [])
+                for else_clause in else_clauses:
+                    branch = else_clause.get("branch")
+                    if branch and self._check_body_has_assign_statements(branch):
+                        return True
+
+            # Check nested loops
+            elif stmt_type in [NodeType.FOR_IN_LOOP.value, NodeType.WHILE_LOOP.value]:
+                loop_body = stmt.get("body")
+                if loop_body and self._check_body_has_assign_statements(loop_body):
+                    return True
+
+            # Check labeled statements
+            elif stmt_type == NodeType.LABELED_STATEMENT.value:
+                inner_stmt = stmt.get("statement")
+                if inner_stmt and inner_stmt.get("body"):
+                    if self._check_body_has_assign_statements(inner_stmt.get("body")):
+                        return True
+
+        return False
 
     def _analyze_loop_body(
         self,
