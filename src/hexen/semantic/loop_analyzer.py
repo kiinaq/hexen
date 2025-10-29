@@ -433,9 +433,11 @@ class LoopAnalyzer:
         # Track if we found any -> statements in expression mode
         has_yield_statement = False
 
-        # In expression mode, push "expression" context to allow -> statements
+        # In expression mode, push "loop_expression" context to allow -> statements
+        # "loop_expression" allows flexible control flow (break/continue/filtering)
+        # unlike regular "expression" blocks which require strict ending statements
         if is_expression_mode:
-            self.block_context_stack.append("expression")
+            self.block_context_stack.append("loop_expression")
 
         try:
             # Analyze each statement in loop body

@@ -101,6 +101,8 @@ class BlockAnalyzer:
         # Context tracking for expression blocks
         if context == "expression":
             self.block_context_stack.append("expression")
+        elif context == "loop_expression":
+            self.block_context_stack.append("loop_expression")
 
         try:
             statements = body.get("statements", [])
@@ -112,6 +114,8 @@ class BlockAnalyzer:
 
             # Expression context cleanup
             if context == "expression":
+                self.block_context_stack.pop()
+            elif context == "loop_expression":
                 self.block_context_stack.pop()
 
     def _analyze_statements_with_context(
@@ -126,6 +130,7 @@ class BlockAnalyzer:
         - Function blocks: Returns allowed anywhere, type validation applied
         """
         is_expression_block = context == "expression"
+        is_loop_expression_block = context == "loop_expression"
         is_statement_block = context == "statement"
         last_statement = None
         has_assign = False
@@ -147,6 +152,11 @@ class BlockAnalyzer:
                             "'assign' statement must be the last statement in expression block",
                             stmt,
                         )
+                elif is_loop_expression_block:
+                    # Loop expression blocks: assign statements (-> statements) allowed anywhere
+                    # They don't need to be last because of flexible control flow (filtering, break, etc.)
+                    # The loop analyzer handles the actual analysis of these statements
+                    pass  # Allow -> statements anywhere in loop body
                 elif is_statement_block:
                     # Statement blocks: assign statements not allowed
                     self._error(
@@ -184,6 +194,15 @@ class BlockAnalyzer:
             return self._finalize_expression_block(
                 has_assign, has_return, last_statement, node
             )
+
+        if is_loop_expression_block:
+            # Loop expression blocks allow flexible control flow
+            # They don't require strict ending statements because:
+            # - Filtering: some iterations may not yield values
+            # - Break/continue: control flow can bypass yield statements
+            # - Conditional yields: only some branches may produce values
+            # The loop analyzer handles validation of -> statements directly
+            return None
 
         # Statement blocks and function blocks don't produce values
         return None

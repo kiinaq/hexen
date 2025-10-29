@@ -484,3 +484,187 @@ class TestForInEdgeCases:
         loop = ast["statements"][0]
         assert loop["type"] == NodeType.FOR_IN_LOOP.value
         assert loop["variable"] == "very_long_variable_name_for_iteration"
+
+
+class TestInlineModuloConditions:
+    """Test inline modulo operator in conditional expressions (Phase 3 bug verification)."""
+
+    def test_inline_modulo_in_if_condition_simple(self, parser):
+        """Test: Inline modulo in if condition: if i % 2 == 0 { }"""
+        code = """
+        for i in 1..10 {
+            if i % 2 == 0 {
+                print(i)
+            }
+        }
+        """
+        ast = parser.parse(code)
+        loop = ast["statements"][0]
+        assert loop["type"] == NodeType.FOR_IN_LOOP.value
+
+        # Check conditional structure
+        cond_stmt = loop["body"]["statements"][0]
+        assert cond_stmt["type"] == NodeType.CONDITIONAL_STATEMENT.value
+
+        # Check condition is a binary operation (comparison)
+        condition = cond_stmt["condition"]
+        assert condition["type"] == NodeType.BINARY_OPERATION.value
+        assert condition["operator"] == "=="
+
+        # Check left side of == is modulo operation
+        left_operand = condition["left"]
+        assert left_operand["type"] == NodeType.BINARY_OPERATION.value
+        assert left_operand["operator"] == "%"
+        assert left_operand["left"]["type"] == NodeType.IDENTIFIER.value
+        assert left_operand["left"]["name"] == "i"
+        assert left_operand["right"]["type"] == NodeType.COMPTIME_INT.value
+        assert left_operand["right"]["value"] == 2
+
+        # Check right side of == is integer literal
+        right_operand = condition["right"]
+        assert right_operand["type"] == NodeType.COMPTIME_INT.value
+        assert right_operand["value"] == 0
+
+    def test_inline_modulo_in_loop_expression(self, parser):
+        """Test: Inline modulo in loop expression filtering: val evens : [_]i32 = for i in 1..20 { if i % 2 == 0 { -> i } }"""
+        code = """
+        val evens : [_]i32 = for i in 1..20 {
+            if i % 2 == 0 {
+                -> i
+            }
+        }
+        """
+        ast = parser.parse(code)
+        decl = ast["statements"][0]
+        loop = decl["value"]
+        assert loop["type"] == NodeType.FOR_IN_LOOP.value
+
+        # Check conditional structure
+        cond_stmt = loop["body"]["statements"][0]
+        assert cond_stmt["type"] == NodeType.CONDITIONAL_STATEMENT.value
+
+        # Check condition is properly structured: i % 2 == 0
+        condition = cond_stmt["condition"]
+        assert condition["type"] == NodeType.BINARY_OPERATION.value
+        assert condition["operator"] == "=="
+
+        # Verify modulo operation structure
+        modulo_op = condition["left"]
+        assert modulo_op["type"] == NodeType.BINARY_OPERATION.value
+        assert modulo_op["operator"] == "%"
+        assert modulo_op["left"]["name"] == "i"
+        assert modulo_op["right"]["value"] == 2
+
+        # Verify comparison operand
+        assert condition["right"]["value"] == 0
+
+        # Verify assign statement in conditional block
+        if_branch = cond_stmt["if_branch"]
+        assert len(if_branch["statements"]) == 1
+        assert if_branch["statements"][0]["type"] == "assign_statement"
+
+    def test_inline_modulo_nested_conditionals(self, parser):
+        """Test: Multiple inline modulo operations in nested conditionals"""
+        code = """
+        val special : [_]i32 = for i in 1..100 {
+            if i % 2 == 0 {
+                if i % 3 == 0 {
+                    -> i
+                }
+            }
+        }
+        """
+        ast = parser.parse(code)
+        decl = ast["statements"][0]
+        loop = decl["value"]
+
+        # Check outer conditional has i % 2 == 0
+        outer_cond = loop["body"]["statements"][0]
+        assert outer_cond["type"] == NodeType.CONDITIONAL_STATEMENT.value
+        assert outer_cond["condition"]["operator"] == "=="
+        assert outer_cond["condition"]["left"]["operator"] == "%"
+
+        # Check inner conditional has i % 3 == 0
+        inner_cond = outer_cond["if_branch"]["statements"][0]
+        assert inner_cond["type"] == NodeType.CONDITIONAL_STATEMENT.value
+        assert inner_cond["condition"]["operator"] == "=="
+        assert inner_cond["condition"]["left"]["operator"] == "%"
+        assert inner_cond["condition"]["left"]["right"]["value"] == 3
+
+    def test_inline_modulo_in_nested_loop_outer(self, parser):
+        """Test: Inline modulo in nested loop outer filter"""
+        code = """
+        val filtered : [_][_]i32 = for i in 1..10 {
+            if i % 2 == 0 {
+                -> for j in 1..5 {
+                    -> i * j
+                }
+            }
+        }
+        """
+        ast = parser.parse(code)
+        decl = ast["statements"][0]
+        outer_loop = decl["value"]
+
+        # Check outer loop conditional
+        cond_stmt = outer_loop["body"]["statements"][0]
+        assert cond_stmt["type"] == NodeType.CONDITIONAL_STATEMENT.value
+        assert cond_stmt["condition"]["operator"] == "=="
+        assert cond_stmt["condition"]["left"]["operator"] == "%"
+
+        # Verify inner loop is in if_branch
+        inner_loop = cond_stmt["if_branch"]["statements"][0]
+        assert inner_loop["type"] == "assign_statement"
+        assert inner_loop["value"]["type"] == NodeType.FOR_IN_LOOP.value
+
+    def test_inline_modulo_in_nested_loop_inner(self, parser):
+        """Test: Inline modulo in nested loop inner filter"""
+        code = """
+        val sparse : [_][_]i32 = for i in 1..5 {
+            -> for j in 1..10 {
+                if j % 2 == 0 {
+                    -> i * j
+                }
+            }
+        }
+        """
+        ast = parser.parse(code)
+        decl = ast["statements"][0]
+        outer_loop = decl["value"]
+
+        # Get inner loop from outer assign statement
+        outer_assign = outer_loop["body"]["statements"][0]
+        inner_loop = outer_assign["value"]
+        assert inner_loop["type"] == NodeType.FOR_IN_LOOP.value
+
+        # Check inner loop conditional
+        cond_stmt = inner_loop["body"]["statements"][0]
+        assert cond_stmt["type"] == NodeType.CONDITIONAL_STATEMENT.value
+        assert cond_stmt["condition"]["operator"] == "=="
+        assert cond_stmt["condition"]["left"]["operator"] == "%"
+        assert cond_stmt["condition"]["left"]["left"]["name"] == "j"
+
+    def test_inline_modulo_with_different_comparisons(self, parser):
+        """Test: Modulo with different comparison operators"""
+        code = """
+        for i in 1..10 {
+            if i % 3 != 0 {
+                print(i)
+            }
+            if i % 5 > 0 {
+                print(i)
+            }
+        }
+        """
+        ast = parser.parse(code)
+        loop = ast["statements"][0]
+
+        # First conditional: i % 3 != 0
+        cond1 = loop["body"]["statements"][0]
+        assert cond1["condition"]["operator"] == "!="
+        assert cond1["condition"]["left"]["operator"] == "%"
+
+        # Second conditional: i % 5 > 0
+        cond2 = loop["body"]["statements"][1]
+        assert cond2["condition"]["operator"] == ">"
+        assert cond2["condition"]["left"]["operator"] == "%"

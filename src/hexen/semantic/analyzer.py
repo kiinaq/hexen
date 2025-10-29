@@ -361,11 +361,12 @@ class SemanticAnalyzer:
         """
         Analyze assign statement - validates context and expression type.
 
-        Assign statements are only valid in expression blocks and assign
-        the expression value to the block's target.
+        Assign statements (-> statements) are valid in:
+        - Expression blocks: regular expression blocks
+        - Loop expression blocks: loop bodies that produce arrays
         """
-        # Check if we're in an expression block context
-        if not self.block_context or self.block_context[-1] != "expression":
+        # Check if we're in an expression block or loop expression context
+        if not self.block_context or self.block_context[-1] not in ("expression", "loop_expression"):
             self._error("'assign' statement only valid in expression blocks", node)
             return
 
@@ -427,16 +428,24 @@ class SemanticAnalyzer:
                 condition,
             )
 
-        # 2. Analyze if branch (inherit context from parent, or default to statement)
-        # If we're in a loop expression, the block_context will be "expression"
-        # and we need to preserve that for nested blocks
+        # 2. Analyze if branch
+        # Conditional branches are analyzed as "statement" blocks unless in loop_expression context
+        # In "expression" context: conditional statement is just control flow (not value-producing)
+        # In "loop_expression" context: conditional can contain -> statements for filtering
         current_context = self.block_context[-1] if self.block_context else "statement"
+
+        # Only inherit context if it's loop_expression (for filtering support)
+        # Regular expression blocks analyze conditionals as statements
+        if current_context == "loop_expression":
+            branch_context = "loop_expression"
+        else:
+            branch_context = "statement"
 
         if_branch = node.get("if_branch")
         if if_branch:
             self.symbol_table.enter_scope()
             try:
-                self._analyze_block(if_branch, node, context=current_context)
+                self._analyze_block(if_branch, node, context=branch_context)
             finally:
                 self.symbol_table.exit_scope()
 
@@ -453,12 +462,12 @@ class SemanticAnalyzer:
                         clause_condition,
                     )
 
-            # Analyze else clause branch (inherit context from parent)
+            # Analyze else clause branch (use same context logic as if branch)
             clause_branch = else_clause.get("branch")
             if clause_branch:
                 self.symbol_table.enter_scope()
                 try:
-                    self._analyze_block(clause_branch, node, context=current_context)
+                    self._analyze_block(clause_branch, node, context=branch_context)
                 finally:
                     self.symbol_table.exit_scope()
 
