@@ -157,13 +157,13 @@ class TestLabelDuplication:
     def test_reuse_label_after_scope_ends(self):
         """Test: Can reuse label after first loop scope ends"""
         code = """
-        loop: for i in 1..5 {
+        'loop for i in 1..5 {
             if i > 3 {
-                break loop
+                break 'loop
             }
         }
-        loop: while true {
-            break loop
+        'loop while true {
+            break 'loop
         }
         """
         errors = parse_and_analyze(code)
@@ -205,10 +205,10 @@ class TestLabelWithBreak:
         """Test: Break to middle label in 3-deep nesting"""
         code = """
         'outer for i in 1..5 {
-            middle: for j in 1..5 {
+            'middle for j in 1..5 {
                 for k in 1..5 {
                     if i * j * k > 50 {
-                        break middle
+                        break 'middle
                     }
                 }
             }
