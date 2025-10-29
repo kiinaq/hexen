@@ -15,9 +15,10 @@ Responsibilities:
 
 from typing import Dict, Optional, Callable, List, Union
 
-from .types import HexenType, ArrayType, RangeType, LoopContext, ComptimeRangeType, Mutability
+from .types import HexenType, ArrayType, RangeType, LoopContext, ComptimeRangeType, ComptimeArrayType, Mutability
 from .symbol_table import SymbolTable, Symbol
 from .comptime import ComptimeAnalyzer
+from .type_util import can_coerce, get_type_name_for_error
 from ..ast_nodes import NodeType
 
 
@@ -457,8 +458,25 @@ class LoopAnalyzer:
             return iterable_type.element_type
 
         if isinstance(iterable_type, ArrayType):
-            # Array slice returns element type
-            return iterable_type.element_type
+            # Array iteration - reduces dimensionality by one
+            if len(iterable_type.dimensions) == 1:
+                # 1D array iteration returns element type: [_]i32 → i32
+                return iterable_type.element_type
+            else:
+                # Multi-dimensional array iteration returns array with one less dimension
+                # Example: [_][_]i32 → [_]i32
+                new_dimensions = iterable_type.dimensions[1:]
+                return ArrayType(iterable_type.element_type, new_dimensions)
+
+        if isinstance(iterable_type, ComptimeArrayType):
+            # Comptime array iteration - reduces dimensionality by one
+            if len(iterable_type.dimensions) == 1:
+                # 1D comptime array iteration returns comptime element type
+                return iterable_type.element_comptime_type
+            else:
+                # Multi-dimensional comptime array iteration returns comptime array with one less dimension
+                new_dimensions = iterable_type.dimensions[1:]
+                return ComptimeArrayType(iterable_type.element_comptime_type, new_dimensions)
 
         if iterable_type == HexenType.COMPTIME_INT:
             # Comptime range (old enum form)
@@ -609,8 +627,17 @@ class LoopAnalyzer:
                                 yield_expr, expected_elem_type
                             )
 
-                            # Type validation happens in _analyze_expression via comptime adaptation
-                            # or explicit type checking for concrete types
+                            # Validate that the yielded value type can coerce to the expected element type
+                            if not can_coerce(value_type, expected_elem_type):
+                                value_type_name = get_type_name_for_error(value_type)
+                                expected_type_name = get_type_name_for_error(expected_elem_type)
+                                self._error(
+                                    f"Type mismatch in loop expression: yielded value has type {value_type_name}, "
+                                    f"but array expects elements of type {expected_type_name}\n"
+                                    f"Help: Loop expression declared as {get_type_name_for_error(expected_type)}, "
+                                    f"so -> statements must yield {expected_type_name} values",
+                                    stmt,
+                                )
 
                     # Skip normal statement analysis for -> statements in expression mode
                     # (we've already analyzed them above with the correct expected type)
