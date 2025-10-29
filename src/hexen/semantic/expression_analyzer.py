@@ -52,6 +52,7 @@ class ExpressionAnalyzer:
         conversion_analyzer,
         comptime_analyzer=None,
         analyze_for_in_loop_callback: Optional[Callable[[Dict, Optional[Union[HexenType, ArrayType]]], Union[HexenType, ArrayType]]] = None,
+        analyze_labeled_expression_callback: Optional[Callable[[Dict, Optional[Union[HexenType, ArrayType]]], Union[HexenType, ArrayType]]] = None,
     ):
         """Initialize with callbacks to main analyzer functionality."""
         self._error = error_callback
@@ -63,6 +64,7 @@ class ExpressionAnalyzer:
         self._conversion_analyzer = conversion_analyzer
         self.comptime_analyzer = comptime_analyzer
         self._analyze_for_in_loop_callback = analyze_for_in_loop_callback
+        self._analyze_labeled_expression_callback = analyze_labeled_expression_callback
 
         # Initialize range analyzer (needed by array analyzer)
         self.range_analyzer = RangeAnalyzer(
@@ -185,6 +187,9 @@ class ExpressionAnalyzer:
                 node,
             )
             return HexenType.UNKNOWN
+        elif expr_type == NodeType.LABELED_STATEMENT.value:
+            # Labeled statements in expression context - extract and analyze inner loop
+            return self._analyze_labeled_expression(node, target_type)
         else:
             self._error(f"Unknown expression type: {expr_type}", node)
             return HexenType.UNKNOWN
@@ -523,6 +528,40 @@ class ExpressionAnalyzer:
             # Fallback error if callback not set
             self._error(
                 "Loop expression analysis not available (internal error)",
+                node,
+            )
+            return HexenType.UNKNOWN
+
+    def _analyze_labeled_expression(
+        self, node: Dict, target_type: Optional[Union[HexenType, ArrayType]] = None
+    ) -> Union[HexenType, ArrayType]:
+        """
+        Analyze labeled statement in expression context.
+
+        Labeled statements can appear in expression contexts when a loop expression
+        needs a label for break/continue control flow. The label registration and
+        loop analysis is delegated to the loop analyzer via callback.
+
+        Structure:
+            {
+                "type": "labeled_statement",
+                "label": "outer",
+                "statement": { ... loop node ... }
+            }
+
+        Args:
+            node: Labeled statement AST node
+            target_type: Expected type annotation for the loop expression
+
+        Returns:
+            Type of the inner loop expression
+        """
+        if self._analyze_labeled_expression_callback:
+            return self._analyze_labeled_expression_callback(node, target_type)
+        else:
+            # Fallback error if callback not set
+            self._error(
+                "Labeled expression analysis not available (internal error)",
                 node,
             )
             return HexenType.UNKNOWN

@@ -56,6 +56,7 @@ class LoopAnalyzer:
         ],
         comptime_analyzer: ComptimeAnalyzer,
         block_context_stack: List[str],
+        parse_type_annotation_callback: Optional[Callable[[Union[str, Dict]], Union[HexenType, ArrayType]]] = None,
     ):
         """
         Initialize loop analyzer with callbacks.
@@ -80,6 +81,7 @@ class LoopAnalyzer:
         self._get_current_function_return_type = get_current_function_return_type_callback
         self.comptime_analyzer = comptime_analyzer
         self.block_context_stack = block_context_stack
+        self._parse_type_annotation = parse_type_annotation_callback
 
     def analyze_for_in_loop(
         self, node: Dict, expected_type: Optional[Union[HexenType, ArrayType]] = None
@@ -326,6 +328,75 @@ class LoopAnalyzer:
             # Remove label from scope
             del self.label_stack[label]
 
+    def analyze_labeled_expression(
+        self, node: Dict, target_type: Optional[Union[HexenType, ArrayType]] = None
+    ) -> Union[HexenType, ArrayType]:
+        """
+        Analyze labeled statement in expression context.
+
+        This is similar to analyze_labeled_statement but:
+        1. Returns a type (for expression context)
+        2. Only allows for-in loops (while loops can't be expressions)
+        3. Passes target_type through to the loop expression
+
+        Args:
+            node: LabeledStatement AST node
+            target_type: Expected type annotation for the loop expression
+
+        Returns:
+            Type of the loop expression
+        """
+        label = node.get("label")
+        statement = node.get("statement")
+        stmt_type = statement.get("type")
+
+        # Validate label is on a loop
+        if stmt_type == NodeType.WHILE_LOOP.value:
+            self._error(
+                "While loops cannot be used in expression context (even with labels)\n"
+                "Help: Use for-in loop for array generation: 'label for i in range { -> value }\n"
+                "Note: While loops are statements only (cannot produce values)",
+                statement,
+            )
+            return HexenType.UNKNOWN
+        elif stmt_type != NodeType.FOR_IN_LOOP.value:
+            self._error(
+                "Labels can only be applied to loops\n"
+                f"  '{label} ...\n"
+                "Help: Remove label or apply to for-in/while loop",
+                node,
+            )
+            return HexenType.UNKNOWN
+
+        # Check for duplicate label
+        if label in self.label_stack:
+            self._error(
+                f"Label '{label}' already defined in this scope\n"
+                "Help: Use different label name for inner loop",
+                node,
+            )
+            return HexenType.UNKNOWN
+
+        # Add label to stack before analyzing loop
+        # (so break/continue inside can reference it)
+        # We create a placeholder loop context - it will be updated by the loop analysis
+        loop_context = LoopContext(
+            loop_type="for-in",
+            label=label,
+            is_expression_mode=True,  # Expression context
+            iterable_type=None,  # Will be set by loop analysis
+            variable_name=None,
+            variable_type=None,
+        )
+        self.label_stack[label] = loop_context
+
+        try:
+            # Analyze the for-in loop as an expression
+            return self.analyze_for_in_loop(statement, target_type)
+        finally:
+            # Remove label from scope
+            del self.label_stack[label]
+
     # Helper methods (to be implemented in Phase 2)
 
     def _infer_loop_variable_type(
@@ -351,14 +422,16 @@ class LoopAnalyzer:
         """
         # If explicit type annotation, validate and use it
         if explicit_type_annotation:
-            # Parse the type annotation
-            from .expression_analyzer import ExpressionAnalyzer
-
-            explicit_type = ExpressionAnalyzer._parse_type_string(
-                explicit_type_annotation
-            )
-            # TODO: Validate compatibility with iterable type
-            return explicit_type
+            # Parse the type annotation using the callback
+            if self._parse_type_annotation:
+                explicit_type = self._parse_type_annotation(explicit_type_annotation)
+                # TODO: Validate compatibility with iterable type
+                return explicit_type
+            else:
+                # Fallback error if callback not set
+                raise RuntimeError(
+                    "Type annotation parsing not available (internal error)"
+                )
 
         # Infer from iterable type
         if isinstance(iterable_type, ComptimeRangeType):

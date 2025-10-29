@@ -160,6 +160,7 @@ class SemanticAnalyzer:
             conversion_analyzer=self.conversion_analyzer,
             comptime_analyzer=self.comptime_analyzer,
             analyze_for_in_loop_callback=self._analyze_for_in_loop_expression,
+            analyze_labeled_expression_callback=self._analyze_labeled_expression,
         )
 
         # Initialize loop analyzer with callbacks
@@ -173,6 +174,7 @@ class SemanticAnalyzer:
             get_current_function_return_type_callback=lambda: self.current_function_return_type,
             comptime_analyzer=self.comptime_analyzer,
             block_context_stack=self.block_context,
+            parse_type_annotation_callback=self.declaration_analyzer._parse_type_annotation,
         )
 
     def analyze(self, ast: Dict) -> List[SemanticError]:
@@ -356,6 +358,21 @@ class SemanticAnalyzer:
             Array type for loop expression
         """
         return self.loop_analyzer.analyze_for_in_loop(node, target_type)
+
+    def _analyze_labeled_expression(
+        self, node: Dict, target_type: Optional[Union[HexenType, ArrayType]] = None
+    ) -> Union[HexenType, ArrayType]:
+        """
+        Analyze labeled statement in expression context by delegating to LoopAnalyzer.
+
+        Args:
+            node: Labeled statement AST node
+            target_type: Expected type annotation (required for loop expressions)
+
+        Returns:
+            Array type for labeled loop expression
+        """
+        return self.loop_analyzer.analyze_labeled_expression(node, target_type)
 
     def _analyze_assign_statement(self, node: Dict) -> None:
         """
