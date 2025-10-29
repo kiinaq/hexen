@@ -661,40 +661,64 @@ class HexenTransformer(Transformer):
         }
 
     def break_stmt(self, args):
-        """Transform break statement: BREAK [IDENTIFIER]?"""
-        # Grammar: BREAK IDENTIFIER?
-        # Filter out BREAK keyword token
+        """Transform break statement: BREAK [LABEL]?"""
+        # Grammar: BREAK LABEL?
+        # LABEL is already processed by LABEL() handler and returns string
         from lark import Token
 
+        # Filter out BREAK keyword token, keep label string
         filtered = [arg for arg in args if not isinstance(arg, Token)]
-        label = filtered[0]["name"] if filtered else None
+        label = filtered[0] if filtered else None
         return {
             "type": NodeType.BREAK_STATEMENT.value,
             "label": label,
         }
 
     def continue_stmt(self, args):
-        """Transform continue statement: CONTINUE [IDENTIFIER]?"""
-        # Grammar: CONTINUE IDENTIFIER?
-        # Filter out CONTINUE keyword token
+        """Transform continue statement: CONTINUE [LABEL]?"""
+        # Grammar: CONTINUE LABEL?
+        # LABEL is already processed by LABEL() handler and returns string
         from lark import Token
 
+        # Filter out CONTINUE keyword token, keep label string
         filtered = [arg for arg in args if not isinstance(arg, Token)]
-        label = filtered[0]["name"] if filtered else None
+        label = filtered[0] if filtered else None
         return {
             "type": NodeType.CONTINUE_STATEMENT.value,
             "label": label,
         }
 
     def labeled_stmt(self, args):
-        """Transform labeled statement: IDENTIFIER ":" statement"""
-        # Grammar: IDENTIFIER ":" statement
-        # Colon is consumed, so args = [label_name, statement]
+        """Transform labeled statement: LABEL statement"""
+        # Grammar: LABEL statement
+        # LABEL is already processed by LABEL() handler and returns string
         label_name, statement = args
         return {
             "type": NodeType.LABELED_STATEMENT.value,
-            "label": label_name["name"],
+            "label": label_name,
             "statement": statement,
+        }
+
+    def labeled_for_expr(self, args):
+        """Transform labeled for expression: LABEL for_in_loop"""
+        # Grammar: LABEL for_in_loop
+        # Used in expression contexts: val x = 'outer for i in ...
+        label_name, for_loop = args
+        return {
+            "type": NodeType.LABELED_STATEMENT.value,
+            "label": label_name,
+            "statement": for_loop,
+        }
+
+    def labeled_while_expr(self, args):
+        """Transform labeled while expression: LABEL while_loop"""
+        # Grammar: LABEL while_loop
+        # Used in expression contexts: val x = 'outer while ...
+        label_name, while_loop = args
+        return {
+            "type": NodeType.LABELED_STATEMENT.value,
+            "label": label_name,
+            "statement": while_loop,
         }
 
     def type(self, children):
@@ -762,6 +786,14 @@ class HexenTransformer(Transformer):
         # Parse identifiers: myVar -> {type: "identifier", name: "myVar"}
         # Used for variable names and references
         return {"type": NodeType.IDENTIFIER.value, "name": str(token)}
+
+    def LABEL(self, token):
+        """Parse label token: 'outer -> 'outer' (returns just the label name)"""
+        # Strip the leading apostrophe and return just the label name
+        label_str = str(token)
+        if label_str.startswith("'"):
+            label_str = label_str[1:]
+        return label_str
 
     def NUMBER(self, token):
         """Enhanced number parser supporting all literal formats with overflow detection"""

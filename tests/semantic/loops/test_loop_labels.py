@@ -28,7 +28,7 @@ class TestLabelBasics:
     def test_label_on_for_in_loop(self):
         """Test: Label on for-in loop"""
         code = """
-        outer: for i in 1..10 {
+        'outer for i in 1..10 {
             val x : i32 = i
         }
         """
@@ -38,8 +38,8 @@ class TestLabelBasics:
     def test_label_on_while_loop(self):
         """Test: Label on while loop"""
         code = """
-        outer: while true {
-            break outer
+        'outer while true {
+            break 'outer
         }
         """
         errors = parse_and_analyze(code)
@@ -48,7 +48,7 @@ class TestLabelBasics:
     def test_label_on_non_loop_error(self):
         """Test: Label on non-loop statement is error"""
         code = """
-        mylabel: val x : i32 = 42
+        'mylabel val x : i32 = 42
         """
         errors = parse_and_analyze(code)
         assert len(errors) > 0
@@ -57,7 +57,7 @@ class TestLabelBasics:
     def test_label_on_conditional_error(self):
         """Test: Label on conditional is error"""
         code = """
-        mylabel: if true {
+        'mylabel if true {
             val x : i32 = 42
         }
         """
@@ -72,9 +72,9 @@ class TestLabelScope:
     def test_label_visible_in_loop_body(self):
         """Test: Label available for break/continue inside loop"""
         code = """
-        outer: for i in 1..10 {
+        'outer for i in 1..10 {
             if i > 5 {
-                break outer
+                break 'outer
             }
         }
         """
@@ -84,10 +84,10 @@ class TestLabelScope:
     def test_label_scope_ends_after_loop(self):
         """Test: Label goes out of scope after loop"""
         code = """
-        outer: for i in 1..10 {
-            break outer
+        'outer for i in 1..10 {
+            break 'outer
         }
-        break outer
+        break 'outer
         """
         errors = parse_and_analyze(code)
         # Should have 2 errors: label not found + break outside loop
@@ -96,10 +96,10 @@ class TestLabelScope:
     def test_label_visible_in_nested_loops(self):
         """Test: Outer label visible in nested loop"""
         code = """
-        outer: for i in 1..10 {
+        'outer for i in 1..10 {
             for j in 1..10 {
                 if i * j > 50 {
-                    break outer
+                    break 'outer
                 }
             }
         }
@@ -110,13 +110,13 @@ class TestLabelScope:
     def test_multiple_labels_nested(self):
         """Test: Multiple labels in nested loops"""
         code = """
-        outer: for i in 1..10 {
-            inner: for j in 1..10 {
+        'outer for i in 1..10 {
+            'inner for j in 1..10 {
                 if i > 5 {
-                    break outer
+                    break 'outer
                 }
                 if j > 5 {
-                    break inner
+                    break 'inner
                 }
             }
         }
@@ -131,9 +131,9 @@ class TestLabelDuplication:
     def test_duplicate_label_error(self):
         """Test: Duplicate labels in nested loops"""
         code = """
-        outer: for i in 1..10 {
-            outer: for j in 1..10 {
-                break outer
+        'outer for i in 1..10 {
+            'outer for j in 1..10 {
+                break 'outer
             }
         }
         """
@@ -144,10 +144,10 @@ class TestLabelDuplication:
     def test_reuse_label_in_sibling_loops(self):
         """Test: Reusing label in sibling loops is OK"""
         code = """
-        outer: for i in 1..10 {
+        'outer for i in 1..10 {
             val x : i32 = i
         }
-        outer: for i in 1..10 {
+        'outer for i in 1..10 {
             val y : i32 = i
         }
         """
@@ -176,10 +176,10 @@ class TestLabelWithBreak:
     def test_break_with_label(self):
         """Test: Break with label"""
         code = """
-        outer: for i in 1..10 {
+        'outer for i in 1..10 {
             for j in 1..10 {
                 if i * j > 50 {
-                    break outer
+                    break 'outer
                 }
             }
         }
@@ -190,7 +190,7 @@ class TestLabelWithBreak:
     def test_break_without_label(self):
         """Test: Break without label (breaks innermost)"""
         code = """
-        outer: for i in 1..10 {
+        'outer for i in 1..10 {
             for j in 1..10 {
                 if j > 5 {
                     break
@@ -204,7 +204,7 @@ class TestLabelWithBreak:
     def test_break_to_middle_label(self):
         """Test: Break to middle label in 3-deep nesting"""
         code = """
-        outer: for i in 1..5 {
+        'outer for i in 1..5 {
             middle: for j in 1..5 {
                 for k in 1..5 {
                     if i * j * k > 50 {
@@ -224,10 +224,10 @@ class TestLabelWithContinue:
     def test_continue_with_label(self):
         """Test: Continue with label"""
         code = """
-        outer: for i in 1..10 {
+        'outer for i in 1..10 {
             for j in 1..10 {
                 if j > 5 {
-                    continue outer
+                    continue 'outer
                 }
             }
         }
@@ -238,7 +238,7 @@ class TestLabelWithContinue:
     def test_continue_without_label(self):
         """Test: Continue without label (continues innermost)"""
         code = """
-        outer: for i in 1..10 {
+        'outer for i in 1..10 {
             for j in 1..10 {
                 if j % 2 == 0 {
                     continue
@@ -254,12 +254,12 @@ class TestLabelWithContinue:
     def test_labeled_continue_in_while(self):
         """Test: Labeled continue in while loop"""
         code = """
-        outer: while true {
+        'outer while true {
             mut i : i32 = 0
             while i < 10 {
                 i = i + 1
                 if i > 5 {
-                    continue outer
+                    continue 'outer
                 }
             }
             break
@@ -275,10 +275,10 @@ class TestLabelWithLoopExpressions:
     def test_label_on_loop_expression(self):
         """Test: Label on loop expression"""
         code = """
-        val matrix : [_][_]i32 = outer: for i in 1..10 {
+        val matrix : [_][_]i32 = 'outer for i in 1..10 {
             -> for j in 1..10 {
                 if i * j > 50 {
-                    break outer
+                    break 'outer
                 }
                 -> i * j
             }
@@ -290,13 +290,13 @@ class TestLabelWithLoopExpressions:
     def test_label_on_nested_loop_expressions(self):
         """Test: Labels on both nested loop expressions"""
         code = """
-        val matrix : [_][_]i32 = outer: for i in 1..10 {
-            -> inner: for j in 1..10 {
+        val matrix : [_][_]i32 = 'outer for i in 1..10 {
+            -> 'inner for j in 1..10 {
                 if i * j > 50 {
-                    break outer
+                    break 'outer
                 }
                 if j > 8 {
-                    break inner
+                    break 'inner
                 }
                 -> i * j
             }
@@ -308,13 +308,13 @@ class TestLabelWithLoopExpressions:
     def test_break_to_outer_expression_from_inner(self):
         """Test: Break from inner loop expression to outer label"""
         code = """
-        val partial : [_][_]i32 = outer: for i in 1..5 {
+        val partial : [_][_]i32 = 'outer for i in 1..5 {
             if i > 3 {
-                break outer
+                break 'outer
             }
             -> for j in 1..5 {
                 if i * j > 10 {
-                    break outer
+                    break 'outer
                 }
                 -> i + j
             }
@@ -331,9 +331,9 @@ class TestLabelEdgeCases:
         """Test: Label can have same name as variable (different namespaces)"""
         code = """
         val outer : i32 = 5
-        outer: for i in 1..10 {
+        'outer for i in 1..10 {
             if i > outer {
-                break outer
+                break 'outer
             }
         }
         """
@@ -350,14 +350,14 @@ class TestLabelEdgeCases:
     def test_label_with_special_names(self):
         """Test: Labels with various naming patterns"""
         code = """
-        loop1: for i in 1..5 {
-            break loop1
+        'loop1 for i in 1..5 {
+            break 'loop1
         }
-        my_loop: for j in 1..5 {
-            break my_loop
+        'my_loop for j in 1..5 {
+            break 'my_loop
         }
-        OUTER: for k in 1..5 {
-            break OUTER
+        'OUTER for k in 1..5 {
+            break 'OUTER
         }
         """
         errors = parse_and_analyze(code)

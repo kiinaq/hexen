@@ -200,10 +200,10 @@ class TestLabeledBreak:
     def test_labeled_break_to_outer_loop(self):
         """Test: Labeled break to outer loop"""
         code = """
-        outer: for i in 1..10 {
+        'outer for i in 1..10 {
             for j in 1..10 {
                 if i * j > 50 {
-                    break outer
+                    break 'outer
                 }
             }
         }
@@ -215,7 +215,7 @@ class TestLabeledBreak:
         """Test: break to undefined label is error"""
         code = """
         for i in 1..10 {
-            break nonexistent
+            break 'nonexistent
         }
         """
         errors = parse_and_analyze(code)
@@ -225,11 +225,11 @@ class TestLabeledBreak:
     def test_break_to_out_of_scope_label(self):
         """Test: break to label outside scope is error"""
         code = """
-        outer: for i in 1..5 {
+        'outer for i in 1..5 {
             val x : i32 = i
         }
         for j in 1..5 {
-            break outer
+            break 'outer
         }
         """
         errors = parse_and_analyze(code)
@@ -243,10 +243,10 @@ class TestLabeledContinue:
     def test_labeled_continue_to_outer_loop(self):
         """Test: Labeled continue to outer loop"""
         code = """
-        outer: for i in 1..10 {
+        'outer for i in 1..10 {
             for j in 1..10 {
                 if j > 5 {
-                    continue outer
+                    continue 'outer
                 }
             }
         }
@@ -258,7 +258,7 @@ class TestLabeledContinue:
         """Test: continue to undefined label is error"""
         code = """
         for i in 1..10 {
-            continue nonexistent
+            continue 'nonexistent
         }
         """
         errors = parse_and_analyze(code)
@@ -268,12 +268,12 @@ class TestLabeledContinue:
     def test_labeled_continue_with_while(self):
         """Test: Labeled continue with while loop"""
         code = """
-        outer: while true {
+        'outer while true {
             mut i : i32 = 0
             while i < 10 {
                 i = i + 1
                 if i > 5 {
-                    continue outer
+                    continue 'outer
                 }
             }
             break
@@ -306,13 +306,13 @@ class TestBreakContinueCombinations:
     def test_labeled_break_continue_nested(self):
         """Test: Labeled break and continue in nested loops"""
         code = """
-        outer: for i in 1..10 {
-            inner: for j in 1..10 {
+        'outer for i in 1..10 {
+            'inner for j in 1..10 {
                 if i * j > 60 {
-                    break outer
+                    break 'outer
                 }
                 if j % 2 == 0 {
-                    continue inner
+                    continue 'inner
                 }
                 val product : i32 = i * j
             }
@@ -371,10 +371,10 @@ class TestControlFlowWithLoopExpressions:
     def test_labeled_break_in_nested_expression(self):
         """Test: Labeled break across nested loop expressions"""
         code = """
-        val partial : [_][_]i32 = outer: for i in 1..10 {
+        val partial : [_][_]i32 = 'outer for i in 1..10 {
             -> for j in 1..10 {
                 if i * j > 50 {
-                    break outer
+                    break 'outer
                 }
                 -> i * j
             }

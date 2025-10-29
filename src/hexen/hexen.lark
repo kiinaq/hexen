@@ -51,11 +51,11 @@ for_in_loop: FOR IDENTIFIER (":" type)? IN expression block
 
 while_loop: WHILE expression block
 
-break_stmt: BREAK IDENTIFIER?
+break_stmt: BREAK LABEL?
 
-continue_stmt: CONTINUE IDENTIFIER?
+continue_stmt: CONTINUE LABEL?
 
-labeled_stmt: IDENTIFIER ":" statement
+labeled_stmt: LABEL statement
 
 expression: logical_or
 
@@ -73,7 +73,11 @@ unary: UNARY_OP unary
      | conversion
 conversion: postfix (CONVERSION_OP type)?
 postfix: primary (array_suffix | property_access)*
-primary: NUMBER | STRING | BOOLEAN | function_call | IDENTIFIER | block | conditional_stmt | for_in_loop | array_literal | "(" expression ")"
+primary: NUMBER | STRING | BOOLEAN | function_call | IDENTIFIER | block | conditional_stmt | labeled_for_expr | for_in_loop | labeled_while_expr | while_loop | array_literal | "(" expression ")"
+
+// Labeled loop expressions (for use in expression contexts)
+labeled_for_expr: LABEL for_in_loop
+labeled_while_expr: LABEL while_loop
 
 // Range expressions (between relational and additive precedence)
 range_bounded: additive RANGE_EXCLUSIVE additive (":" additive)?
@@ -144,6 +148,7 @@ CONTINUE: /continue\b/
 IN: /in\b/
 
 // Terminals
+LABEL: /'[a-zA-Z_][a-zA-Z0-9_]*/
 IDENTIFIER: /(?!val\b|mut\b|func\b|return\b|true\b|false\b|if\b|else\b|for\b|while\b|break\b|continue\b|in\b)[a-zA-Z_][a-zA-Z0-9_]*/
 NUMBER: SIGN? (SCIENTIFIC | HEXADECIMAL | BINARY | DECIMAL | INTEGER)
 STRING: /\"[^\"]*\"/

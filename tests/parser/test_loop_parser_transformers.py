@@ -177,10 +177,10 @@ class TestBreakContinueTransformer:
         assert break_stmt["label"] is None
 
     def test_labeled_break(self, parser):
-        """Test: break outer"""
+        """Test: break 'outer"""
         code = """
         for i in 1..10 {
-            break outer
+            break 'outer
         }
         """
         ast = parser.parse(code)
@@ -205,10 +205,10 @@ class TestBreakContinueTransformer:
         assert continue_stmt["label"] is None
 
     def test_labeled_continue(self, parser):
-        """Test: continue outer"""
+        """Test: continue 'outer"""
         code = """
         for i in 1..10 {
-            continue outer
+            continue 'outer
         }
         """
         ast = parser.parse(code)
@@ -223,9 +223,9 @@ class TestLabeledStatementTransformer:
     """Test labeled statement transformer"""
 
     def test_labeled_for_in(self, parser):
-        """Test: outer: for i in 1..10 { }"""
+        """Test: 'outer for i in 1..10 { }"""
         code = """
-        outer: for i in 1..10 {
+        'outer for i in 1..10 {
         }
         """
         ast = parser.parse(code)
@@ -240,9 +240,9 @@ class TestLabeledStatementTransformer:
         assert loop["variable"] == "i"
 
     def test_labeled_while(self, parser):
-        """Test: outer: while condition { }"""
+        """Test: 'outer while condition { }"""
         code = """
-        outer: while true {
+        'outer while true {
         }
         """
         ast = parser.parse(code)
@@ -256,10 +256,10 @@ class TestLabeledStatementTransformer:
         assert loop["type"] == NodeType.WHILE_LOOP.value
 
     def test_nested_labeled_loops(self, parser):
-        """Test: outer: for { inner: for { } }"""
+        """Test: 'outer for { 'inner for { } }"""
         code = """
-        outer: for i in 1..10 {
-            inner: for j in 1..10 {
+        'outer for i in 1..10 {
+            'inner for j in 1..10 {
             }
         }
         """
@@ -323,11 +323,11 @@ class TestComplexLoopPatterns:
         assert len(loop["body"]["statements"]) == 2
 
     def test_labeled_break_in_nested(self, parser):
-        """Test: break outer from inner loop"""
+        """Test: break 'outer from inner loop"""
         code = """
-        outer: for i in 1..10 {
-            inner: for j in 1..10 {
-                break outer
+        'outer for i in 1..10 {
+            'inner for j in 1..10 {
+                break 'outer
             }
         }
         """

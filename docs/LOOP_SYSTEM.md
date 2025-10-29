@@ -798,10 +798,10 @@ Note: continue can only be used inside for-in or while loops
 
 ```hexen
 // Label before loop
-outer: for i in 1..10 {
-    inner: for j in 1..10 {
+'outer for i in 1..10 {
+    'inner for j in 1..10 {
         if i * j > 50 {
-            break outer             // Break outer loop
+            break 'outer             // Break outer loop
         }
         print(i, j)
     }
@@ -809,7 +809,7 @@ outer: for i in 1..10 {
 ```
 
 **Syntax rules:**
-- Labels are identifiers followed by `:`
+- Labels are identifiers starting with `'`
 - Labels must immediately precede a loop (`for` or `while`)
 - Labels can be referenced by `break` or `continue` statements
 
@@ -819,28 +819,28 @@ outer: for i in 1..10 {
 
 ```hexen
 // Break while from inside for-in
-outer: while condition {
-    inner: for i in 1..10 {
+'outer while condition {
+    'inner for i in 1..10 {
         if i > 5 {
-            break outer             // ✅ Break the outer while loop
+            break 'outer             // ✅ Break the outer while loop
         }
     }
 }
 
 // Break for-in from inside while
-outer: for i in 1..10 {
-    inner: while condition {
+'outer for i in 1..10 {
+    'inner while condition {
         if should_exit {
-            break outer             // ✅ Break the outer for loop
+            break 'outer             // ✅ Break the outer for loop
         }
     }
 }
 
 // Continue outer loop from nested loop
-outer: for i in 1..10 {
-    inner: for j in 1..10 {
+'outer for i in 1..10 {
+    'inner for j in 1..10 {
         if j > 5 {
-            continue outer          // ✅ Continue outer for loop
+            continue 'outer          // ✅ Continue outer for loop
         }
         print(i, j)
     }
@@ -853,26 +853,26 @@ outer: for i in 1..10 {
 
 ```hexen
 // Break outer loop
-outer: for i in 1..10 {
-    inner: for j in 1..10 {
+'outer for i in 1..10 {
+    'inner for j in 1..10 {
         if i * j > 50 {
-            break outer             // Exit outer loop
+            break 'outer             // Exit outer loop
         }
         print(i, j)
     }
-    print("After inner")            // Never executes after break outer
+    print("After inner")            // Never executes after break 'outer
 }
-print("After outer")                // Executes after break outer
+print("After outer")                // Executes after break 'outer
 
 // Continue outer loop
-outer: for i in 1..10 {
-    inner: for j in 1..10 {
+'outer for i in 1..10 {
+    'inner for j in 1..10 {
         if j > 5 {
-            continue outer          // Skip to next i
+            continue 'outer          // Skip to next i
         }
         print(i, j)
     }
-    print("After inner")            // Never executes after continue outer
+    print("After inner")            // Never executes after continue 'outer
 }
 ```
 
@@ -882,11 +882,11 @@ outer: for i in 1..10 {
 
 ```hexen
 // Label on outer statement loop
-outer: for i in 1..10 {
+'outer for i in 1..10 {
     // Label on inner expression loop
-    val inner_data : [_]i32 = inner: for j in 1..10 {
+    val inner_data : [_]i32 = 'inner for j in 1..10 {
         if i * j > 50 {
-            break outer             // ✅ Break outer loop, stop all
+            break 'outer             // ✅ Break outer loop, stop all
         }
         -> j
     }
@@ -894,9 +894,9 @@ outer: for i in 1..10 {
 }
 
 // Label on expression loop with early termination
-val result : [_]i32 = labeled: for i in 1..100 {
+val result : [_]i32 = 'labeled for i in 1..100 {
     if i > 50 {
-        break labeled               // ✅ Early termination (returns partial array)
+        break 'labeled               // ✅ Early termination (returns partial array)
     }
     -> i * i
 }
@@ -909,17 +909,17 @@ val result : [_]i32 = labeled: for i in 1..100 {
 
 ```hexen
 // Complex nested loop with labels
-outer: for i in 1..10 {
+'outer for i in 1..10 {
     middle: for j in 1..10 {
-        inner: for k in 1..10 {
+        'inner for k in 1..10 {
             if i + j + k > 20 {
-                break outer         // Exit all loops
+                break 'outer         // Exit all loops
             }
             if j * k > 25 {
                 continue middle     // Skip to next j
             }
             if k > 5 {
-                continue inner      // Skip to next k (same as continue)
+                continue 'inner      // Skip to next k (same as continue)
             }
             print(i, j, k)
         }
@@ -933,28 +933,28 @@ outer: for i in 1..10 {
 // ❌ Label not defined
 for i in 1..10 {
     if i > 5 {
-        break nonexistent           // ❌ Error: label 'nonexistent' not found
+        break 'nonexistent           // ❌ Error: label 'nonexistent' not found
     }
 }
 
 // ❌ Label on non-loop construct
-mylabel: val x : i32 = 42           // ❌ Error: labels only on loops
+'mylabel val x : i32 = 42           // ❌ Error: labels only on loops
 for i in 1..10 {
-    break mylabel
+    break 'mylabel
 }
 
 // ❌ Label shadowing (same label on nested loops)
-outer: for i in 1..10 {
-    outer: for j in 1..10 {         // ❌ Error: label 'outer' already defined
-        break outer
+'outer for i in 1..10 {
+    'outer for j in 1..10 {         // ❌ Error: label 'outer' already defined
+        break 'outer
     }
 }
 
 // ✅ Reusing label in sibling loops (OK - different scopes)
-outer: for i in 1..10 {
+'outer for i in 1..10 {
     // First use of 'outer'
 }
-outer: for i in 1..10 {             // ✅ OK: previous label out of scope
+'outer for i in 1..10 {             // ✅ OK: previous label out of scope
     // Second use of 'outer'
 }
 ```
@@ -963,20 +963,20 @@ outer: for i in 1..10 {             // ✅ OK: previous label out of scope
 
 ```
 Error: Label 'nonexistent' not found
-  break nonexistent
+  break 'nonexistent
         ^^^^^^^^^^^
 Note: Labels must be defined on enclosing loops
 
 Error: Labels can only be applied to loops
-  mylabel: val x : i32 = 42
+  'mylabel val x : i32 = 42
   ^^^^^^^^
 Help: Remove label or apply to for-in/while loop
 
 Error: Label 'outer' already defined in this scope
-  outer: for j in 1..10 {
+  'outer for j in 1..10 {
   ^^^^^
 Note: Previous definition:
-      outer: for i in 1..10 {
+      'outer for i in 1..10 {
       ^^^^^
 Help: Use different label name for inner loop
 ```
@@ -1516,10 +1516,10 @@ val partial_matrix : [_][_]i32 = for i in 1..10 {
 #### Break Outer From Inner (With Labels!)
 
 ```hexen
-val early_exit : [_][_]i32 = outer: for i in 1..10 {
+val early_exit : [_][_]i32 = 'outer for i in 1..10 {
     -> for j in 1..10 {
         if i * j > 20 {
-            break outer             // Stop entire matrix generation!
+            break 'outer             // Stop entire matrix generation!
         }
         -> i * j
     }
@@ -1533,13 +1533,13 @@ val early_exit : [_][_]i32 = outer: for i in 1..10 {
 **Better approach: ensure uniform break**
 
 ```hexen
-val uniform_exit : [_][_]i32 = outer: for i in 1..10 {
-    -> inner: for j in 1..10 {
+val uniform_exit : [_][_]i32 = 'outer for i in 1..10 {
+    -> 'inner for j in 1..10 {
         if i * j > 20 {
             if j == 1 {
-                break outer         // Break outer if first element exceeds
+                break 'outer         // Break outer if first element exceeds
             } else {
-                break inner         // Otherwise just break inner (partial row)
+                break 'inner         // Otherwise just break 'inner (partial row)
             }
         }
         -> i * j
@@ -1877,30 +1877,30 @@ val first_ten_evens : [_]i32 = {
 
 ```hexen
 // Break outer loop from inner
-outer: for i in 1..10 {
-    inner: for j in 1..10 {
+'outer for i in 1..10 {
+    'inner for j in 1..10 {
         if i * j > 50 {
-            break outer             // Exit both loops
+            break 'outer             // Exit both loops
         }
         print(i, j)
     }
 }
 
 // Continue outer loop from inner
-outer: for i in 1..10 {
-    inner: for j in 1..10 {
+'outer for i in 1..10 {
+    'inner for j in 1..10 {
         if j > 5 {
-            continue outer          // Skip to next i
+            continue 'outer          // Skip to next i
         }
         print(i, j)
     }
 }
 
 // Generate nested array with early termination
-val matrix : [_][_]i32 = outer: for i in 1..10 {
-    val row : [_]i32 = inner: for j in 1..10 {
+val matrix : [_][_]i32 = 'outer for i in 1..10 {
+    val row : [_]i32 = 'inner for j in 1..10 {
         if i + j > 15 {
-            break outer             // Stop all generation
+            break 'outer             // Stop all generation
         }
         -> i * j
     }
@@ -2155,12 +2155,12 @@ val result : [_]i32 = {
 
 ```hexen
 // Option A: Simple identifier (Hexen choice)
-outer: for i in 1..10 {
-    break outer
+'outer for i in 1..10 {
+    break 'outer
 }
 
 // Option B: Tick-prefixed (Rust style)
-'outer: for i in 1..10 {
+''outer for i in 1..10 {
     break 'outer
 }
 ```
@@ -2183,15 +2183,15 @@ outer: for i in 1..10 {
 
 ```hexen
 // Label flexibility (any combination works)
-outer: while condition1 {
-    inner: for i in 1..10 {
-        break outer                 // ✅ Works across types
+'outer while condition1 {
+    'inner for i in 1..10 {
+        break 'outer                 // ✅ Works across types
     }
 }
 
-outer: for i in 1..10 {
-    inner: while condition2 {
-        continue outer              // ✅ Works across types
+'outer for i in 1..10 {
+    'inner while condition2 {
+        continue 'outer              // ✅ Works across types
     }
 }
 ```
