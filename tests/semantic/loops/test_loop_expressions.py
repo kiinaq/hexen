@@ -379,7 +379,7 @@ class TestLoopExpressionRangeRestrictions:
             if i > 100 {
                 break
             }
-            print(i)
+            val x : i32 = i
         }
         """
         errors = parse_and_analyze(code)
