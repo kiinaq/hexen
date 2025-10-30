@@ -147,7 +147,7 @@ class ExpressionAnalyzer:
             return self._analyze_identifier(node)
         elif expr_type == NodeType.BLOCK.value:
             # Expression blocks - delegate to block analyzer
-            return self._analyze_block(node, node, context="expression")
+            return self._analyze_block(node, node, context="expression", target_type=target_type)
         elif expr_type == NodeType.BINARY_OPERATION.value:
             # Binary operations - delegate to binary ops analyzer
             return self._analyze_binary_operation(node, target_type)
@@ -417,8 +417,9 @@ class ExpressionAnalyzer:
         # Always use standard block analysis to ensure ALL statements are validated
         # This includes control flow statements (break, continue, return) that may
         # appear before the final -> or return statement
+        # Pass target_type to enable type context propagation for conditional branches
         block_type = self._analyze_block(
-            branch_node, conditional_node, context="expression"
+            branch_node, conditional_node, context="expression", target_type=target_type
         )
         return block_type
 

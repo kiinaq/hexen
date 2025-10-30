@@ -67,7 +67,7 @@ class BlockAnalyzer:
         self.comptime_analyzer = ComptimeAnalyzer(symbol_table)
 
     def analyze_block(
-        self, body: Dict, node: Dict, context: str = None
+        self, body: Dict, node: Dict, context: str = None, target_type: Optional[HexenType] = None
     ) -> Optional[HexenType]:
         """
         Unified block analysis implementing UNIFIED_BLOCK_SYSTEM.md principles.
@@ -106,7 +106,7 @@ class BlockAnalyzer:
 
         try:
             statements = body.get("statements", [])
-            return self._analyze_statements_with_context(statements, context, node)
+            return self._analyze_statements_with_context(statements, context, node, target_type)
         finally:
             # Universal scope cleanup (UNIFIED_BLOCK_SYSTEM.md principle)
             # ALL blocks clean up their own scope regardless of context
@@ -119,7 +119,7 @@ class BlockAnalyzer:
                 self.block_context_stack.pop()
 
     def _analyze_statements_with_context(
-        self, statements: List[Dict], context: str, node: Dict
+        self, statements: List[Dict], context: str, node: Dict, target_type: Optional[HexenType] = None
     ) -> Optional[HexenType]:
         """
         Analyze statements with context-specific assign/return validation.
@@ -185,6 +185,12 @@ class BlockAnalyzer:
                 # (will be validated by return_analyzer)
 
             # Delegate to main analyzer for statement analysis
+            # IMPORTANT: Skip analyzing assign statements in expression blocks
+            # They will be analyzed in _finalize_expression_block with proper type context
+            if is_expression_block and stmt_type == "assign_statement":
+                # Skip analysis - will be done in _finalize_expression_block with target_type
+                continue
+
             self._analyze_statement(stmt)
 
         # Context-specific final validation and type computation
@@ -192,7 +198,7 @@ class BlockAnalyzer:
             # Expression blocks always use explicit type context
             # No evaluability classification needed - all expression blocks require explicit types
             return self._finalize_expression_block(
-                has_assign, has_return, last_statement, node
+                has_assign, has_return, last_statement, node, target_type
             )
 
         if is_loop_expression_block:
@@ -213,6 +219,7 @@ class BlockAnalyzer:
         has_return: bool,
         last_statement: Optional[Dict],
         node: Dict,
+        target_type: Optional[HexenType] = None,
     ) -> HexenType:
         """
         Finalize expression block analysis with explicit type context.
@@ -253,10 +260,11 @@ class BlockAnalyzer:
         if has_assign and last_statement.get("type") == "assign_statement":
             assign_value = last_statement.get("value")
             if assign_value:
-                # Use current function return type as context for expression analysis
+                # Use provided target_type (from conditional) or fall back to function return type
                 # This implements context-guided type resolution for comptime types
+                context_type = target_type if target_type else self._get_current_function_return_type()
                 return self._analyze_expression(
-                    assign_value, self._get_current_function_return_type()
+                    assign_value, context_type
                 )
             else:
                 self._error("'assign' statement requires an expression", last_statement)

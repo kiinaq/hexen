@@ -245,7 +245,7 @@ class SemanticAnalyzer:
         self.declaration_analyzer.analyze_declaration(node)
 
     def _analyze_block(
-        self, body: Dict, node: Dict, context: str = None
+        self, body: Dict, node: Dict, context: str = None, target_type: Optional[HexenType] = None
     ) -> Optional[HexenType]:
         """
         Unified block analysis - delegates to BlockAnalyzer.
@@ -255,7 +255,7 @@ class SemanticAnalyzer:
         - Context determines return statement rules
         - Expression blocks produce values, statement blocks execute code
         """
-        return self.block_analyzer.analyze_block(body, node, context)
+        return self.block_analyzer.analyze_block(body, node, context, target_type)
 
     def _analyze_statement(self, node: Dict):
         """
