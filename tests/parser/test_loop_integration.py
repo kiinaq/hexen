@@ -182,10 +182,10 @@ class TestComplexControlFlow:
     def test_labeled_break_from_inner_to_outer(self, parser):
         """Test: Break from inner loop to outer loop label"""
         code = """
-        outer: for i in 1..100 {
-            inner: for j in 1..100 {
+        'outer for i in 1..100 {
+            'inner for j in 1..100 {
                 if i * j > 1000 {
-                    break outer
+                    break 'outer
                 }
                 print(i, j)
             }
@@ -199,11 +199,11 @@ class TestComplexControlFlow:
     def test_labeled_continue_to_outer(self, parser):
         """Test: Continue outer loop from inner loop"""
         code = """
-        outer: for i in 1..10 {
+        'outer for i in 1..10 {
             val sum : i32 = 0
-            inner: for j in 1..10 {
+            'inner for j in 1..10 {
                 if sum > 50 {
-                    continue outer
+                    continue 'outer
                 }
                 sum = sum + j
             }
@@ -216,17 +216,17 @@ class TestComplexControlFlow:
     def test_triple_nested_with_multiple_breaks(self, parser):
         """Test: Three levels deep with breaks to different labels"""
         code = """
-        a: for i in 1..10 {
-            b: for j in 1..10 {
-                c: for k in 1..10 {
+        'a for i in 1..10 {
+            'b for j in 1..10 {
+                'c for k in 1..10 {
                     if k > 5 {
-                        break c
+                        break 'c
                     }
                     if j > 7 {
-                        break b
+                        break 'b
                     }
                     if i > 8 {
-                        break a
+                        break 'a
                     }
                     process(i, j, k)
                 }
@@ -240,9 +240,9 @@ class TestComplexControlFlow:
     def test_early_termination_in_expression(self, parser):
         """Test: Early termination in loop expression with break"""
         code = """
-        bounded: val limited : [_]i32 = for i in 1..1000 {
+        'bounded val limited : [_]i32 = for i in 1..1000 {
             if i > 100 {
-                break bounded
+                break 'bounded
             }
             if i % 3 == 0 {
                 -> i
@@ -417,13 +417,13 @@ class TestMixedLoopTypes:
     def test_nested_mixed_loops_with_labels(self, parser):
         """Test: Mixed loop types with labels"""
         code = """
-        outer: while running {
-            inner: for i in 1..100 {
+        'outer while running {
+            'inner for i in 1..100 {
                 if should_exit {
-                    break outer
+                    break 'outer
                 }
                 if should_skip {
-                    continue inner
+                    continue 'inner
                 }
                 work(i)
             }
@@ -532,11 +532,11 @@ class TestEdgeCaseIntegration:
     def test_deeply_nested_with_all_features(self, parser):
         """Test: Deep nesting with labels, breaks, filtering"""
         code = """
-        outer: val complex : [_][_][_]i32 = for i in 1..5 {
+        'outer val complex : [_][_][_]i32 = for i in 1..5 {
             if i % 2 == 0 {
                 -> for j in 1..5 {
                     if j > 3 {
-                        break outer
+                        break 'outer
                     }
                     -> for k in 1..5 {
                         if k == j {
@@ -557,9 +557,9 @@ class TestEdgeCaseIntegration:
     def test_large_range_with_early_exit(self, parser):
         """Test: Large range with early termination"""
         code = """
-        search: val limited : [_]i32 = for i in 1..1000000 {
+        'search val limited : [_]i32 = for i in 1..1000000 {
             if i > 1000 {
-                break search
+                break 'search
             }
             if is_valid(i) {
                 -> i

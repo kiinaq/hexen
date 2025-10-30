@@ -108,10 +108,10 @@ class TestBreakContinueGrammar:
         assert tree is not None
 
     def test_labeled_break(self, grammar):
-        """Test: break outer"""
+        """Test: break 'outer"""
         code = """
         for i in 1..10 {
-            break outer
+            break 'outer
         }
         """
         tree = grammar.parse(code)
@@ -128,10 +128,10 @@ class TestBreakContinueGrammar:
         assert tree is not None
 
     def test_labeled_continue(self, grammar):
-        """Test: continue outer"""
+        """Test: continue 'outer"""
         code = """
         for i in 1..10 {
-            continue outer
+            continue 'outer
         }
         """
         tree = grammar.parse(code)
@@ -142,28 +142,28 @@ class TestLabeledStatementGrammar:
     """Test labeled statement grammar"""
 
     def test_labeled_for_in(self, grammar):
-        """Test: outer: for i in 1..10 { }"""
+        """Test: 'outer for i in 1..10 { }"""
         code = """
-        outer: for i in 1..10 {
+        'outer for i in 1..10 {
         }
         """
         tree = grammar.parse(code)
         assert tree is not None
 
     def test_labeled_while(self, grammar):
-        """Test: outer: while condition { }"""
+        """Test: 'outer while condition { }"""
         code = """
-        outer: while true {
+        'outer while true {
         }
         """
         tree = grammar.parse(code)
         assert tree is not None
 
     def test_nested_labeled_loops(self, grammar):
-        """Test: outer: for { inner: for { } }"""
+        """Test: 'outer for { 'inner for { } }"""
         code = """
-        outer: for i in 1..10 {
-            inner: for j in 1..10 {
+        'outer for i in 1..10 {
+            'inner for j in 1..10 {
             }
         }
         """
@@ -239,11 +239,11 @@ class TestComplexLoopPatterns:
         assert tree is not None
 
     def test_labeled_break_in_nested(self, grammar):
-        """Test: break outer from inner loop"""
+        """Test: break 'outer from inner loop"""
         code = """
-        outer: for i in 1..10 {
-            inner: for j in 1..10 {
-                break outer
+        'outer for i in 1..10 {
+            'inner for j in 1..10 {
+                break 'outer
             }
         }
         """

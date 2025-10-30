@@ -208,8 +208,8 @@ class TestBreakContinueSyntaxErrors:
     def test_break_with_parentheses(self, parser):
         """Test: break(outer)  // Error: no parentheses"""
         code = """
-        outer: for i in 1..10 {
-            break(outer)
+        'outer for i in 1..10 {
+            break('outer)
         }
         """
         with pytest.raises(SyntaxError):
@@ -218,8 +218,8 @@ class TestBreakContinueSyntaxErrors:
     def test_continue_with_parentheses(self, parser):
         """Test: continue(outer)  // Error: no parentheses"""
         code = """
-        outer: for i in 1..10 {
-            continue(outer)
+        'outer for i in 1..10 {
+            continue('outer)
         }
         """
         with pytest.raises(SyntaxError):
@@ -460,8 +460,7 @@ class TestEdgeCaseErrors:
     def test_label_without_statement(self, parser):
         """Test: Label on val declaration - actually valid"""
         code = """
-        outer:
-        val x : i32 = 42
+        'outer val x : i32 = 42
         """
         # Labels can apply to any statement, not just loops
         ast = parser.parse(code)
@@ -470,7 +469,7 @@ class TestEdgeCaseErrors:
     def test_multiple_consecutive_labels(self, parser):
         """Test: Multiple labels on same statement"""
         code = """
-        outer: inner: for i in 1..10 {
+        'outer 'inner for i in 1..10 {
         }
         """
         # This might be valid or invalid depending on grammar design
