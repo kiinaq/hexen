@@ -138,7 +138,21 @@ class LoopAnalyzer:
         if is_expression_mode:
             self._validate_bounded_iterable(iterable_type, node)
 
-        # Step 5: Create loop context and push to stack
+        # Step 5: Calculate expected element type for yield statements
+        # For multidimensional arrays, peel off one dimension for inner loops
+        expected_elem_type = None
+        if is_expression_mode and isinstance(expected_type, ArrayType):
+            if len(expected_type.dimensions) > 1:
+                # Multi-dimensional: [_][_]i32 → inner loop expects [_]i32
+                expected_elem_type = ArrayType(
+                    element_type=expected_type.element_type,
+                    dimensions=expected_type.dimensions[1:],  # Remove first dimension
+                )
+            else:
+                # Single dimension: [_]i32 → inner values expect i32
+                expected_elem_type = expected_type.element_type
+
+        # Step 6: Create loop context and push to stack
         loop_context = LoopContext(
             loop_type="for-in",
             label=None,  # Labels handled by labeled_statement
@@ -146,10 +160,11 @@ class LoopAnalyzer:
             iterable_type=iterable_type,
             variable_name=variable_name,
             variable_type=loop_var_type,
+            expected_element_type=expected_elem_type,  # Store for nested loops
         )
         self.loop_stack.append(loop_context)
 
-        # Step 6: Enter new scope and declare loop variable (immutable!)
+        # Step 7: Enter new scope and declare loop variable (immutable!)
         self.symbol_table.enter_scope()
         loop_var_symbol = Symbol(
             name=variable_name,
@@ -160,17 +175,17 @@ class LoopAnalyzer:
         self.symbol_table.declare_symbol(loop_var_symbol)
 
         try:
-            # Step 7: Analyze loop body
+            # Step 8: Analyze loop body
             body = node.get("body")
             self._analyze_loop_body(body, is_expression_mode, expected_type)
 
-            # Step 8: Validate expression mode requirements
+            # Step 9: Validate expression mode requirements
             if is_expression_mode:
                 return self._validate_loop_expression(body, expected_type, node)
             else:
                 return None
         finally:
-            # Step 9: Cleanup (scope and loop context)
+            # Step 10: Cleanup (scope and loop context)
             self.symbol_table.exit_scope()
             self.loop_stack.pop()
 

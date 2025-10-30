@@ -161,6 +161,7 @@ class SemanticAnalyzer:
             comptime_analyzer=self.comptime_analyzer,
             analyze_for_in_loop_callback=self._analyze_for_in_loop_expression,
             analyze_labeled_expression_callback=self._analyze_labeled_expression,
+            loop_stack=self.loop_stack,
         )
 
         # Initialize loop analyzer with callbacks
@@ -438,10 +439,16 @@ class SemanticAnalyzer:
             self._error("Conditional statement missing condition", node)
             return
 
-        condition_type = self._analyze_expression(condition)
+        condition_type = self._analyze_expression(condition, HexenType.BOOL)
         if condition_type != HexenType.BOOL:
+            # Get type name for error message
+            if isinstance(condition_type, HexenType):
+                type_name = condition_type.name.lower()
+            else:
+                from .type_util import get_type_name_for_error
+                type_name = get_type_name_for_error(condition_type)
             self._error(
-                f"Condition must be of type bool, got {condition_type.name.lower()}",
+                f"Condition must be of type bool, got {type_name}",
                 condition,
             )
 

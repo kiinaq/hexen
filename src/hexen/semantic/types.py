@@ -664,6 +664,7 @@ class LoopContext:
     - Label resolution (break/continue to specific loops)
     - Loop variable scope management
     - Expression mode detection (statement vs expression)
+    - Type context propagation for nested loop expressions
 
     Attributes:
         loop_type: Type of loop ("for-in" or "while")
@@ -672,6 +673,7 @@ class LoopContext:
         iterable_type: Type of iterable (for for-in loops only)
         variable_name: Name of loop variable (for for-in loops only)
         variable_type: Type of loop variable (for for-in loops only)
+        expected_element_type: Expected type for -> statements (for expression mode)
     """
 
     def __init__(
@@ -682,6 +684,7 @@ class LoopContext:
         iterable_type: Optional[Union[HexenType, "ArrayType", "RangeType"]] = None,
         variable_name: Optional[str] = None,
         variable_type: Optional[HexenType] = None,
+        expected_element_type: Optional[Union[HexenType, "ArrayType"]] = None,
     ):
         """
         Create a loop context.
@@ -693,6 +696,7 @@ class LoopContext:
             iterable_type: Type being iterated over (for-in only)
             variable_name: Loop variable name (for-in only)
             variable_type: Loop variable type (for-in only)
+            expected_element_type: Expected type for yield values (expression mode only)
         """
         self.loop_type = loop_type
         self.label = label
@@ -700,6 +704,7 @@ class LoopContext:
         self.iterable_type = iterable_type
         self.variable_name = variable_name
         self.variable_type = variable_type
+        self.expected_element_type = expected_element_type
 
     def __str__(self) -> str:
         """Human-readable representation"""

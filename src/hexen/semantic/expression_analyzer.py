@@ -53,6 +53,7 @@ class ExpressionAnalyzer:
         comptime_analyzer=None,
         analyze_for_in_loop_callback: Optional[Callable[[Dict, Optional[Union[HexenType, ArrayType]]], Union[HexenType, ArrayType]]] = None,
         analyze_labeled_expression_callback: Optional[Callable[[Dict, Optional[Union[HexenType, ArrayType]]], Union[HexenType, ArrayType]]] = None,
+        loop_stack: Optional[List] = None,
     ):
         """Initialize with callbacks to main analyzer functionality."""
         self._error = error_callback
@@ -65,6 +66,7 @@ class ExpressionAnalyzer:
         self.comptime_analyzer = comptime_analyzer
         self._analyze_for_in_loop_callback = analyze_for_in_loop_callback
         self._analyze_labeled_expression_callback = analyze_labeled_expression_callback
+        self._loop_stack = loop_stack if loop_stack is not None else []
 
         # Initialize range analyzer (needed by array analyzer)
         self.range_analyzer = RangeAnalyzer(
@@ -485,17 +487,31 @@ class ExpressionAnalyzer:
         Delegate for-in loop expression analysis to loop analyzer.
 
         Loop expressions must have explicit type annotations (runtime operation).
+        However, when nested inside another loop expression (e.g., inside a conditional),
+        the type context can be inherited from the enclosing loop's expected element type.
+
         Actual analysis is delegated to the main analyzer's loop_analyzer via callback.
 
         Args:
             node: For-in loop AST node
-            target_type: Expected type annotation (required!)
+            target_type: Expected type annotation (may be inherited from enclosing loop)
 
         Returns:
             Array type for loop expression
         """
+        # If no explicit target_type, check if we're inside a loop expression context
+        # and can inherit the expected element type from the enclosing loop
+        effective_target_type = target_type
+        if effective_target_type is None and self._loop_stack:
+            # Check if we're in a loop expression context
+            for loop_ctx in reversed(self._loop_stack):
+                if loop_ctx.is_expression_mode and loop_ctx.expected_element_type is not None:
+                    # Inherit expected element type from enclosing loop
+                    effective_target_type = loop_ctx.expected_element_type
+                    break
+
         if self._analyze_for_in_loop_callback:
-            return self._analyze_for_in_loop_callback(node, target_type)
+            return self._analyze_for_in_loop_callback(node, effective_target_type)
         else:
             # Fallback error if callback not set
             self._error(
